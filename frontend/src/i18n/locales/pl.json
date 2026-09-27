@@ -801,7 +801,11 @@
       "subtitle": "Skonfiguruj sposób wysyłania plików na serwer.",
       "chunkedEnable": "Włącz przesyłanie fragmentaryczne",
       "chunkedEnableHelp": "Wykorzystuje protokół TUS, aby wysyłać duże pliki w wielu mniejszych żądaniach.",
-      "chunkSizeInvalid": "Podaj rozmiar fragmentu od 1 do {max} MiB."
+      "chunkSizeInvalid": "Podaj rozmiar fragmentu od 1 do {max} MiB.",
+      "autoFallback": "Automatyczne przełączenie na fragmenty",
+      "autoFallbackHelp": "Jeśli bezpośrednie przesyłanie się nie powiedzie (reverse proxy odrzucający rozmiar treści), automatycznie przełącza na przesyłanie fragmentaryczne z bezpiecznym rozmiarem, zapamiętanym dla każdego adresu. Idealne, aby lokalnie pozostać w trybie bezpośrednim i przełączać się na fragmenty za serwerem proxy.",
+      "autoFallbackActive": "Zapamiętany rozmiar fragmentu dla tego adresu: {size} MiB.",
+      "autoFallbackReset": "Resetuj (powrót do trybu bezpośredniego)"
     },
     "twoFactor": {
       "title": "Uwierzytelnianie dwuskładnikowe",

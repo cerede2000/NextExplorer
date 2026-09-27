@@ -801,7 +801,11 @@
       "subtitle": "配置文件发送到服务器的方式。",
       "chunkedEnable": "启用分块上传",
       "chunkedEnableHelp": "使用 TUS 通过多个较小的请求发送大文件。",
-      "chunkSizeInvalid": "请输入 1 至 {max} MiB 之间的分块大小。"
+      "chunkSizeInvalid": "请输入 1 至 {max} MiB 之间的分块大小。",
+      "autoFallback": "自动回退到分块上传",
+      "autoFallbackHelp": "如果直接上传失败（反向代理拒绝请求体大小），则自动切换到安全大小的分块上传，并按地址记住此设置。非常适合在本地保持直接上传，而在代理后切换到分块上传。",
+      "autoFallbackActive": "已为此地址记住分块大小：{size} MiB。",
+      "autoFallbackReset": "重置（恢复直接上传）"
     },
     "twoFactor": {
       "title": "两步验证",

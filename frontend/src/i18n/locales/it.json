@@ -801,7 +801,11 @@
       "subtitle": "Configura come i file vengono inviati al server.",
       "chunkedEnable": "Abilita caricamenti a blocchi",
       "chunkedEnableHelp": "Usa TUS per inviare file di grandi dimensioni tramite più richieste più piccole.",
-      "chunkSizeInvalid": "Inserisci una dimensione dei blocchi da 1 a {max} MiB."
+      "chunkSizeInvalid": "Inserisci una dimensione dei blocchi da 1 a {max} MiB.",
+      "autoFallback": "Passaggio automatico ai blocchi",
+      "autoFallbackHelp": "Se un caricamento diretto non riesce (un reverse proxy che rifiuta la dimensione del corpo), passa automaticamente ai caricamenti a blocchi con una dimensione sicura, memorizzata per indirizzo. Ideale per restare in modalità diretta in locale e passare ai blocchi dietro il proxy.",
+      "autoFallbackActive": "Dimensione dei blocchi memorizzata per questo indirizzo: {size} MiB.",
+      "autoFallbackReset": "Reimposta (torna a diretto)"
     },
     "twoFactor": {
       "title": "Autenticazione a due fattori",

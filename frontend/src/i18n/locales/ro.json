@@ -801,7 +801,11 @@
       "subtitle": "Configurează modul în care fișierele sunt trimise către server.",
       "chunkedEnable": "Activează încărcările fragmentate",
       "chunkedEnableHelp": "Folosește TUS pentru a trimite fișierele mari prin mai multe cereri mai mici.",
-      "chunkSizeInvalid": "Introduceți o dimensiune a fragmentelor între 1 și {max} MiB."
+      "chunkSizeInvalid": "Introduceți o dimensiune a fragmentelor între 1 și {max} MiB.",
+      "autoFallback": "Comutare automată la fragmentare",
+      "autoFallbackHelp": "Dacă o încărcare directă eșuează (un reverse proxy care respinge dimensiunea corpului), comută automat la încărcări fragmentate cu o dimensiune sigură, memorată pentru fiecare adresă. Ideal pentru a rămâne direct la nivel local și a comuta la fragmentare în spatele proxy-ului.",
+      "autoFallbackActive": "Dimensiunea fragmentelor memorată pentru această adresă: {size} MiB.",
+      "autoFallbackReset": "Resetează (revino la direct)"
     },
     "twoFactor": {
       "title": "Autentificare în doi factori",

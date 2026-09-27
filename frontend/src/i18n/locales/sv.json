@@ -801,7 +801,11 @@
       "subtitle": "Konfigurera hur filer skickas till servern.",
       "chunkedEnable": "Aktivera uppladdning i delar",
       "chunkedEnableHelp": "Använd TUS för att skicka stora filer via flera mindre förfrågningar.",
-      "chunkSizeInvalid": "Ange en delstorlek från 1 till {max} MiB."
+      "chunkSizeInvalid": "Ange en delstorlek från 1 till {max} MiB.",
+      "autoFallback": "Automatisk växling till delar",
+      "autoFallbackHelp": "Om en direkt uppladdning misslyckas (en omvänd proxy som avvisar innehållsstorleken) växlas det automatiskt till uppladdning i delar med en säker storlek, som sparas per adress. Perfekt för att förbli direkt lokalt och växla till delar bakom proxyn.",
+      "autoFallbackActive": "Delstorlek sparad för denna adress: {size} MiB.",
+      "autoFallbackReset": "Återställ (tillbaka till direkt)"
     },
     "twoFactor": {
       "title": "Tvåfaktorsautentisering",

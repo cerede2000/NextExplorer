@@ -801,7 +801,11 @@
       "subtitle": "設定檔案傳送到伺服器的方式。",
       "chunkedEnable": "啓用分塊上傳",
       "chunkedEnableHelp": "使用 TUS 透過多個較小的請求傳送大型檔案。",
-      "chunkSizeInvalid": "請輸入 1 至 {max} MiB 之間的分塊大小。"
+      "chunkSizeInvalid": "請輸入 1 至 {max} MiB 之間的分塊大小。",
+      "autoFallback": "自動切換為分塊上傳",
+      "autoFallbackHelp": "若直接上傳失敗（反向代理拒絕了內容大小），系統會自動以安全的大小切換為分塊上傳，並依位址記住此設定。非常適合在本機維持直接上傳，並在代理後方切換為分塊上傳。",
+      "autoFallbackActive": "已為此位址記住分塊大小：{size} MiB。",
+      "autoFallbackReset": "重設（返回直接上傳）"
     },
     "twoFactor": {
       "title": "兩步驗證",

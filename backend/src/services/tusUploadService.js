@@ -12,10 +12,12 @@ const { ensureDir } = require('../utils/fsUtils');
 const { isTopLevelEntry, normalizeRelativePath } = require('../utils/pathUtils');
 const { placeWithoutOverwrite } = require('../utils/placeWithoutOverwrite');
 const { ACTIONS, authorizeAndResolve } = require('./authorizationService');
+const activityLog = require('./activityLog');
 const { resolveFolderUploadRelativePath } = require('./uploadFolderTargetService');
 const { ensureStorageAvailable } = require('./uploadStorageGuard');
 const { sweepStaleUploadRemnants, UPLOADING_SUFFIX } = require('./uploadRemnants');
 const { getSystemSettings } = require('./settingsService');
+const folderSizeHooks = require('./folderSizeHooks');
 const { InsufficientStorageError } = require('../errors/AppError');
 const logger = require('../utils/logger');
 
@@ -34,15 +36,11 @@ let lastCleanupAt = 0;
 // data this hook has just moved to its destination. Expiry is handled by
 // cleanupInactiveUploads below, which covers more ground anyway (it also
 // reclaims data files whose metadata never made it to disk).
-/**
- * Built on first use, not when this module is required.
- *
- * `FileStore` creates its directory in its constructor, which turns requiring
- * this file into a filesystem write — one that fails outright wherever the
- * cache directory is not there yet, including the check that every module
- * loads. A server that has never been asked to take an upload has no business
- * creating a cache for one either.
- */
+// `FileStore` creates its directory in its constructor, which turns requiring
+// this file into a filesystem write — one that fails outright wherever the
+// cache directory is not there yet, including the check that every module
+// loads. A server that has never been asked to take an upload has no business
+// creating a cache for one either.
 let fileStoreInstance = null;
 const store = () => {
   if (!fileStoreInstance) fileStoreInstance = new FileStore({ directory: TUS_CACHE_DIR });
@@ -103,7 +101,14 @@ const ensureTusEnabled = async () => {
   const now = Date.now();
   if (tusEnabledCache.enabled === null || now - tusEnabledCache.at >= TUS_ENABLED_TTL_MS) {
     const settings = await getSystemSettings();
-    tusEnabledCache = { enabled: Boolean(settings.uploads?.chunkedEnabled), at: now };
+    // TUS serves both forced chunked uploads AND the client-side auto-fallback,
+    // which uses TUS even though forced chunking (chunkedEnabled) is off. Without
+    // allowing chunkedAutoFallback here, fallback uploads were rejected with 403
+    // (surfacing as a "network error" in the client).
+    tusEnabledCache = {
+      enabled: Boolean(settings.uploads?.chunkedEnabled || settings.uploads?.chunkedAutoFallback),
+      at: now,
+    };
   }
   if (!tusEnabledCache.enabled) {
     throw tusError(403, 'Chunked uploads are disabled.');
@@ -660,6 +665,26 @@ const finalizeUpload = async (nodeReq, upload) => {
     logger.warn({ uploadId: upload.id, err }, 'Failed to remove TUS upload metadata');
   }
 
+  // Folder sizes hear of the file as they do for a direct upload. A refresh
+  // that fails leaves them to the periodic reconciliation, never the upload.
+  try {
+    const stats = await fs.stat(placed.path);
+    await folderSizeHooks.onFileWritten(placed.path, stats.size);
+  } catch (err) {
+    logger.debug({ err, path: placed.path }, 'Folder sizes were not told about a chunked upload');
+  }
+
+  // The one place a chunked upload finishes, whichever request finished it: a
+  // client that reconnects and asks again gets the result rather than a second
+  // move, and this line goes with the move.
+  await activityLog.record({
+    action: nodeReq?.user ? 'file.upload' : 'share.upload',
+    user: nodeReq?.user,
+    target: target.destinationPath,
+    detail: { bytes: totalBytes, resumable: true },
+    req: nodeReq,
+  });
+
   const result = { name: placed.name, path: placed.path, size: totalBytes, owner };
   rememberFinished(upload.id, result);
   await recordFinished(upload.id, result);
@@ -734,10 +759,8 @@ const EXPOSED_HEADERS = [
   FINALIZE_ERROR_HEADER,
 ];
 
-/**
- * Same reason as the store below it: the server owns the store, so building it
- * eagerly would build the store eagerly too.
- */
+// Built on first use, for the same reason the store is: its datastore creates
+// a directory, and requiring a module must not write to the disk.
 let serverInstance = null;
 const tusServer = () => {
   if (!serverInstance) serverInstance = buildServer();

@@ -184,6 +184,11 @@ module.exports = {
   WEBAUTHN_RP_NAME: process.env.WEBAUTHN_RP_NAME?.trim() || null,
   UPLOAD_CHUNK_SIZE: process.env.UPLOAD_CHUNK_SIZE,
   UPLOAD_CHUNKED_ENABLED: normalizeBoolean(process.env.UPLOAD_CHUNKED_ENABLED),
+  // Direct first, chunked only when the direct attempt fails — a reverse proxy
+  // with a body limit is the usual reason, and it is not something the server
+  // can know in advance. Mutually exclusive with UPLOAD_CHUNKED_ENABLED, which
+  // says to chunk everything from the start.
+  UPLOAD_CHUNKED_AUTO_FALLBACK: normalizeBoolean(process.env.UPLOAD_CHUNKED_AUTO_FALLBACK),
   MAX_CHUNK_SIZE_MIB: process.env.MAX_CHUNK_SIZE_MIB,
   UPLOAD_INACTIVITY_TIMEOUT: process.env.UPLOAD_INACTIVITY_TIMEOUT,
   THUMBNAILS_ENABLED: normalizeBoolean(process.env.THUMBNAILS_ENABLED) ?? true,

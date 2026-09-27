@@ -1,211 +1,92 @@
-import { ref, onMounted, onBeforeUnmount, markRaw } from 'vue';
-import Uppy from '@uppy/core';
-import XHRUpload from '@uppy/xhr-upload';
-import Tus from '@uppy/tus';
-import { useUppyStore } from '@/stores/uppyStore';
-import { useAppSettings } from '@/stores/appSettings';
-import { resolveUploadMode } from '@/utils/uploadMode';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { getDroppedFiles } from '@uppy/utils';
 import { useFileStore } from '@/stores/fileStore';
 import { useNotificationsStore } from '@/stores/notifications';
-import { apiBase, normalizePath } from '@/api';
+import { useAppSettings } from '@/stores/appSettings';
+import { reserveFolderUploadTarget } from '@/api';
+import { uploadPermission, uploadBlockedMessage } from './uploadTarget';
 import { isDisallowedUpload } from '@/utils/uploads';
-import DropTarget from '@uppy/drop-target';
+import {
+  createErrorNotifier,
+  createUploadBatchId,
+  getUploadFallbackMiB,
+  resetUploadFallback,
+} from './uploadCommon';
+
+// Where the settings screen and its tests have always found them.
+export { getUploadFallbackMiB, resetUploadFallback };
+
+/**
+ * Uploading, without Uppy on the page that loads first.
+ *
+ * Uppy and its two uploaders are a few hundred kilobytes, and every page used
+ * to carry them because the layout built the instance on mounting. They live
+ * in `uploadEngine.js` now, fetched the first time an upload is about to
+ * happen: when the picker opens — while the person is choosing, so it is
+ * there by the time they have chosen — and when a file is dragged over the
+ * page. Files are handed over only once it has returned.
+ *
+ * The picker is still opened inside the click that asked for it; a browser
+ * refuses a file dialog opened after waiting on the network.
+ */
+
+let enginePromise = null;
+let ownerClaimed = false;
+
+const LOAD_FAILED = 'The uploader could not be loaded. Reload the page and try the upload again.';
+
+/**
+ * The one upload engine, loaded and built on first use.
+ *
+ * A failed load is forgotten so the next attempt can try again — a deploy
+ * between two uploads replaces the file this would have fetched.
+ */
+export const loadUploadEngine = () => {
+  if (!enginePromise) {
+    enginePromise = import('./uploadEngine')
+      .then(({ createUploadEngine }) => createUploadEngine())
+      .catch((error) => {
+        enginePromise = null;
+        throw error;
+      });
+  }
+  return enginePromise;
+};
+
+const releaseUploadEngine = () => {
+  const pending = enginePromise;
+  enginePromise = null;
+  pending?.then((engine) => engine.destroy()).catch(() => {});
+};
 
 export function useFileUploader() {
-  // Filtering is centralized in utils/uploads
-  const uppyStore = useUppyStore();
-  const appSettings = useAppSettings();
   const fileStore = useFileStore();
   const notificationsStore = useNotificationsStore();
+  const appSettings = useAppSettings();
   const inputRef = ref(null);
   const files = ref([]);
+  const notifyErrorOnce = createErrorNotifier(notificationsStore);
 
-  let lastNotifyAt = 0;
-  let lastNotifyHeading = '';
+  // The first to ask owns the uploads for as long as it is mounted — the
+  // layout, which is set up before anything inside it. A dialog that comes and
+  // goes with a toolbar must not take them down with it.
+  const owner = !ownerClaimed;
+  if (owner) ownerClaimed = true;
 
-  const canUploadToCurrentPath = () => {
-    const access = fileStore.currentPathData;
-    if (!access) {
-      // If share metadata hasn't loaded yet, fail closed to avoid accidental uploads.
-      return !String(fileStore.currentPath || '').startsWith('share/');
-    }
-    return access.canUpload !== false;
-  };
+  /** The decision and its reason together, from one rule rather than two. */
+  const currentUploadPermission = () =>
+    uploadPermission(fileStore.currentPathData, fileStore.currentPath);
 
-  const uploadBlockedMessage = () => {
-    const access = fileStore.currentPathData;
-    if (!access && String(fileStore.currentPath || '').startsWith('share/')) {
-      return 'Share is still loading. Please try again in a moment.';
-    }
-    if (access?.shareInfo?.accessMode === 'readonly') {
-      return 'This share is read-only. Uploads are disabled.';
-    }
-    return 'You do not have permission to upload to this location.';
-  };
+  const canUploadToCurrentPath = () => currentUploadPermission().allowed;
 
-  const notifyErrorOnce = (heading, extra = {}) => {
-    const now = Date.now();
-    if (heading === lastNotifyHeading && now - lastNotifyAt < 1500) return;
-    lastNotifyAt = now;
-    lastNotifyHeading = heading;
-    notificationsStore.addNotification({ type: 'error', heading, ...extra });
-  };
+  const blockedMessage = () => uploadBlockedMessage(currentUploadPermission().reason);
 
-  // Ensure a single Uppy instance app-wide
-  let uppy = uppyStore.uppy;
-  const createdHere = ref(false);
-
-  if (!uppy) {
-    uppy = new Uppy({
-      debug: true,
-      autoProceed: true,
-      store: uppyStore,
-    });
-
-    /**
-     * How the next upload goes out.
-     *
-     * A direct upload is one request and much faster, and it is what an upload
-     * has always been here. It is also what a reverse proxy refuses outright
-     * once the body passes whatever limit it enforces — and what a dropped
-     * connection loses entirely, however far it had got. Chunked uploads answer
-     * both: each part is small enough to pass, and one that fails is retried
-     * without the parts already there being sent again.
-     *
-     * Which one is used is the administrator's to decide; the default is
-     * unchanged, so nothing about an upload moves until somebody asks.
-     */
-    const { chunkedEnabled, chunkSizeBytes } = resolveUploadMode(appSettings.state?.uploads || {});
-
-    if (chunkedEnabled) {
-      uppy.use(Tus, {
-        endpoint: `${apiBase}/api/upload/tus`,
-        chunkSize: chunkSizeBytes,
-        withCredentials: true,
-        // The routing fields the server reads from the upload's metadata. Named
-        // rather than `true`: Uppy stringifies every field it is told to send,
-        // so a field only folder uploads carry would arrive as the literal
-        // "undefined" on every other upload.
-        allowedMetaFields: ['uploadTo', 'relativePath', 'resolvedRelativePath', 'uploadBatchId'],
-        // One retry ladder for the whole transfer rather than per request: a
-        // proxy restarting costs a pause, not the upload.
-        retryDelays: [0, 1000, 3000, 5000, 10000],
-        removeFingerprintOnSuccess: true,
-      });
-    } else {
-      uppy.use(XHRUpload, {
-        endpoint: `${apiBase}/api/upload`,
-        formData: true,
-        fieldName: 'filedata',
-        bundle: false,
-        responseType: 'json',
-        // Uppy v5 expects `allowedMetaFields` to be `true` (all) or an explicit list.
-        // `null` results in *no* metadata being sent, which breaks `uploadTo`/`relativePath`.
-        allowedMetaFields: true,
-        withCredentials: true,
-      });
-    }
-
-    // Cookies carry auth; no token headers
-    uppy.on('file-added', (file) => {
-      if (!canUploadToCurrentPath()) {
-        uppy.removeFile?.(file.id);
-        notifyErrorOnce(uploadBlockedMessage(), { durationMs: 5000 });
-        return;
-      }
-
-      if (isDisallowedUpload(file?.name)) {
-        uppy.removeFile?.(file.id);
-        return;
-      }
-
-      // Ensure server always receives a usable relativePath, even for drag-and-drop
-      const inferredRelativePath =
-        file?.meta?.relativePath ||
-        file?.data?.webkitRelativePath ||
-        file?.name ||
-        (file?.data && file?.data.name) ||
-        '';
-
-      // Some rare DnD sources may miss name; prefer data.name if present
-      if (!file?.name && file?.data?.name && typeof uppy.setFileName === 'function') {
-        try {
-          uppy.setFileName(file.id, file.data.name);
-        } catch (_) {
-          /* noop */
-        }
-      }
-
-      uppy.setFileMeta(file.id, {
-        uploadTo: normalizePath(fileStore.currentPath || ''),
-        relativePath: inferredRelativePath,
-      });
-    });
-
-    uppy.on('upload', (_uploadID, batchFiles) => {
-      // Safety net: if permissions changed after files were queued, cancel *only* when the
-      // batch is targeting the currently-viewed path (avoids canceling uploads after navigation).
-      const current = normalizePath(fileStore.currentPath || '');
-      const files = Array.isArray(batchFiles) ? batchFiles : [];
-      const targetsCurrentPath =
-        files.length > 0 && files.every((f) => normalizePath(f?.meta?.uploadTo || '') === current);
-
-      if (!targetsCurrentPath) return;
-      if (canUploadToCurrentPath()) return;
-
-      try {
-        uppy.cancelAll?.();
-      } catch (_) {
-        /* noop */
-      }
-      notifyErrorOnce(uploadBlockedMessage(), { durationMs: 5000 });
-    });
-
-    uppy.on('upload-success', () => {
-      fileStore.fetchPathItems(fileStore.currentPath).catch(() => {});
-    });
-
-    uppy.on('upload-error', (_file, error, response) => {
-      const body = response?.body;
-      const nested = body && typeof body === 'object' ? body?.error : null;
-      const nestedObj = nested && typeof nested === 'object' ? nested : null;
-
-      const heading =
-        nestedObj?.message ||
-        (typeof nested === 'string' ? nested : '') ||
-        error?.message ||
-        'Upload failed';
-
-      notifyErrorOnce(heading, {
-        body:
-          nestedObj?.details !== undefined && nestedObj?.details !== null
-            ? JSON.stringify(nestedObj.details)
-            : '',
-        requestId: nestedObj?.requestId || null,
-        statusCode: nestedObj?.statusCode ?? response?.status,
-      });
-      // Keep UI in sync in case some files partially uploaded.
-      if (fileStore.currentPath) {
-        fileStore.fetchPathItems(fileStore.currentPath).catch(() => {});
-      }
-    });
-
-    uppy.on('error', (error) => {
-      const message = error?.message || 'Upload error';
-      notifyErrorOnce(message);
-    });
-
-    // Uppy v5 uses private class fields; if it gets wrapped in a Vue Proxy (reactive store),
-    // method calls will throw "Cannot read from private field". Keep it raw.
-    uppyStore.uppy = markRaw(uppy);
-    createdHere.value = true;
-  }
-
-  function uppyFile(file) {
+  function uppyFile(file, meta = {}) {
     return {
       name: file.name,
       type: file.type,
       data: file,
+      meta,
     };
   }
 
@@ -217,15 +98,26 @@ export function useFileUploader() {
     inputRef.value.mozdirectory = !!options.directory;
   }
 
-  function openDialog(opts) {
+  async function openDialog(opts) {
     const defaultDialogOptions = {
       multiple: true,
       accept: '*',
     };
 
     if (!canUploadToCurrentPath()) {
-      notifyErrorOnce(uploadBlockedMessage(), { durationMs: 5000 });
+      notifyErrorOnce(blockedMessage(), { durationMs: 5000 });
       return Promise.resolve();
+    }
+
+    // Fetched while the person is choosing, and not waited on before the
+    // picker opens.
+    const engineReady = loadUploadEngine();
+    engineReady.catch(() => {});
+
+    try {
+      await appSettings.ensureLoaded();
+    } catch (_) {
+      // Keep upload available with safe defaults if settings cannot be loaded.
     }
 
     return new Promise((resolve) => {
@@ -244,13 +136,53 @@ export function useFileUploader() {
 
       setDialogAttributes(options);
 
-      inputRef.value.onchange = (e) => {
+      inputRef.value.onchange = async (e) => {
         const selectedFiles = Array.from(e.target.files || []).filter(
           (file) => !isDisallowedUpload(file.name)
         );
 
-        files.value = selectedFiles.map((file) => uppyFile(file));
-        files.value.forEach((file) => uppy.addFile(file));
+        const uploadBatchId = createUploadBatchId();
+        const firstRelativePath = selectedFiles[0]?.webkitRelativePath || '';
+        const sourceRoot = firstRelativePath.split('/').filter(Boolean)[0] || '';
+        let targetRoot = '';
+
+        if (options.directory && selectedFiles.length > 0 && !sourceRoot) {
+          notifyErrorOnce('Your browser did not provide the selected folder structure.');
+          e.target.value = '';
+          resolve();
+          return;
+        }
+
+        if (options.directory && selectedFiles.length > 0) {
+          try {
+            const reservation = await reserveFolderUploadTarget(fileStore.currentPath, sourceRoot);
+            targetRoot = reservation?.targetRoot || '';
+            if (!targetRoot) throw new Error('The server did not reserve a destination folder.');
+          } catch (err) {
+            notifyErrorOnce(err?.message || 'Unable to reserve the destination folder.');
+            e.target.value = '';
+            resolve();
+            return;
+          }
+        }
+
+        files.value = selectedFiles.map((file) => {
+          const relativePath = file.webkitRelativePath || file.name;
+          const parts = relativePath.split('/').filter(Boolean);
+          const resolvedRelativePath =
+            targetRoot && parts.length > 0 ? [targetRoot, ...parts.slice(1)].join('/') : '';
+          return uppyFile(file, {
+            uploadBatchId,
+            ...(resolvedRelativePath ? { resolvedRelativePath } : {}),
+          });
+        });
+
+        try {
+          const engine = await engineReady;
+          engine.addPickedFiles(files.value);
+        } catch (_) {
+          notifyErrorOnce(LOAD_FAILED);
+        }
 
         // Reset the input so the same file can be selected again if needed
         e.target.value = '';
@@ -271,14 +203,9 @@ export function useFileUploader() {
 
   onBeforeUnmount(() => {
     inputRef.value?.remove();
-    // Only close the singleton if we created it here
-    if (createdHere.value) {
-      // Uppy v5 uses `destroy()`. Older versions had `close()` in some setups.
-      uppy.destroy?.();
-      uppy.close?.();
-      if (uppyStore.uppy === uppy) {
-        uppyStore.uppy = null;
-      }
+    if (owner) {
+      ownerClaimed = false;
+      releaseUploadEngine();
     }
   });
 
@@ -288,29 +215,83 @@ export function useFileUploader() {
   };
 }
 
-// Attach/detach Uppy DropTarget plugin to a given element ref
+const isFileTransfer = (event) =>
+  Array.from(event?.dataTransfer?.types || []).some((type) => type === 'Files');
+
+/**
+ * Files dropped onto an element, from the desktop.
+ *
+ * The element answers a file drag itself, whether or not the engine has been
+ * loaded: a browser that is not told otherwise opens a dropped file in place
+ * of the page. The engine is fetched as soon as a file is dragged over, and a
+ * drop that comes first waits for it. What was dropped is read during the drop
+ * itself, which is the only moment a browser allows it, and handed over once
+ * the engine is there.
+ *
+ * Only drags that carry files: moving entries within the explorer is
+ * somebody else's business, and passes through untouched.
+ */
 export function useUppyDropTarget(targetRef) {
-  const uppyStore = useUppyStore();
+  const notificationsStore = useNotificationsStore();
+  const notifyErrorOnce = createErrorNotifier(notificationsStore);
+  let node = null;
+
+  const onDragOver = (event) => {
+    if (!isFileTransfer(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    // Add a small (+) icon on drop, and keep the browser from treating it as
+    // a move of the files into the page.
+    event.dataTransfer.dropEffect = 'copy';
+    event.currentTarget?.classList.add('uppy-is-drag-over');
+    loadUploadEngine().catch(() => {});
+  };
+
+  const onDragLeave = (event) => {
+    if (!isFileTransfer(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget?.classList.remove('uppy-is-drag-over');
+  };
+
+  const onDrop = async (event) => {
+    if (!isFileTransfer(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget?.classList.remove('uppy-is-drag-over');
+
+    // Before anything is waited on: the entries of a drop are only readable
+    // while the drop event is being handled.
+    const dropped = getDroppedFiles(event.dataTransfer, {
+      logDropError: (error) =>
+        notifyErrorOnce(error?.message || 'A dropped item could not be read.'),
+    });
+
+    let engine;
+    let droppedFiles;
+    try {
+      [engine, droppedFiles] = await Promise.all([loadUploadEngine(), dropped]);
+    } catch (_) {
+      notifyErrorOnce(LOAD_FAILED);
+      return;
+    }
+    if (droppedFiles.length > 0) engine.addDroppedFiles(droppedFiles);
+  };
 
   onMounted(() => {
     const el = targetRef && 'value' in targetRef ? targetRef.value : null;
-    const uppy = uppyStore.uppy;
-    if (el && uppy) {
-      try {
-        const existing = uppy.getPlugin && uppy.getPlugin('DropTarget');
-        if (existing) uppy.removePlugin(existing);
-        uppy.use(DropTarget, { target: el });
-      } catch (_) {
-        // ignore if plugin cannot be mounted
-      }
-    }
+    if (!el) return;
+    node = el;
+    node.addEventListener('dragover', onDragOver, false);
+    node.addEventListener('dragleave', onDragLeave, false);
+    node.addEventListener('drop', onDrop, false);
   });
 
   onBeforeUnmount(() => {
-    const uppy = uppyStore.uppy;
-    if (uppy) {
-      const plugin = uppy.getPlugin && uppy.getPlugin('DropTarget');
-      if (plugin) uppy.removePlugin(plugin);
-    }
+    if (!node) return;
+    node.removeEventListener('dragover', onDragOver, false);
+    node.removeEventListener('dragleave', onDragLeave, false);
+    node.removeEventListener('drop', onDrop, false);
+    node = null;
   });
 }
