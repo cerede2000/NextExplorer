@@ -84,7 +84,10 @@
     "wrapLines": "Wrap Lines",
     "confirmCloseWithoutSaving": "Du har osparade ändringar. Stäng utan att spara?",
     "trashReadOnly": "I papperskorgen · skrivskyddad",
-    "versionReadOnly": "Tidigare version, skrivskyddad"
+    "versionReadOnly": "Tidigare version, skrivskyddad",
+    "highlightingOffTooLarge": "Syntaxmarkering är avstängd för den här filen: en del av den är för stor för att markeras utan att sidan fryser.",
+    "raw": "Rå",
+    "selectTheme": "Välj redigerarens tema"
   },
   "status": {
     "updated": "Uppdaterades",
@@ -1310,7 +1313,8 @@
     "savedAsBody": "{name} lades till bredvid originalet.",
     "saveAsFailed": "Det gick inte att spara {name}",
     "editingBody": "{names} är öppen i OnlyOffice. {action} fortsätter. | {names} är öppna i OnlyOffice. {action} fortsätter.",
-    "editingHeading": "Filen redigeras"
+    "editingHeading": "Filen redigeras",
+    "pickFailed": "Det gick inte att använda den valda filen"
   },
   "preview": {
     "nothingOpensIt": "Inget här kan öppna {name}.",

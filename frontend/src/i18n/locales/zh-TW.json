@@ -84,7 +84,10 @@
     "wrapLines": "Wrap Lines",
     "confirmCloseWithoutSaving": "您有未儲存的變更。要在不儲存的情況下關閉嗎？",
     "trashReadOnly": "資源回收筒中 · 唯讀",
-    "versionReadOnly": "先前版本，唯讀"
+    "versionReadOnly": "先前版本，唯讀",
+    "highlightingOffTooLarge": "此檔案已關閉語法醒目提示：其中一部分太大，無法在不讓頁面凍結的情況下醒目提示。",
+    "raw": "原始",
+    "selectTheme": "選擇編輯器佈景"
   },
   "status": {
     "updated": "更新成功",
@@ -1310,7 +1313,8 @@
     "savedAsBody": "{name} 已新增至原檔案旁。",
     "saveAsFailed": "無法儲存 {name}",
     "editingBody": "{names} 已在 OnlyOffice 中開啟。{action}操作將繼續。 | {names} 已在 OnlyOffice 中開啟。{action}操作將繼續。",
-    "editingHeading": "檔案正在編輯中"
+    "editingHeading": "檔案正在編輯中",
+    "pickFailed": "無法使用所選檔案"
   },
   "preview": {
     "nothingOpensIt": "這裡沒有什麼能開啟 {name}。",

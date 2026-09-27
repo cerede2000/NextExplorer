@@ -11269,6 +11269,66 @@
         }
       }
     },
+    "/api/onlyoffice/storage-file": {
+      "post": {
+        "operationId": "pickFileForOnlyoffice",
+        "summary": "A file the editor inserts or compares, signed for it",
+        "tags": ["ONLYOFFICE"],
+        "security": [
+          {
+            "session": []
+          }
+        ],
+        "x-access": "session",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "The document."
+                  },
+                  "c": {
+                    "type": "string",
+                    "description": "The editor’s command."
+                  }
+                },
+                "required": ["path"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {},
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      }
+    },
     "/api/onlyoffice/users": {
       "get": {
         "operationId": "listOnlyofficeUsers",
@@ -11869,66 +11929,6 @@
           },
           "413": {
             "$ref": "#/components/responses/E413"
-          }
-        }
-      }
-    },
-    "/api/onlyoffice/storage-file": {
-      "post": {
-        "operationId": "pickFileForOnlyoffice",
-        "summary": "A file the editor inserts or compares, signed for it",
-        "tags": ["ONLYOFFICE"],
-        "security": [
-          {
-            "session": []
-          }
-        ],
-        "x-access": "session",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "path": {
-                    "type": "string",
-                    "description": "The document."
-                  },
-                  "c": {
-                    "type": "string",
-                    "description": "The editor’s command."
-                  }
-                },
-                "required": ["path"]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Done.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {},
-                  "additionalProperties": true
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/E400"
-          },
-          "401": {
-            "$ref": "#/components/responses/E401"
-          },
-          "403": {
-            "$ref": "#/components/responses/E403"
-          },
-          "404": {
-            "$ref": "#/components/responses/E404"
           }
         }
       }

@@ -58,8 +58,7 @@ module.exports = {
               documentServerUrl: str(),
               config: loose('What `DocsAPI.DocEditor` takes, `token` included.'),
               forceSaveSessionId: str(),
-              // The editing session this open belongs to, which every later
-              // call about the document carries back.
+              // The same value under the name this answer has always carried.
               editorSessionId: str(),
               autoSaveIntervalMs: num(),
             },
@@ -177,6 +176,16 @@ module.exports = {
         200: json(obj({ path: str(), name: str(), size: num() }, ['path', 'name'])),
         ...errors(400, 401, 403),
       },
+    }),
+  },
+  '/api/onlyoffice/storage-file': {
+    post: op({
+      id: 'pickFileForOnlyoffice',
+      summary: 'A file the editor inserts or compares, signed for it',
+      tag: OO,
+      access: 'session',
+      body: body(obj({ path, c: str('The editor’s command.') }, ['path'])),
+      responses: { 200: json(loose()), ...errors(400, 401, 403, 404) },
     }),
   },
   '/api/onlyoffice/users': {
@@ -356,16 +365,6 @@ module.exports = {
         409: noContent('Held under another lock.'),
         ...errors(401, 403, 404, 413),
       },
-    }),
-  },
-  '/api/onlyoffice/storage-file': {
-    post: op({
-      id: 'pickFileForOnlyoffice',
-      summary: 'A file the editor inserts or compares, signed for it',
-      tag: OO,
-      access: 'session',
-      body: body(obj({ path, c: str('The editor’s command.') }, ['path'])),
-      responses: { 200: json(loose()), ...errors(400, 401, 403, 404) },
     }),
   },
 };

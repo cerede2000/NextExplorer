@@ -84,7 +84,10 @@
     "wrapLines": "Wrap Lines",
     "confirmCloseWithoutSaving": "Masz niezapisane zmiany. Zamknąć bez zapisywania?",
     "trashReadOnly": "W koszu · tylko do odczytu",
-    "versionReadOnly": "Wcześniejsza wersja, tylko do odczytu"
+    "versionReadOnly": "Wcześniejsza wersja, tylko do odczytu",
+    "highlightingOffTooLarge": "Podświetlanie składni jest wyłączone dla tego pliku: jego część jest zbyt duża, by ją podświetlić bez zamrożenia strony.",
+    "raw": "Surowy",
+    "selectTheme": "Wybierz motyw edytora"
   },
   "status": {
     "updated": "Pomyślnie zaktualizowano",
@@ -1310,7 +1313,8 @@
     "savedAsBody": "{name} został dodany obok oryginału.",
     "saveAsFailed": "Nie można zapisać {name}",
     "editingBody": "{names} jest otwarty w OnlyOffice. {action} będzie kontynuowane. | {names} są otwarte w OnlyOffice. {action} będzie kontynuowane. | {names} jest otwartych w OnlyOffice. {action} będzie kontynuowane.",
-    "editingHeading": "Plik jest edytowany"
+    "editingHeading": "Plik jest edytowany",
+    "pickFailed": "Nie udało się użyć wybranego pliku"
   },
   "preview": {
     "nothingOpensIt": "Nic tutaj nie otworzy {name}.",

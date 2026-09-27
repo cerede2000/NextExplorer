@@ -2,7 +2,12 @@
 
 import { buildUrl, requestJson, normalizePath } from './http';
 
-export async function fetchOnlyOfficeConfig(path, mode = 'edit', { versionId } = {}) {
+/**
+ * `theme` is 'light' or 'dark'. It has to travel with the request rather than
+ * be applied to the returned config: the Document Server reads its settings
+ * from the signed token, so anything set on the object afterwards is dropped.
+ */
+export async function fetchOnlyOfficeConfig(path, mode = 'edit', { theme, versionId } = {}) {
   const normalizedPath = normalizePath(path || '');
   if (!normalizedPath) throw new Error('Path is required.');
 
@@ -11,38 +16,156 @@ export async function fetchOnlyOfficeConfig(path, mode = 'edit', { versionId } =
     body: JSON.stringify({
       path: normalizedPath,
       mode,
+      theme,
       ...(versionId ? { versionId } : {}),
     }),
   });
 }
 
-/**
- * The document is really open, and goes on being open.
- *
- * Sent once ONLYOFFICE reports the document ready, then on a timer: the
- * configuration alone says nothing about whether the document opened, so
- * presence starts here rather than there.
- */
-export async function heartbeatOnlyOfficeSession(path, { sessionId } = {}) {
+/** The document's history as the editor shows it: oldest first, the current state last. */
+export async function fetchOnlyOfficeHistory(path) {
   const normalizedPath = normalizePath(path || '');
-  if (!normalizedPath || !sessionId) return { active: false };
+  if (!normalizedPath) throw new Error('Path is required.');
 
-  return requestJson('/api/onlyoffice/session-heartbeat', {
+  return requestJson('/api/onlyoffice/history', {
     method: 'POST',
-    body: JSON.stringify({ path: normalizedPath, sessionId }),
+    body: JSON.stringify({ path: normalizedPath }),
   });
 }
 
 /**
- * The editing session is over.
+ * What the editor needs to show one entry of the history, signed for the
+ * Document Server: an earlier version by its id, or the current state without one.
+ */
+export async function fetchOnlyOfficeHistoryData(path, { version, versionId } = {}) {
+  const normalizedPath = normalizePath(path || '');
+  if (!normalizedPath) throw new Error('Path is required.');
+
+  return requestJson('/api/onlyoffice/history-data', {
+    method: 'POST',
+    body: JSON.stringify({
+      path: normalizedPath,
+      version,
+      ...(versionId ? { versionId } : {}),
+    }),
+  });
+}
+
+export async function requestOnlyOfficeForceSave(path, { sessionId, reason = 'close' } = {}) {
+  const normalizedPath = normalizePath(path || '');
+  if (!normalizedPath || !sessionId) return { queued: false };
+
+  return requestJson('/api/onlyoffice/force-save', {
+    method: 'POST',
+    body: JSON.stringify({ path: normalizedPath, sessionId, reason }),
+    // Keep the short close request eligible to finish while the preview is
+    // being destroyed. The backend owns the longer Document Server workflow.
+    keepalive: reason === 'close',
+    suppressErrorHandler: true,
+  });
+}
+
+/**
+ * Save the open document under a new name or format.
  *
- * `beacon` is for a page being unloaded. A tab being closed gives one
+ * ONLYOFFICE has already converted it and gives us a URL to fetch the result
+ * from; the backend is what pulls it in and writes it beside the original.
+ */
+export async function saveOnlyOfficeDocumentAs(path, { url, title } = {}) {
+  const normalizedPath = normalizePath(path || '');
+  if (!normalizedPath || !url || !title) throw new Error('Path, url and title are required.');
+
+  return requestJson('/api/onlyoffice/save-as', {
+    method: 'POST',
+    body: JSON.stringify({ path: normalizedPath, url, title }),
+  });
+}
+
+/**
+ * Rename the open document from the editor's title bar.
+ *
+ * Goes through the ONLYOFFICE route rather than the generic rename so the
+ * editing session follows the file; a save arriving afterwards would otherwise
+ * recreate the old name.
+ */
+export async function renameOnlyOfficeDocument(path, { sessionId, newName } = {}) {
+  const normalizedPath = normalizePath(path || '');
+  if (!normalizedPath || !sessionId || !newName) {
+    throw new Error('Path, session and new name are required.');
+  }
+
+  return requestJson('/api/onlyoffice/rename', {
+    method: 'POST',
+    body: JSON.stringify({ path: normalizedPath, sessionId, newName }),
+  });
+}
+
+/**
+ * Turn a file the user picked into something the Document Server can fetch.
+ *
+ * The editor inserts images and opens comparison documents by downloading a
+ * URL itself, so the backend answers with a signed, short-lived one. `c` comes
+ * from the event and is part of what the signature covers, so it has to be
+ * passed through rather than added afterwards.
+ */
+export async function fetchOnlyOfficeStorageFile(path, { c } = {}) {
+  const normalizedPath = normalizePath(path || '');
+  if (!normalizedPath) throw new Error('Path is required.');
+
+  return requestJson('/api/onlyoffice/storage-file', {
+    method: 'POST',
+    body: JSON.stringify({ path: normalizedPath, c }),
+  });
+}
+
+/**
+ * The people the editor offers when a comment starts with @.
+ *
+ * ONLYOFFICE takes the whole list and filters it itself as the name is typed,
+ * so there is no search term to pass.
+ */
+export async function fetchOnlyOfficeMentionUsers() {
+  return requestJson('/api/onlyoffice/users', { method: 'GET', suppressErrorHandler: true });
+}
+
+/**
+ * Report a comment that mentions someone.
+ *
+ * The comment is already in the document; this is the separate notification
+ * step, which ONLYOFFICE leaves to the integration.
+ */
+export async function notifyOnlyOfficeMention(path, { emails, actionLink, comment } = {}) {
+  const normalizedPath = normalizePath(path || '');
+  if (!normalizedPath) throw new Error('Path is required.');
+
+  return requestJson('/api/onlyoffice/notify', {
+    method: 'POST',
+    body: JSON.stringify({ path: normalizedPath, emails, actionLink, comment }),
+    suppressErrorHandler: true,
+  });
+}
+
+export async function heartbeatOnlyOfficeSession(path, { sessionId } = {}) {
+  const normalizedPath = normalizePath(path || '');
+  if (!normalizedPath || !sessionId) return { active: false };
+  return requestJson('/api/onlyoffice/session-heartbeat', {
+    method: 'POST',
+    body: JSON.stringify({ path: normalizedPath, sessionId }),
+    suppressErrorHandler: true,
+  });
+}
+
+/**
+ * The editing session is over: the server flushes what the editor holds and
+ * lets the session go, in that order.
+ *
+ * `beacon` is for a page that is being unloaded. A tab being closed gives one
  * synchronous moment, and an ordinary request started in it is cancelled along
  * with everything else — `sendBeacon` hands the request to the browser, which
  * sends it after the page is gone, with the same cookies. `keepalive` is the
  * same idea through `fetch`, and is what answers when a browser has no
  * `sendBeacon`; it is also what makes the reply readable, which is why the
- * preview — which has time — uses it.
+ * panel — which has time — uses it.
  */
 export async function endOnlyOfficeSession(path, { sessionId, beacon = false } = {}) {
   const normalizedPath = normalizePath(path || '');
@@ -67,124 +190,16 @@ export async function endOnlyOfficeSession(path, { sessionId, beacon = false } =
     method: 'POST',
     body,
     keepalive: true,
+    suppressErrorHandler: true,
   });
 }
 
-/**
- * Rename the open document from the editor's title bar.
- *
- * The session id goes with it so the server can keep that session pointing at
- * the file; a save arriving afterwards would otherwise recreate the old name.
- */
-export async function renameOnlyOfficeDocument(path, { sessionId, newName } = {}) {
-  const normalizedPath = normalizePath(path || '');
-  if (!normalizedPath || !sessionId || !newName) {
-    throw new Error('Path, session and new name are required.');
-  }
-
-  return requestJson('/api/onlyoffice/rename', {
-    method: 'POST',
-    body: JSON.stringify({ path: normalizedPath, sessionId, newName }),
-  });
-}
-
-/**
- * Ask the server to write what the editor is holding, now.
- *
- * Answers as soon as the command is queued; the document is written through the
- * ordinary callback. `close` is the flush on the way out, `auto` the periodic
- * one — the server coalesces the two rather than queueing them side by side.
- */
-export async function requestOnlyOfficeForceSave(path, { sessionId, reason = 'close' } = {}) {
-  const normalizedPath = normalizePath(path || '');
-  if (!normalizedPath || !sessionId) return { queued: false };
-
-  return requestJson('/api/onlyoffice/force-save', {
-    method: 'POST',
-    body: JSON.stringify({ path: normalizedPath, sessionId, reason }),
-  });
-}
-
-/**
- * Wait until somebody joins or leaves a document.
- *
- * Held open by the server for up to twenty-five seconds, so an open folder can
- * keep its marks current without asking every second.
- */
 export async function waitForOnlyOfficeActivityVersion(since, options = {}) {
   const query = Number.isInteger(since) ? `?since=${since}` : '';
   return requestJson(`/api/onlyoffice/activity-version${query}`, {
     method: 'GET',
-    ...options,
-  });
-}
-
-/**
- * Save the open document under another name, into the folder it came from.
- *
- * ONLYOFFICE converts the document and hands over a URL to fetch the result
- * from; the server is what writes it, so it never leaves the volume.
- */
-export async function saveOnlyOfficeDocumentAs(path, { url, title } = {}) {
-  const normalizedPath = normalizePath(path || '');
-  if (!normalizedPath || !url || !title) {
-    throw new Error('Path, document URL and title are required.');
-  }
-
-  return requestJson('/api/onlyoffice/save-as', {
-    method: 'POST',
-    body: JSON.stringify({ path: normalizedPath, url, title }),
-  });
-}
-
-/** The document's history, in the shape the editor's own history panel reads. */
-export async function fetchOnlyOfficeHistory(path) {
-  const normalizedPath = normalizePath(path || '');
-  if (!normalizedPath) throw new Error('Path is required.');
-
-  return requestJson('/api/onlyoffice/history', {
-    method: 'POST',
-    body: JSON.stringify({ path: normalizedPath }),
-  });
-}
-
-/** Where one entry of that history is fetched from. */
-export async function fetchOnlyOfficeHistoryData(path, { version, versionId } = {}) {
-  const normalizedPath = normalizePath(path || '');
-  if (!normalizedPath) throw new Error('Path is required.');
-
-  return requestJson('/api/onlyoffice/history-data', {
-    method: 'POST',
-    body: JSON.stringify({
-      path: normalizedPath,
-      version,
-      ...(versionId ? { versionId } : {}),
-    }),
-  });
-}
-
-/**
- * The people the editor offers when a comment starts with @.
- *
- * ONLYOFFICE takes the whole list and filters it itself as the name is typed,
- * so there is no search term to pass.
- */
-export async function fetchOnlyOfficeMentionUsers() {
-  return requestJson('/api/onlyoffice/users', { method: 'GET' });
-}
-
-/**
- * Report a comment that mentions somebody.
- *
- * The comment is already in the document; this is the separate notification
- * step, which ONLYOFFICE leaves to the integration.
- */
-export async function notifyOnlyOfficeMention(path, { emails, actionLink, comment } = {}) {
-  const normalizedPath = normalizePath(path || '');
-  if (!normalizedPath) throw new Error('Path is required.');
-
-  return requestJson('/api/onlyoffice/notify', {
-    method: 'POST',
-    body: JSON.stringify({ path: normalizedPath, emails, actionLink, comment }),
+    signal: options.signal,
+    retryNetworkErrors: false,
+    suppressErrorHandler: true,
   });
 }
