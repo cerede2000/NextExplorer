@@ -1399,7 +1399,23 @@ const deleteItems = async (items = [], options = {}) => {
   return results;
 };
 
+/**
+ * A transfer in one call, checked and then carried out.
+ *
+ * The two halves exist because a transfer reports as it goes and can be
+ * stopped: the route checks first, so a refusal is an ordinary HTTP error, and
+ * only then opens the stream. Everything that does not need to watch — the
+ * trash putting something back, a test, a script — wants the one call, and the
+ * answer it has always had.
+ */
+const transferItems = async (items, destination, operation, options = {}) => {
+  const prep = await prepareTransfer(items, destination, operation, options);
+  const result = await executeTransfer(prep, operation, () => {}, options);
+  return { destination: prep.destinationRelative, ...result };
+};
+
 module.exports = {
+  transferItems,
   prepareTransfer,
   executeTransfer,
   createCancellationError,

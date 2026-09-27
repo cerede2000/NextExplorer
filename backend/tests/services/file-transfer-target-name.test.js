@@ -56,6 +56,45 @@ const run = async (service, items, destination) => {
   return service.executeTransfer(prep, 'copy', undefined, {});
 };
 
+/**
+ * `transferItems` is the same transfer in one call, for everything that does not
+ * need to watch it go: the trash putting something back, a script, a test. The
+ * two halves exist so a route can refuse before it opens a stream, and callers
+ * that never refuse should not have to know that.
+ */
+describe('the transfer in one call', () => {
+  it('carries the file over and reports where it landed', async () => {
+    const { service, volume } = await setup();
+
+    const result = await service.transferItems(
+      [{ path: 'Vol/drop', name: 'mine.txt', newName: 'carried.txt' }],
+      'Vol/drop',
+      'copy',
+      { user: REGULAR }
+    );
+
+    expect(result.destination).toBe('Vol/drop');
+    expect(await fs.readFile(path.join(volume, 'Vol', 'drop', 'carried.txt'), 'utf8')).toBe('mine');
+    // The original is still there: this was a copy.
+    expect(await fs.readFile(path.join(volume, 'Vol', 'drop', 'mine.txt'), 'utf8')).toBe('mine');
+  });
+
+  it('refuses what the two halves refuse, before anything lands', async () => {
+    const { service, volume } = await setup();
+
+    await expect(
+      service.transferItems(
+        [{ path: 'Vol/drop', name: 'mine.txt', newName: '../planted.txt' }],
+        'Vol/drop',
+        'copy',
+        { user: REGULAR }
+      )
+    ).rejects.toThrow(/path separators/i);
+
+    expect((await fs.readdir(path.join(volume, 'Vol'))).sort()).toEqual(['drop', 'readme.txt']);
+  });
+});
+
 describe('a new name for the copy', () => {
   it('is refused when it climbs out of the destination, and nothing lands above it', async () => {
     const { service, volume } = await setup();
