@@ -31,13 +31,46 @@
     },
     {
       "file": "^backend/tests/routes/password-change-sessions\\.test\\.js$",
-      "cases": ["^is the new password that signs in afterwards$"],
-      "note": "brought home, and kept under a title that says the other half: `is the new password that signs in afterwards, and not the old one`."
+      "cases": [
+        "^is the new password that signs in afterwards$",
+        "^leaves the browser that changed it signed in$",
+        "^ends every other session of the account$"
+      ],
+      "note": "the first was brought home, under a title that says the other half: `is the new password that signs in afterwards, and not the old one`. The other two are one property split in two — `signs out every other session of the account, and keeps the one that changed it` here asserts both ends of it in one case, and a third thing besides: that nobody else's session is touched."
     },
     {
       "file": "^frontend/e2e/media-preview\\.spec\\.js$",
       "cases": ["^swipes through mixed media and swipes down to close$"],
       "note": "brought home, in the case named `swipes through mixed media, and a swipe down closes rather than navigating` — which keeps what ours already said about a vertical gesture not turning the page."
+    },
+    {
+      "file": "^backend/tests/services/file-transfer-no-overwrite\\.test\\.js$",
+      "note": "eight cases against thirty-five here, each of the eight asserted here under other words: three copies at once each landing whole, a move that keeps what is already there and takes the next name, a folder never merged into one that arrived, a failed copy leaving neither the source short nor anything half-written, and the hidden entry the journal records until it is in place. Ours add the rename refusals, the cancelled move and what the next start sweeps."
+    },
+    {
+      "file": "^frontend/src/router/shareGuard\\.spec\\.js$",
+      "note": "five cases against seventeen here, each matched: in without a password, sent to the prompt when the server refuses, asked once per token however many folders are opened, asked again for another viewer, and an unknown share left to the view. Ours add the guest session read before auth cleared it, one belonging to another share, the owner of the share, and a failure retried rather than cached."
+    },
+    {
+      "file": "^backend/tests/routes/onlyoffice-(session|editing-together)\\.test\\.js$",
+      "cases": [
+        "^ends, and the document stops being reported as open$",
+        "^stops marking it once the last editor has gone$"
+      ],
+      "note": "the behaviour P3-51 replaces, and upstream still holds it because nxzai#477 is open: a document is open until the Document Server says it is not, so a session ending is not the end of it. Here the same boundary is asserted from the other side — `ends, and the document stays reported as open until it is released`, and `keeps marking it until the document server lets go`. These two go when that batch merges."
+    },
+    {
+      "file": "^frontend/src/components/FileObject\\.spec\\.js$",
+      "cases": ["^says who is editing it$"],
+      "note": "the same case, renamed when the sentence it asserts stopped being written into the component in French: `says who is editing it, in the reader's language`, which asserts the catalogue key rather than one language's words."
+    },
+    {
+      "file": "^frontend/src/plugins/preview/MediaPreview\\.spec\\.js$",
+      "cases": [
+        "^does not cover the native video surface with an interaction overlay$",
+        "^scales video to the full preview stage without cropping it$"
+      ],
+      "note": "both are layout, and jsdom has none: they are asserted where layout exists, in frontend/e2e/media-preview-layout.spec.js — `does not have the swipe overlay covering its controls` and `keeps its aspect ratio`. A video escaping its container shipped once because a jsdom test said it did not."
     }
   ]
 }

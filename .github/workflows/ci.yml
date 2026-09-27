@@ -125,6 +125,23 @@ jobs:
           git fetch --quiet --depth=1 origin "$tip:$tip" || echo "no $tip to fetch"
           node scripts/parity.mjs --upstream upstream/main --ours HEAD
 
+      # The tests sit outside every parity axis on purpose — a test of ours travels
+      # with the batch that brings what it tests — so they get a count of their own.
+      # Both directions: what `main` holds and what the batch stack holds, because a
+      # test written on a batch branch never came home and nothing was looking.
+      # A case the other side has is either coverage to bring here or the same
+      # property under other words, and scripts/test-drift-manifest.json says which.
+      - name: The tests on both sides are accounted for
+        run: |
+          set -eu
+          node scripts/test-drift.mjs upstream/main HEAD
+          tip="$(node -p "require('./scripts/parity-manifest.json').batchTip")"
+          if git rev-parse --verify --quiet "$tip" >/dev/null; then
+            node scripts/test-drift.mjs "$tip" HEAD
+          else
+            echo "No $tip here to compare against; the half against main still ran."
+          fi
+
       - name: Version consistency
         run: npm run version:check
 
