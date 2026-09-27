@@ -1,12 +1,11 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, defineAsyncComponent } from 'vue';
 import HeaderLogo from '@/components/HeaderLogo.vue';
 import FavMenu from '@/components/FavMenu.vue';
 import VolMenu from '@/components/VolMenu.vue';
 import TerminalMenu from '@/components/TerminalMenu.vue';
 import SharesMenu from '@/components/SharesMenu.vue';
 import TrashMenu from '@/components/TrashMenu.vue';
-import UploadProgress from '@/components/UploadProgress.vue';
 import ClipboardProgress from '@/components/ClipboardProgress.vue';
 import UserMenu from '@/components/UserMenu.vue';
 import NotificationToastContainer from '@/components/NotificationToastContainer.vue';
@@ -16,22 +15,25 @@ import { useStorage, useEventListener, useMediaQuery } from '@vueuse/core';
 
 import PreviewHost from '@/plugins/preview/PreviewHost.vue';
 import ExplorerContextMenu from '@/components/ExplorerContextMenu.vue';
-import TerminalPanel from '@/components/TerminalPanel.vue';
+// The terminal carries xterm with it, which is a large library for a panel
+// most sessions never open and only an administrator can. Loaded when it is
+// first shown rather than on every page.
+const TerminalPanel = defineAsyncComponent(() => import('@/components/TerminalPanel.vue'));
 import { useAuthStore } from '@/stores/auth';
 import { useAppSettings } from '@/stores/appSettings';
 import { useFeaturesStore } from '@/stores/features';
-import { useFileStore } from '@/stores/fileStore';
 import { useI18n } from 'vue-i18n';
 import { pageTitleFor } from '@/utils/pageTitle';
 import { usePageTitle } from '@/composables/usePageTitle';
+import { useFileStore } from '@/stores/fileStore';
 import InfoPanel from '@/components/InfoPanel.vue';
 import VersionsPanel from '@/components/VersionsPanel.vue';
-import OnlyOfficeTransferConfirm from '@/components/OnlyOfficeTransferConfirm.vue';
 import { useFileUploader } from '@/composables/fileUploader';
 import { useKeyboardShortcuts } from '@/composables/keyboardShortcuts';
 import SpotlightSearch from '@/components/SpotlightSearch.vue';
 import FavoriteEditDialog from '@/components/FavoriteEditDialog.vue';
 import DestinationPickerDialog from '@/components/DestinationPickerDialog.vue';
+import OnlyOfficeTransferConfirm from '@/components/OnlyOfficeTransferConfirm.vue';
 import {
   Bars3Icon,
   ArrowRightOnRectangleIcon,
@@ -41,8 +43,6 @@ import FolderViewToolbar from '@/components/FolderViewToolbar.vue';
 
 const route = useRoute();
 const router = useRouter();
-const fileStore = useFileStore();
-const { t: translate, te } = useI18n();
 const auth = useAuthStore();
 const appSettings = useAppSettings();
 const featuresStore = useFeaturesStore();
@@ -113,8 +113,9 @@ useEventListener(window, 'keydown', (e) => {
   }
 });
 
-// What a share being browsed is called: at its top the address holds only its
-// token, which names nothing.
+const { t: translate, te } = useI18n();
+const fileStore = useFileStore();
+// At the top of a share its address holds only the token; the share has a name.
 const shareName = computed(() => {
   const info = fileStore.currentPathData?.shareInfo;
   return info?.label || info?.sourceFolderName || '';
@@ -144,7 +145,7 @@ const handleGuestLogin = () => {
 </script>
 
 <template>
-  <div class="relative flex w-full min-h-dvh">
+  <div class="relative flex h-dvh w-full overflow-hidden">
     <aside
       class="flex flex-col bg-default-muted dark:bg-default-muted pt-4 pb-2 px-6 shrink-0 fixed inset-y-0 left-0 transition-transform duration-200 ease-in-out z-50 lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0"
       :class="isSidebarOpen ? 'translate-x-0' : '-translate-x-full'"
@@ -200,7 +201,7 @@ const handleGuestLogin = () => {
       ></div>
     </div>
 
-    <main class="flex min-w-0 flex-col grow relative bg-default shadow-lg">
+    <main class="relative flex min-h-0 min-w-0 grow flex-col overflow-hidden bg-default shadow-lg">
       <FolderViewToolbar v-if="showBrowseToolbar" @toggle-sidebar="toggleSidebar" />
 
       <!-- Mobile-only toggle for non-browse views (keeps existing view layouts unchanged) -->
@@ -215,7 +216,7 @@ const handleGuestLogin = () => {
       </button>
 
       <ExplorerContextMenu>
-        <div class="flex min-h-0 flex-1 flex-col">
+        <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
           <RouterView v-slot="{ Component, route: viewRoute }">
             <component :is="Component" :key="viewRoute.fullPath" class="min-h-0 flex-1" />
           </RouterView>
@@ -231,15 +232,14 @@ const handleGuestLogin = () => {
       :aria-label="$t('browser.closeSidebar')"
       @click="closeSidebar"
     ></button>
-    <UploadProgress class="z-550" />
     <ClipboardProgress class="z-560" />
     <PreviewHost />
     <InfoPanel />
     <VersionsPanel />
-    <OnlyOfficeTransferConfirm />
     <SpotlightSearch />
     <FavoriteEditDialog />
     <DestinationPickerDialog />
+    <OnlyOfficeTransferConfirm />
     <NotificationToastContainer />
     <NotificationPanel />
     <TerminalPanel v-if="featuresStore.terminalEnabled" />
@@ -262,10 +262,27 @@ const handleGuestLogin = () => {
 </template>
 
 <style scoped>
+/*
+ * The scrollbar appears on hover; the scrolling never goes away.
+ *
+ * This used to be `overflow-y: hidden` until `:hover`, which hides the
+ * scrollbar by making the panel unscrollable — so on a touch screen, where
+ * nothing hovers, whatever was below the fold could not be reached at all.
+ * Measured with 31 volumes in the sidebar: 897 px of it.
+ */
 .scroll-on-hover {
-  overflow-y: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.scroll-on-hover::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 .scroll-on-hover:hover {
-  overflow-y: scroll;
+  scrollbar-width: thin;
+}
+.scroll-on-hover:hover::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 </style>

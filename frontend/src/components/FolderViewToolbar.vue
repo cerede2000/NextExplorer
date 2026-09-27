@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import NavButtons from '@/components/NavButtons.vue';
 import BreadCrumb from '@/components/BreadCrumb.vue';
 import MenuItemInfo from '@/components/MenuItemInfo.vue';
@@ -15,7 +15,7 @@ import { useSettingsStore } from '@/stores/settings';
 import { useAuthStore } from '@/stores/auth';
 import { useFileStore } from '@/stores/fileStore';
 import { useRoute, useRouter } from 'vue-router';
-import { ArrowDownTrayIcon, Bars3Icon, HomeIcon } from '@heroicons/vue/24/outline';
+import { ArrowDownTrayIcon, ArrowPathIcon, Bars3Icon, HomeIcon } from '@heroicons/vue/24/outline';
 import { useInputMode } from '@/composables/useInputMode';
 
 const settings = useSettingsStore();
@@ -44,9 +44,10 @@ const canCreate = computed(() => {
 
   // If access metadata is available, honor it for everyone (including authenticated users on shares).
   if (currentPathData && typeof currentPathData === 'object') {
-    const canWrite = currentPathData?.canWrite ?? true;
+    const canCreateFolder = currentPathData?.canCreateFolder ?? true;
+    const canCreateFile = currentPathData?.canCreateFile ?? true;
     const canUpload = currentPathData?.canUpload ?? true;
-    return Boolean(canWrite || canUpload);
+    return Boolean(canCreateFolder || canCreateFile || canUpload);
   }
 
   // Backward compat: if backend doesn't send access metadata, fail open for authenticated users.
@@ -58,6 +59,23 @@ const canCreate = computed(() => {
 
 const goHome = async () => {
   await router.push('/browse/');
+};
+
+const currentFolderPath = computed(() => {
+  const p = route.params.path;
+  return Array.isArray(p) ? p.join('/') : p || '';
+});
+
+// Refresh: re-fetch the current folder listing (spins the icon while loading).
+const refreshing = ref(false);
+const refreshFolder = async () => {
+  if (refreshing.value) return;
+  refreshing.value = true;
+  try {
+    await fileStore.fetchPathItems(currentFolderPath.value);
+  } finally {
+    refreshing.value = false;
+  }
 };
 
 const toggleSelectionMode = () => {
@@ -96,8 +114,20 @@ const downloadCurrentFolder = () => {
         >
           <HomeIcon class="h-5 w-5" />
         </button>
+        <button
+          v-if="!isVolumesView"
+          type="button"
+          class="shrink-0 mr-1 p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-700 dark:active:bg-neutral-600"
+          :title="$t('nav.refresh')"
+          :aria-label="$t('nav.refresh')"
+          @click="refreshFolder"
+        >
+          <ArrowPathIcon class="h-5 w-5" :class="{ 'animate-spin': refreshing }" />
+        </button>
         <NavButtons />
-        <BreadCrumb class="ml-2 mr-auto" />
+        <div class="group/crumb flex min-w-0 items-center mr-auto">
+          <BreadCrumb class="ml-2" />
+        </div>
         <button
           v-if="isTouchDevice && !isVolumesView"
           type="button"
