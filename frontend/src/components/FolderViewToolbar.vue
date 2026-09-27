@@ -17,6 +17,7 @@ import { useFileStore } from '@/stores/fileStore';
 import { useRoute, useRouter } from 'vue-router';
 import { ArrowDownTrayIcon, ArrowPathIcon, Bars3Icon, HomeIcon } from '@heroicons/vue/24/outline';
 import { useInputMode } from '@/composables/useInputMode';
+import InlineQuickActions from '@/components/InlineQuickActions.vue';
 
 const settings = useSettingsStore();
 const auth = useAuthStore();
@@ -65,6 +66,9 @@ const currentFolderPath = computed(() => {
   const p = route.params.path;
   return Array.isArray(p) ? p.join('/') : p || '';
 });
+
+// Drives lazy rendering of the folder quick-actions (only while hovered).
+const crumbHover = ref(false);
 
 // Refresh: re-fetch the current folder listing (spins the icon while loading).
 const refreshing = ref(false);
@@ -125,8 +129,13 @@ const downloadCurrentFolder = () => {
           <ArrowPathIcon class="h-5 w-5" :class="{ 'animate-spin': refreshing }" />
         </button>
         <NavButtons />
-        <div class="group/crumb flex min-w-0 items-center mr-auto">
+        <div
+          class="group/crumb flex min-w-0 items-center mr-auto"
+          @mouseenter="crumbHover = true"
+          @mouseleave="crumbHover = false"
+        >
           <BreadCrumb class="ml-2" />
+          <InlineQuickActions v-if="!isVolumesView" folder :active="crumbHover" class="ml-1" />
         </div>
         <button
           v-if="isTouchDevice && !isVolumesView"

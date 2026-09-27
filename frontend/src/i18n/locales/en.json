@@ -581,7 +581,13 @@
       "documentsOpenInNewTabHelp": "Opening a file gives it a browser tab of its own, so several stay open while you keep browsing. Off, it opens over the folder as it does today.",
       "showVersionMarks": "Mark files that have versions",
       "showVersionMarksHelp": "A small mark in the listing on any file with earlier versions, with how many. Click it to open the history.",
-      "languageHelp": "Kept with your account, on every browser you sign in from."
+      "languageHelp": "Kept with your account, on every browser you sign in from.",
+      "quickActions": "Quick actions menu",
+      "quickActionsHelp": "Shows a small hover menu of actions on each file/folder row and on the folder name at the top.",
+      "quickActionsReorder": "Choose and reorder the actions shown.",
+      "quickActionsMode": "Menu display",
+      "quickActionsModeFull": "All icons on hover",
+      "quickActionsModeCompact": "… icon (expand on hover)"
     },
     "thumbs": {
       "subtitle": "Customize preview thumbnails for images and videos.",
@@ -1377,5 +1383,8 @@
   "links": {
     "outside": "Link out of this volume",
     "outsideExplained": "{name} is a link to a place outside this volume. It cannot be opened, renamed or deleted from here; remove it on the server if it is no longer needed."
+  },
+  "quickActions": {
+    "menu": "Quick actions"
   }
 }

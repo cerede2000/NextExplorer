@@ -581,7 +581,13 @@
       "documentsOpenInNewTabHelp": "Al abrir un archivo se le da su propia pestaña del navegador, así varios siguen abiertos mientras usted sigue navegando. Desactivado, se abre sobre la carpeta como hasta ahora.",
       "showVersionMarks": "Marcar los archivos con versiones",
       "showVersionMarksHelp": "Una pequeña marca en la lista sobre los archivos con versiones anteriores, con su número. Haga clic para abrir el historial.",
-      "languageHelp": "Se guarda con su cuenta, en cualquier navegador desde el que inicie sesión."
+      "languageHelp": "Se guarda con su cuenta, en cualquier navegador desde el que inicie sesión.",
+      "quickActions": "Menú de acciones rápidas",
+      "quickActionsHelp": "Muestra al pasar el cursor un pequeño menú de acciones en cada fila de archivo/carpeta y en el nombre de la carpeta en la parte superior.",
+      "quickActionsReorder": "Elige y reordena las acciones que se muestran.",
+      "quickActionsMode": "Visualización del menú",
+      "quickActionsModeFull": "Todos los iconos al pasar el cursor",
+      "quickActionsModeCompact": "Icono … (desplegar al pasar el cursor)"
     },
     "thumbs": {
       "subtitle": "Personaliza las miniaturas de vista previa para imágenes y vídeos.",
@@ -1377,5 +1383,8 @@
   "links": {
     "outside": "Enlace fuera de este volumen",
     "outsideExplained": "{name} es un enlace a un lugar fuera de este volumen. No se puede abrir, renombrar ni eliminar desde aquí; elimínelo en el servidor si ya no lo necesita."
+  },
+  "quickActions": {
+    "menu": "Acciones rápidas"
   }
 }

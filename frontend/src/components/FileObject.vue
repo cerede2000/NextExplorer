@@ -23,6 +23,7 @@ import { CheckIcon } from '@heroicons/vue/20/solid';
 import { ClockIcon, PencilSquareIcon } from '@heroicons/vue/24/outline';
 import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
+import InlineQuickActions from '@/components/InlineQuickActions.vue';
 import { useI18n } from 'vue-i18n';
 import { useNotificationsStore } from '@/stores/notifications';
 
@@ -150,6 +151,9 @@ const selectionButtonStateClass = (selected) =>
     : 'border-neutral-300 bg-white/80 text-transparent ring-neutral-200 dark:border-neutral-600 dark:bg-zinc-900/60 dark:ring-neutral-700';
 
 const longPressActive = ref(false);
+
+// Drives lazy rendering of the inline quick-actions (only mounted while hovered).
+const qaHover = ref(false);
 
 const handleToggleSelection = (event) => {
   if (isRenaming.value) return;
@@ -523,6 +527,8 @@ if (isTouchDevice.value) {
       @contextmenu.prevent.stop="handleContextMenu"
       @dragstart="(e) => handleDragStart(e, item)"
       @dragend="handleDragEnd"
+      @mouseenter="qaHover = true"
+      @mouseleave="qaHover = false"
       :draggable="canDragDrop() && !isRenaming"
       :class="[
         'grid select-none items-center',
@@ -608,6 +614,7 @@ if (isTouchDevice.value) {
               <ClockIcon class="h-3.5 w-3.5" />
               <span>{{ versionCount }}</span>
             </button>
+            <InlineQuickActions :item="item" :active="qaHover" />
           </div>
         </template>
       </div>

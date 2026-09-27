@@ -581,7 +581,13 @@
       "documentsOpenInNewTabHelp": "Een bestand openen geeft het een eigen browsertabblad, zodat er meerdere open blijven terwijl u verder bladert. Uit opent het over de map heen, zoals nu.",
       "showVersionMarks": "Bestanden met versies markeren",
       "showVersionMarksHelp": "Een klein teken in de lijst bij bestanden met eerdere versies, met het aantal. Klik erop om de geschiedenis te openen.",
-      "languageHelp": "Wordt bij uw account bewaard, in elke browser waarmee u zich aanmeldt."
+      "languageHelp": "Wordt bij uw account bewaard, in elke browser waarmee u zich aanmeldt.",
+      "quickActions": "Menu met snelle acties",
+      "quickActionsHelp": "Toont een klein menu met acties wanneer u over een bestands- of mapregel en over de mapnaam bovenaan beweegt.",
+      "quickActionsReorder": "Kies welke acties worden getoond en in welke volgorde.",
+      "quickActionsMode": "Weergave van het menu",
+      "quickActionsModeFull": "Alle pictogrammen bij aanwijzen",
+      "quickActionsModeCompact": "…-pictogram (uitklappen bij aanwijzen)"
     },
     "thumbs": {
       "subtitle": "Voorbeeldminiaturen aanpassen voor afbeeldingen en video's.",
@@ -1377,5 +1383,8 @@
   "links": {
     "outside": "Link buiten dit volume",
     "outsideExplained": "{name} is een link naar een plek buiten dit volume. Hij kan hier niet worden geopend, hernoemd of verwijderd; verwijder hem op de server als hij niet meer nodig is."
+  },
+  "quickActions": {
+    "menu": "Snelle acties"
   }
 }

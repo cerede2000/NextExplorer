@@ -581,7 +581,13 @@
       "documentsOpenInNewTabHelp": "En fil som öppnas får en egen webbläsarflik, så att flera kan stå öppna medan du bläddrar vidare. Av öppnas den ovanpå mappen som i dag.",
       "showVersionMarks": "Märk filer som har versioner",
       "showVersionMarksHelp": "Ett litet märke i listan på filer med tidigare versioner, med antalet. Klicka på det för att öppna historiken.",
-      "languageHelp": "Sparas med ditt konto, i varje webbläsare du loggar in från."
+      "languageHelp": "Sparas med ditt konto, i varje webbläsare du loggar in från.",
+      "quickActions": "Snabbåtgärdsmeny",
+      "quickActionsHelp": "Visar en liten meny med åtgärder vid hovring på varje fil-/mapprad och på mappnamnet högst upp.",
+      "quickActionsReorder": "Välj och ändra ordning på de åtgärder som visas.",
+      "quickActionsMode": "Menyvisning",
+      "quickActionsModeFull": "Alla ikoner vid hovring",
+      "quickActionsModeCompact": "…-ikon (fäll ut vid hovring)"
     },
     "thumbs": {
       "subtitle": "Anpassa förhandsvisningsminiatyrer för bilder och videor.",
@@ -1377,5 +1383,8 @@
   "links": {
     "outside": "Länk utanför den här volymen",
     "outsideExplained": "{name} är en länk till en plats utanför den här volymen. Den kan inte öppnas, byta namn eller tas bort härifrån; ta bort den på servern om den inte längre behövs."
+  },
+  "quickActions": {
+    "menu": "Snabbåtgärder"
   }
 }
