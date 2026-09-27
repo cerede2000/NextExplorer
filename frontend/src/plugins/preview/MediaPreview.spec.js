@@ -174,6 +174,13 @@ describe('MediaPreview', () => {
     expect(pause).toHaveBeenCalledTimes(2);
   });
 
+  /**
+   * How the video is laid out is held in `frontend/e2e/media-preview-layout.spec.js`
+   * instead: the element is sized to the picture rather than to the stage, and what
+   * that has to be right about — the control bar on screen, the shape it was filmed
+   * in, a swipe overlay that stops short of the controls — is a box, which only a
+   * real browser can measure.
+   */
   it('keeps native video arrow-key controls available', () => {
     const { wrapper } = createWrapper(media[1]);
     const event = new KeyboardEvent('keydown', {
@@ -201,21 +208,6 @@ describe('MediaPreview', () => {
 
     expect(event.defaultPrevented).toBe(true);
     expect(api.close).toHaveBeenCalledOnce();
-  });
-
-  it('does not cover the native video surface with an interaction overlay', () => {
-    const { wrapper } = createWrapper(media[1]);
-
-    expect(wrapper.find('video + [aria-hidden="true"]').exists()).toBe(false);
-  });
-
-  it('scales video to the full preview stage without cropping it', () => {
-    const { wrapper } = createWrapper(media[1]);
-    const video = wrapper.get('video');
-
-    expect(video.classes()).toEqual(expect.arrayContaining(['h-full', 'w-full', 'object-contain']));
-    expect(video.element.parentElement.classList).toContain('h-full');
-    expect(video.element.parentElement.classList).toContain('w-full');
   });
 
   it('shows a useful fallback if the browser cannot render an image', async () => {

@@ -137,16 +137,21 @@
         <p class="mt-1 text-sm text-neutral-400">{{ currentMedia.item.name }}</p>
       </div>
       <!--
-        The wrapper takes the whole stage so the video scales from the available
-        viewport instead of its often-small encoded dimensions. object-contain
-        keeps portrait and landscape videos uncropped and leaves the native
-        controls inside the visible area.
+        A grid, so the video is actually contained.
+
+        `max-h-full` on the video used to resolve against this wrapper, whose
+        own height is content-driven — and a percentage against an indefinite
+        height computes to none. A portrait video therefore rendered at its
+        natural height and hung below the stage, which clips it: the control
+        bar was simply off-screen, and only fullscreen brought it back. A grid
+        area has a definite size, so the same percentage now means what it
+        says. Landscape videos, which fit either way, are laid out identically.
       -->
-      <div v-else class="relative grid h-full w-full min-h-0 place-items-center">
+      <div v-else class="relative grid min-h-0 max-h-full max-w-full place-items-center">
         <video
           :key="currentMedia.key"
           ref="videoRef"
-          class="block h-full w-full min-h-0 bg-black object-contain"
+          class="block min-h-0 max-h-full max-w-full bg-black"
           controls
           autoplay
           playsinline
@@ -172,6 +177,11 @@
           />
           Your browser does not support the video tag.
         </video>
+        <div
+          class="absolute inset-x-0 top-0 bottom-14"
+          aria-hidden="true"
+          style="touch-action: pan-y"
+        ></div>
       </div>
 
       <!--
