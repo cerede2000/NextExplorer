@@ -72,7 +72,8 @@
     "readwrite": "Lettura/Scrittura",
     "add": "Aggiungi",
     "back": "Indietro",
-    "logoAlt": "Logo di {name}"
+    "logoAlt": "Logo di {name}",
+    "toggleSection": "Mostra o nascondi la sezione"
   },
   "editor": {
     "editing": "Editing",

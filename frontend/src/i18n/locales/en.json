@@ -72,7 +72,8 @@
     "readwrite": "Read/Write",
     "add": "Add",
     "back": "Back",
-    "logoAlt": "{name} logo"
+    "logoAlt": "{name} logo",
+    "toggleSection": "Toggle section"
   },
   "editor": {
     "editing": "Editing",

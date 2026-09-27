@@ -72,7 +72,8 @@
     "readwrite": "Odczyt/Zapis",
     "add": "Dodaj",
     "back": "Wstecz",
-    "logoAlt": "Logo {name}"
+    "logoAlt": "Logo {name}",
+    "toggleSection": "Pokaż lub ukryj sekcję"
   },
   "editor": {
     "editing": "Editing",

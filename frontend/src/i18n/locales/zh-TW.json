@@ -72,7 +72,8 @@
     "readwrite": "讀寫",
     "add": "新增",
     "back": "後退",
-    "logoAlt": "{name} 的標誌"
+    "logoAlt": "{name} 的標誌",
+    "toggleSection": "展開或摺疊此區段"
   },
   "editor": {
     "editing": "Editing",

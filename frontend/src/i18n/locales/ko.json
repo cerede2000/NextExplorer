@@ -72,7 +72,8 @@
     "readwrite": "읽기/쓰기",
     "add": "추가",
     "back": "뒤로 가기",
-    "logoAlt": "{name} 로고"
+    "logoAlt": "{name} 로고",
+    "toggleSection": "섹션 펼치기/접기"
   },
   "editor": {
     "editing": "편집 중",

@@ -72,7 +72,8 @@
     "readwrite": "Чтение/Запись",
     "add": "Добавить",
     "back": "Назад",
-    "logoAlt": "Логотип {name}"
+    "logoAlt": "Логотип {name}",
+    "toggleSection": "Показать или скрыть раздел"
   },
   "editor": {
     "editing": "Editing",

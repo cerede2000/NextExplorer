@@ -72,7 +72,8 @@
     "readwrite": "Lezen/schrijven",
     "add": "Toevoegen",
     "back": "Terug",
-    "logoAlt": "Logo van {name}"
+    "logoAlt": "Logo van {name}",
+    "toggleSection": "Sectie in- of uitklappen"
   },
   "editor": {
     "editing": "Bewerken",

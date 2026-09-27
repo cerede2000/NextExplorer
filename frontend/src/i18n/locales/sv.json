@@ -72,7 +72,8 @@
     "readwrite": "Läs/Skriv",
     "add": "Lägg till",
     "back": "Bakåt",
-    "logoAlt": "Logotyp för {name}"
+    "logoAlt": "Logotyp för {name}",
+    "toggleSection": "Visa eller dölj avsnittet"
   },
   "editor": {
     "editing": "Editing",
