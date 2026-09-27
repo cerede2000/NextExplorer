@@ -319,7 +319,8 @@
     "emptyTitle": "Aún no hay favoritos",
     "emptyDescription": "Selecciona un directorio y toca la estrella en la barra de herramientas principal para fijarlo aquí.",
     "editTitle": "Editar favorito",
-    "icon": "Icono"
+    "icon": "Icono",
+    "volumeUnavailable": "Volumen no disponible: no está montado o ya no está configurado."
   },
   "notifications": {
     "open": "Abrir notificaciones",
@@ -553,7 +554,8 @@
       "maxDim": "Dimensión máxima",
       "maxDimHelp": "Lado más largo en píxeles. El valor predeterminado es 200.",
       "concurrency": "Generación en paralelo",
-      "concurrencyHelp": "Número de miniaturas que se generan simultáneamente (1–50). El valor predeterminado es 10."
+      "concurrencyHelp": "Número de miniaturas que se generan simultáneamente (1–50). El valor predeterminado es 10.",
+      "invalid": "Revisa los valores: calidad de 1 a 100, dimensión máxima de 64 a 1024 px, generación en paralelo de 1 a 50."
     },
     "security": {
       "subtitle": "Controla el acceso a la aplicación.",
@@ -1262,7 +1264,10 @@
   },
   "preview": {
     "nothingOpensIt": "Aquí nada puede abrir {name}.",
-    "backToFolder": "Volver a la carpeta"
+    "backToFolder": "Volver a la carpeta",
+    "tooLargeToRenderSized": "Este documento ocupa {size}. La vista previa se detiene en {limit}, porque compone cada elemento en el navegador. Ábralo en el editor o descárguelo.",
+    "tooLargeToRenderWithEditor": "Este documento ocupa {size}. La vista previa se detiene en {limit}, porque compone cada elemento en el navegador; el editor abre hasta {editorLimit}. Ábralo en el editor o descárguelo.",
+    "stillRendering": "Representando… {percent} %"
   },
   "archive": {
     "password": {

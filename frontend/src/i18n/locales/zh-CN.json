@@ -319,7 +319,8 @@
     "emptyTitle": "尚无收藏",
     "emptyDescription": "选择一个目录并点击主工具栏中的星标，将其固定在此处。",
     "editTitle": "编辑收藏",
-    "icon": "图标"
+    "icon": "图标",
+    "volumeUnavailable": "卷不可用 — 未挂载，或已不再配置。"
   },
   "notifications": {
     "open": "打开通知",
@@ -553,7 +554,8 @@
       "maxDim": "最大尺寸",
       "maxDimHelp": "最长边的像素数。默认值为 200。",
       "concurrency": "并行生成",
-      "concurrencyHelp": "同时生成的缩略图数量 (1–50)。默认值为 10。"
+      "concurrencyHelp": "同时生成的缩略图数量 (1–50)。默认值为 10。",
+      "invalid": "请检查数值：质量 1 至 100，最大尺寸 64 至 1024 px，并行生成 1 至 50。"
     },
     "security": {
       "subtitle": "控制对应用的访问。",
@@ -1262,7 +1264,10 @@
   },
   "preview": {
     "nothingOpensIt": "这里没有什么能打开 {name}。",
-    "backToFolder": "返回文件夹"
+    "backToFolder": "返回文件夹",
+    "tooLargeToRenderSized": "该文档大小为 {size}。预览在 {limit} 处停止，因为它需要在浏览器中排布每一个元素。请在编辑器中打开或下载。",
+    "tooLargeToRenderWithEditor": "该文档大小为 {size}。预览在 {limit} 处停止，因为它需要在浏览器中排布每一个元素；编辑器最多可打开 {editorLimit}。请在编辑器中打开或下载。",
+    "stillRendering": "正在渲染… {percent}%"
   },
   "archive": {
     "password": {

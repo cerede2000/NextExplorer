@@ -319,7 +319,8 @@
     "emptyTitle": "尚無最愛",
     "emptyDescription": "選擇一個目錄並點擊主工具欄中的星星，將其固定在此處。",
     "editTitle": "編輯最愛",
-    "icon": "圖標"
+    "icon": "圖標",
+    "volumeUnavailable": "磁碟區無法使用 — 未掛載，或已不再設定。"
   },
   "notifications": {
     "open": "打開通知",
@@ -553,7 +554,8 @@
       "maxDim": "最大尺寸",
       "maxDimHelp": "最長邊的畫素。預設值為 200。",
       "concurrency": "平行產生",
-      "concurrencyHelp": "同時產生的縮圖數量 (1–50)。預設值為 10。"
+      "concurrencyHelp": "同時產生的縮圖數量 (1–50)。預設值為 10。",
+      "invalid": "請檢查數值：品質 1 至 100，最大尺寸 64 至 1024 px，平行產生 1 至 50。"
     },
     "security": {
       "subtitle": "控制對應用產生的存取。",
@@ -1262,7 +1264,10 @@
   },
   "preview": {
     "nothingOpensIt": "這裡沒有什麼能開啟 {name}。",
-    "backToFolder": "返回資料夾"
+    "backToFolder": "返回資料夾",
+    "tooLargeToRenderSized": "這份文件大小為 {size}。預覽在 {limit} 處停止，因為它需要在瀏覽器中排版每一個元素。請在編輯器中開啟或下載。",
+    "tooLargeToRenderWithEditor": "這份文件大小為 {size}。預覽在 {limit} 處停止，因為它需要在瀏覽器中排版每一個元素；編輯器最多可開啟 {editorLimit}。請在編輯器中開啟或下載。",
+    "stillRendering": "正在算繪… {percent}%"
   },
   "archive": {
     "password": {

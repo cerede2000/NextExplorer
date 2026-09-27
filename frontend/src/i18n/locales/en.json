@@ -319,7 +319,8 @@
     "emptyTitle": "No favorites yet",
     "emptyDescription": "Select a directory and tap the star in the main toolbar to pin it here.",
     "editTitle": "Edit favorite",
-    "icon": "Icon"
+    "icon": "Icon",
+    "volumeUnavailable": "Volume unavailable — it is not mounted, or no longer configured."
   },
   "notifications": {
     "open": "Open notifications",
@@ -553,7 +554,8 @@
       "maxDim": "Max dimension",
       "maxDimHelp": "Longest side in pixels. Default is 200.",
       "concurrency": "Parallel generation",
-      "concurrencyHelp": "Number of thumbnails to generate simultaneously (1–50). Default is 10."
+      "concurrencyHelp": "Number of thumbnails to generate simultaneously (1–50). Default is 10.",
+      "invalid": "Check the values: quality from 1 to 100, max dimension from 64 to 1024 px, parallel generation from 1 to 50."
     },
     "security": {
       "subtitle": "Control access to the app.",
@@ -1262,7 +1264,10 @@
   },
   "preview": {
     "nothingOpensIt": "Nothing here can open {name}.",
-    "backToFolder": "Back to the folder"
+    "backToFolder": "Back to the folder",
+    "tooLargeToRenderSized": "This document is {size}. The preview stops at {limit}, because it lays out every element in the browser. Open it in the editor or download it.",
+    "tooLargeToRenderWithEditor": "This document is {size}. The preview stops at {limit}, because it lays out every element in the browser; the editor opens up to {editorLimit}. Open it in the editor or download it.",
+    "stillRendering": "Rendering… {percent}%"
   },
   "archive": {
     "password": {

@@ -16,27 +16,52 @@ import { isPreviewableImage, isPreviewableVideo } from '@/config/media';
 import { useSettingsStore } from '@/stores/settings';
 import { DragSelectOption } from '@coleqiu/vue-drag-select';
 import MiddleEllipsis from '@/components/MiddleEllipsis.vue';
+import ReadOnlyMark from '@/components/ReadOnlyMark.vue';
 import { ellipses } from '@/utils/ellipses';
 import { useInputMode } from '@/composables/useInputMode';
 import { CheckIcon } from '@heroicons/vue/20/solid';
 import { ClockIcon, PencilSquareIcon } from '@heroicons/vue/24/outline';
-import { useI18n } from 'vue-i18n';
 import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
+import { useI18n } from 'vue-i18n';
+import { useNotificationsStore } from '@/stores/notifications';
 
-const props = defineProps(['item', 'view']);
+const props = defineProps({
+  item: { type: Object, required: true },
+  view: { type: String, required: true },
+});
 const settings = useSettingsStore();
 
-const { openItem } = useNavigation();
+const { openItem: navigateTo } = useNavigation();
+const { t } = useI18n();
+const notificationsStore = useNotificationsStore();
+
+// A link out of the volume is listed so it can be seen, but the server refuses
+// to follow it, so opening it says why instead of failing.
+const isOutsideLink = computed(() => props.item?.link === 'outside');
+const openItem = (item) => {
+  if (item?.link === 'outside') {
+    notificationsStore.addNotification({
+      type: 'info',
+      heading: t('links.outside'),
+      body: t('links.outsideExplained', { name: item.name }),
+    });
+    return;
+  }
+  navigateTo(item);
+};
 const { handleSelection, isSelected, toggleSelection } = useSelection();
 const fileStore = useFileStore();
+const { renameState, selectionMode } = storeToRefs(fileStore);
+const { canDragDrop, handleDragStart, handleDragEnd } = useFileDragDrop();
+const contextMenu = useExplorerContextMenu();
+const { isTouchDevice } = useInputMode();
 const folderSizeStore = useFolderSizeStore();
 const featuresStore = useFeaturesStore();
 
 const isDirectory = computed(() => props.item?.kind === 'directory');
 // item.path is the parent's logical path and item.name the entry name, so the
-// folder's own logical path — which is how the index knows it — is the two
-// joined.
+// folder's own logical path (used to look up its indexed size) combines them.
 const folderFullPath = computed(() => {
   const parent = props.item?.path || '';
   const name = props.item?.name || '';
@@ -46,10 +71,6 @@ const showFolderSize = computed(() => isDirectory.value && featuresStore.folderS
 const folderSizeEntry = computed(() =>
   showFolderSize.value ? folderSizeStore.sizeFor(folderFullPath.value) : null
 );
-const { renameState, selectionMode } = storeToRefs(fileStore);
-const { canDragDrop, handleDragStart } = useFileDragDrop();
-const contextMenu = useExplorerContextMenu();
-const { isTouchDevice } = useInputMode();
 
 const renameInputRef = ref(null);
 const rootRef = ref(null);
@@ -80,22 +101,14 @@ const isCut = computed(() =>
 );
 
 const selected = computed(() => isSelected(props.item));
-
-/**
- * Somebody has this document open in an editor.
- *
- * Advisory, never a lock: the file can still be copied, moved, renamed or
- * deleted. The mark is there so nobody does any of those by accident while an
- * editor is about to write a newer version of it.
- */
 const onlyofficeActivity = computed(() => props.item?.onlyofficeActivity || null);
 const onlyofficeActivityLabel = computed(() => {
   const activity = onlyofficeActivity.value;
   if (!activity?.active) return '';
   const users = Array.isArray(activity.users) ? activity.users.filter(Boolean) : [];
   return users.length > 0
-    ? t('onlyoffice.editingBy', { names: users.join(', ') })
-    : t('onlyoffice.editingNow');
+    ? `Édition en cours dans OnlyOffice : ${users.join(', ')}`
+    : 'Édition en cours dans OnlyOffice';
 });
 
 /**
@@ -106,21 +119,18 @@ const onlyofficeActivityLabel = computed(() => {
  * that there is one unless its owner said so. Nothing is decided here: the
  * mark is there when the count is.
  */
-const { t } = useI18n();
 const versionsPanel = useVersionsPanelStore();
 const versionCount = computed(() => {
   const count = Number(props.item?.versions?.count);
   return Number.isFinite(count) && count > 0 ? count : 0;
 });
-// `(key, named, plural)`, as the Versions panel calls it: the third argument of
-// the other overload is a bag of options, not a bag of values.
+// `(key, named, plural)`, as the Versions panel calls it: the third argument
+// of the other overload is a bag of options, not a bag of values.
 const versionsLabel = computed(() =>
   versionCount.value ? t('versions.mark', { count: versionCount.value }, versionCount.value) : ''
 );
-/**
- * Straight to the history, rather than the row's own click: it is the one thing
- * the mark could mean, and the right-click route stays as it was.
- */
+/** Straight to the history, rather than the row's own click: it is the one
+ *  thing the mark could mean, and the right-click route stays as it was. */
 const openVersions = () => {
   if (!versionCount.value) return;
   versionsPanel.open(props.item);
@@ -286,6 +296,7 @@ if (isTouchDevice.value) {
       @dblclick="handleDblClick"
       @contextmenu.prevent.stop="handleContextMenu"
       @dragstart="(e) => handleDragStart(e, item)"
+      @dragend="handleDragEnd"
       :draggable="canDragDrop() && !isRenaming"
       class="photo-cell relative w-full rounded-md overflow-hidden cursor-pointer select-none bg-neutral-100 dark:bg-zinc-800/60 hover:brightness-105"
       :class="{
@@ -312,8 +323,6 @@ if (isTouchDevice.value) {
       <span
         v-if="onlyofficeActivity?.active"
         :title="onlyofficeActivityLabel"
-        :aria-label="onlyofficeActivityLabel"
-        data-test="onlyoffice-mark"
         class="absolute left-2 top-2 z-10 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-100/95 text-amber-700 shadow-sm dark:bg-amber-400/20 dark:text-amber-300"
       >
         <PencilSquareIcon class="h-3.5 w-3.5" />
@@ -342,6 +351,7 @@ if (isTouchDevice.value) {
       @dblclick="handleDblClick"
       @contextmenu.prevent.stop="handleContextMenu"
       @dragstart="(e) => handleDragStart(e, item)"
+      @dragend="handleDragEnd"
       :draggable="canDragDrop() && !isRenaming"
       class="relative flex flex-col items-center gap-2 p-2 rounded-xl cursor-pointer select-none"
       :class="[
@@ -365,6 +375,13 @@ if (isTouchDevice.value) {
       >
         <CheckIcon class="h-4 w-4" />
       </button>
+      <span
+        v-if="onlyofficeActivity?.active"
+        :title="onlyofficeActivityLabel"
+        class="absolute left-2 top-2 z-10 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-100/95 text-amber-700 shadow-sm dark:bg-amber-400/20 dark:text-amber-300"
+      >
+        <PencilSquareIcon class="h-3.5 w-3.5" />
+      </span>
       <FileIcon :item="item" class="h-16 shrink-0" />
       <div
         class="text-sm text-center break-all line-clamp-2 rounded-md"
@@ -387,15 +404,11 @@ if (isTouchDevice.value) {
         </template>
         <template v-else>
           {{ ellipses(item.name, (maxl = 15))
-          }}<span
-            v-if="onlyofficeActivity?.active"
-            :title="onlyofficeActivityLabel"
-            :aria-label="onlyofficeActivityLabel"
-            data-test="onlyoffice-mark"
-            class="ml-1 inline-flex shrink-0 items-center align-middle text-amber-600 dark:text-amber-400"
-          >
-            <PencilSquareIcon class="h-3.5 w-3.5" /> </span
-          ><button
+          }}<ReadOnlyMark
+            v-if="item.readOnly"
+            :reason="item.readOnly"
+            class="ml-1 align-middle"
+          /><button
             v-if="versionCount"
             type="button"
             :title="versionsLabel"
@@ -420,6 +433,7 @@ if (isTouchDevice.value) {
       @dblclick="handleDblClick"
       @contextmenu.prevent.stop="handleContextMenu"
       @dragstart="(e) => handleDragStart(e, item)"
+      @dragend="handleDragEnd"
       :draggable="canDragDrop() && !isRenaming"
       class="relative flex items-center gap-2 p-4 rounded-md cursor-pointer select-none"
       :class="[
@@ -450,7 +464,7 @@ if (isTouchDevice.value) {
           'bg-blue-500 text-white dark:bg-blue-600': selected && !isRenaming,
         }"
       >
-        <div class="break-all line-clamp-2">
+        <div class="flex items-center gap-1.5 break-all line-clamp-2">
           <template v-if="isRenaming">
             <input
               ref="renameInputRef"
@@ -465,22 +479,22 @@ if (isTouchDevice.value) {
             />
           </template>
           <template v-else>
-            {{ ellipses(item.name, (maxl = 50))
-            }}<span
+            {{ ellipses(item.name, (maxl = 50)) }}
+            <ReadOnlyMark v-if="item.readOnly" :reason="item.readOnly" />
+            <span
               v-if="onlyofficeActivity?.active"
               :title="onlyofficeActivityLabel"
-              :aria-label="onlyofficeActivityLabel"
-              data-test="onlyoffice-mark"
-              class="ml-1 inline-flex shrink-0 items-center align-middle text-amber-600 dark:text-amber-400"
+              class="inline-flex h-4 w-4 shrink-0 items-center justify-center text-amber-600 dark:text-amber-400"
             >
-              <PencilSquareIcon class="h-3.5 w-3.5" /> </span
-            ><button
+              <PencilSquareIcon class="h-3.5 w-3.5" />
+            </span>
+            <button
               v-if="versionCount"
               type="button"
               :title="versionsLabel"
               :aria-label="versionsLabel"
               data-test="version-mark"
-              class="ml-1 inline-flex shrink-0 items-center gap-0.5 rounded-full px-1 align-middle text-[0.65rem] font-medium leading-4 text-current opacity-55 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-blue-500"
+              class="inline-flex shrink-0 items-center gap-0.5 rounded-full px-1 align-middle text-[0.65rem] font-medium leading-4 text-current opacity-55 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-blue-500"
               @click.stop.prevent="openVersions"
               @dblclick.stop.prevent
             >
@@ -491,7 +505,9 @@ if (isTouchDevice.value) {
         </div>
         <p class="text-xs text-stone-400">
           <FolderSizeLabel v-if="showFolderSize" :entry="folderSizeEntry" />
-          <template v-else>{{ formatBytes(item.size) }}</template>
+          <template v-else>{{
+            isOutsideLink ? t('links.outside') : formatBytes(item.size)
+          }}</template>
         </p>
       </div>
     </div>
@@ -503,6 +519,7 @@ if (isTouchDevice.value) {
       @dblclick="handleDblClick"
       @contextmenu.prevent.stop="handleContextMenu"
       @dragstart="(e) => handleDragStart(e, item)"
+      @dragend="handleDragEnd"
       :draggable="canDragDrop() && !isRenaming"
       :class="[
         'grid select-none items-center',
@@ -560,37 +577,45 @@ if (isTouchDevice.value) {
           />
         </template>
         <template v-else>
-          <MiddleEllipsis :text="item.name" :end-chars="10" /><span
-            v-if="onlyofficeActivity?.active"
-            :title="onlyofficeActivityLabel"
-            :aria-label="onlyofficeActivityLabel"
-            data-test="onlyoffice-mark"
-            class="ml-1 inline-flex shrink-0 items-center align-middle text-amber-600 dark:text-amber-400"
-          >
-            <PencilSquareIcon class="h-3.5 w-3.5" /> </span
-          ><button
-            v-if="versionCount"
-            type="button"
-            :title="versionsLabel"
-            :aria-label="versionsLabel"
-            data-test="version-mark"
-            class="ml-1 inline-flex shrink-0 items-center gap-0.5 rounded-full px-1 align-middle text-[0.65rem] font-medium leading-4 text-current opacity-55 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-blue-500"
-            @click.stop.prevent="openVersions"
-            @dblclick.stop.prevent
-          >
-            <ClockIcon class="h-3.5 w-3.5" />
-            <span>{{ versionCount }}</span>
-          </button>
+          <!-- Name stays anchored on the left; the hover icons sit to its right in
+               the free space, and wrap onto the line below when the name is too
+               long to leave room. The name never shifts, so browsing isn't jumpy. -->
+          <div class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 min-w-0">
+            <MiddleEllipsis :text="item.name" :end-chars="10" />
+            <!-- A rule holds this entry to reading: the same lock a volume held
+                 to reading carries, drawn where the restriction begins. -->
+            <ReadOnlyMark v-if="item.readOnly" :reason="item.readOnly" />
+            <span
+              v-if="onlyofficeActivity?.active"
+              :title="onlyofficeActivityLabel"
+              class="inline-flex h-4 w-4 shrink-0 items-center justify-center text-amber-600 dark:text-amber-400"
+            >
+              <PencilSquareIcon class="h-3.5 w-3.5" />
+            </span>
+            <button
+              v-if="versionCount"
+              type="button"
+              :title="versionsLabel"
+              :aria-label="versionsLabel"
+              data-test="version-mark"
+              class="inline-flex shrink-0 items-center gap-0.5 rounded-full px-1 align-middle text-[0.65rem] font-medium leading-4 text-current opacity-55 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-blue-500"
+              @click.stop.prevent="openVersions"
+              @dblclick.stop.prevent
+            >
+              <ClockIcon class="h-3.5 w-3.5" />
+              <span>{{ versionCount }}</span>
+            </button>
+          </div>
         </template>
       </div>
       <div class="text-sm">
         <FolderSizeLabel v-if="showFolderSize" :entry="folderSizeEntry" />
         <template v-else>{{
-          item.kind === 'directory' ? '&mdash;' : formatBytes(item.size)
+          item.kind === 'directory' || isOutsideLink ? '&mdash;' : formatBytes(item.size)
         }}</template>
       </div>
       <div class="text-sm">
-        {{ getKindLabel(item) }}
+        {{ isOutsideLink ? t('links.outside') : getKindLabel(item) }}
       </div>
       <div class="text-sm">
         {{ formatDate(item.dateModified) }}

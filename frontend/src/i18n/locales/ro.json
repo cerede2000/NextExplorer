@@ -319,7 +319,8 @@
     "emptyTitle": "Niciun favorit încă",
     "emptyDescription": "Selectează un director și apasă pe stea în bara principală pentru a-l fixa aici.",
     "editTitle": "Editează favorit",
-    "icon": "Pictogramă"
+    "icon": "Pictogramă",
+    "volumeUnavailable": "Volum indisponibil — nu este montat sau nu mai este configurat."
   },
   "notifications": {
     "open": "Deschide notificările",
@@ -553,7 +554,8 @@
       "maxDim": "Dimensiune maximă",
       "maxDimHelp": "Latura cea mai lungă în pixeli. Implicit este 200.",
       "concurrency": "Generare paralelă",
-      "concurrencyHelp": "Numărul de miniaturi generate simultan (1–50). Implicit este 10."
+      "concurrencyHelp": "Numărul de miniaturi generate simultan (1–50). Implicit este 10.",
+      "invalid": "Verificați valorile: calitate între 1 și 100, dimensiune maximă între 64 și 1024 px, generare paralelă între 1 și 50."
     },
     "security": {
       "subtitle": "Controlează accesul la aplicație.",
@@ -1262,7 +1264,10 @@
   },
   "preview": {
     "nothingOpensIt": "Nimic de aici nu poate deschide {name}.",
-    "backToFolder": "Înapoi la dosar"
+    "backToFolder": "Înapoi la dosar",
+    "tooLargeToRenderSized": "Acest document are {size}. Previzualizarea se oprește la {limit}, deoarece aranjează fiecare element în browser. Deschideți-l în editor sau descărcați-l.",
+    "tooLargeToRenderWithEditor": "Acest document are {size}. Previzualizarea se oprește la {limit}, deoarece aranjează fiecare element în browser; editorul deschide până la {editorLimit}. Deschideți-l în editor sau descărcați-l.",
+    "stillRendering": "Se randează… {percent} %"
   },
   "archive": {
     "password": {

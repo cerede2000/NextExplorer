@@ -319,7 +319,8 @@
     "emptyTitle": "Nenhum favorito ainda",
     "emptyDescription": "Selecione um diretório e toque na estrela na barra de ferramentas principal para fixá-lo aqui.",
     "editTitle": "Editar favorito",
-    "icon": "Ícone"
+    "icon": "Ícone",
+    "volumeUnavailable": "Volume indisponível — não está montado ou não está mais configurado."
   },
   "notifications": {
     "open": "Abrir notificações",
@@ -553,7 +554,8 @@
       "maxDim": "Dimensão máxima",
       "maxDimHelp": "Maior lado em pixels. Padrão: 200.",
       "concurrency": "Geração paralela",
-      "concurrencyHelp": "Número de miniaturas geradas simultaneamente (1–50). Padrão: 10."
+      "concurrencyHelp": "Número de miniaturas geradas simultaneamente (1–50). Padrão: 10.",
+      "invalid": "Verifique os valores: qualidade de 1 a 100, dimensão máxima de 64 a 1024 px, geração paralela de 1 a 50."
     },
     "security": {
       "subtitle": "Controle o acesso ao aplicativo.",
@@ -1262,7 +1264,10 @@
   },
   "preview": {
     "nothingOpensIt": "Nada aqui consegue abrir {name}.",
-    "backToFolder": "Voltar para a pasta"
+    "backToFolder": "Voltar para a pasta",
+    "tooLargeToRenderSized": "Este documento tem {size}. A visualização para em {limit}, porque monta cada elemento no navegador. Abra-o no editor ou baixe-o.",
+    "tooLargeToRenderWithEditor": "Este documento tem {size}. A visualização para em {limit}, porque monta cada elemento no navegador; o editor abre até {editorLimit}. Abra-o no editor ou baixe-o.",
+    "stillRendering": "Renderizando… {percent}%"
   },
   "archive": {
     "password": {

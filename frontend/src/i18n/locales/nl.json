@@ -319,7 +319,8 @@
     "emptyTitle": "Nog geen favorieten",
     "emptyDescription": "Selecteer een map en tik op de ster in de hoofdwerkbalk om deze hier vast te zetten.",
     "editTitle": "Favoriet bewerken",
-    "icon": "Pictogram"
+    "icon": "Pictogram",
+    "volumeUnavailable": "Volume niet beschikbaar — het is niet gekoppeld of niet meer geconfigureerd."
   },
   "notifications": {
     "open": "Meldingen openen",
@@ -553,7 +554,8 @@
       "maxDim": "Max. afmetingen",
       "maxDimHelp": "Langste zijde in pixels. Standaard is 200.",
       "concurrency": "Parallel aanmaken",
-      "concurrencyHelp": "Het aantal miniaturen dat tegelijk wordt aangemaakt (1–50). Standaard is 10."
+      "concurrencyHelp": "Het aantal miniaturen dat tegelijk wordt aangemaakt (1–50). Standaard is 10.",
+      "invalid": "Controleer de waarden: kwaliteit van 1 tot 100, max. afmetingen van 64 tot 1024 px, parallel aanmaken van 1 tot 50."
     },
     "security": {
       "subtitle": "Toegangscontrole tot de app.",
@@ -1262,7 +1264,10 @@
   },
   "preview": {
     "nothingOpensIt": "Hier kan niets {name} openen.",
-    "backToFolder": "Terug naar de map"
+    "backToFolder": "Terug naar de map",
+    "tooLargeToRenderSized": "Dit document is {size}. Het voorbeeld stopt bij {limit}, omdat het elk element in de browser opmaakt. Open het in de editor of download het.",
+    "tooLargeToRenderWithEditor": "Dit document is {size}. Het voorbeeld stopt bij {limit}, omdat het elk element in de browser opmaakt; de editor opent tot {editorLimit}. Open het in de editor of download het.",
+    "stillRendering": "Weergeven… {percent}%"
   },
   "archive": {
     "password": {

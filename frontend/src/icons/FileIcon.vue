@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watchEffect } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { apiBase } from '@/api';
 import { useAppSettings } from '@/stores/appSettings';
@@ -15,6 +15,7 @@ import ImageIcon from './files/image-icon.vue';
 import VideoIcon from './files/video-icon.vue';
 import AudioIcon from './files/audio-icon.vue';
 import ArchiveIcon from './files/archive-icon.vue';
+import { badgeForExtension } from './fileBadges';
 
 const props = defineProps({
   item: {
@@ -80,193 +81,146 @@ const isPreviewable = computed(() => {
 
 // Track if we've already requested the thumbnail in this component instance
 const hasRequestedThumbnail = ref(false);
+const iconRoot = ref(null);
+const isNearViewport = ref(false);
+const thumbnailRetryCount = ref(0);
+let thumbnailObserver = null;
+let thumbnailRetryTimer = null;
 
-// Automatically request thumbnail when all conditions are met
-// watchEffect automatically tracks all reactive dependencies and re-runs when they change
-watchEffect(() => {
-  // Exit early if already requested
+const canRequestThumbnail = computed(() => {
+  if (props.disableThumbnails) return false;
+  if (!props.item || props.item.kind === 'directory') return false;
+  if (!isPreviewable.value) return false;
+  if (appSettings.thumbnailsEnabledForSession === false) return false;
+  if (props.item.thumbnail) return false;
+  // A prior request definitively failed (missing source / unsupported): don't
+  // loop on it. A fresh navigation yields a new item object without this flag.
+  if (props.item.thumbnailUnavailable) return false;
+  return Boolean(props.item.supportsThumbnail);
+});
+
+const thumbnailRequestKey = computed(() => {
+  if (!props.item) return '';
+  return [
+    props.item.path || '',
+    props.item.name || '',
+    props.item.kind || '',
+    props.item.size || '',
+    props.item.modified || '',
+  ].join('::');
+});
+
+const clearThumbnailRetry = () => {
+  if (thumbnailRetryTimer) {
+    clearTimeout(thumbnailRetryTimer);
+    thumbnailRetryTimer = null;
+  }
+};
+
+const scheduleThumbnailRetry = () => {
+  clearThumbnailRetry();
+  if (!canRequestThumbnail.value || !isNearViewport.value) return;
+  if (thumbnailRetryCount.value >= 20) return;
+
+  thumbnailRetryCount.value += 1;
+  const delayMs = Math.min(5000, 700 + thumbnailRetryCount.value * 400);
+  thumbnailRetryTimer = setTimeout(() => {
+    thumbnailRetryTimer = null;
+    hasRequestedThumbnail.value = false;
+    requestThumbnailIfNeeded();
+  }, delayMs);
+};
+
+const requestThumbnailIfNeeded = () => {
   if (hasRequestedThumbnail.value) return;
-
-  // Check all conditions
-  if (props.disableThumbnails) return;
-  if (!props.item || props.item.kind === 'directory') return;
-  if (!isPreviewable.value) return;
-  if (appSettings.thumbnailsEnabledForSession === false) return;
-  if (props.item.thumbnail) return;
-  if (!props.item.supportsThumbnail) return;
+  if (!isNearViewport.value) return;
+  if (!canRequestThumbnail.value) return;
 
   // All conditions met - request thumbnail once
   hasRequestedThumbnail.value = true;
-  fileStore.ensureItemThumbnail(props.item);
+  fileStore.ensureItemThumbnail(props.item).then((thumbnail) => {
+    if (thumbnail) {
+      clearThumbnailRetry();
+      return;
+    }
+    scheduleThumbnailRetry();
+  });
+};
+
+const disconnectThumbnailObserver = () => {
+  if (thumbnailObserver) {
+    thumbnailObserver.disconnect();
+    thumbnailObserver = null;
+  }
+};
+
+const observeThumbnailVisibility = async () => {
+  await nextTick();
+  if (!iconRoot.value) {
+    isNearViewport.value = true;
+    return;
+  }
+
+  if (typeof IntersectionObserver === 'undefined') {
+    isNearViewport.value = true;
+    return;
+  }
+
+  disconnectThumbnailObserver();
+  thumbnailObserver = new IntersectionObserver(
+    (entries) => {
+      isNearViewport.value = entries.some((entry) => entry.isIntersecting);
+      if (isNearViewport.value) {
+        requestThumbnailIfNeeded();
+      } else {
+        clearThumbnailRetry();
+        hasRequestedThumbnail.value = false;
+      }
+    },
+    { root: null, rootMargin: '300px 0px', threshold: 0.01 }
+  );
+  thumbnailObserver.observe(iconRoot.value);
+};
+
+watch([canRequestThumbnail, isNearViewport], requestThumbnailIfNeeded);
+
+watch(thumbnailRequestKey, () => {
+  clearThumbnailRetry();
+  hasRequestedThumbnail.value = false;
+  isNearViewport.value = false;
+  thumbnailRetryCount.value = 0;
+  observeThumbnailVisibility();
+});
+
+onMounted(observeThumbnailVisibility);
+onBeforeUnmount(() => {
+  clearThumbnailRetry();
+  disconnectThumbnailObserver();
 });
 
 // Additional type groupings
 const audioExts = new Set(['mp3', 'wav', 'flac', 'aac', 'm4a', 'ogg', 'opus', 'wma']);
 const archiveExts = new Set(['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'tgz']);
 
-// Badge mapping for many common types
-const badge = computed(() => {
-  const e = ext.value;
-  switch (e) {
-    // Documents
-    case 'doc':
-    case 'docx':
-    case 'rtf':
-      return { label: 'DOC', bg: '#2563EB', fg: '#FFFFFF' };
-    case 'xls':
-    case 'xlsx':
-      return { label: 'XLS', bg: '#16A34A', fg: '#FFFFFF' };
-    case 'ppt':
-    case 'pptx':
-      return { label: 'PPT', bg: '#F97316', fg: '#FFFFFF' };
-    case 'csv':
-      return { label: 'CSV', bg: '#22C55E', fg: '#FFFFFF' };
-    case 'txt':
-      return { label: 'TXT', bg: '#6B7280', fg: '#FFFFFF' };
-    case 'md':
-    case 'markdown':
-      return { label: 'MD', bg: '#0EA5E9', fg: '#FFFFFF' };
-
-    // Web & styles
-    case 'html':
-    case 'htm':
-      return { label: 'HTML', bg: '#E44D26', fg: '#FFFFFF' };
-    case 'css':
-      return { label: 'CSS', bg: '#2965F1', fg: '#FFFFFF' };
-    case 'scss':
-      return { label: 'SCSS', bg: '#C6538C', fg: '#FFFFFF' };
-    case 'less':
-      return { label: 'LESS', bg: '#1D365D', fg: '#FFFFFF' };
-
-    // Scripts & code
-    case 'js':
-      return { label: 'JS', bg: '#F7DF1E', fg: '#000000' };
-    case 'ts':
-      return { label: 'TS', bg: '#3178C6', fg: '#FFFFFF' };
-    case 'jsx':
-      return { label: 'JSX', bg: '#61DAFB', fg: '#000000' };
-    case 'tsx':
-      return { label: 'TSX', bg: '#3178C6', fg: '#FFFFFF' };
-    case 'vue':
-      return { label: 'VUE', bg: '#41B883', fg: '#0B1921' };
-    case 'json':
-      return { label: 'JSON', bg: '#8B5CF6', fg: '#FFFFFF' };
-    case 'yml':
-    case 'yaml':
-      return { label: 'YAML', bg: '#14B8A6', fg: '#073B3A' };
-    case 'xml':
-      return { label: 'XML', bg: '#EC4899', fg: '#FFFFFF' };
-    case 'sh':
-    case 'bash':
-    case 'zsh':
-      return { label: 'SH', bg: '#374151', fg: '#FFFFFF' };
-    case 'py':
-      return { label: 'PY', bg: '#3776AB', fg: '#FFFFFF' };
-    case 'rb':
-      return { label: 'RB', bg: '#CC342D', fg: '#FFFFFF' };
-    case 'php':
-      return { label: 'PHP', bg: '#777BB4', fg: '#FFFFFF' };
-    case 'go':
-      return { label: 'GO', bg: '#00ADD8', fg: '#073B4C' };
-    case 'rs':
-      return { label: 'RS', bg: '#DEA584', fg: '#000000' };
-    case 'java':
-      return { label: 'JAVA', bg: '#E11D48', fg: '#FFFFFF' };
-    case 'kt':
-    case 'kts':
-      return { label: 'KT', bg: '#7F52FF', fg: '#FFFFFF' };
-    case 'swift':
-      return { label: 'SWIFT', bg: '#FA7343', fg: '#FFFFFF' };
-    case 'c':
-      return { label: 'C', bg: '#5C6BC0', fg: '#FFFFFF' };
-    case 'cpp':
-    case 'cc':
-    case 'cxx':
-      return { label: 'CPP', bg: '#00599C', fg: '#FFFFFF' };
-    case 'cs':
-      return { label: 'CS', bg: '#239120', fg: '#FFFFFF' };
-
-    // Data & config
-    case 'sql':
-      return { label: 'SQL', bg: '#0EA5E9', fg: '#FFFFFF' };
-    case 'db':
-    case 'sqlite':
-    case 'sqlite3':
-      return { label: 'DB', bg: '#0EA5E9', fg: '#FFFFFF' };
-    case 'ini':
-    case 'conf':
-    case 'cfg':
-      return { label: 'CFG', bg: '#6B7280', fg: '#FFFFFF' };
-    case 'toml':
-      return { label: 'TOML', bg: '#0F766E', fg: '#FFFFFF' };
-    case 'env':
-      return { label: 'ENV', bg: '#059669', fg: '#FFFFFF' };
-
-    // Fonts & vector
-    case 'svg':
-      return { label: 'SVG', bg: '#8B5CF6', fg: '#FFFFFF' };
-    case 'ttf':
-    case 'otf':
-    case 'woff':
-    case 'woff2':
-      return { label: 'FONT', bg: '#9CA3AF', fg: '#111827' };
-
-    // Locks
-    case 'lock':
-      return { label: 'LOCK', bg: '#6B7280', fg: '#FFFFFF' };
-
-    // Creative & design
-    case 'psd':
-      return { label: 'PSD', bg: '#001E36', fg: '#00C8FF' };
-    case 'ai':
-      return { label: 'AI', bg: '#300000', fg: '#FF9A00' };
-    case 'fig':
-      return { label: 'FIG', bg: '#A259FF', fg: '#FFFFFF' };
-    case 'sketch':
-      return { label: 'SKETCH', bg: '#FDB300', fg: '#111827' };
-
-    // Packages / installers
-    case 'exe':
-      return { label: 'EXE', bg: '#111827', fg: '#FFFFFF' };
-    case 'msi':
-      return { label: 'MSI', bg: '#0EA5E9', fg: '#FFFFFF' };
-    case 'apk':
-      return { label: 'APK', bg: '#34D399', fg: '#073B3A' };
-    case 'dmg':
-      return { label: 'DMG', bg: '#6B7280', fg: '#FFFFFF' };
-    case 'pkg':
-      return { label: 'PKG', bg: '#F59E0B', fg: '#111827' };
-    case 'deb':
-      return { label: 'DEB', bg: '#CC0000', fg: '#FFFFFF' };
-    case 'rpm':
-      return { label: 'RPM', bg: '#EE0000', fg: '#FFFFFF' };
-
-    // Misc
-    case 'log':
-      return { label: 'LOG', bg: '#9CA3AF', fg: '#111827' };
-    case 'tmp':
-    case 'bak':
-      return { label: e.toUpperCase(), bg: '#D1D5DB', fg: '#111827' };
-
-    default:
-      return null;
-  }
-});
+// Which badge a file gets is a table, and lives as one in ./fileBadges.
+const badge = computed(() => badgeForExtension(ext.value));
 </script>
 
 <template>
-  <DirectoryIcon v-if="props.item.kind === 'directory'" />
-  <PdfIcon v-else-if="props.item.kind === 'pdf'" />
-  <div
-    v-else-if="thumbnailUrl"
-    class="aspect-square bg-contain bg-center bg-no-repeat"
-    :style="{ backgroundImage: `url('${thumbnailUrl}')` }"
-  />
-  <ImageIcon v-else-if="isPreviewableImage(ext)" />
-  <VideoIcon v-else-if="isPreviewableVideo(ext)" />
-  <AudioIcon v-else-if="audioExts.has(ext)" />
-  <ArchiveIcon v-else-if="archiveExts.has(ext)" />
-  <FileBadgeIcon v-else-if="badge" v-bind="badge" />
-  <CodeIcon v-else-if="['json', 'vue'].includes(props.item.kind)" />
-  <TxtIcon v-else />
+  <span ref="iconRoot" class="block aspect-square">
+    <DirectoryIcon v-if="props.item.kind === 'directory'" />
+    <PdfIcon v-else-if="props.item.kind === 'pdf'" />
+    <div
+      v-else-if="thumbnailUrl"
+      class="h-full w-full bg-contain bg-center bg-no-repeat"
+      :style="{ backgroundImage: `url('${thumbnailUrl}')` }"
+    />
+    <ImageIcon v-else-if="isPreviewableImage(ext)" />
+    <VideoIcon v-else-if="isPreviewableVideo(ext)" />
+    <AudioIcon v-else-if="audioExts.has(ext)" />
+    <ArchiveIcon v-else-if="archiveExts.has(ext)" />
+    <FileBadgeIcon v-else-if="badge" v-bind="badge" />
+    <CodeIcon v-else-if="['json', 'vue'].includes(props.item.kind)" />
+    <TxtIcon v-else />
+  </span>
 </template>

@@ -23,8 +23,8 @@ const dirty = computed(
     local.quality !== original.value.quality ||
     local.size !== original.value.size ||
     // A stored section without a concurrency means the default the field shows,
-    // not a change: read as one, the page offered to save before the settings
-    // had even loaded, and saving then wrote its defaults over what was stored.
+    // not a change: read as one, the page offered to save before settings had
+    // even loaded, and saving then wrote its defaults over what was stored.
     local.concurrency !== (original.value.concurrency ?? 10)
 );
 
@@ -41,9 +41,10 @@ watch(
   { immediate: true }
 );
 
-// The bounds the server holds these to. A value outside them was sent as typed
-// and brought within them there, and an emptied field was dropped: what was
-// saved was not what the page showed.
+// The bounds the server holds these to (THUMBNAIL_BOUNDS in
+// backend/src/services/settingsService.js). A value outside them was sent as
+// typed and brought within them there, and an emptied field was dropped: what
+// was saved was not what the page showed.
 const BOUNDS = {
   quality: [1, 100],
   size: [64, 1024],
@@ -149,15 +150,15 @@ const save = async () => {
           <div class="flex items-center gap-3">
             <input
               type="range"
-              min="1"
-              max="100"
+              :min="BOUNDS.quality[0]"
+              :max="BOUNDS.quality[1]"
               v-model.number="local.quality"
               class="w-64 h-2 rounded-lg appearance-none bg-zinc-200 dark:bg-zinc-700 accent-zinc-900 dark:accent-zinc-100"
             />
             <input
               type="number"
-              min="1"
-              max="100"
+              :min="BOUNDS.quality[0]"
+              :max="BOUNDS.quality[1]"
               v-model.number="local.quality"
               class="w-20 rounded-md border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-xs focus:border-zinc-500 focus:ring-zinc-500 sm:text-sm p-2 border text-center"
             />
@@ -179,8 +180,8 @@ const save = async () => {
           <div class="flex items-center gap-3">
             <input
               type="number"
-              min="64"
-              max="1024"
+              :min="BOUNDS.size[0]"
+              :max="BOUNDS.size[1]"
               step="1"
               v-model.number="local.size"
               class="w-24 rounded-md border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-xs focus:border-zinc-500 focus:ring-zinc-500 sm:text-sm p-2 border text-center"
@@ -204,20 +205,24 @@ const save = async () => {
           <div class="flex items-center gap-3">
             <input
               type="range"
-              min="1"
-              max="50"
+              :min="BOUNDS.concurrency[0]"
+              :max="BOUNDS.concurrency[1]"
               v-model.number="local.concurrency"
               class="w-64 h-2 rounded-lg appearance-none bg-zinc-200 dark:bg-zinc-700 accent-zinc-900 dark:accent-zinc-100"
             />
             <input
               type="number"
-              min="1"
-              max="50"
+              :min="BOUNDS.concurrency[0]"
+              :max="BOUNDS.concurrency[1]"
               v-model.number="local.concurrency"
               class="w-20 rounded-md border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-xs focus:border-zinc-500 focus:ring-zinc-500 sm:text-sm p-2 border text-center"
             />
           </div>
         </div>
+
+        <p v-if="invalid" data-test="thumbnail-settings-invalid" class="text-sm text-red-600">
+          {{ t('settings.thumbs.invalid') }}
+        </p>
       </div>
     </div>
   </div>

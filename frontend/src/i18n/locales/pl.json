@@ -319,7 +319,8 @@
     "emptyTitle": "Brak ulubionych",
     "emptyDescription": "Wybierz katalog i kliknij gwiazdkę na głównym pasku narzędzi, aby przypiąć go tutaj.",
     "editTitle": "Edytuj ulubiony",
-    "icon": "Ikona"
+    "icon": "Ikona",
+    "volumeUnavailable": "Wolumin niedostępny — nie jest zamontowany lub nie jest już skonfigurowany."
   },
   "notifications": {
     "open": "Otwórz powiadomienia",
@@ -553,7 +554,8 @@
       "maxDim": "Maksymalny wymiar",
       "maxDimHelp": "Najdłuższy bok w pikselach. Domyślnie 200.",
       "concurrency": "Generowanie równoległe",
-      "concurrencyHelp": "Liczba miniatur generowanych jednocześnie (1–50). Domyślnie 10."
+      "concurrencyHelp": "Liczba miniatur generowanych jednocześnie (1–50). Domyślnie 10.",
+      "invalid": "Sprawdź wartości: jakość od 1 do 100, maksymalny wymiar od 64 do 1024 px, generowanie równoległe od 1 do 50."
     },
     "security": {
       "subtitle": "Kontroluj dostęp do aplikacji.",
@@ -1262,7 +1264,10 @@
   },
   "preview": {
     "nothingOpensIt": "Nic tutaj nie otworzy {name}.",
-    "backToFolder": "Powrót do folderu"
+    "backToFolder": "Powrót do folderu",
+    "tooLargeToRenderSized": "Ten dokument ma {size}. Podgląd kończy się na {limit}, ponieważ rozmieszcza każdy element w przeglądarce. Otwórz go w edytorze lub pobierz.",
+    "tooLargeToRenderWithEditor": "Ten dokument ma {size}. Podgląd kończy się na {limit}, ponieważ rozmieszcza każdy element w przeglądarce; edytor otwiera do {editorLimit}. Otwórz go w edytorze lub pobierz.",
+    "stillRendering": "Renderowanie… {percent}%"
   },
   "archive": {
     "password": {

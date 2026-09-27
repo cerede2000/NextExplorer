@@ -319,7 +319,8 @@
     "emptyTitle": "즐겨찾기 없음",
     "emptyDescription": "폴더 컨텍스트 메뉴에서 별표를 눌러 이곳에 고정하세요.",
     "editTitle": "즐겨찾기 편집",
-    "icon": "아이콘"
+    "icon": "아이콘",
+    "volumeUnavailable": "볼륨을 사용할 수 없습니다 — 마운트되지 않았거나 더 이상 구성되어 있지 않습니다."
   },
   "notifications": {
     "open": "알림 열기",
@@ -553,7 +554,8 @@
       "maxDim": "최대 해상도",
       "maxDimHelp": "가로와 세로 중 긴 면의 최대 픽셀 수를 지정하세요. 기본값은 200입니다.",
       "concurrency": "병렬 생성",
-      "concurrencyHelp": "동시에 생성 가능한 썸네일 개수를 지정하세요 (1–50). 기본값은 10입니다."
+      "concurrencyHelp": "동시에 생성 가능한 썸네일 개수를 지정하세요 (1–50). 기본값은 10입니다.",
+      "invalid": "값을 확인하세요: 품질 1~100, 최대 해상도 64~1024px, 병렬 생성 1~50."
     },
     "security": {
       "subtitle": "애플리케이션에 대한 접근 방식을 설정합니다.",
@@ -1262,7 +1264,10 @@
   },
   "preview": {
     "nothingOpensIt": "여기에서 {name}을(를) 열 수 있는 것이 없습니다.",
-    "backToFolder": "폴더로 돌아가기"
+    "backToFolder": "폴더로 돌아가기",
+    "tooLargeToRenderSized": "이 문서는 {size}입니다. 미리 보기는 브라우저에서 모든 요소를 배치하므로 {limit}에서 멈춥니다. 편집기에서 열거나 내려받으세요.",
+    "tooLargeToRenderWithEditor": "이 문서는 {size}입니다. 미리 보기는 브라우저에서 모든 요소를 배치하므로 {limit}에서 멈춥니다. 편집기는 {editorLimit}까지 엽니다. 편집기에서 열거나 내려받으세요.",
+    "stillRendering": "그리는 중… {percent}%"
   },
   "archive": {
     "password": {
