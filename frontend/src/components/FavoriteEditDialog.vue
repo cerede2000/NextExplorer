@@ -1,10 +1,9 @@
 <script setup>
 import { useI18n } from 'vue-i18n';
 import { computed } from 'vue';
-import * as OutlineIcons from '@heroicons/vue/24/outline';
-import * as SolidIcons from '@heroicons/vue/24/solid';
 import ModalDialog from '@/components/ModalDialog.vue';
 import { useFavoriteEditor } from '@/composables/useFavoriteEditor';
+import { resolveFavoriteIcon } from '@/utils/favoriteIcons';
 
 const { t } = useI18n();
 
@@ -20,33 +19,7 @@ const {
   saveFavoriteEditor,
 } = useFavoriteEditor();
 
-const ICON_VARIANTS = {
-  outline: OutlineIcons,
-  solid: SolidIcons,
-};
-
-const resolveIconComponent = (iconName) => {
-  if (typeof iconName !== 'string') {
-    return OutlineIcons.StarIcon;
-  }
-
-  const trimmed = iconName.trim();
-  if (!trimmed) {
-    return OutlineIcons.StarIcon;
-  }
-
-  if (trimmed.includes(':')) {
-    const [variantRaw, iconRaw] = trimmed.split(':', 2);
-    const variantKey = variantRaw.toLowerCase();
-    const iconKey = iconRaw.trim();
-    const registry = ICON_VARIANTS[variantKey];
-    if (registry && registry[iconKey]) {
-      return registry[iconKey];
-    }
-  }
-
-  return OutlineIcons[trimmed] || SolidIcons[trimmed] || OutlineIcons.StarIcon;
-};
+const resolveIconComponent = resolveFavoriteIcon;
 
 const ICON_NAMES = [
   'StarIcon',
@@ -144,11 +117,11 @@ const favoriteIconOptions = computed(() =>
               type="button"
               class="rounded-md border px-3 py-1.5 text-xs font-medium transition"
               :class="
-                editorIconVariant === 'outline-solid'
+                editorIconVariant === 'outline'
                   ? 'border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-400 dark:bg-blue-950 dark:text-blue-300'
                   : 'border-zinc-300 text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800'
               "
-              @click="editorIconVariant = 'outline-solid'"
+              @click="editorIconVariant = 'outline'"
             >
               Outline
             </button>

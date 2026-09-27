@@ -1,7 +1,7 @@
 const { normalizeRelativePath } = require('../../utils/pathUtils');
-const { renameEntry } = require('../../services/renameService');
 const asyncHandler = require('../../utils/asyncHandler');
 const { buildItemMetadata } = require('./utils');
+const { renameEntry } = require('../../services/renameService');
 
 const router = require('express').Router();
 
@@ -9,9 +9,10 @@ router.post(
   '/files/rename',
   asyncHandler(async (req, res) => {
     const parentRelative = normalizeRelativePath(req.body?.path ?? '');
+    const context = { user: req.user, guestSession: req.guestSession };
 
     const renamed = await renameEntry({
-      context: { user: req.user, guestSession: req.guestSession },
+      context,
       parentRelative,
       currentName: req.body?.name,
       newName: req.body?.newName,
