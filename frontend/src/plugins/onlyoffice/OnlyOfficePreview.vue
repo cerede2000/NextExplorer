@@ -71,7 +71,6 @@ import { formatLocalDateTime } from '@/utils';
 import { useFileStore } from '@/stores/fileStore';
 import { useNotificationsStore } from '@/stores/notifications';
 import { useSettingsStore } from '@/stores/settings';
-import { usePreviewManager } from '@/plugins/preview/manager';
 import ShareDialog from '@/components/ShareDialog.vue';
 import StoragePickerDialog from '@/components/StoragePickerDialog.vue';
 import logger from '@/utils/logger';
@@ -99,7 +98,6 @@ const documentPath = ref(props.filePath);
 const { t } = useI18n();
 const fileStore = useFileStore();
 const notifications = useNotificationsStore();
-const previewManager = usePreviewManager();
 // The editor is dressed to match the app when it opens. ONLYOFFICE exposes no
 // method to change the theme of a running editor — the only way to follow a
 // switch made mid-edit would be to rebuild the editor, losing the cursor and
@@ -625,11 +623,13 @@ const load = async ({ inPlace = false } = {}) => {
         previewState.hasNativeClose = true;
       },
 
-      // The editor's own close button. Route it through the preview manager
-      // rather than closing the frame directly, so the plugin's close hook
-      // still runs and the last changes are force-saved on the way out.
+      // The editor's own close button. Route it through the session this
+      // document was opened in rather than closing the frame directly, so the
+      // plugin's close hook still runs and the last changes are force-saved on
+      // the way out. Its own session, because another tab may be in front: a
+      // background editor asked to close must not close whatever is.
       onRequestClose() {
-        void previewManager.close();
+        void props.api.close();
       },
 
       // The Share button in the editor's header. ONLYOFFICE offers it as soon

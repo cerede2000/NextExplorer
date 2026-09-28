@@ -7,7 +7,6 @@ import { usePageTitle } from '@/composables/usePageTitle';
 import { normalizePath } from '@/api';
 import { usePreviewManager } from '@/plugins/preview/manager';
 import { whenPreviewPluginsReady } from '@/plugins';
-import PreviewHost from '@/plugins/preview/PreviewHost.vue';
 import { useFileStore } from '@/stores/fileStore';
 import { folderRoute } from '@/utils/folderRoute';
 import { useTabNavigation } from '@/composables/tabNavigation';
@@ -27,11 +26,12 @@ import { isEditableExtension } from '@/config/editor';
  * - closing the document must land somewhere, not on a blank page. It goes
  *   back to the folder the document is in, with the document selected, which
  *   is where closing the panel leaves you;
- * - closing the *tab* must tell the server the same thing closing the panel
- *   tells it. A tab gives one synchronous moment on its way out, so the close
- *   hook is told it is unloading and sends what it has to send in one beacon.
- *   Without it, a document closed by closing its tab would go on being
- *   reported as open by somebody who had left.
+ * - leaving the page is not always leaving the document. In one of this
+ *   application's own tabs, another tab coming forward unmounts this page while
+ *   the document goes on existing — so what ends the document is the tab
+ *   letting go of it, not this page being taken off screen. That is why the
+ *   session is the manager's, keyed by tab, and this page only asks for it and
+ *   says when it is over.
  */
 
 const route = useRoute();
@@ -61,6 +61,16 @@ const parentPath = computed(() =>
 usePageTitle(name);
 
 const tabNavigation = useTabNavigation();
+const tabs = tabNavigation.tabs;
+
+/**
+ * The tab this document belongs to, taken once and kept.
+ *
+ * Once, because this page is the document's and the document is that tab's: read
+ * again later — on the way out, say — `activeId` would already name whichever tab
+ * had come forward, and the session that was ended would be somebody else's.
+ */
+const tabKey = tabs.activeId;
 
 /** Back where closing the panel would have left you. */
 const leave = () => {
@@ -102,29 +112,12 @@ const CLOSE_REFUSED_AFTER_MS = 150;
  */
 const tabIsThisDocument = () => window.history.length === 1;
 
-/**
- * In one of this application's own tabs, the thing to close is that tab.
- *
- * And only a tab that was opened *for* this document: `own` says so, and stops
- * saying so the moment the tab is taken anywhere else. Closing a tab somebody had
- * been browsing in, because they shut a document they opened in it, would take a
- * tab away from them — the same reason a browser refuses `window.close()` to a tab
- * that has been elsewhere.
- *
- * The last tab cannot close, because there would be nowhere to be, so that falls
- * through to the folder as it always did.
- */
-const closeOwnTab = () => {
-  const { tabs } = tabNavigation;
-  if (!tabs.enabled) return false;
-  const tab = tabs.activeTab;
-  if (!tab?.own || !tabs.canClose) return false;
-  tabNavigation.close(tab.id);
-  return true;
-};
-
 const closeTabOrLeave = () => {
-  if (closeOwnTab()) return;
+  // In one of this application's own tabs, the thing to close is that tab. The
+  // rule itself is in `tabNavigation`, because the text editor's cross means
+  // exactly the same thing and a rule kept in two places is a rule that will
+  // disagree with itself.
+  if (tabNavigation.closeOwn()) return;
 
   if (!tabIsThisDocument()) {
     leave();
@@ -152,6 +145,13 @@ const openDocument = async () => {
     return;
   }
 
+  // Already here. This page is mounted again every time its tab comes forward,
+  // and opening the document again would build a new editor over a live one:
+  // ONLYOFFICE would reconnect, the cursor and the undo history would go, and
+  // whoever was typing would watch it happen. Answered before anything else is
+  // asked, so nothing is fetched either.
+  if (previewManager.shows(tabKey, itemFromPath())) return;
+
   // The folder behind it, so that moving to the next image or the previous one
   // works here exactly as it does over the listing — the plugins read the
   // siblings from the file store. Best effort: a folder that cannot be listed
@@ -163,7 +163,7 @@ const openDocument = async () => {
   // document ONLYOFFICE was a moment away from claiming.
   await whenPreviewPluginsReady();
 
-  if (previewManager.open(itemFromPath())) return;
+  if (previewManager.openIn(tabKey, itemFromPath())) return;
 
   // No preview: the text editor has its own page, and it is where this kind of
   // file opens from the listing too.
@@ -183,38 +183,40 @@ const openDocument = async () => {
  * Watched rather than passed as a callback because closing is the plugin's to
  * do: it may be asynchronous, and it may be refused. When the manager has let
  * go of it, this page has nothing left to show.
+ *
+ * Watched on *this tab's* session and not on whatever is in front, and only
+ * acted on while this tab is in front. Closing the tab from the strip also ends
+ * its session, and that arrives here as the same event — acting on it would have
+ * closed the tab that had just come forward instead.
  */
 watch(
-  () => previewManager.isOpen,
+  () => previewManager.isOpenIn(tabKey),
   (open, wasOpen) => {
-    if (wasOpen && !open) closeTabOrLeave();
+    if (!wasOpen || open) return;
+    if (tabs.activeId !== tabKey) return;
+    closeTabOrLeave();
   }
 );
 
-/**
- * On the way out of the page, whatever took it there.
- *
- * `pagehide` and not `beforeunload`: it fires for a tab being closed, for a
- * navigation away, and on mobile browsers that never fire the other one.
- * Deliberately not `visibilitychange`, which fires every time somebody merely
- * switches to another tab — ending an editing session there would close a
- * document that is still open, which is the regression this whole thing exists
- * to avoid.
- */
-const endBeforeUnload = () => {
-  previewManager.endForUnload();
-};
-
 onMounted(() => {
-  window.addEventListener('pagehide', endBeforeUnload);
   void openDocument();
 });
 
 onBeforeUnmount(() => {
-  window.removeEventListener('pagehide', endBeforeUnload);
-  // Leaving this page inside the application is a close like any other: the
-  // plugin gets the time it needs, and the session ends the ordinary way.
-  if (previewManager.isOpen) void previewManager.close();
+  // Whether leaving this page is leaving the document.
+  //
+  // It is not, when another tab simply came forward: this page goes, the tab
+  // stays on its document, and the document goes on living in the manager —
+  // which is what makes coming back to the tab instant rather than a fresh
+  // ONLYOFFICE connection. It is, when this tab is still the one in front, which
+  // means the address changed underneath it and the document is not what this
+  // tab holds any more.
+  //
+  // And when the tab itself has gone there is nothing to do: the manager ended
+  // the session the moment the tab did, beacon and all.
+  if (!tabs.tabs.some((entry) => entry.id === tabKey)) return;
+  if (tabs.activeId !== tabKey) return;
+  if (previewManager.isOpenIn(tabKey)) void previewManager.closeIn(tabKey);
 });
 
 // A second document opened in the same tab — a link followed from inside one.
@@ -225,8 +227,6 @@ watch(documentPath, () => {
 
 <template>
   <div class="flex h-full w-full flex-col bg-neutral-950">
-    <PreviewHost />
-
     <!-- Only ever seen when nothing claimed the document: the preview itself
          covers the page. -->
     <div

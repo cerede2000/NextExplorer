@@ -854,6 +854,9 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   fs.mkdirSync(path.join(volume, 'Beta'), { recursive: true });
   fs.writeFileSync(path.join(volume, 'Alpha', 'alpha.txt'), 'a');
   fs.writeFileSync(path.join(volume, 'Beta', 'beta.txt'), 'b');
+  // A text file, which goes to the editor rather than the preview: the cross of
+  // one and the cross of the other have to mean the same thing.
+  fs.writeFileSync(path.join(volume, 'tabbed.txt'), 'in a tab of its own\n');
 
   const strip = page.locator('[data-test="tab-strip"]');
   const tabs = strip.locator('[data-test="tab"]');
@@ -933,6 +936,35 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   await expect(page).toHaveURL(/\/(open|editor)\/Projects\/tabbed\.md$/);
   await expect(strip.locator('[data-test="tab"][data-active="true"]')).toContainText('tabbed.md');
 
+  /**
+   * And it goes on existing while another tab is in front.
+   *
+   * Stamped on the node itself, because from the outside a document that was kept
+   * and one that was built again look exactly alike — and that difference is the
+   * whole of it: a rebuilt ONLYOFFICE document is a new connection to the Document
+   * Server, without the cursor, the undo history or the other people editing it.
+   * The page used to mount the surface itself, so it was built with the page and
+   * thrown away with it, every single time a tab came forward.
+   */
+  const documentTab = strip.locator('[role="tab"][title="tabbed.md"]');
+  const surface = page.locator('[data-test="preview-surface"]');
+  await expect(surface).toHaveCount(1);
+  await surface.evaluate((node) => {
+    node.dataset.kept = 'yes';
+  });
+
+  await tabs.first().getByRole('tab').click();
+  await expect(page).toHaveURL(/\/browse\/Projects$/);
+  // Out of sight, and still in the page: hidden rather than removed, and the very
+  // node that was stamped.
+  await expect(surface).toBeHidden();
+  await expect(page.locator('[data-test="preview-surface"][data-kept="yes"]')).toHaveCount(1);
+
+  await documentTab.click();
+  await expect(page).toHaveURL(/\/(open|editor)\/Projects\/tabbed\.md$/);
+  await expect(surface).toBeVisible();
+  await expect(surface).toHaveAttribute('data-kept', 'yes');
+
   // And the middle button does the same for a file, behind: a document is a place
   // like a folder is, which is the whole point of a tab being an address.
   await page.goto('/browse/Projects');
@@ -954,11 +986,56 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   // The count is the assertion: had it turned the tab back into a folder listing
   // there would still be five. Not the address — the tab that takes over here is
   // another document tab on the same file, because three of them were opened.
-  await page.locator('[data-test="preview-close"]').click();
+  await page.locator('[data-active="true"] [data-test="preview-close"]').click();
   await expect(tabs).toHaveCount(4);
 
   // And the tab in front afterwards is one of the others, not the one that went.
   await expect(strip.locator('[data-test="tab"][data-active="true"]')).toHaveCount(1);
+
+  /**
+   * A text file does the same, and its cross means the same thing.
+   *
+   * It goes to the editor rather than to the preview, which is half of everything
+   * somebody opens in a tab — a `.txt`, a `.md`, a `.json` — and its cross left
+   * that tab sitting on a folder listing while the office documents beside it
+   * closed theirs.
+   */
+  await page.goto('/browse/Projects');
+  await expect(tabs).toHaveCount(4);
+  await page.locator('[title="tabbed.txt"]:not([role="tab"])').first().dblclick();
+  await expect(tabs).toHaveCount(5);
+  await expect(page).toHaveURL(/\/editor\/Projects\/tabbed\.txt$/);
+
+  /**
+   * And what was typed in it survives another tab coming forward.
+   *
+   * The editor is a page, and a page is unmounted the moment a tab is brought
+   * forward — so everything typed since the last save went with it, silently, for
+   * a click that never said "discard". The preview keeps a document by keeping its
+   * session alive; the editor cannot, so the tab keeps the text.
+   */
+  await page.locator('.cm-content').click();
+  await page.keyboard.type('typed in a tab');
+  await expect(page.locator('.cm-content')).toContainText('typed in a tab');
+  const editorTab = strip.locator('[role="tab"][title="tabbed.txt"]');
+
+  await tabs.first().getByRole('tab').click();
+  await expect(page).toHaveURL(/\/browse\/Projects$/);
+  await editorTab.click();
+  await expect(page).toHaveURL(/\/editor\/Projects\/tabbed\.txt$/);
+
+  await expect(page.locator('.cm-content')).toContainText('typed in a tab');
+  // Still unsaved, which is the other half: handed back as the document, the
+  // editor would consider it written and leave the save button grey over text
+  // that exists nowhere but this window.
+  await expect(page.getByText('Unsaved changes')).toBeVisible();
+
+  // The cross closes the tab it was opened in — said out loud, since the text
+  // above was never saved.
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.locator('[data-test="editor-close"]').click();
+  await expect(tabs).toHaveCount(4);
+  await expect(page).not.toHaveURL(/\/editor\//);
 
   /**
    * The strip does not make the page taller than the window.

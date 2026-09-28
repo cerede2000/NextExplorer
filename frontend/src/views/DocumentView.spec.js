@@ -15,30 +15,47 @@ import { reactive, ref } from 'vue';
 
 const routePath = ref('Docs/report.docx');
 const replace = vi.fn();
-const open = vi.fn(() => true);
-const close = vi.fn();
-const endForUnload = vi.fn(() => true);
 const fetchPathItems = vi.fn(async () => {});
 const pluginsReady = vi.fn(async () => {});
 let editableExtensions = ['txt', 'md'];
 
-const previewManager = reactive({ isOpen: false });
+/**
+ * The manager, as a document belonging to a tab rather than to this page.
+ *
+ * One session per tab, which is what the real one keeps: what the page asks is
+ * always about *its* tab, and a stand-in that answered about whichever tab was
+ * in front would hide exactly the mistakes this page can make.
+ */
+const sessions = reactive({});
+const openIn = vi.fn((key, item) => {
+  sessions[key] = { open: true, item };
+  return true;
+});
+const shows = vi.fn(
+  (key, item) =>
+    sessions[key]?.open === true &&
+    sessions[key].item?.name === item.name &&
+    sessions[key].item?.path === item.path
+);
+const closeIn = vi.fn((key) => {
+  if (sessions[key]) sessions[key].open = false;
+});
 
 // This application's own tabs. A document opened in one is closed by closing that
-// tab, so the view asks — and mocking it here keeps a spec about one view from
-// building the tab store and the settings behind it.
+// tab, and the rule for *which* tab may be closed is `tabNavigation`'s own, with
+// its own spec: what belongs here is that this page asks it first.
 const appTabs = vi.hoisted(() => ({
   enabled: false,
-  canClose: true,
-  activeTab: null,
-  close: vi.fn(),
+  activeId: 'tab-1',
+  tabs: [{ id: 'tab-1', own: false }],
 }));
+const closeOwn = vi.fn(() => false);
 vi.mock('@/composables/tabNavigation', () => ({
   useTabNavigation: () => ({
     get tabs() {
       return appTabs;
     },
-    close: appTabs.close,
+    closeOwn: (...args) => closeOwn(...args),
   }),
 }));
 
@@ -65,20 +82,14 @@ vi.mock('@/api', () => ({
 
 vi.mock('@/plugins/preview/manager', () => ({
   usePreviewManager: () => ({
-    get isOpen() {
-      return previewManager.isOpen;
-    },
-    open: (...args) => open(...args),
-    close: (...args) => close(...args),
-    endForUnload: (...args) => endForUnload(...args),
+    shows: (...args) => shows(...args),
+    openIn: (...args) => openIn(...args),
+    closeIn: (...args) => closeIn(...args),
+    isOpenIn: (key) => sessions[key]?.open === true,
   }),
 }));
 
 vi.mock('@/plugins', () => ({ whenPreviewPluginsReady: () => pluginsReady() }));
-
-vi.mock('@/plugins/preview/PreviewHost.vue', () => ({
-  default: { name: 'PreviewHost', template: '<div data-test="preview-host" />' },
-}));
 
 // The instance's name, for the tab's title, as Settings → Branding set it.
 vi.mock('@/stores/appSettings', () => ({
@@ -112,6 +123,13 @@ const show = async (path = 'Docs/report.docx') => {
   return wrapper;
 };
 
+/** The cross in the document's own header, or Escape: its session ends. */
+const documentClosesItself = async () => {
+  const session = sessions[appTabs.activeId];
+  if (session) session.open = false;
+  await flushPromises();
+};
+
 /**
  * Whether the browser honoured the close. A tab that really closed is gone, so
  * `window.closed` is the only thing the page can ask afterwards — and it is
@@ -132,18 +150,22 @@ beforeEach(() => {
   closed = true;
   historyLength = 1;
   appTabs.enabled = false;
-  appTabs.canClose = true;
-  appTabs.activeTab = null;
-  appTabs.close.mockClear();
+  appTabs.activeId = 'tab-1';
+  appTabs.tabs = [{ id: 'tab-1', own: false }];
+  for (const key of Object.keys(sessions)) delete sessions[key];
+  closeOwn.mockClear();
+  closeOwn.mockReturnValue(false);
   replace.mockClear();
-  open.mockClear();
-  open.mockReturnValue(true);
-  close.mockClear();
-  endForUnload.mockClear();
+  openIn.mockClear();
+  openIn.mockImplementation((key, item) => {
+    sessions[key] = { open: true, item };
+    return true;
+  });
+  shows.mockClear();
+  closeIn.mockClear();
   fetchPathItems.mockClear();
   pluginsReady.mockClear();
   pluginsReady.mockResolvedValue(undefined);
-  previewManager.isOpen = false;
   editableExtensions = ['txt', 'md'];
 });
 
@@ -158,7 +180,7 @@ describe('opening a document at its own address', () => {
   it('opens the document the address names', async () => {
     await show('Docs/Reports/report.docx');
 
-    expect(open).toHaveBeenCalledWith({ name: 'report.docx', path: 'Docs/Reports' });
+    expect(openIn).toHaveBeenCalledWith('tab-1', { name: 'report.docx', path: 'Docs/Reports' });
   });
 
   it('names its browser tab after the document, and the instance', async () => {
@@ -183,7 +205,7 @@ describe('opening a document at its own address', () => {
     pluginsReady.mockImplementation(async () => {
       order.push('plugins');
     });
-    open.mockImplementation(() => {
+    openIn.mockImplementation(() => {
       order.push('open');
       return true;
     });
@@ -197,7 +219,7 @@ describe('opening a document at its own address', () => {
   });
 
   it('shows a way out when nothing can open it', async () => {
-    open.mockReturnValue(false);
+    openIn.mockReturnValue(false);
     const wrapper = await show('Docs/firmware.bin');
 
     expect(wrapper.find('[data-test="document-unopenable"]').exists()).toBe(true);
@@ -211,7 +233,7 @@ describe('opening a document at its own address', () => {
   });
 
   it('hands a file only the editor opens to the editor', async () => {
-    open.mockReturnValue(false);
+    openIn.mockReturnValue(false);
     const wrapper = await show('Docs/notes.txt');
 
     expect(replace).toHaveBeenCalledWith({ path: '/editor/Docs/notes.txt' });
@@ -225,11 +247,9 @@ describe('opening a document at its own address', () => {
    * to tell them apart (nxzai#303).
    */
   it('closes the tab when the document is closed', async () => {
-    previewManager.isOpen = true;
     const wrapper = await show('Docs/Reports/report.docx');
 
-    previewManager.isOpen = false;
-    await flushPromises();
+    await documentClosesItself();
 
     expect(window.close).toHaveBeenCalled();
     expect(replace).not.toHaveBeenCalled();
@@ -241,11 +261,9 @@ describe('opening a document at its own address', () => {
   // leaving them in front of a document they have just shut.
   it('falls back to the folder when the browser refuses to close', async () => {
     closed = false;
-    previewManager.isOpen = true;
     const wrapper = await show('Docs/Reports/report.docx');
 
-    previewManager.isOpen = false;
-    await flushPromises();
+    await documentClosesItself();
     await vi.advanceTimersByTimeAsync(200);
 
     expect(replace).toHaveBeenCalledWith({
@@ -257,11 +275,9 @@ describe('opening a document at its own address', () => {
 
   it('does not go to the folder when the tab really closed', async () => {
     closed = true;
-    previewManager.isOpen = true;
     const wrapper = await show('Docs/Reports/report.docx');
 
-    previewManager.isOpen = false;
-    await flushPromises();
+    await documentClosesItself();
     await vi.advanceTimersByTimeAsync(200);
 
     expect(replace).not.toHaveBeenCalled();
@@ -274,11 +290,9 @@ describe('opening a document at its own address', () => {
   // rather than closed.
   it('goes to the folder when the tab has been somewhere else', async () => {
     historyLength = 4;
-    previewManager.isOpen = true;
     const wrapper = await show('Docs/Reports/report.docx');
 
-    previewManager.isOpen = false;
-    await flushPromises();
+    await documentClosesItself();
 
     expect(window.close).not.toHaveBeenCalled();
     expect(replace).toHaveBeenCalledWith({
@@ -290,47 +304,83 @@ describe('opening a document at its own address', () => {
 
   it('opens the next document when the address changes under it', async () => {
     const wrapper = await show('Docs/first.docx');
-    expect(open).toHaveBeenCalledWith({ name: 'first.docx', path: 'Docs' });
+    expect(openIn).toHaveBeenCalledWith('tab-1', { name: 'first.docx', path: 'Docs' });
 
     routePath.value = 'Docs/second.docx';
     await flushPromises();
 
-    expect(open).toHaveBeenLastCalledWith({ name: 'second.docx', path: 'Docs' });
+    expect(openIn).toHaveBeenLastCalledWith('tab-1', { name: 'second.docx', path: 'Docs' });
     wrapper.unmount();
   });
 });
 
-describe('leaving the page', () => {
-  it('tells the plugin the page is going away when the tab closes', async () => {
-    const wrapper = await show();
+/**
+ * Leaving this page is not always leaving the document.
+ *
+ * The distinction tabs introduced, and the one worth holding: another tab coming
+ * forward takes this page off screen while the tab is still on its document, and
+ * ending the session there would mean an ONLYOFFICE editor rebuilt from nothing —
+ * a new connection, no cursor, no undo — every time somebody looked at a folder.
+ */
+describe('leaving the page, and leaving the document', () => {
+  it('lets go of the document when its tab is taken somewhere else', async () => {
+    const wrapper = await show('Docs/Reports/report.docx');
 
-    window.dispatchEvent(new Event('pagehide'));
-
-    // The editing session ends here or it does not end at all: nothing else
-    // runs after a tab is shut, and the document would stay marked as open.
-    expect(endForUnload).toHaveBeenCalledTimes(1);
+    // Still the tab in front, so the address changed underneath it: the document
+    // is over, and the plugin gets the time it needs rather than a beacon.
     wrapper.unmount();
+
+    expect(closeIn).toHaveBeenCalledWith('tab-1');
   });
 
-  it('stops listening once the page is gone, so nothing fires for the next one', async () => {
-    const wrapper = await show();
+  it('keeps the document when another tab comes forward', async () => {
+    appTabs.enabled = true;
+    appTabs.activeId = 'tab-2';
+    appTabs.tabs = [
+      { id: 'tab-2', own: true },
+      { id: 'tab-9', own: false },
+    ];
+    const wrapper = await show('Docs/Reports/report.docx');
+
+    appTabs.activeId = 'tab-9';
     wrapper.unmount();
 
-    window.dispatchEvent(new Event('pagehide'));
-
-    expect(endForUnload).not.toHaveBeenCalled();
+    expect(closeIn).not.toHaveBeenCalled();
   });
 
-  it('closes the ordinary way when the page is left from inside the application', async () => {
-    previewManager.isOpen = true;
-    const wrapper = await show();
+  /** The manager ends a session with its tab, beacon and all. Not twice. */
+  it('leaves a tab that has gone to the manager', async () => {
+    appTabs.enabled = true;
+    appTabs.activeId = 'tab-2';
+    appTabs.tabs = [{ id: 'tab-2', own: true }];
+    const wrapper = await show('Docs/Reports/report.docx');
 
+    appTabs.tabs = [];
     wrapper.unmount();
 
-    // Still in a browser that is going nowhere: the plugin gets the time it
-    // needs rather than the one synchronous moment an unload gives it.
-    expect(close).toHaveBeenCalledTimes(1);
-    expect(endForUnload).not.toHaveBeenCalled();
+    expect(closeIn).not.toHaveBeenCalled();
+  });
+
+  it('does not open the document again when its tab comes back', async () => {
+    appTabs.enabled = true;
+    appTabs.activeId = 'tab-2';
+    appTabs.tabs = [
+      { id: 'tab-2', own: true },
+      { id: 'tab-9', own: false },
+    ];
+    const first = await show('Docs/Reports/report.docx');
+    expect(openIn).toHaveBeenCalledTimes(1);
+
+    appTabs.activeId = 'tab-9';
+    first.unmount();
+    appTabs.activeId = 'tab-2';
+    await show('Docs/Reports/report.docx');
+
+    // The same document, in the same tab, still on screen. Opening it again
+    // builds a second editor over a live one — and the folder behind it is not
+    // fetched a second time either, since this page never left it.
+    expect(openIn).toHaveBeenCalledTimes(1);
+    expect(fetchPathItems).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -339,61 +389,67 @@ describe('leaving the page', () => {
  *
  * The cross belongs to the document, and in a tab of its own the thing it should
  * close is that tab — not send it back to a folder listing, which leaves somebody
- * looking at two identical explorer tabs wondering which was which. The browser
- * tab it used to close is the same idea; these are the same rules for ours.
+ * looking at two identical explorer tabs wondering which was which. *Which* tab
+ * may be closed is `tabNavigation`'s rule, with its own spec; what is here is that
+ * this page asks it, and asks it first.
  */
 describe('the close button, with this application own tabs', () => {
   const closeDocument = async () => {
-    previewManager.isOpen = true;
     const wrapper = await show('Docs/Reports/report.docx');
-    previewManager.isOpen = false;
-    await flushPromises();
+    await documentClosesItself();
     return wrapper;
   };
 
   it('closes the tab the document was opened in', async () => {
-    appTabs.enabled = true;
-    appTabs.activeTab = { id: 'tab-2', own: true };
+    closeOwn.mockReturnValue(true);
 
     await closeDocument();
 
-    expect(appTabs.close).toHaveBeenCalledWith('tab-2');
+    expect(closeOwn).toHaveBeenCalled();
     expect(replace).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Asked before the browser's own tab, or a document shut in a tab of this
+   * application would take the whole window with it.
+   */
+  it('asks its own tabs before offering the window to the browser', async () => {
+    closeOwn.mockReturnValue(true);
+    historyLength = 1;
+
+    await closeDocument();
+
     expect(window.close).not.toHaveBeenCalled();
   });
 
-  /** Somebody browsing in that tab opened a document in it; it is still theirs. */
-  it('goes to the folder when the tab was only taken there', async () => {
-    appTabs.enabled = true;
-    appTabs.activeTab = { id: 'tab-2', own: false };
+  it('goes to the folder when it is not a tab opened for this', async () => {
+    closeOwn.mockReturnValue(false);
     historyLength = 3;
 
     await closeDocument();
 
-    expect(appTabs.close).not.toHaveBeenCalled();
     expect(replace).toHaveBeenCalled();
   });
 
-  /** The last tab cannot close: there would be nowhere to be. */
-  it('goes to the folder rather than closing the only tab', async () => {
+  /**
+   * A tab closed from the strip ends its session too, and that arrives here as
+   * the same event. Acted on, it would close whichever tab had just come
+   * forward — somebody else's tab, taken away by a document they never touched.
+   */
+  it('does nothing when a session ends behind whatever is in front', async () => {
     appTabs.enabled = true;
-    appTabs.canClose = false;
-    appTabs.activeTab = { id: 'tab-1', own: true };
-    historyLength = 3;
+    appTabs.activeId = 'tab-2';
+    appTabs.tabs = [
+      { id: 'tab-2', own: true },
+      { id: 'tab-9', own: false },
+    ];
+    await show('Docs/Reports/report.docx');
 
-    await closeDocument();
+    appTabs.activeId = 'tab-9';
+    sessions['tab-2'].open = false;
+    await flushPromises();
 
-    expect(appTabs.close).not.toHaveBeenCalled();
-    expect(replace).toHaveBeenCalled();
-  });
-
-  it('leaves the browser tab to the browser when tabs are off', async () => {
-    appTabs.enabled = false;
-    appTabs.activeTab = { id: 'tab-1', own: true };
-
-    await closeDocument();
-
-    expect(appTabs.close).not.toHaveBeenCalled();
-    expect(window.close).toHaveBeenCalled();
+    expect(closeOwn).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
   });
 });

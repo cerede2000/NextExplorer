@@ -46,6 +46,18 @@ vi.mock('@/components/TabStrip.vue', () => ({
   default: { template: '<div data-test="tab-strip-stub"></div>' },
 }));
 
+// Every tab's open document, mounted here and only here: it has to outlive the
+// pages, or bringing a folder tab forward and going back would rebuild whatever
+// was open. Stubbed because this spec is about the configuration gate; that the
+// shell mounts it, once, is checked below.
+const previewHost = vi.fn();
+vi.mock('@/plugins/preview/PreviewHost.vue', () => ({
+  default: {
+    setup: () => previewHost(),
+    template: '<div data-test="preview-host-stub"></div>',
+  },
+}));
+
 vi.mock('@/components/ConfigErrorScreen.vue', () => ({
   default: {
     props: ['mode', 'expectedOrigin', 'requestOrigin'],
@@ -61,6 +73,7 @@ describe('App config error handling', () => {
     dismissConfigWarning.mockClear();
     accountLanguage.mockClear();
     tabRouteSync.mockClear();
+    previewHost.mockClear();
   });
 
   /**
@@ -84,6 +97,19 @@ describe('App config error handling', () => {
     mount(App, { global: { stubs: { RouterView: true } } });
 
     expect(tabRouteSync).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Here rather than in the pages that show documents, and that is the point:
+   * a surface mounted by a page is built when that page is and thrown away when
+   * it is, so bringing a folder tab forward and coming back re-opened an
+   * ONLYOFFICE document from nothing — new connection, no cursor, no undo.
+   */
+  it('keeps every tab’s document in one place, mounted once', () => {
+    const wrapper = mount(App, { global: { stubs: { RouterView: true } } });
+
+    expect(previewHost).toHaveBeenCalledTimes(1);
+    expect(wrapper.findAll('[data-test="preview-host-stub"]')).toHaveLength(1);
   });
 
   it('shows a dismissible warning for PUBLIC_URL mismatches without blocking the router', async () => {

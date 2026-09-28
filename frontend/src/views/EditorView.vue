@@ -141,6 +141,7 @@
           class="rounded-md p-1 text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-800 disabled:cursor-not-allowed disabled:opacity-60 dark:text-neutral-300 dark:hover:bg-white/10 dark:hover:text-white"
           :aria-label="$t('common.close')"
           :title="$t('common.close')"
+          data-test="editor-close"
         >
           <XMarkIcon class="h-5 w-5" />
         </button>
@@ -181,7 +182,7 @@
 </template>
 
 <script setup>
-import { ref, shallowRef, watch, computed } from 'vue';
+import { ref, shallowRef, watch, computed, nextTick, onBeforeUnmount } from 'vue';
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { Compartment, EditorState } from '@codemirror/state';
@@ -212,9 +213,30 @@ import { useFolderScrollStore } from '@/stores/folderScroll';
 import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import { usePageTitle } from '@/composables/usePageTitle';
 import { fileTitleFor } from '@/utils/pageTitle';
+import { useTabNavigation } from '@/composables/tabNavigation';
+import { useEditorDraftsStore } from '@/stores/editorDrafts';
 
 const route = useRoute();
 const router = useRouter();
+const tabNavigation = useTabNavigation();
+const tabs = tabNavigation.tabs;
+const drafts = useEditorDraftsStore();
+
+/**
+ * The tab this file is being edited in, taken once and kept.
+ *
+ * Once, because read again on the way out `activeId` would already name whichever
+ * tab had come forward, and the draft would be kept for — or taken from — a tab
+ * that has nothing to do with this file.
+ */
+const tabKey = tabs.activeId;
+
+/**
+ * The address this page is showing, which is not what the router says by the time
+ * it is unmounted: another tab coming forward changes the address first and takes
+ * this page off screen after.
+ */
+const shownAddress = ref('');
 const { t } = useI18n();
 const folderScrollStore = useFolderScrollStore();
 const versionsPanel = useVersionsPanelStore();
@@ -377,6 +399,33 @@ const routeFolderPath = (targetRoute) => {
   return normalizePath(raw);
 };
 
+/**
+ * On the way out, whether what was typed goes with the page.
+ *
+ * It does not when another tab merely came forward: the page is taken off screen
+ * while its tab is still on this file, and losing the text there would be losing
+ * it to a click that never said "discard". The tab holds it, and hands it back
+ * when it comes forward again — which is what the preview does for a document by
+ * keeping its session alive, and is the same promise for the one kind of document
+ * that has no session.
+ *
+ * It does when the tab is still the one in front, because then the address
+ * changed underneath it and this file is not what the tab is on any more; and
+ * when the tab has gone, which takes its draft with it.
+ */
+onBeforeUnmount(() => {
+  if (isViewerOnly.value || !hasUnsavedChanges.value) {
+    drafts.forget(tabKey);
+    return;
+  }
+  if (!tabs.tabs.some((entry) => entry.id === tabKey)) return;
+  if (tabs.activeId === tabKey) {
+    drafts.forget(tabKey);
+    return;
+  }
+  drafts.keep(tabKey, shownAddress.value, String(surface.value?.snapshot() ?? ''));
+});
+
 // BrowserLayout is unmounted while editing text, so the generic folder-to-
 // folder navigation rule cannot infer this return journey. Mark it directly
 // from the editor before every exit, including the browser Back button.
@@ -429,6 +478,7 @@ const loadFile = async () => {
     sharedDirectPath.value = isSharedEditor.value ? response.path || '' : '';
     loadedContent.value = response.content || '';
     hasUnsavedChanges.value = false;
+    shownAddress.value = requestPath;
     applyLanguage(displayPath.value);
   } catch (err) {
     if (requestPath !== route.fullPath) return;
@@ -436,6 +486,31 @@ const loadFile = async () => {
   } finally {
     if (requestPath === route.fullPath) isLoading.value = false;
   }
+
+  // After the editor exists. While the file is being read there is no editor on
+  // screen at all, so a draft put back any earlier would have nowhere to go.
+  await restoreKeptText(requestPath);
+};
+
+/**
+ * What was typed in this tab and never saved, put back.
+ *
+ * Applied as an edit rather than handed over as the document, so that "unsaved"
+ * stays CodeMirror's own comparison with what is on disk: told the draft *was*
+ * the document, the editor would consider it saved and the save button would sit
+ * grey over text that exists nowhere but this window.
+ */
+const restoreKeptText = async (address) => {
+  if (isViewerOnly.value) return;
+  const kept = drafts.textFor(tabKey, address);
+  if (kept === null) return;
+
+  // After the file's own text has reached the editor.
+  await nextTick();
+  const editor = surface.value?.view;
+  if (!editor || address !== route.fullPath) return;
+  if (editor.state.doc.toString() === kept) return;
+  editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: kept } });
 };
 
 const saveFile = async () => {
@@ -457,6 +532,8 @@ const saveFile = async () => {
     // What was written, not what is on screen now: typing during the save is
     // still unsaved.
     surface.value?.markSaved(doc);
+    // On disk now, so there is nothing for this tab to hold on to.
+    drafts.forget(tabKey);
   } catch (err) {
     saveError.value = err.message;
   } finally {
@@ -490,6 +567,16 @@ const requestClose = () => {
     !confirm(t('editor.confirmCloseWithoutSaving'))
   )
     return;
+
+  // Said out loud, so the text is not kept for the tab to hand back later.
+  drafts.forget(tabKey);
+
+  // In one of this application's own tabs, the thing to close is that tab — the
+  // same rule the preview follows, and the same one, which is why it lives in
+  // `tabNavigation`. A `.txt` and a `.md` come here rather than to the preview,
+  // so without this the cross of half the documents a reader opens in a tab left
+  // that tab sitting on a folder.
+  if (tabNavigation.closeOwn()) return;
 
   // A tab opened for this file alone is closed rather than sent somewhere: the
   // preference that opens documents in their own tab sends editable files here

@@ -7,6 +7,7 @@ import { useTabRouteSync } from '@/composables/tabNavigation';
 import ConfigErrorScreen from '@/components/ConfigErrorScreen.vue';
 import ConfigWarningNotice from '@/components/ConfigWarningNotice.vue';
 import TabStrip from '@/components/TabStrip.vue';
+import PreviewHost from '@/plugins/preview/PreviewHost.vue';
 
 const { configError, dismissConfigWarning } = useConfigErrorGate();
 
@@ -52,5 +53,9 @@ const configWarning = computed(() =>
     <div class="relative min-h-0 flex-1">
       <router-view></router-view>
     </div>
+    <!-- Every tab's open document, teleported to the body and outliving the
+         pages: which one is visible is a tab away, and nothing is rebuilt to
+         bring it forward. -->
+    <PreviewHost />
   </div>
 </template>

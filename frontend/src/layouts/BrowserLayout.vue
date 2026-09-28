@@ -13,7 +13,6 @@ import NotificationPanel from '@/components/NotificationPanel.vue';
 import { RouterView, useRoute, useRouter } from 'vue-router';
 import { useStorage, useEventListener, useMediaQuery } from '@vueuse/core';
 
-import PreviewHost from '@/plugins/preview/PreviewHost.vue';
 import ExplorerContextMenu from '@/components/ExplorerContextMenu.vue';
 // The terminal carries xterm with it, which is a large library for a panel
 // most sessions never open and only an administrator can. Loaded when it is
@@ -234,7 +233,6 @@ const handleGuestLogin = () => {
       @click="closeSidebar"
     ></button>
     <ClipboardProgress class="z-560" />
-    <PreviewHost />
     <InfoPanel />
     <VersionsPanel />
     <SpotlightSearch />

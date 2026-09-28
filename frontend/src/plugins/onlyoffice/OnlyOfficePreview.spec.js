@@ -31,7 +31,13 @@ const panel = vi.hoisted(() => ({ store: null }));
 // of them can be read back.
 const fileStore = { currentPath: 'Docs', fetchPathItems: vi.fn() };
 const notifications = { addNotification: vi.fn() };
-const previewManager = { close: vi.fn() };
+/**
+ * Closing goes through the session this document was opened in — `api.close` —
+ * and not through whatever the window happens to be showing: with tabs there are
+ * several documents alive at once, and an editor in a background tab asked to
+ * close must not close the one in front.
+ */
+const closeSession = vi.fn();
 
 vi.mock('@/stores/features', () => ({ useFeaturesStore: () => features }));
 vi.mock('@/stores/versionsPanel', async () => {
@@ -60,7 +66,6 @@ vi.mock('@/api', () => ({
 vi.mock('@/stores/fileStore', () => ({ useFileStore: () => fileStore }));
 vi.mock('@/stores/notifications', () => ({ useNotificationsStore: () => notifications }));
 vi.mock('@/stores/settings', () => ({ useSettingsStore: () => ({ isDark: false }) }));
-vi.mock('@/plugins/preview/manager', () => ({ usePreviewManager: () => previewManager }));
 vi.mock('@/utils/logger', () => ({
   default: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), warning: vi.fn(), error: vi.fn() },
 }));
@@ -143,7 +148,7 @@ const mountPreview = ({ filePath = 'report.docx', previewState = {} } = {}) => {
       filePath,
       previewUrl: '',
       previewState,
-      api: {},
+      api: { close: (...args) => closeSession(...args) },
     },
     global: {
       plugins: [i18n],
@@ -170,7 +175,7 @@ beforeEach(() => {
     fetchOnlyOfficeStorageFile,
     fetchOnlyOfficeMentionUsers,
     notifyOnlyOfficeMention,
-    previewManager.close,
+    closeSession,
     notifications.addNotification,
     ...Object.values(logger),
   ]) {
@@ -653,12 +658,12 @@ describe('the automatic save', () => {
 });
 
 /**
- * The editor's own close button has to go through the preview manager: closing
- * the frame directly would skip the plugin's close hook, and with it the save
- * of whatever was typed since the last automatic one.
+ * The editor's own close button has to go through the session this document was
+ * opened in: closing the frame directly would skip the plugin's close hook, and
+ * with it the save of whatever was typed since the last automatic one.
  */
 describe("the editor's close button", () => {
-  it('closes through the preview manager, once the editor has drawn its own button', async () => {
+  it('closes its own document, once the editor has drawn its own button', async () => {
     fetchOnlyOfficeConfig.mockResolvedValue(configResponse('session-1'));
     const previewState = {};
     mountPreview({ previewState });
@@ -670,7 +675,7 @@ describe("the editor's close button", () => {
     expect(previewState.hasNativeClose).toBe(true);
 
     capturedConfig.events.onRequestClose();
-    expect(previewManager.close).toHaveBeenCalledTimes(1);
+    expect(closeSession).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -61,6 +61,36 @@ vi.mock('vue-router', async () => {
 
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key) => key }) }));
 
+// This application's own tabs. A `.txt` or a `.md` opened in one is closed by
+// closing that tab, exactly as an office document is — the rule for *which* tab
+// may be closed is `tabNavigation`'s, with its own spec, so what is asked here is
+// that this view asks it, and asks it before offering the window to the browser.
+const closeOwn = vi.fn(() => false);
+const appTabs = vi.hoisted(() => ({ activeId: 'tab-1', tabs: [{ id: 'tab-1' }] }));
+vi.mock('@/composables/tabNavigation', () => ({
+  useTabNavigation: () => ({
+    get tabs() {
+      return appTabs;
+    },
+    closeOwn: (...args) => closeOwn(...args),
+  }),
+}));
+
+// What a tab holds on to between two glances. A faithful stand-in rather than the
+// store itself: the rule about *which* address a draft belongs to is the store's,
+// and `stores/editorDrafts.spec.js` holds it to that.
+const drafts = vi.hoisted(() => new Map());
+vi.mock('@/stores/editorDrafts', () => ({
+  useEditorDraftsStore: () => ({
+    keep: (key, address, text) => drafts.set(key, { address, text }),
+    forget: (key) => drafts.delete(key),
+    textFor: (key, address) => {
+      const draft = drafts.get(key);
+      return draft && draft.address === address ? draft.text : null;
+    },
+  }),
+}));
+
 const folderScroll = vi.hoisted(() => ({ permitExplicitRestore: vi.fn() }));
 // The instance's name, for the tab's title, as Settings → Branding set it.
 vi.mock('@/stores/appSettings', () => ({
@@ -100,6 +130,19 @@ vi.mock('@/components/editor/CodeSurface.vue', async () => {
           markSaved: (doc) => {
             saved = doc;
             emit('dirty-change', text !== saved);
+          },
+          // What the screen reaches for when it puts a kept draft back: an
+          // ordinary edit, which is how "unsaved" stays the editor's own
+          // comparison with the file rather than something the page decides.
+          view: {
+            get state() {
+              return { doc: { toString: () => text, length: text.length } };
+            },
+            dispatch: ({ changes }) => {
+              text = changes.insert;
+              emit('edit');
+              emit('dirty-change', text !== saved);
+            },
           },
         };
         // What the screen reaches through its template ref, and what the tests
@@ -169,6 +212,11 @@ beforeEach(() => {
     get: () => historyLength,
   });
   historyLength = 3;
+  closeOwn.mockClear();
+  closeOwn.mockReturnValue(false);
+  appTabs.activeId = 'tab-1';
+  appTabs.tabs = [{ id: 'tab-1' }];
+  drafts.clear();
   vi.spyOn(window, 'close').mockImplementation(() => {});
   localStorage.clear();
   surface.view = { dispatch: vi.fn() };
@@ -178,6 +226,10 @@ beforeEach(() => {
   shared.guards.length = 0;
   Object.values(api).forEach((fn) => fn.mockClear());
   api.fetchFileContent.mockResolvedValue({ content: 'hello' });
+  // Re-armed, not merely cleared: `mockClear` leaves an implementation in place,
+  // and the test that holds a write open forever left every later test awaiting
+  // a promise that never settles.
+  api.saveFileContent.mockResolvedValue({});
   api.fetchSharedFileContent.mockResolvedValue({
     content: 'shared hello',
     name: 'notes.md',
@@ -456,6 +508,40 @@ describe('leaving the editor', () => {
 
     expect(window.close).toHaveBeenCalled();
     expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The same cross, in one of this application's tabs.
+   *
+   * A `.txt` and a `.md` come here rather than to the preview, so without this
+   * the cross of half the documents somebody opens in a tab left that tab sitting
+   * on a folder listing — and the office documents beside it closed theirs.
+   */
+  it('closes the tab of this application it was opened in', async () => {
+    closeOwn.mockReturnValue(true);
+    historyLength = 1;
+    const view = await mountEditor();
+
+    view.requestClose();
+
+    expect(closeOwn).toHaveBeenCalled();
+    // Asked first, or shutting a file would take the browser window with it.
+    expect(window.close).not.toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  /** Unsaved work is asked about before anything is closed, tab or window. */
+  it('asks before closing its tab when there is unsaved work', async () => {
+    closeOwn.mockReturnValue(true);
+    const confirmed = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const view = await mountEditor();
+    await type(view, 'unsaved');
+
+    view.requestClose();
+
+    expect(confirmed).toHaveBeenCalled();
+    expect(closeOwn).not.toHaveBeenCalled();
+    confirmed.mockRestore();
   });
 
   // The tab somebody opened the whole application in is also "created by web
@@ -972,5 +1058,101 @@ describe('wrapping lines', () => {
 
     expect(view.isLineWrapping).toBe(true);
     expect(surface.view.dispatch).toHaveBeenCalled();
+  });
+});
+
+/**
+ * What was typed and never saved, when another tab comes forward.
+ *
+ * This page is unmounted the moment a tab is brought forward, so everything typed
+ * since the last save went with it — silently, for a click that never said
+ * "discard". A document open in the preview does not have this problem: its
+ * session lives in the manager and outlives the page. This is the same promise
+ * for the one kind of document that is not a preview.
+ */
+describe('what a tab holds on to', () => {
+  /** A second tab, brought forward: the page goes, the tab stays on the file. */
+  const anotherTabComesForward = async () => {
+    appTabs.tabs = [{ id: 'tab-1' }, { id: 'tab-9' }];
+    appTabs.activeId = 'tab-9';
+    wrapper.unmount();
+  };
+
+  it('keeps what was typed', async () => {
+    const view = await mountEditor();
+    await type(view, 'half a sentence');
+
+    await anotherTabComesForward();
+
+    expect(drafts.get('tab-1')).toEqual({
+      address: '/editor/Docs/notes.md',
+      text: 'half a sentence',
+    });
+  });
+
+  it('hands it back, still unsaved, when its tab comes back', async () => {
+    drafts.set('tab-1', { address: '/editor/Docs/notes.md', text: 'half a sentence' });
+
+    const view = await mountEditor();
+    await flushPromises();
+
+    expect(surface.current.snapshot()).toBe('half a sentence');
+    // Unsaved, because it is: the file on disk is what was read, and a grey save
+    // button over text that exists nowhere else is how that work gets lost.
+    expect(view.canSave).toBe(true);
+  });
+
+  it('keeps nothing for a file that is only being read', async () => {
+    Object.assign(route(), {
+      name: 'TrashFileViewer',
+      fullPath: '/trash/view/id-1/drafts/run.sh',
+      params: { itemId: 'id-1', entryPath: ['drafts', 'run.sh'] },
+    });
+    const view = await mountEditor();
+    await type(view, 'not that it could be written');
+
+    await anotherTabComesForward();
+
+    expect(drafts.has('tab-1')).toBe(false);
+  });
+
+  it('keeps nothing when there was nothing unsaved', async () => {
+    await mountEditor();
+
+    await anotherTabComesForward();
+
+    expect(drafts.has('tab-1')).toBe(false);
+  });
+
+  /** The tab stayed in front, so the address changed under it: another file now. */
+  it('lets go when the tab itself is taken somewhere else', async () => {
+    const view = await mountEditor();
+    await type(view, 'half a sentence');
+
+    wrapper.unmount();
+
+    expect(drafts.has('tab-1')).toBe(false);
+  });
+
+  it('lets go once the file is saved', async () => {
+    const view = await mountEditor();
+    await type(view, 'half a sentence');
+    drafts.set('tab-1', { address: '/editor/Docs/notes.md', text: 'half a sentence' });
+
+    await view.saveFile();
+
+    expect(drafts.has('tab-1')).toBe(false);
+  });
+
+  it('lets go when leaving without saving is said out loud', async () => {
+    const confirmed = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const view = await mountEditor();
+    await type(view, 'half a sentence');
+    drafts.set('tab-1', { address: '/editor/Docs/notes.md', text: 'half a sentence' });
+
+    view.requestClose();
+
+    expect(drafts.has('tab-1')).toBe(false);
+    confirmed.mockRestore();
   });
 });

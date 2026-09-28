@@ -154,6 +154,13 @@
     },
     {
       "axis": "*",
+      "match": "^(frontend/src/plugins/preview/(session\\.js|PreviewSurface\\.vue)|frontend/src/stores/editorDrafts\\.js)$",
+      "verdict": "PORT",
+      "batch": "P3-59",
+      "note": "tabs, lot 2: what a tab is holding stays alive while another tab is in front — a preview session per tab, one surface per tab drawn all at once, and the text an editor was given and never saved — P3-59 when it goes. Declared before the rule that owns the preview plugins, which was written when every file under them had already been sent and cannot speak for files that did not exist"
+    },
+    {
+      "axis": "*",
       "match": "^(frontend/src/components/editor/|frontend/src/utils/textBlocks\\.js|backend/src/openapi/paths/integrations\\.js|backend/src/routes/(collabora|onlyoffice)\\.js|backend/src/services/(collaboraDiscoveryService|wopiLockService)\\.js|frontend/src/api/(collabora|onlyoffice)\\.api\\.js|frontend/src/config/editor\\.js|frontend/src/plugins/(collabora|onlyoffice|preview|index)|frontend/src/views/EditorView\\.vue)",
       "verdict": "DONE",
       "batch": "P3-39",

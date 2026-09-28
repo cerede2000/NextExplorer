@@ -14,6 +14,12 @@ import { flushPromises, mount } from '@vue/test-utils';
 
 const fetchCollaboraConfig = vi.fn();
 const searchUsersForMention = vi.fn();
+/**
+ * Closing goes through the session this document was opened in — `api.close` —
+ * and not through whatever the window happens to be showing: with tabs there are
+ * several documents alive at once, and an editor in a background tab asked to
+ * close must not close the one in front.
+ */
 const closePreview = vi.fn();
 const panel = vi.hoisted(() => ({ store: null }));
 
@@ -27,9 +33,6 @@ vi.mock('@/stores/versionsPanel', async () => {
   panel.store = reactive({ restored: 0, relativePath: '', openPath: vi.fn() });
   return { useVersionsPanelStore: () => panel.store };
 });
-vi.mock('@/plugins/preview/manager', () => ({
-  usePreviewManager: () => ({ close: (...args) => closePreview(...args) }),
-}));
 vi.mock('@/utils/logger', () => ({
   default: { debug: vi.fn(), error: vi.fn(), warn: vi.fn(), warning: vi.fn() },
 }));
@@ -55,7 +58,7 @@ const mountOn = async (item = REPORT) => {
       filePath: 'Docs/report.docx',
       previewUrl: '',
       previewState,
-      api: {},
+      api: { close: (...args) => closePreview(...args) },
     },
     attachTo: document.body,
   });

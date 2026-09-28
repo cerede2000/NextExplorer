@@ -91,8 +91,29 @@ export function useTabNavigation() {
   const close = (id) => go(tabs.close(id));
   const closeOthers = (id) => go(tabs.closeOthers(id));
 
+  /**
+   * Close the tab that exists *for* what is on screen, and say whether it did.
+   *
+   * What the close button of a document means, and it means it in two places —
+   * the preview and the text editor — which is why it is here and not in either
+   * of them. In a tab opened for this file, closing the file is closing the tab;
+   * anywhere else the caller does what it always did.
+   *
+   * Three things make it refuse, and each of them would take something away from
+   * whoever pressed the button: tabs turned off, a tab that was merely taken here
+   * while somebody was browsing (`own` stops being true the moment it is), and the
+   * last tab, because there would be nowhere left to be.
+   */
+  const closeOwn = () => {
+    if (!tabs.enabled) return false;
+    const tab = tabs.activeTab;
+    if (!tab?.own || !tabs.canClose) return false;
+    close(tab.id);
+    return true;
+  };
+
   /** Whether the strip belongs on screen at all: the mode, and a place to be. */
   const visible = computed(() => tabs.enabled && Boolean(tabKindForPath(route.fullPath)));
 
-  return { tabs, visible, activate, open, openHome, close, closeOthers };
+  return { tabs, visible, activate, open, openHome, close, closeOthers, closeOwn };
 }
