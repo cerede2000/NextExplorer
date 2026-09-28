@@ -84,3 +84,34 @@ describe('what a tab is called', () => {
     expect(tabTitle({ kind: 'search', path: '/search?q=x' }, t)).toBe('actions.search');
   });
 });
+
+/**
+ * A terminal is a place: it has an address, so it has a tab, so there can be as
+ * many as there are tabs. The drawer could never do that — it belongs to the
+ * window rather than to anything in it.
+ */
+describe('a terminal', () => {
+  it('is recognised from its address, with a folder and without one', () => {
+    expect(tabKindForPath('/terminal')?.id).toBe('terminal');
+    expect(tabKindForPath('/terminal/Docs/2026')?.id).toBe('terminal');
+  });
+
+  /** Several at once is the point, so it is not a screen there is one of. */
+  it('is not a screen there is only one of', () => {
+    expect(TAB_KINDS_BY_ID.terminal.singleton).toBe(false);
+  });
+
+  /**
+   * A shell that was running is not running any more, and a tab that comes back
+   * to a dead one is worse than a tab that comes back to the volumes.
+   */
+  it('is not brought back when the reader returns', () => {
+    expect(TAB_KINDS_BY_ID.terminal.restores).toBe(false);
+  });
+
+  it('is named for what it is, not for the folder it is in', () => {
+    expect(tabTitle({ kind: 'terminal', path: '/terminal/Docs' }, (key) => key)).toBe(
+      'titles.terminal'
+    );
+  });
+});

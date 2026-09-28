@@ -70,6 +70,10 @@ vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key) => key }) }));
 // Whether a double click closes a tab is an account's answer, and this spec is
 // about the strip: what is asked here is that it obeys.
 const userSettings = vi.hoisted(() => ({ closeTabsOnDoubleClick: false }));
+// A tab inside a favourite wears that favourite's icon: somebody who keeps four
+// folders picked those icons to tell them apart at a glance.
+const favorites = vi.hoisted(() => ({ favorites: [] }));
+vi.mock('@/stores/favorites', () => ({ useFavoritesStore: () => favorites }));
 vi.mock('@/stores/appSettings', () => ({ useAppSettings: () => ({ userSettings }) }));
 
 import TabStrip from './TabStrip.vue';
@@ -91,6 +95,7 @@ beforeEach(() => {
   state.atLimit.value = false;
   state.limit.value = 10;
   userSettings.closeTabsOnDoubleClick = false;
+  favorites.favorites = [];
   Object.values(actions).forEach((fn) => fn.mockReset());
   Object.values(store).forEach((fn) => fn.mockReset());
 });
@@ -342,5 +347,76 @@ describe('a double click on a tab', () => {
     await wrapper.findAll('[role="tab"]')[1].trigger('dblclick');
 
     expect(actions.close).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * A tab inside a favourite wears that favourite's icon.
+ *
+ * Somebody who keeps four folders as favourites picked those icons to tell them
+ * apart at a glance, and a row of identical folder icons throws that away. It
+ * lasts as long as the tab is in that folder — walk out and the tab is an
+ * ordinary folder again, because the icon was never the tab's.
+ */
+describe('the icon a tab wears', () => {
+  const iconOf = (wrapper) => wrapper.get('[role="tab"]').find('svg');
+  // The browser writes a colour back as `rgb(...)`, whatever it was given.
+  const colourOf = (wrapper) => iconOf(wrapper).attributes('style') || '';
+
+  it('is the favourite own, for a tab on that folder', () => {
+    favorites.favorites = [{ path: 'Media/Photos', icon: 'PhotoIcon', color: '#ff8800' }];
+    const wrapper = withTabs([tab('a', 'folder', '/browse/Media/Photos')]);
+
+    expect(colourOf(wrapper)).toContain('255, 136, 0');
+  });
+
+  /** Inside it too: walking deeper is still being in that favourite. */
+  it('stays on a folder inside it', () => {
+    favorites.favorites = [{ path: 'Media/Photos', icon: 'PhotoIcon', color: '#ff8800' }];
+    const wrapper = withTabs([tab('a', 'folder', '/browse/Media/Photos/2026')]);
+
+    expect(colourOf(wrapper)).toContain('255, 136, 0');
+  });
+
+  it('goes back to the folder icon once the tab is somewhere else', () => {
+    favorites.favorites = [{ path: 'Media/Photos', icon: 'PhotoIcon', color: '#ff8800' }];
+    const wrapper = withTabs([tab('a', 'folder', '/browse/Docs')]);
+
+    expect(colourOf(wrapper)).toBe('');
+  });
+
+  /** A name beginning the same way is not the same folder. */
+  it('is not worn by a folder that merely starts with the same letters', () => {
+    favorites.favorites = [{ path: 'Media/Photos', icon: 'PhotoIcon', color: '#ff8800' }];
+    const wrapper = withTabs([tab('a', 'folder', '/browse/Media/Photoshoots')]);
+
+    expect(colourOf(wrapper)).toBe('');
+  });
+
+  /** The deepest answer to "where is this tab" wins. */
+  it('is the innermost favourite when one is inside another', () => {
+    favorites.favorites = [
+      { path: 'Media', icon: 'FolderIcon', color: '#111111' },
+      { path: 'Media/Photos', icon: 'PhotoIcon', color: '#ff8800' },
+    ];
+    const wrapper = withTabs([tab('a', 'folder', '/browse/Media/Photos/2026')]);
+
+    expect(colourOf(wrapper)).toContain('255, 136, 0');
+  });
+
+  /** An address with a space in it is stored encoded and matched decoded. */
+  it('matches a folder whose name holds a space', () => {
+    favorites.favorites = [{ path: 'Docs/data set', icon: 'PhotoIcon', color: '#00aa55' }];
+    const wrapper = withTabs([tab('a', 'folder', '/browse/Docs/data%20set')]);
+
+    expect(colourOf(wrapper)).toContain('0, 170, 85');
+  });
+
+  /** Only a folder: a document or the trash has an icon of its own kind. */
+  it('is never worn by a tab that is not a folder', () => {
+    favorites.favorites = [{ path: 'Media', icon: 'PhotoIcon', color: '#ff8800' }];
+    const wrapper = withTabs([tab('a', 'document', '/open/Media/report.docx')]);
+
+    expect(colourOf(wrapper)).toBe('');
   });
 });

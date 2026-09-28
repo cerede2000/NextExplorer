@@ -3,7 +3,9 @@ import { computed, onUnmounted, ref, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { onClickOutside, useElementSize } from '@vueuse/core';
 import { PlusIcon, XMarkIcon } from '@heroicons/vue/20/solid';
-import { TAB_KINDS_BY_ID, tabTitle } from '@/config/tabKinds';
+import { TAB_KINDS_BY_ID, tabFolderPath, tabTitle } from '@/config/tabKinds';
+import { useFavoritesStore } from '@/stores/favorites';
+import { resolveFavoriteIcon } from '@/utils/favoriteIcons';
 import { useTabNavigation } from '@/composables/tabNavigation';
 import { useAppSettings } from '@/stores/appSettings';
 
@@ -58,7 +60,40 @@ onUnmounted(() => {
   publishHeight(0);
 });
 
-const iconFor = (tab) => TAB_KINDS_BY_ID[tab.kind]?.icon;
+/**
+ * A tab inside a favourite wears that favourite's icon.
+ *
+ * Somebody who keeps four folders as favourites picked those icons to tell them
+ * apart at a glance, and a row of identical folder icons throws that away. It
+ * lasts as long as the tab is in that folder — walk out of it and the tab is an
+ * ordinary folder again, because the icon was never the tab's, it was the
+ * favourite's.
+ *
+ * The deepest one wins: a favourite inside another favourite is the more precise
+ * answer to "where is this tab".
+ */
+const favorites = useFavoritesStore();
+const favouriteFor = (tab) => {
+  const folder = tabFolderPath(tab);
+  if (!folder) return null;
+  let best = null;
+  for (const favorite of favorites.favorites || []) {
+    const path = String(favorite?.path || '').replace(/^\/+|\/+$/g, '');
+    if (!path) continue;
+    if (folder !== path && !folder.startsWith(`${path}/`)) continue;
+    if (!best || path.length > best.path.length) best = { path, favorite };
+  }
+  return best?.favorite || null;
+};
+
+const iconFor = (tab) => {
+  const favorite = favouriteFor(tab);
+  if (favorite) return resolveFavoriteIcon(favorite.icon);
+  return TAB_KINDS_BY_ID[tab.kind]?.icon;
+};
+
+/** And its colour, since an icon and its colour are one choice, not two. */
+const iconColourFor = (tab) => favouriteFor(tab)?.color || undefined;
 const titleFor = (tab) => tabTitle(tab, t) || t('tabs.newTab');
 
 // The menu belongs to one tab at a time, named by its id rather than held as the
@@ -175,7 +210,12 @@ const nudge = (id, step) => {
         @auxclick.middle.prevent="close(tab.id)"
         @contextmenu.prevent="openMenu(tab.id)"
       >
-        <component :is="iconFor(tab)" v-if="iconFor(tab)" class="h-4 w-4 shrink-0" />
+        <component
+          :is="iconFor(tab)"
+          v-if="iconFor(tab)"
+          class="h-4 w-4 shrink-0"
+          :style="iconColourFor(tab) ? { color: iconColourFor(tab) } : undefined"
+        />
         <span class="truncate">{{ titleFor(tab) }}</span>
       </button>
       <button

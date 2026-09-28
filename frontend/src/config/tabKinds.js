@@ -7,6 +7,7 @@ import {
   ShareIcon,
   Cog6ToothIcon,
   ClockIcon,
+  CommandLineIcon,
 } from '@heroicons/vue/24/outline';
 
 /**
@@ -51,6 +52,20 @@ const TAB_KINDS = [
     icon: DocumentTextIcon,
     singleton: false,
     restores: true,
+  },
+  {
+    // A shell, in the folder its address names. There can be as many as there are
+    // tabs, which is the point: the drawer belongs to the window and can only
+    // ever show one.
+    id: 'terminal',
+    match: /^\/terminal([/?#]|$)/,
+    icon: CommandLineIcon,
+    titleKey: 'titles.terminal',
+    singleton: false,
+    // Not brought back: a shell that was running is not running any more, and a
+    // tab that comes back to a dead one is worse than a tab that comes back to
+    // the volumes.
+    restores: false,
   },
   {
     id: 'editor',
@@ -131,6 +146,34 @@ export const tabKindForPath = (path) => {
  * @param {{ kind: string, path: string }} tab
  * @param {(key: string) => string} t
  */
+/**
+ * The folder a tab is on, as the application names folders — or '' for anything
+ * that is not a folder.
+ *
+ * Asked by the strip, which puts a favourite's own icon on a tab while the tab is
+ * inside that favourite: to know whether it is, it has to read the folder out of
+ * the address, decoded, the way a favourite stores it.
+ */
+export const tabFolderPath = (tab) => {
+  if (tab?.kind !== 'folder') return '';
+  const segments = String(tab.path || '')
+    .split('?')[0]
+    .split('/')
+    .filter(Boolean);
+  // The kind's own prefix is not part of the folder: `/browse/Docs` is `Docs`.
+  const parts = segments.slice(1);
+  return parts
+    .map((part) => {
+      try {
+        return decodeURIComponent(part);
+      } catch {
+        // A percent sign that decodes to nothing is still part of a name.
+        return part;
+      }
+    })
+    .join('/');
+};
+
 export const tabTitle = (tab, t) => {
   const kind = TAB_KINDS_BY_ID[tab?.kind];
   if (!kind) return '';

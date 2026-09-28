@@ -240,6 +240,16 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      // One terminal, at an address of its own — see views/TerminalView.vue.
+      // Outside the browser layout on purpose, like a document: a terminal
+      // opened in its own tab is the terminal, and nothing else. Loaded on
+      // demand, because it carries xterm with it.
+      path: '/terminal/:path(.*)*',
+      name: 'TerminalView',
+      component: () => import('@/views/TerminalView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
       path: '/auth/setup',
       name: 'auth-setup',
       component: AuthSetupView,
