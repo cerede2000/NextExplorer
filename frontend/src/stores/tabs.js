@@ -148,9 +148,32 @@ export const useTabsStore = defineStore('tabs', () => {
   };
   persist();
 
+  /**
+   * The tab the reader has just brought forward, until a page asks about it.
+   *
+   * A page cannot tell that on its own. Bringing a tab forward and walking into a
+   * folder both arrive as a new address on the same route, and the listing that
+   * mounts for either of them looks exactly the same — which is why coming back
+   * to a folder tab read the folder again from the server and landed the reader
+   * at the top of it, having thrown away what they had selected.
+   *
+   * A flag, consumed by whoever it is for, rather than a guess made from what the
+   * store happens to be holding: a store already on a folder is also what somebody
+   * walking back up to it, or landing on a search result in it, looks like.
+   */
+  const broughtForward = ref('');
+
+  /** Whether this tab is the one just brought forward. Asking clears it. */
+  const takeBroughtForward = (id) => {
+    if (!id || broughtForward.value !== id) return false;
+    broughtForward.value = '';
+    return true;
+  };
+
   const activate = (id) => {
     if (!tabs.value.some((tab) => tab.id === id)) return null;
     activeId.value = id;
+    broughtForward.value = id;
     persist();
     return activeTab.value;
   };
@@ -324,6 +347,7 @@ export const useTabsStore = defineStore('tabs', () => {
     close,
     closeOthers,
     activate,
+    takeBroughtForward,
     move,
     nudge,
     canMove,

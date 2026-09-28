@@ -86,6 +86,10 @@ vi.mock('@/stores/operationTasks', async () => {
   const store = await shared.make('operationTasks');
   return { useOperationTasksStore: () => store };
 });
+// The tab this listing is in, which is half the key its place is remembered
+// under: two tabs can be on one folder and be in different places in it.
+const appTabs = vi.hoisted(() => ({ activeId: 'tab-1', takeBroughtForward: vi.fn(() => false) }));
+vi.mock('@/stores/tabs', () => ({ useTabsStore: () => appTabs }));
 
 const composables = vi.hoisted(() => ({
   clearSelection: vi.fn(),
@@ -257,7 +261,11 @@ beforeEach(() => {
     remember: vi.fn(),
     rememberActiveItem: vi.fn(),
     consumeRestoreState: vi.fn(() => ({ permitted: false, scrollTop: 0, activeItemKey: '' })),
+    rememberTabPlace: vi.fn(),
+    tabPlace: vi.fn(() => 0),
   });
+  appTabs.takeBroughtForward.mockClear();
+  appTabs.takeBroughtForward.mockReturnValue(false);
   Object.assign(stores.operationTasks, { operationCount: 0 });
 });
 
@@ -1245,5 +1253,80 @@ describe('a folder too big to draw at once', () => {
     await flushPromises();
 
     expect(view.visibleItems).toHaveLength(500);
+  });
+});
+
+/**
+ * Coming back to a folder tab that another one was in front of.
+ *
+ * The tab already holds its listing, its selection and the rename it was in the
+ * middle of — that is what `stores/files/folderTab.js` is for — so reading the
+ * folder again from the server throws all of it away and lands the reader at the
+ * top of something they had scrolled. Which is what it did.
+ */
+describe('a folder tab coming back', () => {
+  beforeEach(() => {
+    stores.file.items = [file('a.txt'), file('b.txt')];
+    stores.file.currentPath = 'Docs';
+    appTabs.takeBroughtForward.mockReturnValue(true);
+  });
+
+  it('shows what the tab was holding without reading the folder again', async () => {
+    await mountFolder();
+
+    expect(stores.file.fetchPathItems).not.toHaveBeenCalledWith('Docs');
+  });
+
+  it('asks for it again quietly, under whatever was on screen', async () => {
+    await mountFolder();
+
+    // Quietly: the listing is replaced under the selection rather than clearing
+    // it, and nothing about it moves the reader.
+    expect(stores.file.fetchPathItems).toHaveBeenCalledWith('Docs', { preserveInteraction: true });
+  });
+
+  it('puts the tab back where it was in the folder', async () => {
+    stores.folderScroll.tabPlace.mockReturnValue(540);
+
+    await mountFolder();
+
+    expect(stores.folderScroll.tabPlace).toHaveBeenCalledWith('tab-1::Docs::list');
+  });
+
+  /**
+   * Never from the page behind the listing.
+   *
+   * On the way out the listing can already be gone, and the page behind it is
+   * always at the top — so where this tab was, hundreds of pixels down, was
+   * overwritten with zero a moment before anybody could come back to it. Here
+   * there is no layout at all, so the listing is never the thing that scrolls,
+   * which is exactly the case being asked about; that it *is* remembered, and put
+   * back, is asked in a browser, where scrolling exists.
+   */
+  it('remembers nothing for the tab from the page behind the listing', async () => {
+    await mountFolder();
+
+    expect(stores.folderScroll.rememberTabPlace).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A tab brought forward before it ever listed anything has nothing to come
+   * back to, so it reads the folder like any first arrival.
+   */
+  it('reads the folder when the tab has nothing in hand', async () => {
+    stores.file.items = [];
+
+    await mountFolder();
+
+    expect(stores.file.fetchPathItems).toHaveBeenCalledWith('Docs');
+  });
+
+  /** Walking into a folder is not coming back to one, whatever the store holds. */
+  it('reads the folder when no tab was brought forward', async () => {
+    appTabs.takeBroughtForward.mockReturnValue(false);
+
+    await mountFolder();
+
+    expect(stores.file.fetchPathItems).toHaveBeenCalledWith('Docs');
   });
 });

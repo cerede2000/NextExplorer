@@ -867,6 +867,12 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   // thing make every order of them look alike, and an assertion about the order
   // that cannot fail is worse than none.
   fs.mkdirSync(path.join(volume, 'Gamma'), { recursive: true });
+  // A folder with more in it than fits on a screen, so a tab can be somewhere in
+  // the middle of it and be asked whether it came back there.
+  fs.mkdirSync(path.join(volume, 'Many'), { recursive: true });
+  for (let file = 1; file <= 160; file += 1) {
+    fs.writeFileSync(path.join(volume, 'Many', `file-${String(file).padStart(3, '0')}.txt`), 'x');
+  }
   // A second text file, read rather than typed into: where the reader was in it
   // is what a tab has to hold even when nothing was changed.
   fs.writeFileSync(
@@ -1243,6 +1249,46 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   await tabButtons.first().click({ button: 'right' });
   await expect(page.locator('[data-test="tab-move-left"]')).toBeDisabled();
   await expect(page.locator('[data-test="tab-move-right"]')).toBeEnabled();
+
+  /**
+   * A folder tab comes back where it was, with what was selected still selected.
+   *
+   * The tab already holds its listing, its selection and the rename it is in the
+   * middle of. Read again from the server, all of it goes and the reader lands at
+   * the top of a folder they had scrolled — which is what it did, and no unit
+   * suite can see it: jsdom has no layout, so nothing there ever scrolls.
+   */
+  await tabs.first().getByRole('tab').click();
+  await page.goto('/browse/Projects/Many');
+  const rows = page.locator('[data-selected]');
+  await expect(rows.first()).toBeVisible();
+
+  // The listing's own scroller, which is what the view scrolls and remembers.
+  const folderScrollTop = () =>
+    page.evaluate(() => {
+      const target = document.querySelector('.upload-drop-target');
+      return Math.round(target?.scrollTop ?? 0);
+    });
+
+  // Somewhere in the middle of it, and one file chosen there.
+  await page.locator('.upload-drop-target').evaluate((node) => {
+    node.scrollTop = 900;
+  });
+  await page.locator('[title="file-120.txt"]').first().scrollIntoViewIfNeeded();
+  await page.locator('[title="file-120.txt"]').first().click();
+  await expect(page.locator('[title="file-120.txt"][data-selected="true"]').first()).toBeVisible();
+  const scrolledTo = await folderScrollTop();
+  expect(scrolledTo).toBeGreaterThan(0);
+
+  const manyTab = strip.locator('[role="tab"][title="Many"]');
+  await strip.locator('[data-test="tab"]').last().getByRole('tab').click();
+  await expect(page).not.toHaveURL(/\/browse\/Projects\/Many$/);
+  await manyTab.click();
+  await expect(page).toHaveURL(/\/browse\/Projects\/Many$/);
+
+  // Still chosen, and still there rather than back at the top.
+  await expect(page.locator('[title="file-120.txt"][data-selected="true"]').first()).toBeVisible();
+  await expect.poll(folderScrollTop).toBeGreaterThan(0);
 
   /**
    * The strip does not make the page taller than the window.

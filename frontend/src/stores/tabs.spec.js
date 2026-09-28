@@ -437,3 +437,60 @@ describe('moving a tab along the row', () => {
     ]);
   });
 });
+
+/**
+ * Which tab the reader has just brought forward.
+ *
+ * A page cannot tell that on its own: bringing a tab forward and walking into a
+ * folder both arrive as a new address on the same route, and the listing that
+ * mounts for either of them looks exactly the same. Guessed from what a store
+ * happens to hold, a search result landing in a folder somebody was just in reads
+ * as a return too — so the store says it, and whoever it is for takes it.
+ */
+describe('the tab just brought forward', () => {
+  const twoTabs = () => {
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    const first = tabs.activeId;
+    const second = tabs.open('/browse/Media');
+    return { tabs, first, second: second.id };
+  };
+
+  it('is the one activated, and only it', () => {
+    const { tabs, first, second } = twoTabs();
+
+    tabs.activate(first);
+
+    expect(tabs.takeBroughtForward(second)).toBe(false);
+    expect(tabs.takeBroughtForward(first)).toBe(true);
+  });
+
+  /** Taken once: the next page to mount was not the reason for the activation. */
+  it('is taken once', () => {
+    const { tabs, first } = twoTabs();
+    tabs.activate(first);
+
+    expect(tabs.takeBroughtForward(first)).toBe(true);
+    expect(tabs.takeBroughtForward(first)).toBe(false);
+  });
+
+  it('is nobody until a tab is brought forward', () => {
+    const { tabs, first } = twoTabs();
+
+    // Opening one activates it, which is a tab coming forward like any other.
+    tabs.takeBroughtForward(tabs.activeId);
+
+    expect(tabs.takeBroughtForward(first)).toBe(false);
+  });
+
+  /** A tab taking over because its neighbour closed also came forward. */
+  it('is the tab that takes over when one is closed', () => {
+    const { tabs, first, second } = twoTabs();
+    tabs.activate(second);
+    tabs.takeBroughtForward(second);
+
+    tabs.close(second);
+
+    expect(tabs.takeBroughtForward(first)).toBe(true);
+  });
+});

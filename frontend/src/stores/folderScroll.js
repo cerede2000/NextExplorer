@@ -74,6 +74,36 @@ export const useFolderScrollStore = defineStore('folderScroll', () => {
     permittedRestorePaths.delete(path);
   };
 
+  /**
+   * Where a tab was in the folder it is on.
+   *
+   * Not the same question as the one above, and it has its own answer. That one
+   * is "where was the reader last time they walked into this folder", which is
+   * only worth restoring when they walked back up to it on purpose — otherwise
+   * opening a folder visited an hour ago jumps somewhere surprising. This one is
+   * "where is this tab right now", which is always worth restoring, because the
+   * tab never left: another one simply came in front of it.
+   *
+   * Keyed per tab, so two tabs on the same folder keep their own places. Read
+   * without consuming, since a reader crosses back and forth.
+   */
+  const tabPlaces = new Map();
+
+  const rememberTabPlace = (key, scrollTop) => {
+    if (!key || !Number.isFinite(scrollTop)) return;
+    tabPlaces.delete(key);
+    tabPlaces.set(key, Math.max(0, Math.round(scrollTop)));
+    while (tabPlaces.size > FOLDER_SCROLL_POSITION_LIMIT) {
+      tabPlaces.delete(tabPlaces.keys().next().value);
+    }
+  };
+
+  const tabPlace = (key) => tabPlaces.get(key) ?? 0;
+
+  const forgetTabPlace = (key) => {
+    tabPlaces.delete(key);
+  };
+
   const consumeRestoreState = (key) => {
     const path = String(key || '').split('::')[0];
     if (!path || !permittedRestorePaths.has(path)) {
@@ -101,6 +131,9 @@ export const useFolderScrollStore = defineStore('folderScroll', () => {
   };
 
   return {
+    rememberTabPlace,
+    tabPlace,
+    forgetTabPlace,
     remember,
     get,
     has,
