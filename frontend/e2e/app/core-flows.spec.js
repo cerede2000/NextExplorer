@@ -1440,19 +1440,14 @@ test('nothing is hidden on a phone either', async () => {
 });
 
 /**
- * A document opened and shut again and again, faster than anything can fade.
+ * A document opened and shut again and again, as fast as the clicks come.
  *
- * This is where the tabs hurt: a viewer that takes its own element out of the
- * page — ONLYOFFICE replaces it with an `iframe` — leaves Vue patching around a
- * node the page no longer holds, and the two hundred milliseconds a fade lasted
- * were two hundred milliseconds in which the document being shut was still there
- * while the next one was being built. Switching tabs is a gesture people make far
- * faster than that.
- *
- * No unit suite can see it: jsdom reports no transition support, so the leave is
- * immediate there and the two never overlap. Only a browser can.
+ * The same gesture in the application that `e2e/preview-detach.spec.js` drives
+ * against the host on its own: open, shut, open, shut, without waiting for
+ * anything to settle. Here it runs through the real screens, the real router and
+ * the real preferences, which is what it takes to say the whole thing holds.
  */
-test('opening and shutting documents faster than a fade leaves nothing broken', async () => {
+test('opening and shutting documents one after another leaves nothing broken', async () => {
   fs.writeFileSync(path.join(volume, 'quick-one.md'), '# One\n');
   fs.writeFileSync(path.join(volume, 'quick-two.md'), '# Two\n');
 

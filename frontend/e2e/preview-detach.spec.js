@@ -24,6 +24,11 @@ test.beforeEach(async ({ page }) => {
 
 const thrown = (page) => page.evaluate(() => window.thrown);
 const frames = (page) => page.evaluate(() => window.frames_());
+/** Which documents are on screen, in the order of the tabs holding them. */
+const documents = (page) =>
+  page.evaluate(() =>
+    [...document.querySelectorAll('iframe[data-document]')].map((node) => node.dataset.document)
+  );
 
 test('one document opens and its element goes, without breaking the page', async ({ page }) => {
   await page.evaluate(() => window.openDocument(0, 'report.docx'));
@@ -93,40 +98,35 @@ test('switching tabs while one of them is being shut', async ({ page }) => {
 });
 
 /**
- * The editor rebuilt where it stands.
+ * A second document opened over one whose editor is alive.
  *
- * The configuration is cleared and asked for again, so the element on screen is
- * taken off by that render and another takes its place — with the page's own
- * chrome and two teleported dialogs beside it. A rename from the title bar does
- * this, and so does a document the server reports as outdated.
+ * The one the crash came from, and it needs no tabs at all. The editor is told to
+ * rebuild for the new file, so it takes itself off screen — and the element Vue
+ * has to work around is the one the Document Server's script replaced with an
+ * `iframe`. Asking that element for its parent, to know where to leave the mark
+ * of what was removed, answers null.
  */
-test('the editor rebuilt in place, with a document in another tab', async ({ page }) => {
+test('a second document opened over a live editor', async ({ page }) => {
   await page.evaluate(() => {
     window.openDocument(0, 'report.docx');
     window.openDocument(1, 'budget.docx');
   });
   await expect.poll(() => frames(page)).toBe(2);
 
-  await page.evaluate(() => window.rebuildEditor());
+  await page.evaluate(() => window.openDocument(1, 'another.docx'));
 
-  await expect.poll(() => frames(page)).toBe(2);
+  await expect.poll(() => documents(page)).toEqual(['Docs/report.docx', 'Docs/another.docx']);
   expect(await thrown(page)).toEqual([]);
 });
 
-test('the editor rebuilt while its own tab is being brought forward', async ({ page }) => {
-  await page.evaluate(() => {
-    window.openDocument(0, 'report.docx');
-    window.openDocument(1, 'budget.docx');
-  });
-  await expect.poll(() => frames(page)).toBe(2);
+/** And the same thing with one tab, because this was never about tabs. */
+test('a second document opened over a live editor, in one tab', async ({ page }) => {
+  await page.evaluate(() => window.openDocument(0, 'report.docx'));
+  await expect.poll(() => frames(page)).toBe(1);
 
-  await page.evaluate(() => {
-    window.rebuildEditor();
-    window.activateTab(1);
-    window.activateTab(0);
-  });
+  await page.evaluate(() => window.openDocument(0, 'another.docx'));
 
-  await expect.poll(() => frames(page)).toBe(2);
+  await expect.poll(() => documents(page)).toEqual(['Docs/another.docx']);
   expect(await thrown(page)).toEqual([]);
 });
 

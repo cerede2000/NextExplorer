@@ -1,26 +1,63 @@
 <template>
-  <div class="h-full w-full bg-white dark:bg-zinc-900">
-    <div
-      v-if="error"
-      class="flex h-full items-center justify-center text-sm text-red-600 dark:text-red-400"
-    >
-      {{ error }}
+  <div class="relative h-full w-full bg-white dark:bg-zinc-900">
+    <!--
+      What the editor is not, in a box of its own.
+
+      These two say what is happening while there is no editor to say it — and
+      they used to be the *other branches* of the one the editor is in. That is
+      what broke opening a second document over a first: the Document Server's
+      script takes the element it was handed out of the page and puts an `iframe`
+      in its place, so when Vue swaps that branch for this one it is working
+      around a node the page no longer holds. The parent it patches into comes
+      back null, the render dies, and every render after it dies on elements that
+      are suddenly missing.
+
+      In their own box they appear and disappear against their own edges, and the
+      editor below is never what Vue has to find its place against. Laid over it
+      rather than beside it, which is also what they always looked like.
+    -->
+    <div>
+      <div
+        v-if="error"
+        class="absolute inset-0 z-10 flex items-center justify-center bg-white text-sm text-red-600 dark:bg-zinc-900 dark:text-red-400"
+      >
+        {{ error }}
+      </div>
+      <div
+        v-else-if="!ready"
+        class="absolute inset-0 z-10 flex items-center justify-center bg-white text-sm text-neutral-500 dark:bg-zinc-900 dark:text-neutral-400"
+      >
+        Loading ONLYOFFICE…
+      </div>
     </div>
-    <div
-      v-else-if="!ready"
-      class="flex h-full items-center justify-center text-sm text-neutral-500 dark:text-neutral-400"
-    >
-      Loading ONLYOFFICE…
+
+    <!--
+      The editor in a box of its own, and the condition on the box.
+
+      Never on the editor itself, which is the whole of this: the Document
+      Server's script takes the element it was handed out of the page and puts an
+      `iframe` in its place, so that element is no longer anywhere. When Vue
+      replaces a `v-if` branch with the comment that marks where it was, it asks
+      the *old* branch's element for its parent to know where to put the comment —
+      and for this one there is no parent. `insertBefore` on null, the render
+      stops half done, and every render after it fails on elements that are
+      suddenly missing. That is what opening a second document over a first did.
+
+      On a plain box the question is safe: the box is still in the page, whatever
+      the script did inside it, and the editor goes and comes back inside it.
+    -->
+    <div class="h-full w-full">
+      <div v-if="ready && !error" class="h-full w-full">
+        <DocumentEditor
+          class="h-full w-full"
+          :key="editorId"
+          :id="editorId"
+          :shardkey="false"
+          :documentServerUrl="serverUrl"
+          :config="config"
+        />
+      </div>
     </div>
-    <DocumentEditor
-      v-else
-      class="h-full w-full"
-      :key="editorId"
-      :id="editorId"
-      :shardkey="false"
-      :documentServerUrl="serverUrl"
-      :config="config"
-    />
 
     <!--
       NextExplorer's own share dialog, opened from the editor's Share button.

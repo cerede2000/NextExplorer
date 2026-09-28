@@ -1,13 +1,4 @@
-import {
-  createApp,
-  defineComponent,
-  h,
-  nextTick,
-  onBeforeUnmount,
-  onMounted,
-  ref,
-  Teleport,
-} from 'vue';
+import { createApp, h } from 'vue';
 import { createPinia } from 'pinia';
 import { createI18n } from 'vue-i18n';
 
@@ -36,100 +27,90 @@ import { useTabsStore } from '../src/stores/tabs';
  */
 
 window.thrown = [];
+// What the page said to the console, which is where the Document Server's script
+// explains itself — "Skip loading. Instance already exists" above all.
+window.logged = [];
+for (const level of ['log', 'warn', 'error']) {
+  const original = console[level].bind(console);
+  console[level] = (...args) => {
+    window.logged.push(`${level}: ${args.map((one) => String(one)).join(' ')}`);
+    original(...args);
+  };
+}
 window.addEventListener('error', (event) => window.thrown.push(String(event.message)));
 window.addEventListener('unhandledrejection', (event) =>
   window.thrown.push(String(event.reason?.message || event.reason))
 );
+// The stack as well, for the probe: the dev server serves this unminified, which
+// is the only place the frames have names.
+window.stacks = [];
+window.addEventListener('unhandledrejection', (event) =>
+  window.stacks.push(String(event.reason?.stack || ''))
+);
 
-/** The element the script replaces, as `<DocumentEditor>` renders it. */
-const DocumentEditor = defineComponent({
-  name: 'DocumentEditor',
-  props: { config: { type: Object, required: true } },
-  setup(props) {
-    const host = ref(null);
-    let frame = null;
-    onMounted(() => {
-      frame = document.createElement('iframe');
-      frame.className = 'h-full w-full';
-      frame.dataset.document = props.config.document;
-      host.value?.replaceWith(frame);
-    });
-    // `destroyEditor`, which the real component calls on its way out: the script
-    // put the frame there, so the script takes it away. Vue cannot — what it
-    // holds is the element that was replaced.
-    onBeforeUnmount(() => {
-      frame?.remove();
-      frame = null;
-    });
-    return () => h('div', { ref: host, class: 'h-full w-full' }, 'the editor');
+/**
+ * The server this page answers for itself.
+ *
+ * Everything the real ONLYOFFICE preview asks of the backend, answered here, so
+ * the component under test is the real one — its own `v-if` chain, its own
+ * `editorId` churn, its own teleported dialogs — and the only thing standing in
+ * for the Document Server is the script at `docs-server/`, which does what that
+ * script does: it takes the element it is handed out of the page.
+ */
+const onlyofficeConfig = (path) => ({
+  documentServerUrl: `${window.location.origin}/e2e/docs-server/`,
+  forceSaveSessionId: 'session-1',
+  config: {
+    document: { key: path, title: path.split('/').pop(), fileType: 'docx', url: 'about:blank' },
+    documentType: 'word',
+    editorConfig: { lang: 'en', mode: 'edit' },
   },
 });
 
-/** Set by the viewer, so the spec can make it rebuild where it stands. */
-let rebuild = async () => {};
+const answers = [
+  [/\/api\/onlyoffice\/config/, (body) => onlyofficeConfig(body?.path || 'Docs/report.docx')],
+  [/\/api\/onlyoffice\/session/, () => ({ active: true })],
+  [/\/api\/onlyoffice\//, () => ({})],
+  [/\/api\/features/, () => ({ versionsEnabled: false, onlyofficeEnabled: true })],
+  [/\/api\//, () => ({})],
+];
 
-/** The plugin's component, shaped like `OnlyOfficePreview.vue`. */
-const OfficeViewer = defineComponent({
-  name: 'OfficeViewer',
-  props: {
-    item: { type: Object, required: true },
-    extension: { type: String, default: '' },
-    filePath: { type: String, default: '' },
-    previewUrl: { type: String, default: '' },
-    previewState: { type: Object, default: () => ({}) },
-    api: { type: Object, default: () => ({}) },
-  },
-  setup(props) {
-    const { previewState } = props;
-    const config = ref(null);
-    onMounted(async () => {
-      // The configuration is fetched, so the editor is always a tick behind.
-      await Promise.resolve();
-      config.value = { document: props.filePath };
-      await nextTick();
-      // And once the document is open the editor draws its own close button,
-      // which takes the page's fallback one away.
-      Object.assign(previewState, { hasNativeClose: true });
-    });
-    // What `load({ inPlace: false })` does: the configuration is cleared, so the
-    // editor on screen is taken off by that very render, and another is built
-    // once the answer comes back. A rename from the title bar does it, and so
-    // does a document the server reports as outdated.
-    rebuild = async () => {
-      config.value = null;
-      await nextTick();
-      config.value = { document: `${props.filePath}#again` };
-      await nextTick();
-    };
-
-    return () =>
-      h('div', { class: 'h-full w-full bg-white' }, [
-        config.value
-          ? h(DocumentEditor, { key: props.filePath, config: config.value })
-          : h('div', 'Loading the editor…'),
-        // The dialogs the editor opens — sharing, and the picker it asks for a
-        // file with. They teleport to the body and are siblings of the element
-        // the editor took away.
-        h(Teleport, { to: 'body' }, [h('div', { class: 'share-dialog' })]),
-        h(Teleport, { to: 'body' }, [h('div', { class: 'picker-dialog' })]),
-      ]);
-  },
-});
+const realFetch = window.fetch.bind(window);
+window.fetch = (input, init = {}) => {
+  const url = typeof input === 'string' ? input : input?.url || '';
+  const match = answers.find(([pattern]) => pattern.test(url));
+  if (!match) return realFetch(input, init);
+  let body;
+  try {
+    body = init.body ? JSON.parse(init.body) : null;
+  } catch {
+    body = null;
+  }
+  return Promise.resolve(
+    new Response(JSON.stringify(match[1](body)), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
+  );
+};
 
 const pinia = createPinia();
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } });
 const app = createApp({ render: () => h(PreviewHost) });
-app.config.errorHandler = (error) => window.thrown.push(String(error?.message || error));
+app.config.errorHandler = (error, instance, info) => {
+  window.thrown.push(String(error?.message || error));
+  window.stacks.push(`${info}\n${error?.stack || ''}`);
+};
 app.use(pinia).use(i18n).mount('#app');
 
 const manager = usePreviewManager(pinia);
 const tabs = useTabsStore(pinia);
 
 manager.register({
-  id: 'office',
+  id: 'onlyoffice',
   minimalHeader: true,
   match: () => true,
-  component: () => Promise.resolve({ default: OfficeViewer }),
+  component: () => import('../src/plugins/onlyoffice/OnlyOfficePreview.vue'),
 });
 
 tabs.setEnabled(true);
@@ -149,5 +130,4 @@ window.newTab = () => {
   ids.push(made.id);
   return ids.length - 1;
 };
-window.rebuildEditor = () => rebuild();
 window.frames_ = () => document.querySelectorAll('iframe[data-document]').length;
