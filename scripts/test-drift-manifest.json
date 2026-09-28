@@ -40,7 +40,9 @@
     },
     {
       "file": "^frontend/e2e/media-preview\\.spec\\.js$",
-      "cases": ["^swipes through mixed media and swipes down to close$"],
+      "cases": [
+        "^swipes through mixed media and swipes down to close$"
+      ],
       "note": "brought home, in the case named `swipes through mixed media, and a swipe down closes rather than navigating` — which keeps what ours already said about a vertical gesture not turning the page."
     },
     {
@@ -61,7 +63,9 @@
     },
     {
       "file": "^frontend/src/components/FileObject\\.spec\\.js$",
-      "cases": ["^says who is editing it$"],
+      "cases": [
+        "^says who is editing it$"
+      ],
       "note": "the same case, renamed when the sentence it asserts stopped being written into the component in French: `says who is editing it, in the reader's language`, which asserts the catalogue key rather than one language's words."
     },
     {
@@ -71,6 +75,15 @@
         "^scales video to the full preview stage without cropping it$"
       ],
       "note": "both are layout, and jsdom has none: they are asserted where layout exists, in frontend/e2e/media-preview-layout.spec.js — `does not have the swipe overlay covering its controls` and `keeps its aspect ratio`. A video escaping its container shipped once because a jsdom test said it did not."
+    },
+    {
+      "file": "^frontend/src/views/DocumentView\\.spec\\.js$",
+      "cases": [
+        "^tells the plugin the page is going away when the tab closes$",
+        "^stops listening once the page is gone, so nothing fires for the next one$",
+        "^closes the ordinary way when the page is left from inside the application$"
+      ],
+      "note": "all three moved with what they assert, because a document stopped belonging to this page: it belongs to the tab, and its session lives in the preview manager. The first two are `tells the manager, once` and `stops listening once it is gone` in frontend/src/plugins/preview/PreviewHost.spec.js, where the unload hook now sits — and they assert more than they did, since the host speaks for every open document rather than the one page that happened to be on screen. The third is `lets go of the document when its tab is taken somewhere else` here, beside the two cases that say when it does not: another tab coming forward is not leaving the document."
     }
   ]
 }
