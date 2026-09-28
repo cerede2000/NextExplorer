@@ -837,6 +837,77 @@ test('several files download one by one, without a zip', async () => {
   ]);
 });
 
+/**
+ * Tabs: the switch that turns them on, and two places open at once.
+ *
+ * Off is the default and it has to be invisible — nothing above the toolbar, no
+ * strip, the application somebody has always used. On, the two things worth
+ * proving in a browser are that a tab keeps the folder it was on while another is
+ * in front, and that the middle button opens a folder behind without taking the
+ * reader anywhere, which is the gesture that makes tabs worth having.
+ *
+ * The preference is put back at the end: the rest of this journey shares one page,
+ * and a strip left on screen would be measuring a different application.
+ */
+test('tabs keep two folders open, and the middle button opens one behind', async () => {
+  fs.mkdirSync(path.join(volume, 'Alpha'), { recursive: true });
+  fs.mkdirSync(path.join(volume, 'Beta'), { recursive: true });
+  fs.writeFileSync(path.join(volume, 'Alpha', 'alpha.txt'), 'a');
+  fs.writeFileSync(path.join(volume, 'Beta', 'beta.txt'), 'b');
+
+  const strip = page.locator('[data-test="tab-strip"]');
+  const tabs = strip.locator('[data-test="tab"]');
+
+  // Off: not a node of it anywhere.
+  await page.goto('/browse/Projects');
+  await expect(strip).toHaveCount(0);
+
+  await page.goto('/settings/user-preferences');
+  const preference = page.locator('[data-test="browse-in-tabs"]');
+  await expect(preference).toBeVisible();
+  await preference.click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(preference).toHaveAttribute('aria-checked', 'true');
+
+  await page.goto('/browse/Projects/Alpha');
+  await expect(strip).toBeVisible();
+  await expect(tabs).toHaveCount(1);
+  await expect(page.locator('[title="alpha.txt"]').first()).toBeVisible();
+
+  // A second tab, taken to the other folder.
+  await strip.locator('[data-test="tab-new"]').click();
+  await expect(tabs).toHaveCount(2);
+  await page.goto('/browse/Projects/Beta');
+  await expect(page.locator('[title="beta.txt"]').first()).toBeVisible();
+
+  // Back to the first: it is still on the folder it was on, and so is the address.
+  await tabs.first().getByRole('tab').click();
+  await expect(page.locator('[title="alpha.txt"]').first()).toBeVisible();
+  await expect(page).toHaveURL(/\/browse\/Projects\/Alpha$/);
+
+  // The middle button on a folder opens it behind, and leaves the reader put.
+  //
+  // `:not([role="tab"])` is not decoration: a tab carries the name of what it
+  // holds as its own title, so `[title="Beta"]` matched the *tab* on Beta before
+  // it matched the folder — and the middle button on a tab closes it, which is
+  // how this test spent three runs closing the tab it meant to open.
+  await page.goto('/browse/Projects');
+  await expect(tabs).toHaveCount(2);
+  await page.locator('[title="Beta"]:not([role="tab"])').first().click({ button: 'middle' });
+  await expect(tabs).toHaveCount(3);
+  await expect(page).toHaveURL(/\/browse\/Projects$/);
+
+  // The cross closes one, and the last one has none to close with.
+  await tabs.last().locator('[data-test="tab-close"]').click();
+  await expect(tabs).toHaveCount(2);
+
+  await page.goto('/settings/user-preferences');
+  await preference.click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(preference).toHaveAttribute('aria-checked', 'false');
+  await expect(strip).toHaveCount(0);
+});
+
 test('the search index and folder sizes switch on from Settings, and the About page lists the tools', async () => {
   await page.goto('/settings/search-index');
   const indexSwitch = page.locator('[data-testid="search-index-switch"]');

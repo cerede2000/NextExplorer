@@ -591,6 +591,8 @@
       "viewPhotos": "Fotografii",
       "documentsOpenInNewTab": "Deschide documentele într-o filă nouă",
       "documentsOpenInNewTabHelp": "Deschiderea unui fișier îi dă o filă proprie de browser, așa că mai multe rămân deschise cât timp navigați. Oprit, se deschide peste dosar ca până acum.",
+      "browseInTabs": "Navigare în taburi",
+      "browseInTabsHelp": "Mai multe locuri deschise în același timp — foldere, documente, coșul — fiecare într-un tab, așa cum face un manager de fișiere de birou. Oprit: un loc pe rând, și deasupra barei de instrumente nu se desenează nimic.",
       "downloadMode": "Descărcarea mai multor elemente",
       "downloadModeHelp": "Ce se întâmplă când se descarcă mai mult de un element deodată. Folderele selectate vin întotdeauna ca o singură arhivă.",
       "downloadModeZip": "O singură arhivă ZIP",
@@ -1032,6 +1034,12 @@
       "useSwitch": "Activați-o cu comutatorul de mai sus.",
       "locked": "Setat de {variable} în mediu: se decide acolo, nu aici."
     }
+  },
+  "tabs": {
+    "strip": "Taburi deschise",
+    "newTab": "Tab nou",
+    "closeTab": "Închide tabul",
+    "closeOthers": "Închide celelalte taburi"
   },
   "mediaPreview": {
     "audioTrack": "Pistă audio",

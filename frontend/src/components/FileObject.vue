@@ -25,6 +25,8 @@ import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
 import InlineQuickActions from '@/components/InlineQuickActions.vue';
 import { useQuickActionsStore } from '@/stores/quickActions';
+import { useTabNavigation } from '@/composables/tabNavigation';
+import { folderRoute } from '@/utils/folderRoute';
 import { useI18n } from 'vue-i18n';
 import { useNotificationsStore } from '@/stores/notifications';
 
@@ -192,6 +194,19 @@ const handleClick = (event) => {
   openItem(props.item);
 };
 
+// The middle button opens a place in a tab behind, which is what it does on a
+// link and what somebody queueing up four folders to look at will try. A file is
+// not a place, and a link out of the volume is one the server refuses to follow,
+// so both are left to the ordinary click. With tabs off the store has one tab and
+// puts it there, which would be a navigation nobody asked for — so it is not
+// offered at all.
+const tabNavigation = useTabNavigation();
+const handleMiddleClick = () => {
+  if (isRenaming.value || !isDirectory.value || isOutsideLink.value) return;
+  if (!tabNavigation.tabs.enabled) return;
+  tabNavigation.open(folderRoute(folderFullPath.value).path, { behind: true });
+};
+
 const handleDblClick = () => {
   if (isRenaming.value) return;
   if (isTouchDevice.value && selectionMode.value) return;
@@ -307,6 +322,7 @@ if (isTouchDevice.value) {
       :title="item.name"
       ref="rootRef"
       @click="handleClick"
+      @auxclick.middle.prevent="handleMiddleClick"
       @dblclick="handleDblClick"
       @contextmenu.prevent.stop="handleContextMenu"
       @dragstart="(e) => handleDragStart(e, item)"
@@ -362,6 +378,7 @@ if (isTouchDevice.value) {
       v-if="view === 'grid'"
       ref="rootRef"
       @click="handleClick"
+      @auxclick.middle.prevent="handleMiddleClick"
       @dblclick="handleDblClick"
       @contextmenu.prevent.stop="handleContextMenu"
       @dragstart="(e) => handleDragStart(e, item)"
@@ -444,6 +461,7 @@ if (isTouchDevice.value) {
       v-if="view === 'tab'"
       ref="rootRef"
       @click="handleClick"
+      @auxclick.middle.prevent="handleMiddleClick"
       @dblclick="handleDblClick"
       @contextmenu.prevent.stop="handleContextMenu"
       @dragstart="(e) => handleDragStart(e, item)"
@@ -530,6 +548,7 @@ if (isTouchDevice.value) {
       v-if="view === 'list'"
       ref="rootRef"
       @click="handleClick"
+      @auxclick.middle.prevent="handleMiddleClick"
       @dblclick="handleDblClick"
       @contextmenu.prevent.stop="handleContextMenu"
       @dragstart="(e) => handleDragStart(e, item)"

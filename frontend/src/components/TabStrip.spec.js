@@ -1,0 +1,154 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { mount } from '@vue/test-utils';
+import { ref } from 'vue';
+
+/**
+ * The strip of tabs.
+ *
+ * Two rules are worth holding, and both are about *not* drawing: the strip is
+ * absent unless the account asked for tabs, and absent on an address no tab can
+ * be on — signing in, a share's password — where it would offer to leave the
+ * question unanswered. The rest is that each button does what it says.
+ */
+
+const state = {
+  visible: ref(true),
+  tabs: ref([]),
+  activeId: ref(''),
+  canClose: ref(true),
+};
+const actions = {
+  activate: vi.fn(),
+  open: vi.fn(),
+  openHome: vi.fn(),
+  close: vi.fn(),
+  closeOthers: vi.fn(),
+};
+
+vi.mock('@/composables/tabNavigation', () => ({
+  useTabNavigation: () => ({
+    ...actions,
+    visible: state.visible,
+    tabs: {
+      get tabs() {
+        return state.tabs.value;
+      },
+      get activeId() {
+        return state.activeId.value;
+      },
+      get canClose() {
+        return state.canClose.value;
+      },
+    },
+  }),
+}));
+vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key) => key }) }));
+
+import TabStrip from './TabStrip.vue';
+
+const tab = (id, kind, path) => ({ id, kind, path });
+
+const withTabs = (list, active = list[0]?.id) => {
+  state.tabs.value = list;
+  state.activeId.value = active;
+  state.canClose.value = list.length > 1;
+  return mount(TabStrip);
+};
+
+beforeEach(() => {
+  state.visible.value = true;
+  state.tabs.value = [];
+  state.activeId.value = '';
+  state.canClose.value = true;
+  Object.values(actions).forEach((fn) => fn.mockReset());
+});
+
+describe('when the strip is drawn at all', () => {
+  it('is not, when there is nothing to draw it over', () => {
+    state.visible.value = false;
+    const wrapper = withTabs([tab('a', 'folder', '/browse/Docs')]);
+
+    expect(wrapper.find('[data-test="tab-strip"]').exists()).toBe(false);
+  });
+
+  it('is, with one button per tab and the one in front marked', () => {
+    const wrapper = withTabs(
+      [tab('a', 'folder', '/browse/Docs'), tab('b', 'trash', '/trash')],
+      'b'
+    );
+
+    const drawn = wrapper.findAll('[data-test="tab"]');
+    expect(drawn).toHaveLength(2);
+    expect(drawn[0].attributes('data-active')).toBe('false');
+    expect(drawn[1].attributes('data-active')).toBe('true');
+    expect(drawn[1].attributes('data-kind')).toBe('trash');
+  });
+
+  it('names a folder after the folder, and a named screen after itself', () => {
+    const wrapper = withTabs([
+      tab('a', 'folder', '/browse/Docs/2026'),
+      tab('b', 'trash', '/trash'),
+    ]);
+
+    const drawn = wrapper.findAll('[data-test="tab"]');
+    expect(drawn[0].text()).toContain('2026');
+    expect(drawn[1].text()).toContain('trash.title');
+  });
+});
+
+describe('what the buttons do', () => {
+  it('brings a tab forward', async () => {
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')]);
+
+    await wrapper.findAll('[role="tab"]')[1].trigger('click');
+
+    expect(actions.activate).toHaveBeenCalledWith('b');
+  });
+
+  it('closes one, from its cross and from the middle button', async () => {
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')]);
+
+    await wrapper.findAll('[data-test="tab-close"]')[1].trigger('click');
+    expect(actions.close).toHaveBeenCalledWith('b');
+
+    await wrapper.findAll('[role="tab"]')[0].trigger('auxclick', { button: 1 });
+    expect(actions.close).toHaveBeenCalledWith('a');
+  });
+
+  /** There would be nowhere to be, so the cross is not offered. */
+  it('offers no cross on the only tab', () => {
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A')]);
+
+    expect(wrapper.find('[data-test="tab-close"]').exists()).toBe(false);
+  });
+
+  it('opens a new one', async () => {
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A')]);
+
+    await wrapper.get('[data-test="tab-new"]').trigger('click');
+
+    expect(actions.openHome).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the menu on a tab', () => {
+  it('is not there until the tab is asked', async () => {
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')]);
+    expect(wrapper.find('[data-test="tab-menu"]').exists()).toBe(false);
+
+    await wrapper.findAll('[role="tab"]')[1].trigger('contextmenu');
+
+    expect(wrapper.findAll('[data-test="tab-menu"]')).toHaveLength(1);
+  });
+
+  it('closes the others, and shuts itself', async () => {
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')]);
+    await wrapper.findAll('[role="tab"]')[0].trigger('contextmenu');
+
+    const entries = wrapper.get('[data-test="tab-menu"]').findAll('button');
+    await entries[1].trigger('click');
+
+    expect(actions.closeOthers).toHaveBeenCalledWith('a');
+    expect(wrapper.find('[data-test="tab-menu"]').exists()).toBe(false);
+  });
+});

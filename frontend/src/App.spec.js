@@ -33,6 +33,19 @@ vi.mock('@/composables/useAccountLanguage', () => ({
   useAccountLanguage: () => accountLanguage(),
 }));
 
+// The tabs follow the address from the shell, for the same reason the language is
+// applied there: it has to hold across every screen and outlive the route changes
+// between them. Mocked here because this spec is about the configuration gate;
+// that the shell asks for it at all is checked below.
+const tabRouteSync = vi.fn();
+vi.mock('@/composables/tabNavigation', () => ({
+  useTabRouteSync: () => tabRouteSync(),
+}));
+
+vi.mock('@/components/TabStrip.vue', () => ({
+  default: { template: '<div data-test="tab-strip-stub"></div>' },
+}));
+
 vi.mock('@/components/ConfigErrorScreen.vue', () => ({
   default: {
     props: ['mode', 'expectedOrigin', 'requestOrigin'],
@@ -47,6 +60,7 @@ describe('App config error handling', () => {
     configError.value = null;
     dismissConfigWarning.mockClear();
     accountLanguage.mockClear();
+    tabRouteSync.mockClear();
   });
 
   /**
@@ -58,6 +72,18 @@ describe('App config error handling', () => {
     mount(App, { global: { stubs: { RouterView: true } } });
 
     expect(accountLanguage).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * Once, and from the shell: the strip is only drawn where a tab can be, and the
+   * tabs have to keep up with the address wherever it goes. Asked for in a screen
+   * instead, every folder row that wanted the middle-button gesture would have
+   * installed another copy of the same watcher.
+   */
+  it('has the tabs follow the address, once', () => {
+    mount(App, { global: { stubs: { RouterView: true } } });
+
+    expect(tabRouteSync).toHaveBeenCalledTimes(1);
   });
 
   it('shows a dismissible warning for PUBLIC_URL mismatches without blocking the router', async () => {

@@ -591,6 +591,8 @@
       "viewPhotos": "Foton",
       "documentsOpenInNewTab": "Öppna dokument i en ny flik",
       "documentsOpenInNewTabHelp": "En fil som öppnas får en egen webbläsarflik, så att flera kan stå öppna medan du bläddrar vidare. Av öppnas den ovanpå mappen som i dag.",
+      "browseInTabs": "Bläddra i flikar",
+      "browseInTabsHelp": "Håll flera platser öppna samtidigt — mappar, dokument, papperskorgen — var och en i en flik, som en filhanterare på skrivbordet gör. Av: en plats i taget, och ovanför verktygsraden ritas ingenting.",
       "downloadMode": "Ladda ner flera element",
       "downloadModeHelp": "Vad som händer när mer än ett element laddas ner samtidigt. Valda mappar kommer alltid som ett arkiv.",
       "downloadModeZip": "Ett ZIP-arkiv",
@@ -1032,6 +1034,12 @@
       "useSwitch": "Slå på den med reglaget ovan.",
       "locked": "Satt av {variable} i miljön – det avgörs där, inte här."
     }
+  },
+  "tabs": {
+    "strip": "Öppna flikar",
+    "newTab": "Ny flik",
+    "closeTab": "Stäng fliken",
+    "closeOthers": "Stäng de andra flikarna"
   },
   "mediaPreview": {
     "audioTrack": "Ljudspår",

@@ -591,6 +591,8 @@
       "viewPhotos": "Foto's",
       "documentsOpenInNewTab": "Documenten in een nieuw tabblad openen",
       "documentsOpenInNewTabHelp": "Een bestand openen geeft het een eigen browsertabblad, zodat er meerdere open blijven terwijl u verder bladert. Uit opent het over de map heen, zoals nu.",
+      "browseInTabs": "Met tabbladen werken",
+      "browseInTabsHelp": "Meerdere plekken tegelijk openhouden — mappen, documenten, de prullenbak — elk in een tabblad, zoals een bestandsbeheerder op het bureaublad doet. Uit: één plek tegelijk, en boven de werkbalk wordt niets getekend.",
       "downloadMode": "Meerdere items downloaden",
       "downloadModeHelp": "Wat er gebeurt als er meer dan één item tegelijk wordt gedownload. Geselecteerde mappen komen altijd als één archief.",
       "downloadModeZip": "Één ZIP-archief",
@@ -1032,6 +1034,12 @@
       "useSwitch": "Zet het aan met de schakelaar hierboven.",
       "locked": "Ingesteld door {variable} in de omgeving: dat wordt daar beslist, niet hier."
     }
+  },
+  "tabs": {
+    "strip": "Open tabbladen",
+    "newTab": "Nieuw tabblad",
+    "closeTab": "Tabblad sluiten",
+    "closeOthers": "De andere tabbladen sluiten"
   },
   "share": {
     "sharedWithMe": "Gedeeld met mij",

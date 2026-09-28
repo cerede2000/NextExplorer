@@ -591,6 +591,8 @@
       "viewPhotos": "相片",
       "documentsOpenInNewTab": "在新分頁中開啟文件",
       "documentsOpenInNewTabHelp": "開啟檔案時給它一個獨立的瀏覽器分頁，這樣你繼續瀏覽時可以同時開著好幾個。關閉後，它像現在一樣覆蓋在資料夾上開啟。",
+      "browseInTabs": "以索引標籤瀏覽",
+      "browseInTabsHelp": "同時開啟多個位置——資料夾、文件、回收筒——各在一個索引標籤中，就像桌面上的檔案管理員那樣。關閉時一次只有一個位置，工具列上方不繪製任何內容。",
       "downloadMode": "下載多個項目",
       "downloadModeHelp": "同時下載多個項目時的處理方式。所選資料夾一律作為一個壓縮檔。",
       "downloadModeZip": "一個 ZIP 壓縮檔",
@@ -1032,6 +1034,12 @@
       "useSwitch": "使用上方的開關將其開啟。",
       "locked": "由環境中的 {variable} 設定，因此在那裡決定，而不是在這裡。"
     }
+  },
+  "tabs": {
+    "strip": "已開啟的索引標籤",
+    "newTab": "新索引標籤",
+    "closeTab": "關閉索引標籤",
+    "closeOthers": "關閉其他索引標籤"
   },
   "mediaPreview": {
     "audioTrack": "音軌",

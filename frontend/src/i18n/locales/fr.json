@@ -591,6 +591,8 @@
       "viewPhotos": "Photos",
       "documentsOpenInNewTab": "Ouvrir les documents dans un nouvel onglet",
       "documentsOpenInNewTabHelp": "Ouvrir un fichier lui donne son propre onglet de navigateur : plusieurs restent ouverts pendant que vous continuez à naviguer. Désactivé, il s’ouvre par-dessus le dossier comme aujourd’hui.",
+      "browseInTabs": "Naviguer en onglets",
+      "browseInTabsHelp": "Garder plusieurs endroits ouverts à la fois — dossiers, documents, corbeille — chacun dans un onglet, comme le fait un gestionnaire de fichiers de bureau. Désactivé : un seul endroit à la fois, et rien n'est dessiné au-dessus de la barre d'outils.",
       "downloadMode": "Téléchargement de plusieurs éléments",
       "downloadModeHelp": "Ce qui se passe quand plusieurs éléments sont téléchargés à la fois. Les dossiers sélectionnés arrivent toujours dans une archive.",
       "downloadModeZip": "Une archive ZIP",
@@ -1032,6 +1034,12 @@
       "useSwitch": "Activez-la avec l'interrupteur ci-dessus.",
       "locked": "Défini par {variable} dans l'environnement : c'est là que cela se décide, pas ici."
     }
+  },
+  "tabs": {
+    "strip": "Onglets ouverts",
+    "newTab": "Nouvel onglet",
+    "closeTab": "Fermer l'onglet",
+    "closeOthers": "Fermer les autres onglets"
   },
   "mediaPreview": {
     "audioTrack": "Piste audio",

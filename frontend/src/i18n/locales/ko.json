@@ -591,6 +591,8 @@
       "viewPhotos": "사진",
       "documentsOpenInNewTab": "문서를 새 탭에서 열기",
       "documentsOpenInNewTabHelp": "파일을 열면 브라우저 탭이 따로 생기므로, 계속 탐색하는 동안 여러 개를 열어 둘 수 있습니다. 끄면 지금처럼 폴더 위에서 열립니다.",
+      "browseInTabs": "탭으로 탐색",
+      "browseInTabsHelp": "폴더, 문서, 휴지통 등 여러 곳을 각각 탭으로 한꺼번에 열어 둡니다. 데스크톱 파일 관리자와 같은 방식입니다. 끄면 한 번에 한 곳만 열리고, 도구 모음 위에는 아무것도 표시되지 않습니다.",
       "downloadMode": "여러 항목 다운로드",
       "downloadModeHelp": "한 번에 두 개 이상을 다운로드할 때의 동작입니다. 선택한 폴더는 항상 하나의 압축 파일로 받습니다.",
       "downloadModeZip": "하나의 ZIP 압축 파일",
@@ -1032,6 +1034,12 @@
       "useSwitch": "위의 스위치로 켜세요.",
       "locked": "환경의 {variable}(으)로 설정되어 있어, 여기가 아니라 그곳에서 결정됩니다."
     }
+  },
+  "tabs": {
+    "strip": "열린 탭",
+    "newTab": "새 탭",
+    "closeTab": "탭 닫기",
+    "closeOthers": "다른 탭 닫기"
   },
   "mediaPreview": {
     "audioTrack": "오디오 트랙",

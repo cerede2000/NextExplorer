@@ -591,6 +591,8 @@
       "viewPhotos": "Foto",
       "documentsOpenInNewTab": "Aprire i documenti in una nuova scheda",
       "documentsOpenInNewTabHelp": "Aprire un file gli dà una scheda del browser tutta sua, così più documenti restano aperti mentre continuate a navigare. Spento, si apre sopra la cartella come oggi.",
+      "browseInTabs": "Navigare a schede",
+      "browseInTabsHelp": "Tenere aperti più luoghi alla volta — cartelle, documenti, il cestino — ognuno in una scheda, come fa un gestore di file da scrivania. Disattivato: un luogo alla volta, e sopra la barra degli strumenti non viene disegnato nulla.",
       "downloadMode": "Scaricare più elementi",
       "downloadModeHelp": "Cosa accade quando si scarica più di un elemento alla volta. Le cartelle selezionate arrivano sempre come un unico archivio.",
       "downloadModeZip": "Un unico archivio ZIP",
@@ -1032,6 +1034,12 @@
       "useSwitch": "Attivala con l'interruttore qui sopra.",
       "locked": "Impostato da {variable} nell'ambiente: si decide lì, non qui."
     }
+  },
+  "tabs": {
+    "strip": "Schede aperte",
+    "newTab": "Nuova scheda",
+    "closeTab": "Chiudi la scheda",
+    "closeOthers": "Chiudi le altre schede"
   },
   "mediaPreview": {
     "audioTrack": "Traccia audio",

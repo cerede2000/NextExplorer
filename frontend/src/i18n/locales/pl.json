@@ -591,6 +591,8 @@
       "viewPhotos": "Zdjęcia",
       "documentsOpenInNewTab": "Otwieraj dokumenty w nowej karcie",
       "documentsOpenInNewTabHelp": "Otwarcie pliku daje mu własną kartę przeglądarki, więc kilka pozostaje otwartych, gdy przeglądasz dalej. Wyłączone — otwiera się nad folderem, tak jak dziś.",
+      "browseInTabs": "Przeglądanie w kartach",
+      "browseInTabsHelp": "Kilka miejsc otwartych naraz — foldery, dokumenty, kosz — każde we własnej karcie, tak jak w menedżerze plików na pulpicie. Wyłączone: jedno miejsce naraz, a nad paskiem narzędzi nic się nie rysuje.",
       "downloadMode": "Pobieranie wielu elementów",
       "downloadModeHelp": "Co się dzieje przy pobieraniu więcej niż jednego elementu naraz. Wybrane foldery zawsze przychodzą jako jedno archiwum.",
       "downloadModeZip": "Jedno archiwum ZIP",
@@ -1032,6 +1034,12 @@
       "useSwitch": "Włącz ją przełącznikiem powyżej.",
       "locked": "Ustawione przez {variable} w środowisku — decyduje się o tym tam, a nie tutaj."
     }
+  },
+  "tabs": {
+    "strip": "Otwarte karty",
+    "newTab": "Nowa karta",
+    "closeTab": "Zamknij kartę",
+    "closeOthers": "Zamknij pozostałe karty"
   },
   "mediaPreview": {
     "audioTrack": "Ścieżka dźwiękowa",

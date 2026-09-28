@@ -591,6 +591,8 @@
       "viewPhotos": "照片",
       "documentsOpenInNewTab": "在新标签页中打开文档",
       "documentsOpenInNewTabHelp": "打开文件时给它一个独立的浏览器标签页，这样你继续浏览时可以同时开着好几个。关闭后，它像现在一样覆盖在文件夹上打开。",
+      "browseInTabs": "以标签页浏览",
+      "browseInTabsHelp": "同时打开多个位置——文件夹、文档、回收站——各在一个标签页中，就像桌面上的文件管理器那样。关闭时一次只有一个位置，工具栏上方不绘制任何内容。",
       "downloadMode": "下载多个项目",
       "downloadModeHelp": "同时下载多个项目时的处理方式。所选文件夹始终作为一个压缩包。",
       "downloadModeZip": "一个 ZIP 压缩包",
@@ -1032,6 +1034,12 @@
       "useSwitch": "使用上方的开关将其开启。",
       "locked": "由环境中的 {variable} 设置，因此在那里决定，而不是在这里。"
     }
+  },
+  "tabs": {
+    "strip": "已打开的标签页",
+    "newTab": "新标签页",
+    "closeTab": "关闭标签页",
+    "closeOthers": "关闭其他标签页"
   },
   "mediaPreview": {
     "audioTrack": "音轨",

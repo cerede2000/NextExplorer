@@ -591,6 +591,8 @@
       "viewPhotos": "Fotos",
       "documentsOpenInNewTab": "Abrir documentos em uma nova aba",
       "documentsOpenInNewTabHelp": "Abrir um arquivo lhe dá uma aba do navegador só dele, então vários continuam abertos enquanto você navega. Desligado, ele abre sobre a pasta como hoje.",
+      "browseInTabs": "Navegar em abas",
+      "browseInTabsHelp": "Manter vários lugares abertos ao mesmo tempo — pastas, documentos, a lixeira — cada um em uma aba, como faz um gerenciador de arquivos de mesa. Desligado: um lugar por vez, e nada é desenhado acima da barra de ferramentas.",
       "downloadMode": "Baixar vários itens",
       "downloadModeHelp": "O que acontece ao baixar mais de um item de uma vez. As pastas selecionadas sempre chegam como um único arquivo compactado.",
       "downloadModeZip": "Um único arquivo ZIP",
@@ -1032,6 +1034,12 @@
       "useSwitch": "Ative-a com o interruptor acima.",
       "locked": "Definido por {variable} no ambiente: isso é decidido lá, não aqui."
     }
+  },
+  "tabs": {
+    "strip": "Abas abertas",
+    "newTab": "Nova aba",
+    "closeTab": "Fechar a aba",
+    "closeOthers": "Fechar as outras abas"
   },
   "mediaPreview": {
     "audioTrack": "Faixa de áudio",

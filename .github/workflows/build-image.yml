@@ -12,9 +12,17 @@ on:
   workflow_call:
     inputs:
       channel:
-        description: "'release' for the images main publishes, 'test' for the integration branch"
+        description: "'release' for the images main publishes, 'test' for a branch"
         required: true
         type: string
+      tag:
+        description: >-
+          The floating tag a 'test' channel publishes, and the stem of the
+          per-commit one beside it: `test` for the integration branch, and the
+          subject's own name for a branch built so it can be tried — `tabs`
+          publishes tabs, tabs-lean, and tabs-<sha>.
+        type: string
+        default: test
       platforms:
         description: 'Architectures to build for'
         type: string
@@ -429,8 +437,8 @@ jobs:
             # and rename a tag that has always been test-lean-<sha>.
             {
               echo 'tags<<SPEC'
-              echo "type=raw,value=test${{ matrix.variant.suffix }}"
-              echo "type=raw,value=test${{ matrix.variant.suffix }}-${GITHUB_SHA}"
+              echo "type=raw,value=${{ inputs.tag }}${{ matrix.variant.suffix }}"
+              echo "type=raw,value=${{ inputs.tag }}${{ matrix.variant.suffix }}-${GITHUB_SHA}"
               echo SPEC
             } >> "$GITHUB_OUTPUT"
           fi

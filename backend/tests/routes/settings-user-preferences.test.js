@@ -65,6 +65,9 @@ const NON_DEFAULT = {
   locale: 'nl',
   // `zip` by default, which is what every version before this one did.
   downloadMode: 'separate',
+  // Off by default: tabs change the shape of every screen, so nobody gets them
+  // without asking.
+  browseInTabs: true,
 };
 
 describe('PATCH /api/settings — user preferences', () => {

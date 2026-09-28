@@ -676,6 +676,7 @@ const USER_SETTINGS = {
   defaultView: asViewMode,
   locale: asLocale,
   downloadMode: asDownloadMode,
+  browseInTabs: asBoolean,
 };
 
 /**

@@ -591,6 +591,8 @@
       "viewPhotos": "Fotos",
       "documentsOpenInNewTab": "Dokumente in einem neuen Tab öffnen",
       "documentsOpenInNewTabHelp": "Eine Datei bekommt beim Öffnen einen eigenen Browser-Tab, sodass mehrere offen bleiben, während Sie weiter stöbern. Aus öffnet sie sich wie bisher über dem Ordner.",
+      "browseInTabs": "In Tabs arbeiten",
+      "browseInTabsHelp": "Mehrere Orte gleichzeitig offen halten — Ordner, Dokumente, den Papierkorb — jeden in einem Tab, wie es ein Dateimanager auf dem Schreibtisch tut. Aus: ein Ort zur Zeit, und über der Werkzeugleiste wird nichts gezeichnet.",
       "downloadMode": "Mehrere Elemente herunterladen",
       "downloadModeHelp": "Was beim Herunterladen von mehr als einem Element gleichzeitig geschieht. Ausgewählte Ordner kommen immer als ein Archiv.",
       "downloadModeZip": "Ein ZIP-Archiv",
@@ -1032,6 +1034,12 @@
       "useSwitch": "Schalten Sie sie mit dem Schalter oben ein.",
       "locked": "Durch {variable} in der Umgebung festgelegt – das wird dort entschieden, nicht hier."
     }
+  },
+  "tabs": {
+    "strip": "Offene Tabs",
+    "newTab": "Neuer Tab",
+    "closeTab": "Tab schließen",
+    "closeOthers": "Die anderen Tabs schließen"
   },
   "mediaPreview": {
     "audioTrack": "Tonspur",

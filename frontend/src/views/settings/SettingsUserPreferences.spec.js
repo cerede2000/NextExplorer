@@ -46,6 +46,9 @@ const STORED = {
   markdownOpensInEditor: true,
   documentsOpenInNewTab: true,
   downloadMode: 'separate',
+  // On in what is stored, so the payload below proves the stored value is
+  // carried through rather than a default being resent.
+  browseInTabs: true,
 };
 
 /** As the store holds them for somebody who never chose anything. */
@@ -68,6 +71,7 @@ const SWITCHES = [
   'showThumbnails',
   'markdownOpensInEditor',
   'documentsOpenInNewTab',
+  'browseInTabs',
   'showVersionMarks',
   'showSidebarFavorites',
   'showSidebarShares',
@@ -183,6 +187,7 @@ describe('the preferences', () => {
         showVersionMarks: true,
         locale: null,
         downloadMode: 'separate',
+        browseInTabs: true,
       },
     });
     expect(sentUser()).not.toHaveProperty('folderSorts');

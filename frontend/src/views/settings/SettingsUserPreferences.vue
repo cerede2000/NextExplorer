@@ -36,6 +36,7 @@ const local = reactive({
   showVersionMarks: true,
   locale: null,
   downloadMode: 'zip',
+  browseInTabs: false,
 });
 
 const original = computed(() => appSettings.userSettings);
@@ -59,7 +60,8 @@ const dirty = computed(() => {
     local.documentsOpenInNewTab !== (orig.documentsOpenInNewTab ?? false) ||
     local.showVersionMarks !== (orig.showVersionMarks ?? true) ||
     local.locale !== (orig.locale ?? null) ||
-    local.downloadMode !== (orig.downloadMode ?? 'zip')
+    local.downloadMode !== (orig.downloadMode ?? 'zip') ||
+    local.browseInTabs !== (orig.browseInTabs ?? false)
   );
 });
 
@@ -130,6 +132,7 @@ watch(
     local.showVersionMarks = userSettings.showVersionMarks ?? true;
     local.locale = userSettings.locale ?? null;
     local.downloadMode = userSettings.downloadMode ?? 'zip';
+    local.browseInTabs = userSettings.browseInTabs ?? false;
   },
   { immediate: true }
 );
@@ -158,6 +161,7 @@ const reset = () => {
   local.showVersionMarks = userSettings.showVersionMarks ?? true;
   local.locale = userSettings.locale ?? null;
   local.downloadMode = userSettings.downloadMode ?? 'zip';
+  local.browseInTabs = userSettings.browseInTabs ?? false;
 };
 
 const save = async () => {
@@ -181,6 +185,7 @@ const save = async () => {
       showVersionMarks: local.showVersionMarks,
       locale: local.locale,
       downloadMode: local.downloadMode,
+      browseInTabs: local.browseInTabs,
     },
   });
 };
@@ -310,6 +315,20 @@ const save = async () => {
             </div>
           </div>
           <ToggleSwitch v-model="local.documentsOpenInNewTab" data-test="documents-in-new-tab" />
+        </div>
+
+        <div
+          class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+        >
+          <div>
+            <div class="font-medium text-zinc-900 dark:text-zinc-100">
+              {{ t('settings.userPreferences.browseInTabs') }}
+            </div>
+            <div class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              {{ t('settings.userPreferences.browseInTabsHelp') }}
+            </div>
+          </div>
+          <ToggleSwitch v-model="local.browseInTabs" data-test="browse-in-tabs" />
         </div>
 
         <div

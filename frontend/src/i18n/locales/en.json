@@ -591,6 +591,8 @@
       "viewPhotos": "Photos",
       "documentsOpenInNewTab": "Open documents in a new tab",
       "documentsOpenInNewTabHelp": "Opening a file gives it a browser tab of its own, so several stay open while you keep browsing. Off, it opens over the folder as it does today.",
+      "browseInTabs": "Browse in tabs",
+      "browseInTabsHelp": "Keep several places open at once — folders, documents, the trash — each in a tab, the way a file manager on your desktop does. Off, there is one place at a time and nothing is drawn above the toolbar.",
       "downloadMode": "Downloading several items",
       "downloadModeHelp": "What happens when more than one item is downloaded at once. Selected folders always come as one archive.",
       "downloadModeZip": "One ZIP archive",
@@ -1032,6 +1034,12 @@
       "useSwitch": "Turn it on with the switch above.",
       "locked": "Set by {variable} in the environment, so it is decided there and not here."
     }
+  },
+  "tabs": {
+    "strip": "Open tabs",
+    "newTab": "New tab",
+    "closeTab": "Close tab",
+    "closeOthers": "Close the other tabs"
   },
   "mediaPreview": {
     "audioTrack": "Audio track",

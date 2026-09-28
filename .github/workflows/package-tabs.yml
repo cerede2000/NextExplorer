@@ -1,0 +1,31 @@
+name: Package the tabs branch
+
+# A branch big enough to be tried before it is finished gets an image of its own,
+# published as `tabs` and `tabs-lean` beside the integration branch's `test` pair.
+# Same two variants, same two architectures, the same path a release takes — so
+# what is tried here is what would ship, and a homelab on arm64 can try it too.
+on:
+  push:
+    branches:
+      - feat/tabs
+  workflow_dispatch:
+
+concurrency:
+  group: package-tabs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and publish the tabs image
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/build-image.yml
+    with:
+      channel: test
+      tag: tabs
+      platforms: linux/amd64,linux/arm64
+      # Its own scope: sharing the integration branch's would have each of them
+      # throwing away what the other put there.
+      cache_scope_prefix: tabs-
+    secrets: inherit

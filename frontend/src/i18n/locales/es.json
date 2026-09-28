@@ -591,6 +591,8 @@
       "viewPhotos": "Fotos",
       "documentsOpenInNewTab": "Abrir los documentos en una pestaña nueva",
       "documentsOpenInNewTabHelp": "Al abrir un archivo se le da su propia pestaña del navegador, así varios siguen abiertos mientras usted sigue navegando. Desactivado, se abre sobre la carpeta como hasta ahora.",
+      "browseInTabs": "Navegar en pestañas",
+      "browseInTabsHelp": "Mantener varios lugares abiertos a la vez — carpetas, documentos, la papelera — cada uno en una pestaña, como hace un gestor de archivos de escritorio. Desactivado: un lugar a la vez, y no se dibuja nada encima de la barra de herramientas.",
       "downloadMode": "Descargar varios elementos",
       "downloadModeHelp": "Qué ocurre al descargar más de un elemento a la vez. Las carpetas seleccionadas siempre llegan como un único archivo comprimido.",
       "downloadModeZip": "Un archivo ZIP",
@@ -1032,6 +1034,12 @@
       "useSwitch": "Actívela con el interruptor de arriba.",
       "locked": "Definido por {variable} en el entorno: se decide allí, no aquí."
     }
+  },
+  "tabs": {
+    "strip": "Pestañas abiertas",
+    "newTab": "Nueva pestaña",
+    "closeTab": "Cerrar la pestaña",
+    "closeOthers": "Cerrar las demás pestañas"
   },
   "mediaPreview": {
     "audioTrack": "Pista de audio",
