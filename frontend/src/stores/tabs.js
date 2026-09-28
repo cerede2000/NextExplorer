@@ -228,6 +228,41 @@ export const useTabsStore = defineStore('tabs', () => {
     return activate(id);
   };
 
+  /**
+   * Put a tab somewhere else in the row, and answer with it.
+   *
+   * The order of the tabs is the reader's, not the application's: they open a
+   * folder to compare against another and want the two side by side, and until
+   * now the only order available was the order things happened to be opened in.
+   *
+   * A place outside the row is the nearest end of it rather than nothing, because
+   * this is also what a finger dragging a tab past the last one means. Which tab
+   * is in front does not change: moving something is not choosing it.
+   */
+  const move = (id, index) => {
+    const from = tabs.value.findIndex((tab) => tab.id === id);
+    if (from < 0) return null;
+    const to = Math.max(0, Math.min(tabs.value.length - 1, index));
+    if (to === from) return tabs.value[from];
+
+    const [moved] = tabs.value.splice(from, 1);
+    tabs.value.splice(to, 0, moved);
+    persist();
+    return moved;
+  };
+
+  /** One place along, which is what the menu offers and the ends refuse. */
+  const nudge = (id, step) => {
+    const from = tabs.value.findIndex((tab) => tab.id === id);
+    return from < 0 ? null : move(id, from + step);
+  };
+
+  /** Whether there is anywhere that way to go: what greys the menu out. */
+  const canMove = (id, step) => {
+    const from = tabs.value.findIndex((tab) => tab.id === id);
+    return from >= 0 && from + step >= 0 && from + step < tabs.value.length;
+  };
+
   /** The one after, or the one before, wrapping — what ctrl+Tab does. */
   const neighbour = (step) => {
     if (tabs.value.length < 2) return null;
@@ -289,6 +324,9 @@ export const useTabsStore = defineStore('tabs', () => {
     close,
     closeOthers,
     activate,
+    move,
+    nudge,
+    canMove,
     neighbour,
     at,
     syncActive,

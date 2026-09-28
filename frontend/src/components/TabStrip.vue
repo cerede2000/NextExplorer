@@ -61,6 +61,54 @@ const runAndShut = (action, id) => {
   menuFor.value = '';
   action(id);
 };
+
+/**
+ * Dragging a tab along the row.
+ *
+ * The order of the tabs is the reader's: two folders being compared belong side
+ * by side, whichever order they happened to be opened in. Dragging is how every
+ * browser says this, so it is how this says it too — and the same move is in the
+ * tab's own menu, for a touch screen, a trackpad somebody cannot drag with, and
+ * anyone reaching the strip from the keyboard.
+ *
+ * `held` is an id rather than a tab: the tab could close while it is being
+ * dragged, and a stale object would be dropped somewhere.
+ */
+const held = ref('');
+const over = ref('');
+
+const startDrag = (id, event) => {
+  held.value = id;
+  // Firefox starts no drag at all without something on the transfer, and `move`
+  // is what this is — no copy of a tab exists.
+  event.dataTransfer?.setData('text/plain', id);
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+};
+
+const dragOver = (id, event) => {
+  if (!held.value || id === held.value) return;
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+  over.value = id;
+};
+
+const endDrag = () => {
+  held.value = '';
+  over.value = '';
+};
+
+/** Dropped on a tab: take the place of the one underneath. */
+const dropOn = (id) => {
+  const moved = held.value;
+  endDrag();
+  if (!moved || moved === id) return;
+  const to = tabs.tabs.findIndex((tab) => tab.id === id);
+  if (to >= 0) tabs.move(moved, to);
+};
+
+const nudge = (id, step) => {
+  menuFor.value = '';
+  tabs.nudge(id, step);
+};
 </script>
 
 <template>
@@ -84,7 +132,21 @@ const runAndShut = (action, id) => {
       data-test="tab"
       :data-kind="tab.kind"
       :data-active="tab.id === tabs.activeId ? 'true' : 'false'"
+      :data-over="over === tab.id ? 'true' : 'false'"
+      draggable="true"
+      @dragstart="startDrag(tab.id, $event)"
+      @dragover.prevent="dragOver(tab.id, $event)"
+      @dragleave="over === tab.id && (over = '')"
+      @drop.prevent="dropOn(tab.id)"
+      @dragend="endDrag"
     >
+      <!-- Where it would land, drawn on the tab being passed over rather than
+           between two tabs: a strip that scrolls sideways has no gaps to draw in. -->
+      <div
+        v-if="over === tab.id"
+        class="pointer-events-none absolute inset-y-0 left-0 w-0.5 bg-accent"
+        aria-hidden="true"
+      ></div>
       <button
         type="button"
         role="tab"
@@ -116,6 +178,24 @@ const runAndShut = (action, id) => {
         class="absolute left-0 top-full z-50 mt-1 w-56 rounded-md border border-neutral-200 bg-zinc-100 p-1 shadow-md dark:border-neutral-600 dark:bg-neutral-700"
         data-test="tab-menu"
       >
+        <button
+          type="button"
+          class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 disabled:opacity-50 dark:hover:bg-neutral-600"
+          :disabled="!tabs.canMove(tab.id, -1)"
+          data-test="tab-move-left"
+          @click="nudge(tab.id, -1)"
+        >
+          {{ t('tabs.moveLeft') }}
+        </button>
+        <button
+          type="button"
+          class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 disabled:opacity-50 dark:hover:bg-neutral-600"
+          :disabled="!tabs.canMove(tab.id, 1)"
+          data-test="tab-move-right"
+          @click="nudge(tab.id, 1)"
+        >
+          {{ t('tabs.moveRight') }}
+        </button>
         <button
           type="button"
           class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 disabled:opacity-50 dark:hover:bg-neutral-600"

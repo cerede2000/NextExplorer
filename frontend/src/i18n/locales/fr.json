@@ -1039,6 +1039,8 @@
     "strip": "Onglets ouverts",
     "openInNewTab": "Ouvrir dans un nouvel onglet",
     "newTab": "Nouvel onglet",
+    "moveLeft": "Déplacer vers la gauche",
+    "moveRight": "Déplacer vers la droite",
     "closeTab": "Fermer l'onglet",
     "closeOthers": "Fermer les autres onglets"
   },

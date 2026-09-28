@@ -1039,6 +1039,8 @@
     "strip": "Offene Tabs",
     "openInNewTab": "In neuem Tab öffnen",
     "newTab": "Neuer Tab",
+    "moveLeft": "Nach links verschieben",
+    "moveRight": "Nach rechts verschieben",
     "closeTab": "Tab schließen",
     "closeOthers": "Die anderen Tabs schließen"
   },

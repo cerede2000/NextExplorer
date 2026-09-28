@@ -46,6 +46,7 @@ const DetachingViewer = defineComponent({
     api: { type: Object, default: () => ({}) },
   },
   setup(props) {
+    const { previewState } = props;
     const host = ref(null);
     onMounted(() => {
       const element = host.value;
@@ -54,8 +55,11 @@ const DetachingViewer = defineComponent({
       element?.replaceWith(frame);
       // As the editor does once the document is ready: its own close button is
       // drawn, and the page's fallback one is taken away — a change the surface
-      // around it reacts to while the element underneath is already gone.
-      props.previewState.hasNativeClose = true;
+      // around it reacts to while the element underneath is already gone. Written
+      // on the object rather than through the prop, which is what the plugins do:
+      // `previewState` belongs to the preview manager and is handed over to be
+      // written on.
+      Object.assign(previewState, { hasNativeClose: true });
     });
     return () => h('div', { ref: host }, 'the editor');
   },

@@ -1039,6 +1039,8 @@
     "strip": "Otwarte karty",
     "openInNewTab": "Otwórz w nowej karcie",
     "newTab": "Nowa karta",
+    "moveLeft": "Przenieś w lewo",
+    "moveRight": "Przenieś w prawo",
     "closeTab": "Zamknij kartę",
     "closeOthers": "Zamknij pozostałe karty"
   },

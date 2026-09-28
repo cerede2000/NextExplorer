@@ -1039,6 +1039,8 @@
     "strip": "已打开的标签页",
     "openInNewTab": "在新标签页中打开",
     "newTab": "新标签页",
+    "moveLeft": "向左移动",
+    "moveRight": "向右移动",
     "closeTab": "关闭标签页",
     "closeOthers": "关闭其他标签页"
   },

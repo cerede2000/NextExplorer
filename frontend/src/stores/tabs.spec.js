@@ -341,3 +341,99 @@ describe('a tab opened for one thing', () => {
     expect(returning.tabs.map((tab) => tab.own)).toEqual([false, true]);
   });
 });
+
+/**
+ * The order of the tabs is the reader's.
+ *
+ * Two folders being compared belong side by side, whichever order they happened
+ * to be opened in — and until this the only order on offer was the order things
+ * were opened in.
+ */
+describe('moving a tab along the row', () => {
+  const three = () => {
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    tabs.syncActive('/browse/A');
+    const b = tabs.open('/browse/B');
+    const c = tabs.open('/browse/C');
+    return { tabs, first: tabs.tabs[0].id, b: b.id, c: c.id };
+  };
+
+  const order = (tabs) => tabs.tabs.map((tab) => tab.path);
+
+  it('puts it where it was asked for', () => {
+    const { tabs, c } = three();
+
+    tabs.move(c, 0);
+
+    expect(order(tabs)).toEqual(['/browse/C', '/browse/A', '/browse/B']);
+  });
+
+  it('leaves the tab in front in front', () => {
+    const { tabs, first, c } = three();
+    tabs.activate(first);
+
+    tabs.move(c, 0);
+
+    // Moving something is not choosing it: the reader is still where they were.
+    expect(tabs.activeId).toBe(first);
+    expect(tabs.activeTab.path).toBe('/browse/A');
+  });
+
+  /**
+   * A finger dragging past the last tab means the end, not nothing.
+   *
+   * And `-1` is the end on the other side, which is the case worth spelling out:
+   * handed to `splice` as it stands, a negative index counts back from the end
+   * and the tab lands one place from the right — the opposite of what was asked.
+   */
+  it('stops at the ends rather than refusing', () => {
+    const { tabs, first } = three();
+
+    tabs.move(first, 99);
+    expect(order(tabs)).toEqual(['/browse/B', '/browse/C', '/browse/A']);
+
+    tabs.move(first, -1);
+    expect(order(tabs)).toEqual(['/browse/A', '/browse/B', '/browse/C']);
+  });
+
+  it('moves one place at a time when asked that way', () => {
+    const { tabs, b } = three();
+
+    tabs.nudge(b, 1);
+    expect(order(tabs)).toEqual(['/browse/A', '/browse/C', '/browse/B']);
+
+    tabs.nudge(b, -1);
+    expect(order(tabs)).toEqual(['/browse/A', '/browse/B', '/browse/C']);
+  });
+
+  it('says where there is nowhere to go', () => {
+    const { tabs, first, b, c } = three();
+
+    expect(tabs.canMove(first, -1)).toBe(false);
+    expect(tabs.canMove(first, 1)).toBe(true);
+    expect(tabs.canMove(b, -1)).toBe(true);
+    expect(tabs.canMove(c, 1)).toBe(false);
+  });
+
+  it('is nothing at all for a tab that has gone', () => {
+    const { tabs, c } = three();
+    tabs.close(c);
+
+    expect(tabs.move(c, 0)).toBeNull();
+    expect(tabs.canMove(c, -1)).toBe(false);
+    expect(order(tabs)).toEqual(['/browse/A', '/browse/B']);
+  });
+
+  it('is remembered, like everything else about the row', () => {
+    const { tabs, c } = three();
+
+    tabs.move(c, 0);
+
+    expect(JSON.parse(localStorage.getItem('settings:tabs:open')).map((tab) => tab.path)).toEqual([
+      '/browse/C',
+      '/browse/A',
+      '/browse/B',
+    ]);
+  });
+});

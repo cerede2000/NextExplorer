@@ -1039,6 +1039,8 @@
     "strip": "Öppna flikar",
     "openInNewTab": "Öppna i en ny flik",
     "newTab": "Ny flik",
+    "moveLeft": "Flytta till vänster",
+    "moveRight": "Flytta till höger",
     "closeTab": "Stäng fliken",
     "closeOthers": "Stäng de andra flikarna"
   },

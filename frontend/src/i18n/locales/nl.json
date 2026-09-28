@@ -1039,6 +1039,8 @@
     "strip": "Open tabbladen",
     "openInNewTab": "In een nieuw tabblad openen",
     "newTab": "Nieuw tabblad",
+    "moveLeft": "Naar links verplaatsen",
+    "moveRight": "Naar rechts verplaatsen",
     "closeTab": "Tabblad sluiten",
     "closeOthers": "De andere tabbladen sluiten"
   },

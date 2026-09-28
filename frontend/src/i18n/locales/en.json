@@ -1039,6 +1039,8 @@
     "strip": "Open tabs",
     "openInNewTab": "Open in a new tab",
     "newTab": "New tab",
+    "moveLeft": "Move left",
+    "moveRight": "Move right",
     "closeTab": "Close tab",
     "closeOthers": "Close the other tabs"
   },

@@ -1039,6 +1039,8 @@
     "strip": "Schede aperte",
     "openInNewTab": "Apri in una nuova scheda",
     "newTab": "Nuova scheda",
+    "moveLeft": "Sposta a sinistra",
+    "moveRight": "Sposta a destra",
     "closeTab": "Chiudi la scheda",
     "closeOthers": "Chiudi le altre schede"
   },

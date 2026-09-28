@@ -25,6 +25,15 @@ const actions = {
   closeOthers: vi.fn(),
 };
 
+// The store's own reordering, as the strip reaches it. `canMove` answers from the
+// list rather than always saying yes: whether the entry is greyed out at the ends
+// of the row is part of what this component is being asked.
+const store = {
+  move: vi.fn(),
+  nudge: vi.fn(),
+};
+const indexOf = (id) => state.tabs.value.findIndex((tab) => tab.id === id);
+
 vi.mock('@/composables/tabNavigation', () => ({
   useTabNavigation: () => ({
     ...actions,
@@ -38,6 +47,12 @@ vi.mock('@/composables/tabNavigation', () => ({
       },
       get canClose() {
         return state.canClose.value;
+      },
+      move: (...args) => store.move(...args),
+      nudge: (...args) => store.nudge(...args),
+      canMove: (id, step) => {
+        const at = indexOf(id);
+        return at >= 0 && at + step >= 0 && at + step < state.tabs.value.length;
       },
     },
   }),
@@ -61,6 +76,7 @@ beforeEach(() => {
   state.activeId.value = '';
   state.canClose.value = true;
   Object.values(actions).forEach((fn) => fn.mockReset());
+  Object.values(store).forEach((fn) => fn.mockReset());
 });
 
 describe('when the strip is drawn at all', () => {
@@ -145,10 +161,97 @@ describe('the menu on a tab', () => {
     const wrapper = withTabs([tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')]);
     await wrapper.findAll('[role="tab"]')[0].trigger('contextmenu');
 
-    const entries = wrapper.get('[data-test="tab-menu"]').findAll('button');
-    await entries[1].trigger('click');
+    await wrapper.get('[data-test="tab-menu"]').findAll('button')[3].trigger('click');
 
     expect(actions.closeOthers).toHaveBeenCalledWith('a');
     expect(wrapper.find('[data-test="tab-menu"]').exists()).toBe(false);
+  });
+});
+
+/**
+ * Putting the tabs in the order the reader wants them.
+ *
+ * Two folders being compared belong side by side, whichever order they happened
+ * to be opened in. Dragging is how every browser says this; the same move is in
+ * the tab's own menu, which is the only way to say it from a touch screen, from
+ * the keyboard, or with a trackpad somebody cannot drag with.
+ */
+describe('moving a tab along the row', () => {
+  const three = () =>
+    withTabs([
+      tab('a', 'folder', '/browse/A'),
+      tab('b', 'folder', '/browse/B'),
+      tab('c', 'folder', '/browse/C'),
+    ]);
+
+  const transfer = () => ({ setData: vi.fn(), effectAllowed: '', dropEffect: '' });
+
+  it('takes the place of the tab it is dropped on', async () => {
+    const wrapper = three();
+    const tabs = wrapper.findAll('[data-test="tab"]');
+
+    await tabs[2].trigger('dragstart', { dataTransfer: transfer() });
+    await tabs[0].trigger('dragover', { dataTransfer: transfer() });
+    await tabs[0].trigger('drop');
+
+    expect(store.move).toHaveBeenCalledWith('c', 0);
+  });
+
+  it('shows where it would land while it is held over a tab', async () => {
+    const wrapper = three();
+    const tabs = wrapper.findAll('[data-test="tab"]');
+
+    await tabs[2].trigger('dragstart', { dataTransfer: transfer() });
+    await tabs[0].trigger('dragover', { dataTransfer: transfer() });
+
+    expect(tabs[0].attributes('data-over')).toBe('true');
+    expect(tabs[1].attributes('data-over')).toBe('false');
+  });
+
+  it('is not dropped on itself', async () => {
+    const wrapper = three();
+    const tabs = wrapper.findAll('[data-test="tab"]');
+
+    await tabs[1].trigger('dragstart', { dataTransfer: transfer() });
+    await tabs[1].trigger('drop');
+
+    expect(store.move).not.toHaveBeenCalled();
+  });
+
+  /** Nothing is being dragged, so nothing lands: a file dropped on the strip. */
+  it('ignores a drop that started somewhere else', async () => {
+    const wrapper = three();
+
+    await wrapper.findAll('[data-test="tab"]')[0].trigger('drop');
+
+    expect(store.move).not.toHaveBeenCalled();
+  });
+
+  it('moves one place at a time from the menu', async () => {
+    const wrapper = three();
+    await wrapper.findAll('[role="tab"]')[1].trigger('contextmenu');
+
+    await wrapper.get('[data-test="tab-move-left"]').trigger('click');
+
+    expect(store.nudge).toHaveBeenCalledWith('b', -1);
+    // And the menu is gone, as it is after everything else it offers.
+    expect(wrapper.find('[data-test="tab-menu"]').exists()).toBe(false);
+  });
+
+  it('offers the other direction too', async () => {
+    const wrapper = three();
+    await wrapper.findAll('[role="tab"]')[1].trigger('contextmenu');
+
+    await wrapper.get('[data-test="tab-move-right"]').trigger('click');
+
+    expect(store.nudge).toHaveBeenCalledWith('b', 1);
+  });
+
+  it('offers neither direction where there is nowhere to go', async () => {
+    const wrapper = three();
+    await wrapper.findAll('[role="tab"]')[0].trigger('contextmenu');
+
+    expect(wrapper.get('[data-test="tab-move-left"]').attributes('disabled')).toBeDefined();
+    expect(wrapper.get('[data-test="tab-move-right"]').attributes('disabled')).toBeUndefined();
   });
 });

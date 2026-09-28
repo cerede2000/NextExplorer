@@ -852,6 +852,10 @@ test('several files download one by one, without a zip', async () => {
 test('tabs keep two folders open, and the middle button opens one behind', async () => {
   fs.mkdirSync(path.join(volume, 'Alpha'), { recursive: true });
   fs.mkdirSync(path.join(volume, 'Beta'), { recursive: true });
+  // A third name, so the row of tabs can be read: four tabs all called the same
+  // thing make every order of them look alike, and an assertion about the order
+  // that cannot fail is worse than none.
+  fs.mkdirSync(path.join(volume, 'Gamma'), { recursive: true });
   fs.writeFileSync(path.join(volume, 'Alpha', 'alpha.txt'), 'a');
   fs.writeFileSync(path.join(volume, 'Beta', 'beta.txt'), 'b');
   // A text file, which goes to the editor rather than the preview: the cross of
@@ -1036,6 +1040,44 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   await page.locator('[data-test="editor-close"]').click();
   await expect(tabs).toHaveCount(4);
   await expect(page).not.toHaveURL(/\/editor\//);
+
+  /**
+   * The order of the tabs is the reader's.
+   *
+   * Two folders being compared belong side by side, whichever order they happened
+   * to be opened in. Dragging is how every browser says it; the menu says the same
+   * thing for a touch screen and for the keyboard, and both are checked here
+   * because only a browser can say whether a tab can be picked up at all.
+   */
+  const tabButtons = strip.locator('[data-test="tab"] [role="tab"]');
+  const names = () => tabButtons.evaluateAll((list) => list.map((node) => node.title));
+
+  // Four tabs, each somewhere of its own, so the order can be read at all.
+  await expect(tabButtons).toHaveCount(4);
+  for (const [index, place] of ['Alpha', 'Beta', 'Gamma'].entries()) {
+    await tabButtons.nth(index).click();
+    await page.goto(`/browse/Projects/${place}`);
+  }
+  await tabButtons.nth(3).click();
+  await page.goto('/browse/Projects');
+  await expect.poll(names).toEqual(['Alpha', 'Beta', 'Gamma', 'Projects']);
+
+  // The last, dragged onto the first: it takes that place and the rest shift.
+  await strip
+    .locator('[data-test="tab"]')
+    .last()
+    .dragTo(strip.locator('[data-test="tab"]').first());
+  await expect.poll(names).toEqual(['Projects', 'Alpha', 'Beta', 'Gamma']);
+
+  // And one place back the other way, from the tab's own menu.
+  await tabButtons.first().click({ button: 'right' });
+  await page.locator('[data-test="tab-move-right"]').click();
+  await expect.poll(names).toEqual(['Alpha', 'Projects', 'Beta', 'Gamma']);
+
+  // Where there is nowhere to go, the menu says so rather than doing nothing.
+  await tabButtons.first().click({ button: 'right' });
+  await expect(page.locator('[data-test="tab-move-left"]')).toBeDisabled();
+  await expect(page.locator('[data-test="tab-move-right"]')).toBeEnabled();
 
   /**
    * The strip does not make the page taller than the window.

@@ -1039,6 +1039,8 @@
     "strip": "Pestañas abiertas",
     "openInNewTab": "Abrir en una pestaña nueva",
     "newTab": "Nueva pestaña",
+    "moveLeft": "Mover a la izquierda",
+    "moveRight": "Mover a la derecha",
     "closeTab": "Cerrar la pestaña",
     "closeOthers": "Cerrar las demás pestañas"
   },

@@ -1039,6 +1039,8 @@
     "strip": "Taburi deschise",
     "openInNewTab": "Deschide într-un tab nou",
     "newTab": "Tab nou",
+    "moveLeft": "Mută la stânga",
+    "moveRight": "Mută la dreapta",
     "closeTab": "Închide tabul",
     "closeOthers": "Închide celelalte taburi"
   },

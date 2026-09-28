@@ -1039,6 +1039,8 @@
     "strip": "Abas abertas",
     "openInNewTab": "Abrir em uma nova aba",
     "newTab": "Nova aba",
+    "moveLeft": "Mover para a esquerda",
+    "moveRight": "Mover para a direita",
     "closeTab": "Fechar a aba",
     "closeOthers": "Fechar as outras abas"
   },

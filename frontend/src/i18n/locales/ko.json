@@ -1039,6 +1039,8 @@
     "strip": "열린 탭",
     "openInNewTab": "새 탭에서 열기",
     "newTab": "새 탭",
+    "moveLeft": "왼쪽으로 이동",
+    "moveRight": "오른쪽으로 이동",
     "closeTab": "탭 닫기",
     "closeOthers": "다른 탭 닫기"
   },

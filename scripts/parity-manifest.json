@@ -1611,8 +1611,8 @@
   ],
   "controls": [
     {
-      "match": "^(tabs\\.(newTab|closeTab|closeOthers|openInNewTab)|\\\"titleFor\\(tab\\)\\\")$",
-      "note": "tabs, lot 1: a folder per tab, the kinds a tab can hold, the strip, and the switch that offers any of it — P3-59 when it goes — the strip's own buttons, and the name it writes on a tab"
+      "match": "^(tabs\\.(newTab|closeTab|closeOthers|openInNewTab|moveLeft|moveRight)|\\\"titleFor\\(tab\\)\\\")$",
+      "note": "tabs, lot 1: a folder per tab, the kinds a tab can hold, the strip, and the switch that offers any of it — P3-59 when it goes — the strip's own buttons, the name it writes on a tab, and the two entries that move a tab along the row"
     }
   ]
 }
