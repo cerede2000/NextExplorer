@@ -154,10 +154,10 @@
     },
     {
       "axis": "*",
-      "match": "^(frontend/src/plugins/preview/(session\\.js|PreviewSurface\\.vue)|frontend/src/stores/editorDrafts\\.js|frontend/src/composables/openPlaceInTab\\.js)$",
+      "match": "^(frontend/src/plugins/preview/(session\\.js|PreviewSurface\\.vue)|frontend/src/stores/editorDrafts\\.js|frontend/src/composables/openPlaceInTab\\.js|frontend/src/views/settings/SettingsTabs\\.vue)$",
       "verdict": "PORT",
       "batch": "P3-59",
-      "note": "tabs, lot 2: what a tab is holding stays alive while another tab is in front — a preview session per tab, one surface per tab drawn all at once, and the text an editor was given and never saved, and a place opened in a tab from wherever a place is offered — P3-59 when it goes. Declared before the rule that owns the preview plugins, which was written when every file under them had already been sent and cannot speak for files that did not exist"
+      "note": "tabs, lot 2: what a tab is holding stays alive while another tab is in front — a preview session per tab, one surface per tab drawn all at once, and the text an editor was given and never saved, and a place opened in a tab from wherever a place is offered — P3-59 when it goes. Declared before the rule that owns the preview plugins, which was written when every file under them had already been sent and cannot speak for files that did not exist. `SettingsTabs.vue` is where an administrator says how many tabs a row may hold, since the strip never scrolls and the row has to stop somewhere"
     },
     {
       "axis": "*",
@@ -1611,12 +1611,16 @@
     {
       "match": "^(frontend/src/components/(FavMenu|VolMenu)\\.vue|frontend/src/views/(HomeView|FolderView)\\.vue)$",
       "note": "tabs, lot 2 — P3-59 when it goes, and no branch carries it yet: the middle button opens a place in a tab behind wherever a place is offered, which is a favourite and a volume in the sidebar and both again on the home page, the personal folder included. The rule itself is `composables/openPlaceInTab.js`; these are the gesture reaching it — and the same modifier on the key that opens, in the listing, which is where a keyboard says it"
+    },
+    {
+      "match": "^(frontend/src/components/TabStrip\\.vue|frontend/src/stores/features\\.js|frontend/src/router/index\\.js|frontend/src/views/settings/SettingsView\\.vue|backend/src/(routes/features|services/settingsService)\\.js)$",
+      "note": "tabs, lot 3 — P3-59 when it goes, and no branch carries it yet: a row that shares its room instead of scrolling has to stop somewhere, so an administrator says where (settingsService, the features payload, the features store) and the strip reads it — along with a button that closes every tab and a double click that closes one, for an account that asks. The router and the settings index are where that page is reached from"
     }
   ],
   "controls": [
     {
-      "match": "^(tabs\\.(newTab|closeTab|closeOthers|openInNewTab|moveLeft|moveRight)|\\\"titleFor\\(tab\\)\\\")$",
-      "note": "tabs, lot 1: a folder per tab, the kinds a tab can hold, the strip, and the switch that offers any of it — P3-59 when it goes — the strip's own buttons, the name it writes on a tab, and the two entries that move a tab along the row"
+      "match": "^(tabs\\.(newTab|closeTab|closeOthers|closeAll|openInNewTab|moveLeft|moveRight|full)|settings\\.tabs\\.maxOpen|\\\"titleFor\\(tab\\)\\\")$",
+      "note": "tabs, lot 1: a folder per tab, the kinds a tab can hold, the strip, and the switch that offers any of it — P3-59 when it goes — the strip's own buttons, the name it writes on a tab, the two entries that move a tab along the row, the one that closes every tab, what a full row says, and the number an administrator chooses"
     }
   ]
 }
