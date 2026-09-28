@@ -1020,20 +1020,29 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   }
 
   /**
-   * Stamped inside the surfaces, not on them.
+   * Stamped on each viewer, not on the surface around it and not on everything
+   * inside it.
    *
-   * A mark on the surface itself survives a viewer that was torn down and built
-   * again underneath it — the surface is the page's, the viewer is the plugin's —
-   * so the first version of this agreed with a defect it was written to catch.
-   * Every node inside is marked instead, and every one of them has to still be
-   * there afterwards.
+   * A mark on the surface survives a viewer torn down underneath it — the surface
+   * is the page's, the viewer is the plugin's. Marking every node inside went too
+   * far the other way and failed in CI for a markdown preview that had merely
+   * finished drawing itself: a viewer is free to re-render its own contents.
+   *
+   * So the viewer's own root is marked, and what this says is exactly that: two
+   * viewers were alive at once and both of them are still the ones that were
+   * there. It does not say a document was never *re-opened* — measured, and it is
+   * not: the same plugin with another document updates the component it has
+   * rather than building a new one, which is why the page's own guard and the
+   * manager's are each held to that in their own suites.
    */
   const kept = await page.evaluate(() => {
-    const inside = [...document.querySelectorAll('[data-test="preview-surface"] *')];
-    inside.forEach((node, index) => {
+    const roots = [
+      ...document.querySelectorAll('[data-test="preview-surface"] main > div:last-of-type > *'),
+    ];
+    roots.forEach((node, index) => {
       node.dataset.inside = `k${index}`;
     });
-    return inside.length;
+    return roots.length;
   });
   expect(kept).toBeGreaterThan(1);
   expect(
@@ -1046,9 +1055,7 @@ test('tabs keep two folders open, and the middle button opens one behind', async
     await documentTabs.last().click();
   }
 
-  // Every node that was there is still there. Not "the same number of nodes":
-  // a viewer is free to add to itself — a caption, a toolbar coming in late — and
-  // what is being asked is that nothing was thrown away and built again.
+  // The same viewers, still the ones that were there.
   await expect
     .poll(() =>
       page.evaluate(
