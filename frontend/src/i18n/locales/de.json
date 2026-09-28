@@ -1047,9 +1047,13 @@
   "tabs": {
     "strip": "Offene Tabs",
     "openInNewTab": "In neuem Tab öffnen",
+    "openInNewTabs": "{count} in neuen Tabs öffnen",
     "newTab": "Neuer Tab",
     "moveLeft": "Nach links verschieben",
     "moveRight": "Nach rechts verschieben",
+    "duplicate": "Tab duplizieren",
+    "pin": "Tab anheften",
+    "unpin": "Tab lösen",
     "closeTab": "Tab schließen",
     "closeOthers": "Die anderen Tabs schließen",
     "closeAll": "Alle Tabs schließen",

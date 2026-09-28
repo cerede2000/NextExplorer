@@ -1047,9 +1047,13 @@
   "tabs": {
     "strip": "Abas abertas",
     "openInNewTab": "Abrir em uma nova aba",
+    "openInNewTabs": "Abrir {count} em novas abas",
     "newTab": "Nova aba",
     "moveLeft": "Mover para a esquerda",
     "moveRight": "Mover para a direita",
+    "duplicate": "Duplicar a aba",
+    "pin": "Fixar a aba",
+    "unpin": "Desafixar a aba",
     "closeTab": "Fechar a aba",
     "closeOthers": "Fechar as outras abas",
     "closeAll": "Fechar todas as abas",

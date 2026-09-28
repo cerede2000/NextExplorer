@@ -1,3 +1,4 @@
+import { computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { withViewTransition } from '@/utils';
 import { folderRoute } from '@/utils/folderRoute';
@@ -19,8 +20,60 @@ export function useNavigation() {
   const { addressFor } = useItemAddress();
 
   const navigate = withViewTransition((to) => router.push(to));
-  const goPrev = withViewTransition(() => router.back());
-  const goNext = withViewTransition(() => router.forward());
+
+  /**
+   * Back and forward, in this tab rather than in the window.
+   *
+   * A window's history is the window's: pressing Back with six tabs open took the
+   * reader to whatever address they last looked at, in whichever tab that was, and
+   * left the tab they were in pointing somewhere it had never been. With tabs on,
+   * each tab keeps its own trail and these two walk it — which is what somebody
+   * pressing Back in a tab is asking for.
+   *
+   * With tabs off there is one place and one trail, and it is the browser's, so
+   * these are what they have always been.
+   */
+  const stepInTab = (which) => {
+    const tabs = useTabsStore();
+    if (!tabs.enabled) return null;
+    return tabs[which](tabs.activeId);
+  };
+
+  const goPrev = withViewTransition(() => {
+    const tabs = useTabsStore();
+    if (!tabs.enabled) {
+      router.back();
+      return;
+    }
+    const stepped = stepInTab('back');
+    if (stepped) void router.push(stepped.path);
+  });
+
+  const goNext = withViewTransition(() => {
+    const tabs = useTabsStore();
+    if (!tabs.enabled) {
+      router.forward();
+      return;
+    }
+    const stepped = stepInTab('forward');
+    if (stepped) void router.push(stepped.path);
+  });
+
+  /**
+   * Whether there is anywhere that way to go.
+   *
+   * Only answerable with tabs on: the browser's own history cannot be read, so
+   * with tabs off both buttons stay live, as they always have.
+   */
+  const canGoPrev = computed(() => {
+    const tabs = useTabsStore();
+    return !tabs.enabled || tabs.canGoBack(tabs.activeId);
+  });
+
+  const canGoNext = computed(() => {
+    const tabs = useTabsStore();
+    return !tabs.enabled || tabs.canGoForward(tabs.activeId);
+  });
 
   const openItem = (item) => {
     if (!item) return;
@@ -164,5 +217,7 @@ export function useNavigation() {
     goNext,
     goPrev,
     goUp,
+    canGoPrev,
+    canGoNext,
   };
 }

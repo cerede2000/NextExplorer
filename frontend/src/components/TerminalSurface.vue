@@ -32,8 +32,18 @@ const props = defineProps({
   path: { type: String, default: '' },
   /** A first line to type once the shell answers, if the caller wants one. */
   initialInput: { type: String, default: '' },
-  /** Whether this terminal should be running. A closed drawer is not. */
+  /** Whether this terminal should be running. A session that has gone is not. */
   active: { type: Boolean, default: true },
+  /**
+   * Whether it is on screen.
+   *
+   * Not the same question as `active`, and the difference is the whole reason a
+   * terminal can be left behind a tab: a shell that is not on screen is still
+   * running, still connected, still printing. What changes when it comes back is
+   * only that it has to be measured again — a terminal measured while its box was
+   * hidden came back the wrong size.
+   */
+  visible: { type: Boolean, default: true },
 });
 
 // The stores this terminal keeps honest: a shell that writes a file leaves the
@@ -80,7 +90,9 @@ const refreshBrowserState = () => {
   const terminalPath = normalizeLogicalPath(props.path || '');
 
   if (terminalPath && currentPath === terminalPath) {
-    fileStore.fetchPathItems(currentPath).catch(() => {});
+    // The listing read again, not navigated to: a shell that wrote a file must
+    // not take away whatever the reader had selected beside it.
+    fileStore.refresh().catch(() => {});
   }
 
   volumeUsageStore.scheduleRefresh({ delayMs: 300, force: true });
@@ -312,14 +324,31 @@ const teardownTerminal = () => {
 watch(
   () => props.active,
   (running) => {
-    if (!running) {
-      teardownTerminal();
-      return;
-    }
     teardownTerminal();
+    if (!running) return;
     setTimeout(() => {
       initTerminal();
       if (fitAddon) fitAddon.fit();
+    }, 250);
+  }
+);
+
+/**
+ * Back on screen: measured again, and nothing else.
+ *
+ * A tab coming forward must not disturb the shell behind it. It was never torn
+ * down and never reconnected — what it lost while it was hidden is only the size
+ * of its box, because a hidden box has none.
+ */
+watch(
+  () => props.visible,
+  (shown) => {
+    if (!shown || !term) return;
+    setTimeout(() => {
+      // Fitting is what tells the shell its new size: the addon measures the box
+      // and the terminal's own resize event carries the answer to the server.
+      fitAddon?.fit();
+      focusTerminal();
     }, 250);
   }
 );

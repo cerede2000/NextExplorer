@@ -117,3 +117,64 @@ describe('unsaved changes', () => {
     expect(serialise).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * Where the reader is, kept and put back.
+ *
+ * A tab that comes back to a file has to come back to the *place* in it, and a
+ * place is a line rather than a number of pixels: the editor draws what is in
+ * view and estimates the rest, so its height is a guess that improves as it
+ * measures, and a scroll position written into it before it has measured is
+ * silently clamped to whatever fits. Somebody who had scrolled halfway down a
+ * long file came back to the top of it with their selection sitting beside them,
+ * which is how the defect announced itself.
+ *
+ * jsdom has no layout, so what can be asked here is what does not need one: what
+ * is kept, that it is handed back, and that a position no longer in the document
+ * cannot throw. Whether the reader ends up looking at the right line is a
+ * question for a browser, and `e2e/app/core-flows.spec.js` asks it there.
+ */
+describe('where the reader is', () => {
+  it('is the cursor and the place, and comes back', async () => {
+    const view = await open('one\ntwo\nthree\nfour');
+    view.dispatch({ selection: { anchor: 4, head: 7 } });
+    view.scrollDOM.scrollTop = 120;
+
+    const place = wrapper.vm.place();
+    expect(place.selection).toEqual({ anchor: 4, head: 7 });
+    expect(place.scrollTop).toBe(120);
+
+    view.dispatch({ selection: { anchor: 0, head: 0 } });
+    view.scrollDOM.scrollTop = 0;
+    wrapper.vm.restorePlace(place);
+
+    expect(view.state.selection.main.anchor).toBe(4);
+    expect(view.state.selection.main.head).toBe(7);
+  });
+
+  /**
+   * The file may have been written to by somebody else while the tab was away.
+   * A cursor past the end of the document throws, and so does a line.
+   */
+  it('lands inside a file somebody else has shortened', async () => {
+    const view = await open('hello');
+
+    expect(() =>
+      wrapper.vm.restorePlace({
+        selection: { anchor: 900, head: 900 },
+        scrollTop: 0,
+        topLine: 900,
+      })
+    ).not.toThrow();
+
+    expect(view.state.selection.main.anchor).toBe(5);
+    expect(view.state.selection.main.head).toBe(5);
+  });
+
+  it('answers something harmless about a file with nothing in it yet', async () => {
+    await open('');
+
+    expect(wrapper.vm.place()).toMatchObject({ scrollTop: 0 });
+    expect(() => wrapper.vm.restorePlace(null)).not.toThrow();
+  });
+});

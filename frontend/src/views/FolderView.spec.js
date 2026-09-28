@@ -393,26 +393,68 @@ describe('coming back to a folder', () => {
   });
 
   /**
+   * A listing that can scroll, which jsdom will not give anybody for free.
+   *
+   * Everything about remembering a place turns on whether there is a place to
+   * remember, and the component decides that by asking the container whether it
+   * scrolls. Under jsdom nothing has a size, so the answer is always no — which
+   * is a real case, and the one that caused the defect, but it makes the other
+   * case untestable unless the sizes are put there by hand.
+   */
+  const listingThatScrolls = (scrollTop) => {
+    const listing = wrapper.find('.upload-drop-target').element;
+    Object.defineProperty(listing, 'scrollHeight', { value: 4000, configurable: true });
+    Object.defineProperty(listing, 'clientHeight', { value: 800, configurable: true });
+    listing.scrollTop = scrollTop;
+    return listing;
+  };
+
+  /**
    * The keyed router view unmounts this component on a folder change, but the
    * guard runs first — before a view transition can reset the scroll container.
    */
   it('writes down where it was before the route moves on', async () => {
     await mountFolder();
+    listingThatScrolls(1355);
     stores.folderScroll.remember.mockClear();
 
     routeLeaveGuards.forEach((guard) => guard());
 
-    expect(stores.folderScroll.remember).toHaveBeenCalledWith('Docs::list', expect.any(Number));
+    expect(stores.folderScroll.remember).toHaveBeenCalledWith('Docs::list', 1355);
   });
 
   it('writes it down on the way out too', async () => {
     await mountFolder();
+    listingThatScrolls(1355);
     stores.folderScroll.remember.mockClear();
 
     wrapper.unmount();
     wrapper = null;
 
-    expect(stores.folderScroll.remember).toHaveBeenCalled();
+    expect(stores.folderScroll.remember).toHaveBeenCalledWith('Docs::list', 1355);
+  });
+
+  /**
+   * And writes nothing at all once there is nothing that scrolls.
+   *
+   * This is the defect, and its symptom was the odd one: the listing is taken off
+   * screen before the last scroll events stop arriving, the fallback behind it is
+   * the page, and the page never scrolls — so zero was written over a position
+   * hundreds of pixels down. Coming back, the file the reader had chosen was
+   * still chosen, because that is remembered separately, while the folder sat at
+   * the top under it.
+   */
+  it('writes nothing over it once the listing has gone', async () => {
+    await mountFolder();
+    listingThatScrolls(1355);
+    routeLeaveGuards.forEach((guard) => guard());
+    stores.folderScroll.remember.mockClear();
+
+    // Nothing that scrolls any more: the listing is on its way off the screen.
+    wrapper.unmount();
+    wrapper = null;
+
+    expect(stores.folderScroll.remember).not.toHaveBeenCalled();
   });
 });
 
@@ -1307,6 +1349,24 @@ describe('a folder tab coming back', () => {
     await mountFolder();
 
     expect(stores.folderScroll.rememberTabPlace).not.toHaveBeenCalled();
+  });
+
+  /**
+   * And nothing for the folder either, which is the same defect in the other
+   * half of the same function and the one that was reported.
+   *
+   * Coming back, the file the reader had chosen was still chosen — that is
+   * remembered separately, and was never the thing at fault — while the folder
+   * sat at the top under it. The zero came from the page behind a listing that
+   * had already gone, written over a position hundreds of pixels down a moment
+   * before anybody could come back to it.
+   */
+  it('remembers nothing for the folder from it either', async () => {
+    await mountFolder();
+    wrapper.unmount();
+    wrapper = null;
+
+    expect(stores.folderScroll.remember).not.toHaveBeenCalled();
   });
 
   /**

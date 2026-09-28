@@ -1047,9 +1047,13 @@
   "tabs": {
     "strip": "Pestañas abiertas",
     "openInNewTab": "Abrir en una pestaña nueva",
+    "openInNewTabs": "Abrir {count} en pestañas nuevas",
     "newTab": "Nueva pestaña",
     "moveLeft": "Mover a la izquierda",
     "moveRight": "Mover a la derecha",
+    "duplicate": "Duplicar la pestaña",
+    "pin": "Fijar la pestaña",
+    "unpin": "Soltar la pestaña",
     "closeTab": "Cerrar la pestaña",
     "closeOthers": "Cerrar las demás pestañas",
     "closeAll": "Cerrar todas las pestañas",

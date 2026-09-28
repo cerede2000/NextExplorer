@@ -111,13 +111,29 @@ export const useFileStore = defineStore('fileStore', () => {
   const currentPathItems = activeRef((folder) => folder.items);
   const currentPathData = activeRef((folder) => folder.data);
 
+  const fetchPathItems = (path, options) => active.value.fetchItems(path, options);
+
+  /**
+   * The folder already on screen, read again.
+   *
+   * The other half of `fetchPathItems`, and the difference between them is not
+   * the path — it is what it means. Fetching a path is *going* somewhere, so it
+   * clears what was selected and leaves selection mode, because what was chosen
+   * was chosen in another folder. Refreshing is this folder changing underneath
+   * somebody: an upload landing, a shell writing a file, ONLYOFFICE saving. They
+   * have to see the new file; they must not lose what they were holding.
+   *
+   * Written down as its own word because every caller that got this wrong got it
+   * wrong the same way — by reaching for the one function there was.
+   */
+  const refresh = () =>
+    active.value.fetchItems(active.value.path.value, { preserveInteraction: true });
+
   const onlyofficeActivity = createOnlyofficeActivityPolling({
     featuresStore,
     isBrowsing: () => active.value.isBrowsing(),
-    refresh: () => active.value.fetchItems(active.value.path.value, { preserveInteraction: true }),
+    refresh,
   });
-
-  const fetchPathItems = (path, options) => active.value.fetchItems(path, options);
 
   const selection = {
     selectedItems: activeRef((folder) => folder.selection.selectedItems),
@@ -193,6 +209,7 @@ export const useFileStore = defineStore('fileStore', () => {
     currentPathData,
     getCurrentPathItems,
     fetchPathItems,
+    refresh,
     selectedItems: selection.selectedItems,
     keyboardActionItem: selection.keyboardActionItem,
     setKeyboardActionItem: selection.setKeyboardActionItem,

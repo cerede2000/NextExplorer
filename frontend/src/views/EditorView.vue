@@ -419,22 +419,23 @@ const routeFolderPath = (targetRoute) => {
  * changed underneath it and this file is not what the tab is on any more; and
  * when the tab has gone, which takes its draft with it.
  */
-/** Where the reader is in this file, right now. */
-const placeNow = () => {
-  const editor = surface.value?.view;
-  const selection = editor?.state.selection.main;
-  return {
-    // The text only when it differs from the file. A file being read from the
-    // trash or from a history has none to keep, and one nobody has typed into is
-    // the file itself — putting it back as an edit would call it unsaved.
-    text:
-      !isViewerOnly.value && hasUnsavedChanges.value
-        ? String(surface.value?.snapshot() ?? '')
-        : null,
-    selection: selection ? { anchor: selection.anchor, head: selection.head } : null,
-    scrollTop: editor?.scrollDOM?.scrollTop ?? 0,
-  };
-};
+/**
+ * Where the reader is in this file, right now.
+ *
+ * The cursor and the place are the editor's own answer — a place in a long file
+ * is a line rather than a number of pixels, and only the editor knows which line
+ * is at the top of the screen. What is added here is the text, which is the
+ * page's business because only the page knows whether this file is one that can
+ * be written to.
+ */
+const placeNow = () => ({
+  // The text only when it differs from the file. A file being read from the
+  // trash or from a history has none to keep, and one nobody has typed into is
+  // the file itself — putting it back as an edit would call it unsaved.
+  text:
+    !isViewerOnly.value && hasUnsavedChanges.value ? String(surface.value?.snapshot() ?? '') : null,
+  ...(surface.value?.place?.() ?? { selection: null, scrollTop: 0, topLine: null }),
+});
 
 /**
  * Letting go of the tab this page was speaking for.
@@ -566,19 +567,9 @@ const restoreKeptPlace = async (address) => {
     editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: kept.text } });
   }
 
-  const end = editor.state.doc.length;
-  if (kept.selection) {
-    editor.dispatch({
-      // Clamped: the file may have been written to by somebody else while this
-      // tab was away, and a cursor past the end of the document throws.
-      selection: {
-        anchor: Math.min(kept.selection.anchor, end),
-        head: Math.min(kept.selection.head, end),
-      },
-    });
-  }
-  // After the selection, which scrolls to the cursor of its own accord.
-  if (editor.scrollDOM) editor.scrollDOM.scrollTop = kept.scrollTop;
+  // The cursor and the place, put back by the editor itself — see `place()` in
+  // `CodeSurface.vue` for why the place is a line and not a scroll bar.
+  surface.value?.restorePlace?.(kept);
 };
 
 const saveFile = async () => {

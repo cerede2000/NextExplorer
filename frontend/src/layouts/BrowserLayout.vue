@@ -14,10 +14,11 @@ import { RouterView, useRoute, useRouter } from 'vue-router';
 import { useStorage, useEventListener, useMediaQuery } from '@vueuse/core';
 
 import ExplorerContextMenu from '@/components/ExplorerContextMenu.vue';
-// The terminal carries xterm with it, which is a large library for a panel
-// most sessions never open and only an administrator can. Loaded when it is
-// first shown rather than on every page.
-const TerminalPanel = defineAsyncComponent(() => import('@/components/TerminalPanel.vue'));
+// The terminal carries xterm with it, which is a large library for something
+// most sessions never open and only an administrator can. Loaded when the first
+// terminal is asked for rather than on every page — which is why the host below
+// is not merely hidden when there are none, it is not there.
+const TerminalHost = defineAsyncComponent(() => import('@/components/TerminalHost.vue'));
 import { useAuthStore } from '@/stores/auth';
 import { useAppSettings } from '@/stores/appSettings';
 import { useFeaturesStore } from '@/stores/features';
@@ -25,6 +26,7 @@ import { useI18n } from 'vue-i18n';
 import { pageTitleFor } from '@/utils/pageTitle';
 import { usePageTitle } from '@/composables/usePageTitle';
 import { useFileStore } from '@/stores/fileStore';
+import { useTerminalStore } from '@/stores/terminal';
 import InfoPanel from '@/components/InfoPanel.vue';
 import VersionsPanel from '@/components/VersionsPanel.vue';
 import { useFileUploader } from '@/composables/fileUploader';
@@ -115,6 +117,7 @@ useEventListener(window, 'keydown', (e) => {
 
 const { t: translate, te } = useI18n();
 const fileStore = useFileStore();
+const terminalStore = useTerminalStore();
 // At the top of a share its address holds only the token; the share has a name.
 const shareName = computed(() => {
   const info = fileStore.currentPathData?.shareInfo;
@@ -222,6 +225,11 @@ const handleGuestLogin = () => {
           </RouterView>
         </div>
       </ExplorerContextMenu>
+
+      <!-- Beside what a tab holds rather than over the window: the sidebar and
+           the strip of tabs stay reachable while a shell is open, which is the
+           whole point of a terminal that belongs to one tab. -->
+      <TerminalHost v-if="featuresStore.terminalEnabled && terminalStore.openIds.length > 0" />
     </main>
 
     <!-- Backdrop to close sidebar on small screens -->
@@ -242,7 +250,6 @@ const handleGuestLogin = () => {
     <SeparateDownloadConfirm />
     <NotificationToastContainer />
     <NotificationPanel />
-    <TerminalPanel v-if="featuresStore.terminalEnabled" />
 
     <!-- Footer with powered by link -->
     <footer

@@ -1047,9 +1047,13 @@
   "tabs": {
     "strip": "Taburi deschise",
     "openInNewTab": "Deschide într-un tab nou",
+    "openInNewTabs": "Deschide {count} în taburi noi",
     "newTab": "Tab nou",
     "moveLeft": "Mută la stânga",
     "moveRight": "Mută la dreapta",
+    "duplicate": "Duplică tabul",
+    "pin": "Fixează tabul",
+    "unpin": "Anulează fixarea tabului",
     "closeTab": "Închide tabul",
     "closeOthers": "Închide celelalte taburi",
     "closeAll": "Închide toate filele",

@@ -590,3 +590,213 @@ describe('closing every tab', () => {
     ]);
   });
 });
+
+describe('the same place again, beside itself', () => {
+  it('is a copy next to the tab it came from, and in front', () => {
+    const store = withTabsOn();
+    store.open('/browse/A');
+    store.open('/browse/B');
+    const first = store.tabs[1];
+
+    const copy = store.duplicate(first.id);
+
+    expect(paths(store)).toEqual([HOME, '/browse/A', '/browse/A', '/browse/B']);
+    expect(store.activeId).toBe(copy.id);
+    expect(copy.id).not.toBe(first.id);
+  });
+
+  /**
+   * A copy is a tab of its own from the moment it exists. Inheriting `own` would
+   * hand the document's cross a tab the reader never opened for that document.
+   */
+  it('is never a tab opened for one thing, whatever it was copied from', () => {
+    const store = withTabsOn();
+    const source = store.open('/open/Docs/report.docx', { own: true });
+
+    expect(store.duplicate(source.id).own).toBe(false);
+  });
+
+  it('can walk back the way the tab it came from walked in', () => {
+    const store = withTabsOn();
+    store.open('/browse/A');
+    store.syncActive('/browse/A/inside');
+    const source = store.activeTab;
+
+    const copy = store.duplicate(source.id);
+
+    expect(store.canGoBack(copy.id)).toBe(true);
+    expect(store.back(copy.id).path).toBe('/browse/A');
+  });
+
+  it('is refused when the row is full, like anything else that opens a tab', () => {
+    const store = withTabsOn();
+    store.setLimit(2);
+    const source = store.open('/browse/A');
+
+    expect(store.duplicate(source.id)).toBeNull();
+    expect(store.count).toBe(2);
+  });
+});
+
+describe('a tab kept on purpose', () => {
+  it('moves to the front of the row and stays there', () => {
+    const store = withTabsOn();
+    store.open('/browse/A');
+    const b = store.open('/browse/B');
+
+    store.pin(b.id);
+
+    expect(paths(store)).toEqual(['/browse/B', HOME, '/browse/A']);
+  });
+
+  it('lines up behind the ones already kept', () => {
+    const store = withTabsOn();
+    const a = store.open('/browse/A');
+    const b = store.open('/browse/B');
+
+    store.pin(a.id);
+    store.pin(b.id);
+
+    expect(paths(store)).toEqual(['/browse/A', '/browse/B', HOME]);
+  });
+
+  /**
+   * At the head of the rest rather than back where it came from: nothing records
+   * where it was, and the head of the row is where the reader is looking — it is
+   * the tab they just let go of.
+   */
+  it('goes to the head of the rest when it is let go', () => {
+    const store = withTabsOn();
+    const a = store.open('/browse/A');
+    store.open('/browse/B');
+    store.pin(a.id);
+
+    store.unpin(a.id);
+
+    expect(paths(store)).toEqual(['/browse/A', HOME, '/browse/B']);
+    expect(store.tabs[0].pinned).toBe(false);
+  });
+
+  /** The line between the kept ones and the rest is not a line a drag may cross. */
+  it('cannot be dragged out of the run it belongs to', () => {
+    const store = withTabsOn();
+    const a = store.open('/browse/A');
+    store.open('/browse/B');
+    store.pin(a.id);
+
+    store.move(a.id, 2);
+
+    expect(paths(store)).toEqual(['/browse/A', HOME, '/browse/B']);
+    expect(store.canMove(a.id, 1)).toBe(false);
+  });
+
+  it('is not swept away by closing them all', () => {
+    const store = withTabsOn();
+    const a = store.open('/browse/A');
+    store.open('/browse/B');
+    store.pin(a.id);
+
+    store.closeAll();
+
+    expect(paths(store)).toEqual(['/browse/A']);
+  });
+
+  it('is not swept away by closing the others either', () => {
+    const store = withTabsOn();
+    const a = store.open('/browse/A');
+    const b = store.open('/browse/B');
+    store.pin(a.id);
+
+    store.closeOthers(b.id);
+
+    expect(paths(store)).toEqual(['/browse/A', '/browse/B']);
+  });
+
+  it('comes back kept when the window is opened again', () => {
+    const opened = withTabsOn();
+    const a = opened.open('/browse/A');
+    opened.pin(a.id);
+
+    setActivePinia(createPinia());
+    const returning = withTabsOn();
+
+    expect(returning.tabs[0].path).toBe('/browse/A');
+    expect(returning.tabs[0].pinned).toBe(true);
+  });
+});
+
+describe('where a tab has been', () => {
+  it('is walked back one address at a time, in that tab alone', () => {
+    const store = withTabsOn();
+    store.open('/browse/A');
+    store.syncActive('/browse/A/one');
+    store.syncActive('/browse/A/one/two');
+
+    expect(store.back(store.activeId).path).toBe('/browse/A/one');
+    expect(store.back(store.activeId).path).toBe('/browse/A');
+    expect(store.canGoBack(store.activeId)).toBe(false);
+  });
+
+  it('is walked forward again from wherever the reader stopped', () => {
+    const store = withTabsOn();
+    store.open('/browse/A');
+    store.syncActive('/browse/A/one');
+    store.back(store.activeId);
+
+    expect(store.canGoForward(store.activeId)).toBe(true);
+    expect(store.forward(store.activeId).path).toBe('/browse/A/one');
+    expect(store.canGoForward(store.activeId)).toBe(false);
+  });
+
+  /**
+   * The address a step lands on is already under the mark, so arriving there is
+   * not somewhere new. Without this every step back would record itself and the
+   * trail would never get anywhere.
+   */
+  it('is not added to by the step that walks it', () => {
+    const store = withTabsOn();
+    store.open('/browse/A');
+    store.syncActive('/browse/A/one');
+
+    const stepped = store.back(store.activeId);
+    store.syncActive(stepped.path);
+
+    expect(store.canGoForward(store.activeId)).toBe(true);
+  });
+
+  it('forgets what was ahead once the reader walks somewhere else', () => {
+    const store = withTabsOn();
+    store.open('/browse/A');
+    store.syncActive('/browse/A/one');
+    store.back(store.activeId);
+    store.syncActive('/browse/A/other');
+
+    expect(store.canGoForward(store.activeId)).toBe(false);
+    expect(store.back(store.activeId).path).toBe('/browse/A');
+  });
+
+  it('belongs to one tab: another tab has its own, and neither is the window’s', () => {
+    const store = withTabsOn();
+    const first = store.open('/browse/A');
+    store.syncActive('/browse/A/one');
+    const second = store.open('/browse/B');
+    store.syncActive('/browse/B/deep');
+
+    expect(store.back(second.id).path).toBe('/browse/B');
+    expect(store.canGoBack(second.id)).toBe(false);
+    // Untouched by any of it.
+    expect(store.canGoBack(first.id)).toBe(true);
+  });
+
+  it('comes back with the tab when the window is opened again', () => {
+    const opened = withTabsOn();
+    opened.open('/browse/A');
+    opened.syncActive('/browse/A/one');
+
+    setActivePinia(createPinia());
+    const returning = withTabsOn();
+
+    expect(returning.canGoBack(returning.tabs[1].id)).toBe(true);
+    expect(returning.back(returning.tabs[1].id).path).toBe('/browse/A');
+  });
+});

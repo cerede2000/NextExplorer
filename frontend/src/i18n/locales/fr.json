@@ -1047,9 +1047,13 @@
   "tabs": {
     "strip": "Onglets ouverts",
     "openInNewTab": "Ouvrir dans un nouvel onglet",
+    "openInNewTabs": "Ouvrir {count} éléments dans de nouveaux onglets",
     "newTab": "Nouvel onglet",
     "moveLeft": "Déplacer vers la gauche",
     "moveRight": "Déplacer vers la droite",
+    "duplicate": "Dupliquer l'onglet",
+    "pin": "Épingler l'onglet",
+    "unpin": "Détacher l'onglet",
     "closeTab": "Fermer l'onglet",
     "closeOthers": "Fermer les autres onglets",
     "closeAll": "Fermer tous les onglets",

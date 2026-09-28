@@ -99,6 +99,46 @@ describe('fileStore folder navigation', () => {
     ]);
   });
 
+  /**
+   * Going somewhere and being somewhere while it changes are two different
+   * things, and the store has a word for each.
+   *
+   * Every caller that got this wrong got it wrong the same way — by reaching for
+   * the one function there was — and what it cost was the reader's selection: an
+   * upload landing a second after they chose a file took the choice away with it,
+   * and the share button went grey under their hand.
+   */
+  it('reads the same folder again without taking away what is selected', async () => {
+    browse.mockResolvedValue({
+      path: 'Volume',
+      items: [{ name: 'notes.txt', path: 'Volume', kind: 'txt' }],
+    });
+
+    const store = useFileStore();
+    await store.fetchPathItems('Volume');
+    store.selectedItems = [store.currentPathItems[0]];
+
+    await store.refresh();
+
+    expect(store.getCurrentPath).toBe('Volume');
+    expect(store.selectedItems).toHaveLength(1);
+  });
+
+  it('clears it when the reader goes somewhere, which is the other word', async () => {
+    browse.mockResolvedValue({
+      path: 'Volume',
+      items: [{ name: 'notes.txt', path: 'Volume', kind: 'txt' }],
+    });
+
+    const store = useFileStore();
+    await store.fetchPathItems('Volume');
+    store.selectedItems = [store.currentPathItems[0]];
+
+    await store.fetchPathItems('Volume');
+
+    expect(store.selectedItems).toHaveLength(0);
+  });
+
   it('clears an OnlyOffice activity badge when a refresh reports the document closed', async () => {
     browse
       .mockResolvedValueOnce({

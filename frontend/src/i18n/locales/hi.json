@@ -1047,9 +1047,13 @@
   "tabs": {
     "strip": "खुले टैब",
     "openInNewTab": "नए टैब में खोलें",
+    "openInNewTabs": "{count} को नए टैब में खोलें",
     "newTab": "नया टैब",
     "moveLeft": "बाईं ओर ले जाएँ",
     "moveRight": "दाईं ओर ले जाएँ",
+    "duplicate": "टैब की नक़ल बनाएँ",
+    "pin": "टैब पिन करें",
+    "unpin": "टैब अनपिन करें",
     "closeTab": "टैब बंद करें",
     "closeOthers": "बाक़ी टैब बंद करें",
     "closeAll": "सभी टैब बंद करें",

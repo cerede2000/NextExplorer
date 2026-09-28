@@ -36,6 +36,27 @@ const isTab = (entry) =>
     TAB_KINDS_BY_ID[entry.kind]
   );
 
+/**
+ * How far back a tab remembers.
+ *
+ * Long enough that nobody reaches the end of it in an afternoon's browsing, short
+ * enough that twenty tabs of it are a few kilobytes in a store that is written on
+ * every click.
+ */
+const HISTORY_DEPTH = 50;
+
+/** A remembered list of addresses, or a fresh one at the tab's own address. */
+const historyOf = (entry, path) => {
+  const kept = Array.isArray(entry?.history)
+    ? entry.history.filter((step) => typeof step === 'string' && step).slice(-HISTORY_DEPTH)
+    : [];
+  if (kept.length === 0) return { history: [path], at: 0 };
+  const at = Number.isInteger(entry?.at)
+    ? Math.max(0, Math.min(entry.at, kept.length - 1))
+    : kept.length - 1;
+  return { history: kept, at };
+};
+
 export const HOME = '/browse/';
 
 /**
@@ -96,7 +117,9 @@ export const useTabsStore = defineStore('tabs', () => {
    */
   const makeTab = (path, own = false) => {
     const kind = tabKindForPath(path);
-    return kind ? { id: makeId(), kind: kind.id, path, own } : null;
+    return kind
+      ? { id: makeId(), kind: kind.id, path, own, pinned: false, history: [path], at: 0 }
+      : null;
   };
 
   /**
@@ -111,13 +134,26 @@ export const useTabsStore = defineStore('tabs', () => {
    */
   const load = () => {
     const remembered = read(OPEN_KEY, []);
-    const kept = (Array.isArray(remembered) ? remembered : [])
-      .filter(isTab)
-      .map((entry) =>
-        TAB_KINDS_BY_ID[entry.kind].restores
-          ? { id: entry.id, kind: entry.kind, path: entry.path, own: entry.own === true }
-          : { id: entry.id, kind: 'folder', path: HOME, own: false }
-      );
+    const kept = (Array.isArray(remembered) ? remembered : []).filter(isTab).map((entry) =>
+      TAB_KINDS_BY_ID[entry.kind].restores
+        ? {
+            id: entry.id,
+            kind: entry.kind,
+            path: entry.path,
+            own: entry.own === true,
+            pinned: entry.pinned === true,
+            ...historyOf(entry, entry.path),
+          }
+        : {
+            id: entry.id,
+            kind: 'folder',
+            path: HOME,
+            own: false,
+            pinned: entry.pinned === true,
+            history: [HOME],
+            at: 0,
+          }
+    );
     return kept.length > 0 ? kept : [makeTab(HOME)];
   };
 
@@ -150,7 +186,15 @@ export const useTabsStore = defineStore('tabs', () => {
   const persist = () => {
     write(
       OPEN_KEY,
-      tabs.value.map(({ id, kind, path, own }) => ({ id, kind, path, own }))
+      tabs.value.map(({ id, kind, path, own, pinned, history, at }) => ({
+        id,
+        kind,
+        path,
+        own,
+        pinned,
+        history,
+        at,
+      }))
     );
     write(ACTIVE_KEY, activeId.value);
   };
@@ -253,6 +297,71 @@ export const useTabsStore = defineStore('tabs', () => {
   };
 
   /**
+   * The same place again, in a tab beside it.
+   *
+   * What a browser's "Duplicate tab" does, and for the same reason: two views of
+   * one folder, one of them about to be taken somewhere else. Beside the tab it
+   * came from rather than at the end of the row, because that is where the reader
+   * is looking — and it is a tab of its own from the moment it exists, so it never
+   * inherits `own` and cannot be closed by a document's cross.
+   *
+   * Its history is the original's, up to where the original is: the copy can walk
+   * back the way the tab it came from walked in.
+   */
+  const duplicate = (id) => {
+    const from = tabs.value.findIndex((tab) => tab.id === id);
+    if (from < 0 || atLimit.value) return null;
+
+    const source = tabs.value[from];
+    const copy = {
+      id: makeId(),
+      kind: source.kind,
+      path: source.path,
+      own: false,
+      pinned: false,
+      history: source.history.slice(0, source.at + 1),
+      at: source.at,
+    };
+    // After the pinned run when the original is in it: a copy is not pinned, and
+    // an unpinned tab does not belong among the pinned ones.
+    tabs.value.splice(source.pinned ? pinnedCount() : from + 1, 0, copy);
+    persist();
+    return activate(copy.id);
+  };
+
+  /**
+   * Kept: at the front of the row, narrow, and not taken away by "close them all".
+   *
+   * Which is what somebody means by pinning a folder they work in every day — it
+   * should be there when they open the application and it should not be one
+   * mis-aimed click from being gone. A pinned tab has no cross for that reason;
+   * unpinning it gives it one back.
+   *
+   * The pinned ones are a run at the front of the row, so pinning moves a tab to
+   * the end of that run and unpinning moves it to the start of what follows.
+   * Nothing else may cross that line — see `move`.
+   */
+  const pinnedCount = () => tabs.value.filter((tab) => tab.pinned).length;
+
+  const setPinned = (id, pinned) => {
+    const from = tabs.value.findIndex((tab) => tab.id === id);
+    if (from < 0 || tabs.value[from].pinned === pinned) return null;
+
+    const [tab] = tabs.value.splice(from, 1);
+    tab.pinned = pinned;
+    tabs.value.splice(pinnedCount(), 0, tab);
+    persist();
+    return tab;
+  };
+
+  const pin = (id) => setPinned(id, true);
+  const unpin = (id) => setPinned(id, false);
+  const togglePinned = (id) => {
+    const tab = tabs.value.find((entry) => entry.id === id);
+    return tab ? setPinned(id, !tab.pinned) : null;
+  };
+
+  /**
    * Everything closed, and one new tab at the volumes.
    *
    * A window with no tabs has nowhere to be, so "close them all" means "start
@@ -260,7 +369,10 @@ export const useTabsStore = defineStore('tabs', () => {
    * twelve of them open and wants none of them is asking for.
    */
   const closeAll = () => {
-    tabs.value = [makeTab(HOME)];
+    // Except the pinned ones, which is what pinning is for: a tab kept on purpose
+    // is not swept away by a button that means "I am done with all of this".
+    const kept = tabs.value.filter((tab) => tab.pinned);
+    tabs.value = kept.length > 0 ? kept : [makeTab(HOME)];
     activeId.value = tabs.value[0].id;
     persist();
     return activeTab.value;
@@ -291,7 +403,7 @@ export const useTabsStore = defineStore('tabs', () => {
   /** Every tab but this one, for the strip's own menu. */
   const closeOthers = (id) => {
     if (!tabs.value.some((tab) => tab.id === id)) return null;
-    tabs.value = tabs.value.filter((tab) => tab.id === id);
+    tabs.value = tabs.value.filter((tab) => tab.id === id || tab.pinned);
     persist();
     return activate(id);
   };
@@ -307,10 +419,23 @@ export const useTabsStore = defineStore('tabs', () => {
    * this is also what a finger dragging a tab past the last one means. Which tab
    * is in front does not change: moving something is not choosing it.
    */
+  /**
+   * Where a tab may go: inside its own run, pinned or not.
+   *
+   * The pinned tabs are a run at the front of the row. A tab dragged out of that
+   * run would be pinned and not at the front, or unpinned and among the pinned
+   * ones, and either way the row would stop saying what it means.
+   */
+  const rangeFor = (tab) => {
+    const pinned = pinnedCount();
+    return tab.pinned ? [0, pinned - 1] : [pinned, tabs.value.length - 1];
+  };
+
   const move = (id, index) => {
     const from = tabs.value.findIndex((tab) => tab.id === id);
     if (from < 0) return null;
-    const to = Math.max(0, Math.min(tabs.value.length - 1, index));
+    const [low, high] = rangeFor(tabs.value[from]);
+    const to = Math.max(low, Math.min(high, index));
     if (to === from) return tabs.value[from];
 
     const [moved] = tabs.value.splice(from, 1);
@@ -328,8 +453,54 @@ export const useTabsStore = defineStore('tabs', () => {
   /** Whether there is anywhere that way to go: what greys the menu out. */
   const canMove = (id, step) => {
     const from = tabs.value.findIndex((tab) => tab.id === id);
-    return from >= 0 && from + step >= 0 && from + step < tabs.value.length;
+    if (from < 0) return false;
+    const [low, high] = rangeFor(tabs.value[from]);
+    return from + step >= low && from + step <= high;
   };
+
+  /**
+   * Where this tab has been, and walking it.
+   *
+   * A window's history is the window's: pressing Back in a window with six tabs
+   * open took the reader to whatever address they last looked at, in whichever tab
+   * that was, and left the tab they were in pointing somewhere it had never been.
+   * A tab that keeps its own trail answers the question people are actually
+   * asking — "where was *this* one before".
+   *
+   * Recorded here rather than by whoever navigates, because every way of arriving
+   * somewhere ends in the same place: the address changed, and `syncActive` is
+   * told. What that leaves is telling a step back from a walk forward, and the
+   * trail itself says which: a step lands on the address already under the mark,
+   * so there is nothing to record.
+   */
+  const canGoBack = (id) => {
+    const tab = tabs.value.find((entry) => entry.id === id);
+    return Boolean(tab && tab.at > 0);
+  };
+
+  const canGoForward = (id) => {
+    const tab = tabs.value.find((entry) => entry.id === id);
+    return Boolean(tab && tab.at < tab.history.length - 1);
+  };
+
+  const step = (id, delta) => {
+    const tab = tabs.value.find((entry) => entry.id === id);
+    if (!tab) return null;
+    const to = tab.at + delta;
+    if (to < 0 || to >= tab.history.length) return null;
+
+    tab.at = to;
+    tab.path = tab.history[to];
+    tab.kind = tabKindForPath(tab.path)?.id || tab.kind;
+    // Walked to rather than opened for: a document's cross must not close a tab
+    // somebody walked back into.
+    tab.own = false;
+    persist();
+    return tab;
+  };
+
+  const back = (id) => step(id, -1);
+  const forward = (id) => step(id, 1);
 
   /** The one after, or the one before, wrapping — what ctrl+Tab does. */
   const neighbour = (step) => {
@@ -356,6 +527,15 @@ export const useTabsStore = defineStore('tabs', () => {
     if (current.path !== path) current.own = false;
     current.kind = kind.id;
     current.path = path;
+
+    // A new place in this tab's trail — unless it is the place the mark is
+    // already on, which is what a step back or forward has just made it. Walking
+    // on from the middle of a trail forgets what was ahead, as a browser does.
+    if (current.history[current.at] !== path) {
+      current.history = [...current.history.slice(0, current.at + 1), path].slice(-HISTORY_DEPTH);
+      current.at = current.history.length - 1;
+    }
+
     persist();
     return current;
   };
@@ -403,5 +583,14 @@ export const useTabsStore = defineStore('tabs', () => {
     neighbour,
     at,
     syncActive,
+    duplicate,
+    pin,
+    unpin,
+    togglePinned,
+    pinnedCount,
+    back,
+    forward,
+    canGoBack,
+    canGoForward,
   };
 });

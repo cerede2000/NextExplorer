@@ -135,6 +135,20 @@ vi.mock('@/components/editor/CodeSurface.vue', async () => {
             saved = doc;
             emit('dirty-change', text !== saved);
           },
+          // Where the reader is, which the real surface answers from CodeMirror
+          // and this one answers from the two values it keeps. `topLine` is null
+          // because nothing here has a layout — which is exactly the case the
+          // real one has to survive, and why it keeps a line as well as a pixel.
+          place: () => ({
+            selection: { ...selection },
+            scrollTop: scrollDOM.scrollTop,
+            topLine: null,
+          }),
+          restorePlace: (kept) => {
+            if (!kept) return;
+            if (kept.selection) selection = { ...kept.selection };
+            if (kept.scrollTop > 0) scrollDOM.scrollTop = kept.scrollTop;
+          },
           // What the screen reaches for when it puts a kept place back: an
           // ordinary edit for the text — which is how "unsaved" stays the
           // editor's own comparison with the file rather than something the page
@@ -1137,24 +1151,8 @@ describe('what a tab holds on to', () => {
     expect(surface.current.view.scrollDOM.scrollTop).toBe(480);
   });
 
-  /**
-   * The file may have been written to by somebody else while this tab was away,
-   * and a cursor past the end of the document throws.
-   */
-  it('brings a cursor past the end of a shortened file back inside it', async () => {
-    drafts.set('tab-1', {
-      address: '/editor/Docs/notes.md',
-      text: null,
-      selection: { anchor: 900, head: 900 },
-      scrollTop: 0,
-    });
-
-    await mountEditor();
-    await flushPromises();
-
-    // 'hello' is what the file holds.
-    expect(surface.current.view.state.selection.main).toEqual({ anchor: 5, head: 5 });
-  });
+  // A cursor past the end of a file somebody else shortened is clamped by the
+  // editor itself, where the document is — see `CodeSurface.spec.js`.
 
   it('hands it back, still unsaved, when its tab comes back', async () => {
     drafts.set('tab-1', { address: '/editor/Docs/notes.md', text: 'half a sentence' });

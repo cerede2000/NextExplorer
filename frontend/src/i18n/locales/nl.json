@@ -1047,9 +1047,13 @@
   "tabs": {
     "strip": "Open tabbladen",
     "openInNewTab": "In een nieuw tabblad openen",
+    "openInNewTabs": "{count} in nieuwe tabbladen openen",
     "newTab": "Nieuw tabblad",
     "moveLeft": "Naar links verplaatsen",
     "moveRight": "Naar rechts verplaatsen",
+    "duplicate": "Tabblad dupliceren",
+    "pin": "Tabblad vastzetten",
+    "unpin": "Tabblad losmaken",
     "closeTab": "Tabblad sluiten",
     "closeOthers": "De andere tabbladen sluiten",
     "closeAll": "Alle tabbladen sluiten",

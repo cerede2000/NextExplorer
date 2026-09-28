@@ -165,7 +165,7 @@ const openDocument = async () => {
   // works here exactly as it does over the listing — the plugins read the
   // siblings from the file store. Best effort: a folder that cannot be listed
   // costs the arrows, not the document.
-  void fileStore.fetchPathItems(parentPath.value).catch(() => {});
+  void fileStore.fetchPathItems(parentPath.value, { preserveInteraction: true }).catch(() => {});
 
   // Waited for, because the editors register once the server has said they are
   // configured. Asking before that would answer "nothing opens this" about a

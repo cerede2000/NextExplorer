@@ -211,8 +211,19 @@ const itemSections = (situation, run, entries, words) => {
   // it is the first thing somebody with tabs open reaches for. Offered only where
   // it would do something — tabs on, and an entry that has an address of its own.
   if (situation.canOpenInTab) {
+    // Named for what it will do: four chosen entries become four tabs, and a
+    // label that said "a new tab" would be describing something else. Two keys
+    // rather than a plural rule — the catalogues here carry no ICU plurals.
+    const many = (situation.openInTabCount || 1) > 1;
     sections.push([
-      mk('open-in-tab', t('tabs.openInNewTab'), ArrowTopRightOnSquareIcon, run.openInTab),
+      mk(
+        'open-in-tab',
+        many
+          ? t('tabs.openInNewTabs', { count: situation.openInTabCount })
+          : t('tabs.openInNewTab'),
+        ArrowTopRightOnSquareIcon,
+        run.openInTab
+      ),
     ]);
   }
 

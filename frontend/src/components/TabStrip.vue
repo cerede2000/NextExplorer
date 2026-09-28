@@ -8,6 +8,8 @@ import { useFavoritesStore } from '@/stores/favorites';
 import { resolveFavoriteIcon } from '@/utils/favoriteIcons';
 import { useTabNavigation } from '@/composables/tabNavigation';
 import { useAppSettings } from '@/stores/appSettings';
+import { useFileDragDrop } from '@/composables/useFileDragDrop';
+import { normalizePath } from '@/api';
 
 /**
  * The strip of tabs, above everything a tab can hold.
@@ -160,6 +162,85 @@ const nudge = (id, step) => {
   menuFor.value = '';
   tabs.nudge(id, step);
 };
+
+/**
+ * Dropping files onto a tab.
+ *
+ * A tab is a folder that is already open, which makes it the cheapest target
+ * there is for a move: no walking there, no window beside this one, no losing the
+ * listing the files came from. The favourites in the sidebar have taken drops for
+ * exactly this reason, and this is the same gesture with the same rules — move by
+ * default, copy with the modifier, and the same confirmation when a document is
+ * open in what is being moved.
+ *
+ * Which drag it is, is not a guess: the strip knows, because the strip is what
+ * started the other one. `held` is set from the moment a tab is picked up, so
+ * anything arriving without it came from outside the strip.
+ */
+const fileDrag = useFileDragDrop();
+
+/** A folder tab as a destination, in the shape the drop handler reads. */
+const dropTargetFor = (tab) => {
+  const folder = tabFolderPath(tab);
+  if (!folder) return null;
+  const segments = normalizePath(folder).split('/').filter(Boolean);
+  return {
+    name: segments.at(-1) || '',
+    path: segments.slice(0, -1).join('/'),
+    destinationPath: normalizePath(folder),
+  };
+};
+
+const isFileTarget = (tab) => {
+  const target = dropTargetFor(tab);
+  return Boolean(target) && fileDrag.isDragTarget(target);
+};
+
+const isCopyTarget = (tab) => {
+  const target = dropTargetFor(tab);
+  return Boolean(target) && fileDrag.isCopyDragTarget(target);
+};
+
+const onDragOver = (tab, event) => {
+  if (held.value) {
+    event.preventDefault();
+    dragOver(tab.id, event);
+    return;
+  }
+  const target = dropTargetFor(tab);
+  if (target) fileDrag.handleDragOver(event, target);
+};
+
+const onDragLeave = (tab, event) => {
+  if (held.value) {
+    if (over.value === tab.id) over.value = '';
+    return;
+  }
+  const target = dropTargetFor(tab);
+  if (target) fileDrag.handleDragLeave(event, target);
+};
+
+const onDrop = (tab, event) => {
+  if (held.value) {
+    event.preventDefault();
+    dropOn(tab.id);
+    return;
+  }
+  const target = dropTargetFor(tab);
+  if (target) void fileDrag.handleDrop(event, target);
+};
+
+/** Kept on purpose: at the front, narrow, and without a cross to lose it by. */
+const togglePinned = (id) => {
+  menuFor.value = '';
+  tabs.togglePinned(id);
+};
+
+const duplicate = (id) => {
+  menuFor.value = '';
+  const copy = tabs.duplicate(id);
+  if (copy) activate(copy.id);
+};
 </script>
 
 <template>
@@ -174,21 +255,29 @@ const nudge = (id, step) => {
     <div
       v-for="tab in tabs.tabs"
       :key="tab.id"
-      class="group relative flex min-w-0 flex-1 basis-0 items-center rounded-t-md border border-b-0 text-sm has-[+*]:max-w-56 max-w-56"
-      :class="
+      class="group relative flex min-w-0 items-center rounded-t-md border border-b-0 text-sm"
+      :class="[
+        tab.pinned ? 'w-11 shrink-0 justify-center' : 'max-w-44 flex-1 basis-0',
         tab.id === tabs.activeId
           ? 'border-neutral-200 bg-white dark:border-neutral-700 dark:bg-default'
-          : 'border-transparent bg-transparent hover:bg-zinc-200/70 dark:hover:bg-neutral-700/70'
-      "
+          : 'border-transparent bg-transparent hover:bg-zinc-200/70 dark:hover:bg-neutral-700/70',
+        isCopyTarget(tab)
+          ? 'ring-2 ring-emerald-500'
+          : isFileTarget(tab)
+            ? 'ring-2 ring-accent'
+            : '',
+      ]"
       data-test="tab"
       :data-kind="tab.kind"
       :data-active="tab.id === tabs.activeId ? 'true' : 'false'"
+      :data-pinned="tab.pinned ? 'true' : 'false'"
       :data-over="over === tab.id ? 'true' : 'false'"
+      :data-drop="isCopyTarget(tab) ? 'copy' : isFileTarget(tab) ? 'move' : 'none'"
       draggable="true"
       @dragstart="startDrag(tab.id, $event)"
-      @dragover.prevent="dragOver(tab.id, $event)"
-      @dragleave="over === tab.id && (over = '')"
-      @drop.prevent="dropOn(tab.id)"
+      @dragover="onDragOver(tab, $event)"
+      @dragleave="onDragLeave(tab, $event)"
+      @drop="onDrop(tab, $event)"
       @dragend="endDrag"
     >
       <!-- Where it would land, drawn on the tab being passed over rather than
@@ -204,7 +293,8 @@ const nudge = (id, step) => {
         draggable="true"
         :aria-selected="tab.id === tabs.activeId"
         :title="titleFor(tab)"
-        class="flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1.5"
+        class="flex min-w-0 flex-1 items-center gap-1.5 py-1.5"
+        :class="tab.pinned ? 'justify-center px-0' : 'px-2'"
         @click="activate(tab.id)"
         @dblclick="handleDoubleClick(tab.id)"
         @auxclick.middle.prevent="close(tab.id)"
@@ -216,10 +306,12 @@ const nudge = (id, step) => {
           class="h-4 w-4 shrink-0"
           :style="iconColourFor(tab) ? { color: iconColourFor(tab) } : undefined"
         />
-        <span class="truncate">{{ titleFor(tab) }}</span>
+        <!-- A kept tab is its icon: it is there to be recognised, not read, and
+             the room it gives back is room for the tabs that are being read. -->
+        <span v-if="!tab.pinned" class="truncate">{{ titleFor(tab) }}</span>
       </button>
       <button
-        v-if="tabs.canClose"
+        v-if="tabs.canClose && !tab.pinned"
         type="button"
         class="mr-1 rounded p-0.5 opacity-0 transition-opacity hover:bg-black/10 focus-visible:opacity-100 group-hover:opacity-100 dark:hover:bg-white/15"
         :title="t('tabs.closeTab')"
@@ -257,7 +349,25 @@ const nudge = (id, step) => {
         <button
           type="button"
           class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 disabled:opacity-50 dark:hover:bg-neutral-600"
+          :disabled="tabs.atLimit"
+          data-test="tab-duplicate"
+          @click="duplicate(tab.id)"
+        >
+          {{ t('tabs.duplicate') }}
+        </button>
+        <button
+          type="button"
+          class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 dark:hover:bg-neutral-600"
+          data-test="tab-pin"
+          @click="togglePinned(tab.id)"
+        >
+          {{ tab.pinned ? t('tabs.unpin') : t('tabs.pin') }}
+        </button>
+        <button
+          type="button"
+          class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 disabled:opacity-50 dark:hover:bg-neutral-600"
           :disabled="!tabs.canClose"
+          data-test="tab-close-one"
           @click="runAndShut(close, tab.id)"
         >
           {{ t('tabs.closeTab') }}
@@ -266,6 +376,7 @@ const nudge = (id, step) => {
           type="button"
           class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 disabled:opacity-50 dark:hover:bg-neutral-600"
           :disabled="!tabs.canClose"
+          data-test="tab-close-others"
           @click="runAndShut(closeOthers, tab.id)"
         >
           {{ t('tabs.closeOthers') }}

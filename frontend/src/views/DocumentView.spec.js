@@ -202,7 +202,9 @@ describe('opening a document at its own address', () => {
     // The plugins read the siblings from the file store, which on this page has
     // never been to that folder — without this, "next photograph" would be the
     // one thing that works over a listing and not here.
-    expect(fetchPathItems).toHaveBeenCalledWith('Photos/2026');
+    // Quietly: the folder behind a document is read for the arrows, and reading
+    // it must not take away what the reader had chosen in it.
+    expect(fetchPathItems).toHaveBeenCalledWith('Photos/2026', { preserveInteraction: true });
   });
 
   it('waits for the editors to register before deciding nothing opens it', async () => {

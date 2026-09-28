@@ -155,21 +155,28 @@ const getScrollTarget = () => {
   return document.scrollingElement || document.documentElement;
 };
 
+/**
+ * Where the reader is, written down — but only when there is something to write.
+ *
+ * Both answers come from whatever is actually scrolling, and the catch is what
+ * happens when nothing is. On the way out the listing is taken off screen before
+ * the last scroll events stop arriving, and the fallback behind it is the page,
+ * which never scrolls and is therefore always at zero. Writing that down
+ * overwrote where the reader was with the top of the folder, and the symptom was
+ * the odd one: coming back, the file they had chosen was still chosen — that is
+ * remembered separately — while the folder was scrolled to the top under it.
+ *
+ * So nothing is written from a container that cannot scroll. It has nothing to
+ * say about where anybody was, and silence keeps what was already known.
+ */
 const rememberScrollPosition = () => {
-  const listing = dropTargetRef.value;
   const target = getScrollTarget();
-  if (target) {
+  if (target && target.scrollHeight - target.clientHeight > 2) {
     folderScrollStore.remember(scrollPositionKey, target.scrollTop);
     // And for this tab, which is a different question with a different answer:
     // the tab never left this folder, another one simply came in front of it, so
     // where it was is always worth putting back.
-    //
-    // Only from the listing's own container, never from the page behind it: on
-    // the way out the listing can already be gone, and the page is always at the
-    // top — which would write zero over where this tab was.
-    if (listing && target === listing) {
-      folderScrollStore.rememberTabPlace(tabPlaceKey, target.scrollTop);
-    }
+    folderScrollStore.rememberTabPlace(tabPlaceKey, target.scrollTop);
   }
   rememberActiveItem();
 };
@@ -409,10 +416,54 @@ const waitForScrollLayout = () =>
 
 const applySavedScrollPosition = (savedScrollTop) => {
   const target = getScrollTarget();
-  if (!target) return;
+  if (!target) return 0;
 
   const maxScrollTop = Math.max(0, target.scrollHeight - target.clientHeight);
   target.scrollTop = Math.min(savedScrollTop, maxScrollTop);
+  return maxScrollTop;
+};
+
+/**
+ * Put the listing back where it was, and keep asking until it holds.
+ *
+ * One attempt is enough for a folder of twenty and never enough for a folder of
+ * two thousand. A long list is not as tall as it will be at the moment it is
+ * asked: the virtual window has not measured its viewport yet, or the
+ * progressive one is still on its first five hundred rows, so the container's
+ * height is short and the browser clamps the position to what fits — which for a
+ * container that is not scrollable yet is the top.
+ *
+ * So it is asked again on each of the next few frames, until the list is tall
+ * enough to hold the answer. It stops early when it holds, it stops when the
+ * reader scrolls themselves — their hand beats our memory — and it stops after a
+ * few frames whatever happens, because a folder that has genuinely lost its
+ * length (files deleted while this tab was away) is never going to be that tall.
+ */
+const FRAMES_TO_SETTLE_SCROLL = 12;
+
+const settleScrollAt = async (savedScrollTop) => {
+  if (!(savedScrollTop > 0)) return false;
+
+  for (let frame = 0; frame < FRAMES_TO_SETTLE_SCROLL; frame += 1) {
+    // A progressively rendered list is only as tall as the rows it has drawn.
+    if (!useVirtualList.value && visibleLimit.value < sortedItems.value.length) {
+      visibleLimit.value = sortedItems.value.length;
+      await nextTick();
+    }
+
+    const maxScrollTop = applySavedScrollPosition(savedScrollTop);
+    const placed = getScrollTarget()?.scrollTop ?? 0;
+    if (maxScrollTop >= savedScrollTop && Math.abs(placed - savedScrollTop) <= 1) return true;
+
+    await waitForScrollLayout();
+
+    // Moved by somebody other than us since the frame before: that is the
+    // reader, and they are more recent than anything we remembered.
+    const now = getScrollTarget()?.scrollTop ?? 0;
+    if (Math.abs(now - placed) > 1 && Math.abs(now - savedScrollTop) > 1) return false;
+  }
+
+  return false;
 };
 
 const restoreKeyboardActiveItem = (itemKey) => {
@@ -450,13 +501,9 @@ const restoreScrollPosition = async () => {
   await nextTick();
   await waitForScrollLayout();
 
-  // The virtual window reacts to scrollTop, so restoring it changes the DOM
-  // one frame later. Apply the same saved value again after that frame. This
-  // also covers an IntersectionObserver extending a progressively rendered
-  // list immediately after it becomes visible.
-  applySavedScrollPosition(savedScrollTop);
-  await waitForScrollLayout();
-  applySavedScrollPosition(savedScrollTop);
+  // The virtual window reacts to scrollTop, so restoring it changes the DOM one
+  // frame later, and a list of any length is not yet as tall as it will be.
+  await settleScrollAt(savedScrollTop);
   updateScrollState();
 };
 
@@ -817,16 +864,11 @@ const returnToFolder = async () => {
   await nextTick();
   const savedScrollTop = folderScrollStore.tabPlace(tabPlaceKey);
   if (savedScrollTop > 0) {
-    if (!useVirtualList.value && visibleLimit.value < sortedItems.value.length) {
-      visibleLimit.value = sortedItems.value.length;
-    }
-    await nextTick();
     await waitForScrollLayout();
-    const target = getScrollTarget();
-    if (target) target.scrollTop = savedScrollTop;
-    await nextTick();
-    const again = getScrollTarget();
-    if (again) again.scrollTop = savedScrollTop;
+    // Asked for over several frames: a folder of two thousand files is not as
+    // tall as it will be on the frame it is asked, and a place the container
+    // cannot hold yet is a place the browser quietly turns into the top.
+    await settleScrollAt(savedScrollTop);
   }
   canRememberScroll.value = true;
   updateScrollState();

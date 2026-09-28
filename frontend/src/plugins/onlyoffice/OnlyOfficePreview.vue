@@ -241,7 +241,7 @@ const saveDocumentAs = async (data) => {
     });
     // The file landed in the folder being browsed, so show it without waiting
     // for the next navigation.
-    await fileStore.fetchPathItems(fileStore.currentPath).catch(() => {});
+    await fileStore.refresh().catch(() => {});
   } catch (e) {
     logger.error('ONLYOFFICE save-as failed', { path: documentPath.value, err: e });
     notifications.addNotification({
@@ -282,7 +282,7 @@ const renameDocument = async (data) => {
       heading: t('onlyoffice.renamedHeading'),
       body: t('onlyoffice.renamedBody', { name: renamed?.name || newName }),
     });
-    await fileStore.fetchPathItems(fileStore.currentPath).catch(() => {});
+    await fileStore.refresh().catch(() => {});
   } catch (e) {
     logger.error('ONLYOFFICE rename failed', { path: documentPath.value, err: e });
     notifications.addNotification({

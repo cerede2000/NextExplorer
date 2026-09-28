@@ -29,7 +29,7 @@ const features = { versionsEnabled: true };
 const panel = vi.hoisted(() => ({ store: null }));
 // One instance of each store for the whole file, so that what the preview asked
 // of them can be read back.
-const fileStore = { currentPath: 'Docs', fetchPathItems: vi.fn() };
+const fileStore = { currentPath: 'Docs', fetchPathItems: vi.fn(), refresh: vi.fn() };
 const notifications = { addNotification: vi.fn() };
 /**
  * Closing goes through the session this document was opened in — `api.close` —
@@ -183,6 +183,8 @@ beforeEach(() => {
   }
   fileStore.fetchPathItems.mockReset();
   fileStore.fetchPathItems.mockResolvedValue(undefined);
+  fileStore.refresh.mockReset();
+  fileStore.refresh.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -858,7 +860,9 @@ describe('renaming from the title bar', () => {
       heading: 'Renamed',
       body: 'Now called Report.docx',
     });
-    expect(fileStore.fetchPathItems).toHaveBeenCalledWith('Docs');
+    // Read again rather than navigated to: the listing must keep what is chosen.
+    expect(fileStore.refresh).toHaveBeenCalled();
+    expect(fileStore.fetchPathItems).not.toHaveBeenCalled();
 
     heartbeatOnlyOfficeSession.mockClear();
     await vi.advanceTimersByTimeAsync(60_000);
@@ -909,7 +913,7 @@ describe('renaming from the title bar', () => {
       err: failure,
     });
     expect(previewState.documentPath).toBe('Docs/report.docx');
-    expect(fileStore.fetchPathItems).not.toHaveBeenCalled();
+    expect(fileStore.refresh).not.toHaveBeenCalled();
 
     await previewState.requestForceSave({ reason: 'auto' });
     expect(requestOnlyOfficeForceSave).toHaveBeenCalledWith('Docs/report.docx', {
@@ -974,20 +978,22 @@ describe('saving a copy from the editor', () => {
       heading: 'Copy saved',
       body: 'Saved as report (1).pdf',
     });
-    expect(fileStore.fetchPathItems).toHaveBeenCalledWith('Docs');
+    // Read again rather than navigated to: the listing must keep what is chosen.
+    expect(fileStore.refresh).toHaveBeenCalled();
+    expect(fileStore.fetchPathItems).not.toHaveBeenCalled();
     // Still editing the original.
     expect(previewState.documentPath).toBe('Docs/report.docx');
   });
 
   it('does not report a written copy as failed because the listing would not refresh', async () => {
     saveOnlyOfficeDocumentAs.mockResolvedValue({ name: 'report.pdf' });
-    fileStore.fetchPathItems.mockRejectedValue(new Error('offline'));
+    fileStore.refresh.mockRejectedValue(new Error('offline'));
     const { events } = await openInDocs();
 
     events.onRequestSaveAs({ data: REQUEST });
     await flushPromises();
 
-    expect(fileStore.fetchPathItems).toHaveBeenCalledTimes(1);
+    expect(fileStore.refresh).toHaveBeenCalledTimes(1);
     expect(notifications.addNotification).toHaveBeenCalledTimes(1);
     expect(notifications.addNotification).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'success' })
@@ -1011,7 +1017,7 @@ describe('saving a copy from the editor', () => {
       path: 'Docs/report.docx',
       err: failure,
     });
-    expect(fileStore.fetchPathItems).not.toHaveBeenCalled();
+    expect(fileStore.refresh).not.toHaveBeenCalled();
   });
 
   it('sends nothing for a request that names no file or no source, and records it', async () => {

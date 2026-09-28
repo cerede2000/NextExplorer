@@ -1047,9 +1047,13 @@
   "tabs": {
     "strip": "Öppna flikar",
     "openInNewTab": "Öppna i en ny flik",
+    "openInNewTabs": "Öppna {count} i nya flikar",
     "newTab": "Ny flik",
     "moveLeft": "Flytta till vänster",
     "moveRight": "Flytta till höger",
+    "duplicate": "Duplicera fliken",
+    "pin": "Fäst fliken",
+    "unpin": "Lossa fliken",
     "closeTab": "Stäng fliken",
     "closeOthers": "Stäng de andra flikarna",
     "closeAll": "Stäng alla flikar",

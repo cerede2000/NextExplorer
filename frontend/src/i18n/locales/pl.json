@@ -1047,9 +1047,13 @@
   "tabs": {
     "strip": "Otwarte karty",
     "openInNewTab": "Otwórz w nowej karcie",
+    "openInNewTabs": "Otwórz {count} w nowych kartach",
     "newTab": "Nowa karta",
     "moveLeft": "Przenieś w lewo",
     "moveRight": "Przenieś w prawo",
+    "duplicate": "Powiel kartę",
+    "pin": "Przypnij kartę",
+    "unpin": "Odepnij kartę",
     "closeTab": "Zamknij kartę",
     "closeOthers": "Zamknij pozostałe karty",
     "closeAll": "Zamknij wszystkie karty",

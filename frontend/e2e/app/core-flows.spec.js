@@ -867,11 +867,22 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   // thing make every order of them look alike, and an assertion about the order
   // that cannot fail is worse than none.
   fs.mkdirSync(path.join(volume, 'Gamma'), { recursive: true });
+  // A name nothing else in this journey is on, so "two tabs called this" means
+  // the copy rather than whatever was already open.
+  fs.mkdirSync(path.join(volume, 'Twin'), { recursive: true });
   // A folder with more in it than fits on a screen, so a tab can be somewhere in
   // the middle of it and be asked whether it came back there.
   fs.mkdirSync(path.join(volume, 'Many'), { recursive: true });
   for (let file = 1; file <= 160; file += 1) {
     fs.writeFileSync(path.join(volume, 'Many', `file-${String(file).padStart(3, '0')}.txt`), 'x');
+  }
+  // And one far longer than the listing draws at once. A hundred and sixty rows
+  // are all on the page the moment it renders; twelve hundred are not, and a list
+  // that is not yet as tall as it will be is a list the browser cannot scroll
+  // down — which is where the place a tab remembered quietly became the top.
+  fs.mkdirSync(path.join(volume, 'Deep'), { recursive: true });
+  for (let file = 1; file <= 1200; file += 1) {
+    fs.writeFileSync(path.join(volume, 'Deep', `row-${String(file).padStart(4, '0')}.txt`), 'x');
   }
   // A second text file, read rather than typed into: where the reader was in it
   // is what a tab has to hold even when nothing was changed.
@@ -1210,7 +1221,11 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   await expect(page).toHaveURL(/\/editor\/Projects\/plain\.txt$/);
 
   await expect.poll(async () => (await where()).selected).toBe(before.selected);
-  await expect.poll(async () => (await where()).scrollTop).toBeGreaterThan(0);
+  // Back where it was, not merely somewhere below the top: the editor draws what
+  // is in view and estimates the rest, so a position written into it before it
+  // has measured is clamped to whatever fits. Within a line of it, because what
+  // is put back is the line that was at the top rather than a number of pixels.
+  await expect.poll(async () => (await where()).scrollTop).toBeGreaterThan(before.scrollTop - 40);
 
   // Put back, so the counts below are the counts this journey expects.
   await tabs
@@ -1319,9 +1334,200 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   await manyTab.click();
   await expect(page).toHaveURL(/\/browse\/Projects\/Many$/);
 
-  // Still chosen, and still there rather than back at the top.
+  // Still chosen, and back where it was rather than at the top.
   await expect(page.locator('[title="file-120.txt"][data-selected="true"]').first()).toBeVisible();
-  await expect.poll(folderScrollTop).toBeGreaterThan(0);
+  await expect.poll(folderScrollTop).toBeGreaterThan(scrolledTo - 20);
+
+  /**
+   * And the same in a folder long enough that it is not all drawn at once.
+   *
+   * This is where it went wrong for real. A hundred and sixty rows are on the
+   * page the moment it renders, so one frame is enough to put a tab back where
+   * it was; twelve hundred are drawn a screenful at a time, and on the frame the
+   * place is asked for the container is barely a screen tall. The browser clamps
+   * a position no container can hold, and clamping it lands at the top — with
+   * the selection sitting there intact, which is exactly how it was reported.
+   */
+  await page.goto('/browse/Projects/Deep');
+  await expect(page.locator('[title="row-0001.txt"]').first()).toBeVisible();
+
+  // In the list view, where a folder this long is drawn as a window over it
+  // rather than as twelve hundred rows: the rows on screen are decided from the
+  // scroll position and the height of the box, and on the frame a returning tab
+  // asks to be put back, neither of those is known yet.
+  await page.getByRole('button', { name: 'List view' }).first().click();
+  await expect(page.locator('[title="row-0001.txt"]').first()).toBeVisible();
+
+  await page.locator('.upload-drop-target').evaluate((node) => {
+    node.scrollTop = 4000;
+  });
+  await expect.poll(folderScrollTop).toBeGreaterThan(3500);
+  const deepScrolledTo = await folderScrollTop();
+
+  // The tab that was on Many is the one now on Deep: it is where `goto` went.
+  const deepTab = strip.locator('[role="tab"][title="Deep"]');
+  await strip.locator('[data-test="tab"]').last().getByRole('tab').click();
+  await expect(page).not.toHaveURL(/\/browse\/Projects\/Deep$/);
+  await deepTab.click();
+  await expect(page).toHaveURL(/\/browse\/Projects\/Deep$/);
+
+  await expect.poll(folderScrollTop).toBeGreaterThan(deepScrolledTo - 40);
+
+  // Back to the view the rest of this journey is written against.
+  await page.getByRole('button', { name: 'Grid view' }).first().click();
+
+  /**
+   * A tab kept on purpose, and the same place beside itself.
+   *
+   * Both live in the tab's own menu, and both are only provable in a browser: a
+   * pinned tab has no name and no cross, which is a question about what is drawn,
+   * and a duplicate is a second tab that has to arrive beside the first rather
+   * than at the end of the row.
+   */
+  await page.goto('/browse/Projects/Twin');
+  const twinTab = strip.locator('[data-test="tab"]').filter({
+    has: page.locator('[role="tab"][title="Twin"]'),
+  });
+  const openTabMenu = async (tab) => {
+    await tab.getByRole('tab').click({ button: 'right' });
+    await expect(tab.locator('[data-test="tab-menu"]')).toBeVisible();
+  };
+
+  const openTabs = await tabs.count();
+  await openTabMenu(twinTab.first());
+  await twinTab.first().locator('[data-test="tab-duplicate"]').click();
+  await expect(tabs).toHaveCount(openTabs + 1);
+  // Beside the one it came from, and in front.
+  const titles = await strip
+    .locator('[data-test="tab"] [role="tab"]')
+    .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('title')));
+  expect(titles.filter((title) => title === 'Twin')).toHaveLength(2);
+  expect(titles.indexOf('Twin') + 1).toBe(titles.lastIndexOf('Twin'));
+  await expect(page).toHaveURL(/\/browse\/Projects\/Twin$/);
+
+  // And away again, so the rest of this journey counts what it expects to.
+  await strip
+    .locator('[data-test="tab"][data-active="true"] [data-test="tab-close"]')
+    .first()
+    .click();
+  await expect(tabs).toHaveCount(openTabs);
+
+  await openTabMenu(twinTab.first());
+  await twinTab.first().locator('[data-test="tab-pin"]').click();
+
+  const pinned = strip.locator('[data-test="tab"][data-pinned="true"]');
+  await expect(pinned).toHaveCount(1);
+  // At the front of the row, its icon and nothing else, and no cross to lose it by.
+  await expect(strip.locator('[data-test="tab"]').first()).toHaveAttribute('data-pinned', 'true');
+  await expect(pinned.getByRole('tab')).toHaveText('');
+  await expect(pinned.locator('[data-test="tab-close"]')).toHaveCount(0);
+
+  // Closing them all leaves it: that is what keeping a tab means.
+  await page.locator('[data-test="tab-close-all"]').click();
+  await expect(tabs).toHaveCount(1);
+  await expect(strip.locator('[data-test="tab"]').first()).toHaveAttribute('data-pinned', 'true');
+
+  await openTabMenu(pinned.first());
+  await pinned.first().locator('[data-test="tab-pin"]').click();
+  await expect(strip.locator('[data-test="tab"][data-pinned="true"]')).toHaveCount(0);
+
+  /**
+   * Where a tab has been is the tab's, not the window's.
+   *
+   * Pressing Back with several tabs open used to take the reader to whatever
+   * address they last looked at, in whichever tab that was. Only a browser can
+   * answer this: it is the toolbar's own button, and it is about what the history
+   * of a window does when two tabs have been walking about in it.
+   */
+  await page.goto('/browse/Projects');
+  await page.locator('[title="Alpha"]:not([role="tab"])').first().dblclick();
+  await expect(page).toHaveURL(/\/browse\/Projects\/Alpha$/);
+
+  // A second tab, walked somewhere else entirely.
+  await page.locator('[data-test="tab-new"]').click();
+  await page.goto('/browse/Projects/Beta');
+  await expect(page).toHaveURL(/\/browse\/Projects\/Beta$/);
+
+  // Back in the first tab walks *its* trail, not the window's.
+  await strip.locator('[data-test="tab"]').first().getByRole('tab').click();
+  await expect(page).toHaveURL(/\/browse\/Projects\/Alpha$/);
+  await page.locator('[data-test="nav-back"]').click();
+  await expect(page).toHaveURL(/\/browse\/Projects$/);
+  // And forward again, in the same tab.
+  await page.locator('[data-test="nav-forward"]').click();
+  await expect(page).toHaveURL(/\/browse\/Projects\/Alpha$/);
+
+  // A tab that has been nowhere says so, rather than leaving through the window
+  // into whatever another tab was looking at.
+  await page.locator('[data-test="tab-new"]').click();
+  await expect(page).toHaveURL(/\/browse\/?$/);
+  await expect(page.locator('[data-test="nav-back"]')).toBeDisabled();
+
+  await page.locator('[data-test="tab-close-all"]').click();
+
+  /**
+   * Files dropped onto a tab.
+   *
+   * A tab is a folder that is already open, which makes it the cheapest target
+   * there is for a move. The drag is dispatched rather than performed: what is
+   * being asked is whether the strip reads it and whether the file really moves,
+   * and a synthetic drag answers both without depending on how a headless browser
+   * drives a mouse.
+   */
+  fs.writeFileSync(path.join(volume, 'Alpha', 'to-move.txt'), 'moved by a tab\n');
+  await page.goto('/browse/Projects/Alpha');
+  await expect(page.locator('[title="to-move.txt"]').first()).toBeVisible();
+  await page.locator('[data-test="tab-new"]').click();
+  await page.goto('/browse/Projects/Beta');
+  await strip.locator('[data-test="tab"]').first().getByRole('tab').click();
+  await expect(page).toHaveURL(/\/browse\/Projects\/Alpha$/);
+
+  const betaTab = strip.locator('[data-test="tab"]').filter({
+    has: page.locator('[role="tab"][title="Beta"]'),
+  });
+  await betaTab.first().evaluate((node) => {
+    const transfer = new DataTransfer();
+    transfer.setData(
+      'application/json',
+      JSON.stringify([{ name: 'to-move.txt', path: 'Projects/Alpha', kind: 'txt' }])
+    );
+    for (const type of ['dragover', 'drop']) {
+      node.dispatchEvent(
+        new DragEvent(type, { dataTransfer: transfer, bubbles: true, cancelable: true })
+      );
+    }
+  });
+
+  await expect
+    .poll(() => onDisk('Beta', 'to-move.txt'), { timeout: 15_000 })
+    .toBe('moved by a tab\n');
+  expect(fs.existsSync(path.join(volume, 'Alpha', 'to-move.txt'))).toBe(false);
+
+  await page.locator('[data-test="tab-close-all"]').click();
+
+  /**
+   * Several entries chosen, several tabs.
+   *
+   * Opening the first and dropping the rest is the kind of answer that makes
+   * somebody stop using the menu — they said what they wanted, once per entry.
+   */
+  await page.goto('/browse/Projects');
+  await page.locator('[title="Alpha"]:not([role="tab"])').first().click();
+  await page
+    .locator('[title="Beta"]:not([role="tab"])')
+    .first()
+    .click({ modifiers: ['Meta'] });
+  await page.locator('[title="Beta"]:not([role="tab"])').first().click({ button: 'right' });
+  await page.getByText(/Open 2 in new tabs/).click();
+
+  await expect(tabs).toHaveCount(3);
+  const opened = await strip
+    .locator('[data-test="tab"] [role="tab"]')
+    .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('title')));
+  expect(opened).toContain('Alpha');
+  expect(opened).toContain('Beta');
+
+  await page.locator('[data-test="tab-close-all"]').click();
 
   /**
    * The strip does not make the page taller than the window.

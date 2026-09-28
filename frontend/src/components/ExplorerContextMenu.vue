@@ -22,6 +22,8 @@ import { useFavoritesStore } from '@/stores/favorites';
 import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import { useFavoriteEditor } from '@/composables/useFavoriteEditor';
 import { useTerminalStore } from '@/stores/terminal';
+import { useTabsStore } from '@/stores/tabs';
+import { useNotificationsStore } from '@/stores/notifications';
 import { useFeaturesStore } from '@/stores/features';
 import { isTerminalExtension } from '@/config/terminal';
 import { itemExtension, terminalInputFor } from '@/utils/terminalInput';
@@ -81,6 +83,7 @@ const referenceStyles = computed(() => ({
 
 const actions = useFileActions();
 const { t } = useI18n();
+const notifications = useNotificationsStore();
 const hasSelection = actions.hasSelection;
 const primaryItem = actions.primaryItem;
 const isSingleItemSelected = actions.isSingleItemSelected;
@@ -227,17 +230,46 @@ const runRename = () => actions.runRename();
  */
 const { addressFor } = useItemAddress();
 const tabNavigation = useTabNavigation();
-const openInTabTarget = computed(() => {
-  if (!tabNavigation.tabs.enabled) return null;
-  const item = primaryItem.value;
-  return item ? addressFor(item, { currentPath: item.path || '' }) : null;
+
+/**
+ * Every entry that was chosen, and where each of them opens.
+ *
+ * All of them rather than the first: somebody who picks four folders and asks for
+ * them in tabs is asking for four tabs, and getting one was the kind of answer
+ * that makes a reader stop using the menu. Entries with nowhere of their own —
+ * a file with neither a preview nor an editor is a download — drop out here, so
+ * the entry is offered exactly when it would do something.
+ */
+const openInTabTargets = computed(() => {
+  if (!tabNavigation.tabs.enabled) return [];
+  return (actions.selectedItems.value || [])
+    .map((item) => (item ? addressFor(item, { currentPath: item.path || '' }) : null))
+    .filter((target) => Boolean(target?.path));
 });
+
 const runOpenInTab = () => {
   // `target.path` rather than asking the router to resolve it: every address
   // `addressFor` answers with is a path and nothing else, so resolving it would be
   // a round trip through the router to be handed back the string it was given.
-  const target = openInTabTarget.value;
-  if (target?.path) tabNavigation.open(target.path, { own: true });
+  const targets = openInTabTargets.value;
+  if (targets.length === 0) return;
+
+  // The first comes forward, as one entry always has; the rest line up behind it,
+  // which is where a row of tabs somebody is about to read through belongs.
+  let opened = 0;
+  for (const [index, target] of targets.entries()) {
+    if (!tabNavigation.open(target.path, { behind: index > 0, own: true })) break;
+    opened += 1;
+  }
+
+  // The row has a limit and it is an administrator's. Somebody who chose twelve
+  // and got four should be told why rather than left counting tabs.
+  if (opened < targets.length) {
+    notifications.addNotification({
+      type: 'warning',
+      heading: t('tabs.full', { count: tabNavigation.tabs.limit }),
+    });
+  }
 };
 
 const runDownload = () => actions.runDownload();
@@ -341,7 +373,8 @@ const runOpenWithTerminal = () => {
   if (!canOpenWithTerminal.value || !primaryItem.value) return;
   const item = primaryItem.value;
   const parentPath = normalizePath(item.path || fileStore.getCurrentPath || '');
-  terminalStore.open(parentPath, terminalInputFor(item));
+  // In this tab's terminal, which is where this reader's terminals are.
+  terminalStore.openIn(useTabsStore().activeId, parentPath, { input: terminalInputFor(item) });
 };
 
 // Favorites: the folder right-clicked, or from the background the folder on
@@ -463,7 +496,8 @@ const menuSections = computed(() => {
       canPaste: actions.canPaste.value,
       canRename: actions.canRename.value,
       canDelete: actions.canDelete.value,
-      canOpenInTab: Boolean(openInTabTarget.value),
+      canOpenInTab: openInTabTargets.value.length > 0,
+      openInTabCount: openInTabTargets.value.length,
       canDownloadSeparately: actions.canDownloadSeparately.value,
       downloadMode: actions.downloadMode.value,
       canShowVersions: canShowVersions.value,

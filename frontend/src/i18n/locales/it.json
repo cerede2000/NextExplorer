@@ -1047,9 +1047,13 @@
   "tabs": {
     "strip": "Schede aperte",
     "openInNewTab": "Apri in una nuova scheda",
+    "openInNewTabs": "Apri {count} elementi in nuove schede",
     "newTab": "Nuova scheda",
     "moveLeft": "Sposta a sinistra",
     "moveRight": "Sposta a destra",
+    "duplicate": "Duplica la scheda",
+    "pin": "Fissa la scheda",
+    "unpin": "Sblocca la scheda",
     "closeTab": "Chiudi la scheda",
     "closeOthers": "Chiudi le altre schede",
     "closeAll": "Chiudi tutte le schede",

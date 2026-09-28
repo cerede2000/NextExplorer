@@ -3,15 +3,14 @@ import { mount } from '@vue/test-utils';
 import { ref } from 'vue';
 
 /**
- * A terminal at an address of its own.
+ * A tab that is a terminal.
  *
- * The drawer can only ever show one, and it belongs to the window rather than to
- * anything in it — so two folders could not each have a shell open. Here a
- * terminal is a place: it has an address, so it has a tab, so there can be as many
- * as there are tabs.
- *
- * What this page owes is the folder: the address is the folder the shell starts
- * in, which is exactly what the drawer does when it is opened from a listing.
+ * The page draws none: it says that its tab wants one and that it wants the whole
+ * of the tab, and the host draws it. Not an indirection for its own sake — a page
+ * is unmounted the moment another tab comes forward, and a terminal that is
+ * unmounted is a shell that has been killed. So what this page owes is exactly
+ * two things: the folder the shell starts in, and asking again for the session it
+ * already has rather than for a new one.
  */
 
 const routePath = ref('Docs/2026');
@@ -34,21 +33,11 @@ vi.mock('@/stores/appSettings', () => ({
   useAppSettings: () => ({ state: { branding: { appName: 'Chez Benjy' } } }),
 }));
 
-// xterm reaches for a canvas jsdom does not have, and what it does with a socket
-// is `TerminalSurface`'s own business. What is asked here is which folder it is
-// handed, and that a change of folder builds another one rather than moving this
-// one — a shell cannot change its mind about where it started.
-const surface = vi.hoisted(() => ({ paths: [] }));
-vi.mock('@/components/TerminalSurface.vue', () => ({
-  default: {
-    name: 'TerminalSurface',
-    props: ['path', 'initialInput', 'active'],
-    setup: (props) => {
-      surface.paths.push(props.path);
-      return () => null;
-    },
-  },
-}));
+const tabsStore = vi.hoisted(() => ({ activeId: 'tab-1' }));
+vi.mock('@/stores/tabs', () => ({ useTabsStore: () => tabsStore }));
+
+const openIn = vi.hoisted(() => vi.fn());
+vi.mock('@/stores/terminal', () => ({ useTerminalStore: () => ({ openIn }) }));
 
 import TerminalView from './TerminalView.vue';
 
@@ -58,27 +47,22 @@ const show = (path = 'Docs/2026') => {
 };
 
 beforeEach(() => {
-  surface.paths.length = 0;
+  openIn.mockClear();
+  tabsStore.activeId = 'tab-1';
 });
 
-describe('a terminal at its own address', () => {
-  it('starts the shell in the folder the address names', () => {
+describe('a terminal that is a whole tab', () => {
+  it('asks for one in this tab, in the folder the address names', () => {
     show('Docs/2026');
 
-    expect(surface.paths).toEqual(['Docs/2026']);
+    expect(openIn).toHaveBeenCalledWith('tab-1', 'Docs/2026', { mode: 'page' });
   });
 
   /** Nowhere in particular, which is where the home page opens one. */
   it('starts nowhere in particular when the address names no folder', () => {
     show('');
 
-    expect(surface.paths).toEqual(['']);
-  });
-
-  it('says which folder it is in', () => {
-    const wrapper = show('Docs/2026');
-
-    expect(wrapper.text()).toContain('Docs/2026');
+    expect(openIn).toHaveBeenCalledWith('tab-1', '', { mode: 'page' });
   });
 
   it('names the browser tab after the folder, and the instance', () => {
@@ -89,17 +73,24 @@ describe('a terminal at its own address', () => {
 
   /**
    * A shell cannot change its mind about where it started, so a tab taken to
-   * another folder gets another terminal rather than the same one moved.
+   * another folder asks for a terminal in that one; the store decides whether
+   * that is the session it already has.
    */
-  it('builds another one when its tab is taken to another folder', async () => {
+  it('asks again when its tab is taken to another folder', async () => {
     const wrapper = show('Docs/2026');
-    expect(surface.paths).toEqual(['Docs/2026']);
+    expect(openIn).toHaveBeenCalledTimes(1);
 
     routePath.value = 'Media';
     await wrapper.vm.$nextTick();
 
-    // Built again, in the folder now asked for: the first is behind us.
-    expect(surface.paths.length).toBeGreaterThan(1);
-    expect(surface.paths.at(-1)).toBe('Media');
+    expect(openIn).toHaveBeenLastCalledWith('tab-1', 'Media', { mode: 'page' });
+  });
+
+  /** And it draws no terminal itself: that is what keeps the shell alive. */
+  it('draws none of it', () => {
+    const wrapper = show('Docs/2026');
+
+    expect(wrapper.find('[data-test="terminal-page"]').exists()).toBe(true);
+    expect(wrapper.findComponent({ name: 'TerminalSurface' }).exists()).toBe(false);
   });
 });

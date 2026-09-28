@@ -11,7 +11,6 @@ import { useRoute } from 'vue-router';
 
 const terminalStore = useTerminalStore();
 const tabNavigation = useTabNavigation();
-const { toggle, isOpen } = terminalStore;
 const fileStore = useFileStore();
 const route = useRoute();
 
@@ -24,21 +23,32 @@ const { t } = useI18n();
 
 const open = ref(true);
 const terminalPath = computed(() => (route.name === 'HomeView' ? '' : fileStore.currentPath || ''));
+const isOpen = computed(() => terminalStore.isOpenIn(tabNavigation.tabs.activeId));
 
 /**
- * A terminal, where this account keeps its terminals.
+ * A terminal, in the tab it was asked for from.
  *
- * With tabs on it is a place like any other: it takes a tab of its own, and there
- * can be as many as there are tabs — which the drawer could never do, because the
- * drawer belongs to the window rather than to anything in it. Without tabs the
- * drawer is the only way to show one, and it opens exactly as it always has.
+ * Beside the folder, as it has always been — and now one per tab, so four folders
+ * can each have a shell open in them and bringing one forward shows its own.
+ * Nothing about this gesture takes the reader anywhere: they asked for a shell,
+ * not for somewhere else to be.
+ *
+ * A tab of its own is a separate decision, and it is said the way every other
+ * "open this somewhere else" is said here — command, or control, or the middle
+ * button, which opens it behind. One rule, whatever is being opened.
  */
-const toggleTerminal = () => {
-  if (tabNavigation.tabs.enabled) {
-    tabNavigation.open(terminalRoute(terminalPath.value).path, { own: true });
-    return;
-  }
-  toggle(terminalPath.value);
+const openHere = () => terminalStore.toggleIn(tabNavigation.tabs.activeId, terminalPath.value);
+
+const openInTab = ({ behind = false } = {}) => {
+  if (!tabNavigation.tabs.enabled) return false;
+  return Boolean(tabNavigation.open(terminalRoute(terminalPath.value).path, { behind, own: true }));
+};
+
+const handleClick = (event) => {
+  // `metaKey` first: on a Mac the command key is the one people reach for, and
+  // control there means something else entirely.
+  if ((event?.metaKey || event?.ctrlKey) && openInTab({ behind: true })) return;
+  openHere();
 };
 </script>
 
@@ -70,7 +80,8 @@ const toggleTerminal = () => {
       >
         <div v-if="open" class="overflow-hidden">
           <button
-            @click="toggleTerminal"
+            @click="handleClick"
+            @auxclick.middle.prevent="openInTab({ behind: true })"
             :class="[
               'cursor-pointer flex w-full items-center gap-3 my-3 rounded-lg transition-colors duration-200 text-sm',
               isOpen ? 'dark:text-white' : 'dark:text-neutral-300/90',

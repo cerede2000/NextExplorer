@@ -34,6 +34,8 @@ const actions = {
 const store = {
   move: vi.fn(),
   nudge: vi.fn(),
+  duplicate: vi.fn(() => ({ id: 'copy' })),
+  togglePinned: vi.fn(),
 };
 const indexOf = (id) => state.tabs.value.findIndex((tab) => tab.id === id);
 
@@ -59,6 +61,8 @@ vi.mock('@/composables/tabNavigation', () => ({
       },
       move: (...args) => store.move(...args),
       nudge: (...args) => store.nudge(...args),
+      duplicate: (...args) => store.duplicate(...args),
+      togglePinned: (...args) => store.togglePinned(...args),
       canMove: (id, step) => {
         const at = indexOf(id);
         return at >= 0 && at + step >= 0 && at + step < state.tabs.value.length;
@@ -75,10 +79,29 @@ const userSettings = vi.hoisted(() => ({ closeTabsOnDoubleClick: false }));
 const favorites = vi.hoisted(() => ({ favorites: [] }));
 vi.mock('@/stores/favorites', () => ({ useFavoritesStore: () => favorites }));
 vi.mock('@/stores/appSettings', () => ({ useAppSettings: () => ({ userSettings }) }));
+vi.mock('@/api', () => ({
+  normalizePath: (value) => String(value || '').replace(/^\/+|\/+$/g, ''),
+}));
+
+/**
+ * Dropping files onto a tab is the same gesture the favourites already take, so
+ * what the strip owes is the destination, not the move: it says which folder the
+ * tab is on and hands the drag to the one place that knows how to move files.
+ * Standing in for it here also keeps the file store, and everything it imports,
+ * out of a suite about a row of buttons.
+ */
+const fileDrag = vi.hoisted(() => ({
+  handleDragOver: vi.fn(),
+  handleDragLeave: vi.fn(),
+  handleDrop: vi.fn(),
+  isDragTarget: vi.fn(() => false),
+  isCopyDragTarget: vi.fn(() => false),
+}));
+vi.mock('@/composables/useFileDragDrop', () => ({ useFileDragDrop: () => fileDrag }));
 
 import TabStrip from './TabStrip.vue';
 
-const tab = (id, kind, path) => ({ id, kind, path });
+const tab = (id, kind, path, extra = {}) => ({ id, kind, path, pinned: false, ...extra });
 
 const withTabs = (list, active = list[0]?.id) => {
   state.tabs.value = list;
@@ -98,6 +121,11 @@ beforeEach(() => {
   favorites.favorites = [];
   Object.values(actions).forEach((fn) => fn.mockReset());
   Object.values(store).forEach((fn) => fn.mockReset());
+  fileDrag.handleDragOver.mockClear();
+  fileDrag.handleDragLeave.mockClear();
+  fileDrag.handleDrop.mockClear();
+  fileDrag.isDragTarget.mockReturnValue(false);
+  fileDrag.isCopyDragTarget.mockReturnValue(false);
 });
 
 describe('when the strip is drawn at all', () => {
@@ -182,7 +210,7 @@ describe('the menu on a tab', () => {
     const wrapper = withTabs([tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')]);
     await wrapper.findAll('[role="tab"]')[0].trigger('contextmenu');
 
-    await wrapper.get('[data-test="tab-menu"]').findAll('button')[3].trigger('click');
+    await wrapper.get('[data-test="tab-close-others"]').trigger('click');
 
     expect(actions.closeOthers).toHaveBeenCalledWith('a');
     expect(wrapper.find('[data-test="tab-menu"]').exists()).toBe(false);
@@ -418,5 +446,140 @@ describe('the icon a tab wears', () => {
     const wrapper = withTabs([tab('a', 'document', '/open/Media/report.docx')]);
 
     expect(colourOf(wrapper)).toBe('');
+  });
+});
+
+/**
+ * A tab kept on purpose.
+ *
+ * It is there to be recognised rather than read, so it is its icon and nothing
+ * else — which is also what gives the room back to the tabs that are being read.
+ * And it has no cross: a folder somebody works in every day should not be one
+ * mis-aimed click from being gone.
+ */
+describe('a pinned tab', () => {
+  const withOnePinned = () =>
+    withTabs([
+      tab('a', 'folder', '/browse/Docs', { pinned: true }),
+      tab('b', 'folder', '/browse/B'),
+    ]);
+
+  it('is its icon, with no name beside it', () => {
+    const wrapper = withOnePinned();
+
+    const [pinned, ordinary] = wrapper.findAll('[data-test="tab"]');
+    expect(pinned.attributes('data-pinned')).toBe('true');
+    expect(pinned.text()).toBe('');
+    expect(ordinary.text()).toContain('B');
+  });
+
+  it('has no cross, while the tab beside it does', () => {
+    const wrapper = withOnePinned();
+
+    const [pinned, ordinary] = wrapper.findAll('[data-test="tab"]');
+    expect(pinned.find('[data-test="tab-close"]').exists()).toBe(false);
+    expect(ordinary.find('[data-test="tab-close"]').exists()).toBe(true);
+  });
+
+  it('is kept, and let go, from its own menu', async () => {
+    const wrapper = withOnePinned();
+    await wrapper.findAll('[role="tab"]')[1].trigger('contextmenu');
+
+    await wrapper.get('[data-test="tab-pin"]').trigger('click');
+
+    expect(store.togglePinned).toHaveBeenCalledWith('b');
+    expect(wrapper.find('[data-test="tab-menu"]').exists()).toBe(false);
+  });
+});
+
+describe('the same place again, beside itself', () => {
+  it('is asked for from the tab’s own menu, and is brought forward', async () => {
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')]);
+    await wrapper.findAll('[role="tab"]')[0].trigger('contextmenu');
+
+    await wrapper.get('[data-test="tab-duplicate"]').trigger('click');
+
+    expect(store.duplicate).toHaveBeenCalledWith('a');
+    expect(actions.activate).toHaveBeenCalledWith('copy');
+  });
+
+  it('is not offered when the row is full', async () => {
+    state.atLimit.value = true;
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')]);
+    await wrapper.findAll('[role="tab"]')[0].trigger('contextmenu');
+
+    expect(wrapper.get('[data-test="tab-duplicate"]').attributes('disabled')).toBeDefined();
+  });
+});
+
+/**
+ * Files dropped onto a tab.
+ *
+ * A tab is a folder that is already open, which makes it the cheapest target
+ * there is: no walking there, no second window, no losing the listing the files
+ * came from. What the strip owes is the destination and the difference between
+ * the two drags it can receive — its own tab being carried along the row, and
+ * files arriving from a listing.
+ */
+describe('files dropped on a tab', () => {
+  const dragEvent = () => ({
+    preventDefault: vi.fn(),
+    stopPropagation: vi.fn(),
+    dataTransfer: { types: ['application/json'], dropEffect: 'move' },
+    currentTarget: { getBoundingClientRect: () => ({ left: 0, top: 0, right: 10, bottom: 10 }) },
+    clientX: 5,
+    clientY: 5,
+  });
+
+  it('are offered the folder the tab is on', async () => {
+    const wrapper = withTabs([tab('a', 'folder', '/browse/Docs/2026')]);
+
+    await wrapper.get('[data-test="tab"]').trigger('dragover', dragEvent());
+
+    expect(fileDrag.handleDragOver).toHaveBeenCalledWith(expect.anything(), {
+      name: '2026',
+      path: 'Docs',
+      destinationPath: 'Docs/2026',
+    });
+  });
+
+  it('are moved into it when they are let go', async () => {
+    const wrapper = withTabs([tab('a', 'folder', '/browse/Docs/2026')]);
+
+    await wrapper.get('[data-test="tab"]').trigger('drop', dragEvent());
+
+    expect(fileDrag.handleDrop).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ destinationPath: 'Docs/2026' })
+    );
+  });
+
+  /** A document, the trash, the settings: none of them is a folder to drop into. */
+  it('are not offered a tab that is not a folder', async () => {
+    const wrapper = withTabs([tab('a', 'trash', '/trash')]);
+
+    await wrapper.get('[data-test="tab"]').trigger('dragover', dragEvent());
+
+    expect(fileDrag.handleDragOver).not.toHaveBeenCalled();
+  });
+
+  /** And the strip’s own drag is not a file arriving: it is a tab being carried. */
+  it('are not confused with a tab being dragged along the row', async () => {
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')]);
+    const boxes = wrapper.findAll('[data-test="tab"]');
+
+    await boxes[0].trigger('dragstart', { dataTransfer: { setData: vi.fn() } });
+    await boxes[1].trigger('dragover', dragEvent());
+
+    expect(fileDrag.handleDragOver).not.toHaveBeenCalled();
+    expect(boxes[1].attributes('data-over')).toBe('true');
+  });
+
+  it('say which way they are going, so the tab can show it', () => {
+    fileDrag.isDragTarget.mockReturnValue(true);
+    fileDrag.isCopyDragTarget.mockReturnValue(true);
+    const wrapper = withTabs([tab('a', 'folder', '/browse/Docs')]);
+
+    expect(wrapper.get('[data-test="tab"]').attributes('data-drop')).toBe('copy');
   });
 });
