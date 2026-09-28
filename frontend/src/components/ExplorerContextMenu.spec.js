@@ -1369,7 +1369,7 @@ describe('open in a new tab', () => {
     await clickLabel('tabs.openInNewTab');
 
     expect(address.addressFor).toHaveBeenCalledWith(FILE, { currentPath: 'Docs' });
-    expect(address.open).toHaveBeenCalledWith('/open/Docs/report.docx');
+    expect(address.open).toHaveBeenCalledWith('/open/Docs/report.docx', { own: true });
   });
 
   it('is not offered while tabs are off', async () => {

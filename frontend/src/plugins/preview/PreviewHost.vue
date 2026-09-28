@@ -1,4 +1,11 @@
 <template>
+  <!--
+    Teleported to `body` and positioned against the window, which is why it has to
+    be told about the strip of tabs: a document open in a tab is that tab's content
+    and stops where the strip starts, and nesting cannot say so to something
+    `fixed`. `--tab-strip-height` is 0px when there is no strip, so with tabs off
+    this is the full window exactly as it always was.
+  -->
   <teleport to="body">
     <!-- Standalone plugins render directly -->
     <div v-if="isStandalone" data-test="preview-surface">
@@ -6,7 +13,7 @@
       <!-- Lightweight fallback while standalone plugin component loads -->
       <div
         v-else
-        class="fixed inset-0 z-2000 flex items-center justify-center text-sm text-neutral-200"
+        class="fixed inset-x-0 bottom-0 top-[var(--tab-strip-height)] z-2000 flex items-center justify-center text-sm text-neutral-200"
       >
         <div class="flex items-center pr-4 bg-neutral-300 dark:bg-black bg-opacity-20 rounded-lg">
           <LoadingIcon /> {{ $t('common.loading') }}
@@ -19,12 +26,12 @@
       <div
         v-if="isOpen"
         data-test="preview-surface"
-        class="fixed inset-0 z-2000 flex items-center justify-center bg-black/70"
+        class="fixed inset-x-0 bottom-0 top-[var(--tab-strip-height)] z-2000 flex items-center justify-center bg-black/70"
         @click.self="handleClose"
         @keydown.esc="handleClose"
       >
         <div
-          class="relative flex h-screen w-screen flex-col overflow-hidden rounded-lg bg-white shadow-2xl dark:bg-zinc-900"
+          class="relative flex h-full w-full flex-col overflow-hidden rounded-lg bg-white shadow-2xl dark:bg-zinc-900"
         >
           <!-- Header (unless minimal) -->
           <header
@@ -65,6 +72,9 @@
               <button
                 type="button"
                 class="rounded-md p-2 text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-800 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
+                :title="$t('common.close')"
+                :aria-label="$t('common.close')"
+                data-test="preview-close"
                 @click="handleClose"
               >
                 <XMarkIcon class="h-5 w-5" />

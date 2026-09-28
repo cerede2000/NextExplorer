@@ -10,6 +10,7 @@ import { whenPreviewPluginsReady } from '@/plugins';
 import PreviewHost from '@/plugins/preview/PreviewHost.vue';
 import { useFileStore } from '@/stores/fileStore';
 import { folderRoute } from '@/utils/folderRoute';
+import { useTabNavigation } from '@/composables/tabNavigation';
 import { isEditableExtension } from '@/config/editor';
 
 /**
@@ -59,6 +60,8 @@ const parentPath = computed(() =>
 // names it after the document, and both after the instance.
 usePageTitle(name);
 
+const tabNavigation = useTabNavigation();
+
 /** Back where closing the panel would have left you. */
 const leave = () => {
   router.replace(folderRoute(parentPath.value, name.value ? { select: name.value } : undefined));
@@ -99,7 +102,30 @@ const CLOSE_REFUSED_AFTER_MS = 150;
  */
 const tabIsThisDocument = () => window.history.length === 1;
 
+/**
+ * In one of this application's own tabs, the thing to close is that tab.
+ *
+ * And only a tab that was opened *for* this document: `own` says so, and stops
+ * saying so the moment the tab is taken anywhere else. Closing a tab somebody had
+ * been browsing in, because they shut a document they opened in it, would take a
+ * tab away from them — the same reason a browser refuses `window.close()` to a tab
+ * that has been elsewhere.
+ *
+ * The last tab cannot close, because there would be nowhere to be, so that falls
+ * through to the folder as it always did.
+ */
+const closeOwnTab = () => {
+  const { tabs } = tabNavigation;
+  if (!tabs.enabled) return false;
+  const tab = tabs.activeTab;
+  if (!tab?.own || !tabs.canClose) return false;
+  tabNavigation.close(tab.id);
+  return true;
+};
+
 const closeTabOrLeave = () => {
+  if (closeOwnTab()) return;
+
   if (!tabIsThisDocument()) {
     leave();
     return;

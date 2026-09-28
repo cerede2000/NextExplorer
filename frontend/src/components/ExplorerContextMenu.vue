@@ -237,7 +237,7 @@ const runOpenInTab = () => {
   // `addressFor` answers with is a path and nothing else, so resolving it would be
   // a round trip through the router to be handed back the string it was given.
   const target = openInTabTarget.value;
-  if (target?.path) tabNavigation.open(target.path);
+  if (target?.path) tabNavigation.open(target.path, { own: true });
 };
 
 const runDownload = () => actions.runDownload();

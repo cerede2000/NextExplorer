@@ -947,6 +947,19 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   await expect(tabs).toHaveCount(5);
   await expect(page).toHaveURL(/\/(open|editor)\/Projects\/tabbed\.md$/);
 
+  // And the cross on the document closes the tab it was opened in, rather than
+  // turning that tab back into a folder listing — which would leave two identical
+  // explorer tabs and nothing to tell them apart.
+  //
+  // The count is the assertion: had it turned the tab back into a folder listing
+  // there would still be five. Not the address — the tab that takes over here is
+  // another document tab on the same file, because three of them were opened.
+  await page.locator('[data-test="preview-close"]').click();
+  await expect(tabs).toHaveCount(4);
+
+  // And the tab in front afterwards is one of the others, not the one that went.
+  await expect(strip.locator('[data-test="tab"][data-active="true"]')).toHaveCount(1);
+
   /**
    * The strip does not make the page taller than the window.
    *

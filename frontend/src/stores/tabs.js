@@ -77,9 +77,18 @@ export const useTabsStore = defineStore('tabs', () => {
     return `tab-${Date.now().toString(36)}-${nextId}`;
   };
 
-  const makeTab = (path) => {
+  /**
+   * `own` says the tab was opened *for* this address rather than taken to it.
+   *
+   * It is what lets a document's close button close the tab it is in, and only
+   * that tab: closing one somebody had been browsing in and happened to open a
+   * document in would take a tab away from them. The same distinction a browser
+   * draws when it refuses `window.close()` to a tab that has been somewhere else,
+   * and for the same reason.
+   */
+  const makeTab = (path, own = false) => {
     const kind = tabKindForPath(path);
-    return kind ? { id: makeId(), kind: kind.id, path } : null;
+    return kind ? { id: makeId(), kind: kind.id, path, own } : null;
   };
 
   /**
@@ -98,8 +107,8 @@ export const useTabsStore = defineStore('tabs', () => {
       .filter(isTab)
       .map((entry) =>
         TAB_KINDS_BY_ID[entry.kind].restores
-          ? { id: entry.id, kind: entry.kind, path: entry.path }
-          : { id: entry.id, kind: 'folder', path: HOME }
+          ? { id: entry.id, kind: entry.kind, path: entry.path, own: entry.own === true }
+          : { id: entry.id, kind: 'folder', path: HOME, own: false }
       );
     return kept.length > 0 ? kept : [makeTab(HOME)];
   };
@@ -133,7 +142,7 @@ export const useTabsStore = defineStore('tabs', () => {
   const persist = () => {
     write(
       OPEN_KEY,
-      tabs.value.map(({ id, kind, path }) => ({ id, kind, path }))
+      tabs.value.map(({ id, kind, path, own }) => ({ id, kind, path, own }))
     );
     write(ACTIVE_KEY, activeId.value);
   };
@@ -157,7 +166,7 @@ export const useTabsStore = defineStore('tabs', () => {
    * With tabs turned off there is one tab and it goes where it is told, which is
    * what the application did before any of this existed.
    */
-  const open = (path, { activate: shouldActivate = true } = {}) => {
+  const open = (path, { activate: shouldActivate = true, own = false } = {}) => {
     const kind = tabKindForPath(path);
     if (!kind) return null;
 
@@ -175,12 +184,14 @@ export const useTabsStore = defineStore('tabs', () => {
       const existing = tabs.value.find((tab) => tab.kind === kind.id);
       if (existing) {
         existing.path = path;
+        // Brought forward rather than made, so it is not a tab opened for this.
+        existing.own = false;
         persist();
         return shouldActivate ? activate(existing.id) : existing;
       }
     }
 
-    const tab = makeTab(path);
+    const tab = makeTab(path, own);
     const at = activeIndex.value;
     tabs.value.splice(at < 0 ? tabs.value.length : at + 1, 0, tab);
     persist();
@@ -238,6 +249,8 @@ export const useTabsStore = defineStore('tabs', () => {
     const kind = tabKindForPath(path);
     const current = activeTab.value;
     if (!kind || !current) return null;
+    // Taken somewhere else, so it is no longer a tab that exists for one thing.
+    if (current.path !== path) current.own = false;
     current.kind = kind.id;
     current.path = path;
     persist();

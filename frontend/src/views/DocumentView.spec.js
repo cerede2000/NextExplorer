@@ -24,6 +24,24 @@ let editableExtensions = ['txt', 'md'];
 
 const previewManager = reactive({ isOpen: false });
 
+// This application's own tabs. A document opened in one is closed by closing that
+// tab, so the view asks — and mocking it here keeps a spec about one view from
+// building the tab store and the settings behind it.
+const appTabs = vi.hoisted(() => ({
+  enabled: false,
+  canClose: true,
+  activeTab: null,
+  close: vi.fn(),
+}));
+vi.mock('@/composables/tabNavigation', () => ({
+  useTabNavigation: () => ({
+    get tabs() {
+      return appTabs;
+    },
+    close: appTabs.close,
+  }),
+}));
+
 vi.mock('vue-router', () => ({
   useRoute: () => ({
     get params() {
@@ -113,6 +131,10 @@ beforeEach(() => {
   });
   closed = true;
   historyLength = 1;
+  appTabs.enabled = false;
+  appTabs.canClose = true;
+  appTabs.activeTab = null;
+  appTabs.close.mockClear();
   replace.mockClear();
   open.mockClear();
   open.mockReturnValue(true);
@@ -309,5 +331,69 @@ describe('leaving the page', () => {
     // needs rather than the one synchronous moment an unload gives it.
     expect(close).toHaveBeenCalledTimes(1);
     expect(endForUnload).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Closing a document that is in one of this application's tabs.
+ *
+ * The cross belongs to the document, and in a tab of its own the thing it should
+ * close is that tab — not send it back to a folder listing, which leaves somebody
+ * looking at two identical explorer tabs wondering which was which. The browser
+ * tab it used to close is the same idea; these are the same rules for ours.
+ */
+describe('the close button, with this application own tabs', () => {
+  const closeDocument = async () => {
+    previewManager.isOpen = true;
+    const wrapper = await show('Docs/Reports/report.docx');
+    previewManager.isOpen = false;
+    await flushPromises();
+    return wrapper;
+  };
+
+  it('closes the tab the document was opened in', async () => {
+    appTabs.enabled = true;
+    appTabs.activeTab = { id: 'tab-2', own: true };
+
+    await closeDocument();
+
+    expect(appTabs.close).toHaveBeenCalledWith('tab-2');
+    expect(replace).not.toHaveBeenCalled();
+    expect(window.close).not.toHaveBeenCalled();
+  });
+
+  /** Somebody browsing in that tab opened a document in it; it is still theirs. */
+  it('goes to the folder when the tab was only taken there', async () => {
+    appTabs.enabled = true;
+    appTabs.activeTab = { id: 'tab-2', own: false };
+    historyLength = 3;
+
+    await closeDocument();
+
+    expect(appTabs.close).not.toHaveBeenCalled();
+    expect(replace).toHaveBeenCalled();
+  });
+
+  /** The last tab cannot close: there would be nowhere to be. */
+  it('goes to the folder rather than closing the only tab', async () => {
+    appTabs.enabled = true;
+    appTabs.canClose = false;
+    appTabs.activeTab = { id: 'tab-1', own: true };
+    historyLength = 3;
+
+    await closeDocument();
+
+    expect(appTabs.close).not.toHaveBeenCalled();
+    expect(replace).toHaveBeenCalled();
+  });
+
+  it('leaves the browser tab to the browser when tabs are off', async () => {
+    appTabs.enabled = false;
+    appTabs.activeTab = { id: 'tab-1', own: true };
+
+    await closeDocument();
+
+    expect(appTabs.close).not.toHaveBeenCalled();
+    expect(window.close).toHaveBeenCalled();
   });
 });

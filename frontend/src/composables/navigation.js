@@ -80,17 +80,32 @@ export function useNavigation() {
     // its own, and a document belongs in one of those: a tab beside the folder it
     // came from, where the same window still holds the clipboard and the
     // transfers. With it off, the browser provides them as it always did.
-    if (appSettings.userSettings?.documentsOpenInNewTab) {
+    //
+    // With tabs on, a document is always taken to its address rather than opened
+    // over the folder. The panel it opens in is `fixed` and lives in the body: it
+    // would stay on screen while somebody moved to another tab, a document sitting
+    // over a folder it has nothing to do with. At an address it is the tab's
+    // content, and leaving the tab closes it because leaving the route does.
+    //
+    // Which tab is then the reader's usual choice: `documentsOpenInNewTab` means
+    // one of ours rather than one of the browser's, and without it the tab they are
+    // in becomes the document.
+    const tabsOn = appSettings.userSettings?.browseInTabs === true;
+    const inNewTab = appSettings.userSettings?.documentsOpenInNewTab === true;
+
+    if (tabsOn || inNewTab) {
       const target = addressFor(item, { currentPath });
 
       if (target) {
-        // The account's own answer, read here rather than asked of the tabs store:
-        // reaching for the store to find out would build it on every screen that
-        // opens a file, and it is the settings that know. The store is only asked
-        // for when there is a tab to open in it.
-        if (appSettings.userSettings?.browseInTabs === true) {
-          const tab = useTabsStore().open(target.path);
-          if (tab) navigate({ path: tab.path });
+        if (tabsOn) {
+          // The store is asked for only when there is a tab to open in it: reaching
+          // for it to find out would build it on every screen that opens a file.
+          if (inNewTab) {
+            const tab = useTabsStore().open(target.path, { own: true });
+            if (tab) navigate({ path: tab.path });
+          } else {
+            navigate(target);
+          }
           return;
         }
         // `noopener` because the page opened must not be able to reach back

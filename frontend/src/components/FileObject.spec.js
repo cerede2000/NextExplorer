@@ -727,7 +727,10 @@ describe('the middle button on a row', () => {
     await middleClick();
 
     expect(addressFor).toHaveBeenCalledWith(FILE, { currentPath: 'Docs' });
-    expect(tabs.open).toHaveBeenCalledWith('/open/Docs/rapport.docx', { activate: false });
+    expect(tabs.open).toHaveBeenCalledWith('/open/Docs/rapport.docx', {
+      activate: false,
+      own: true,
+    });
   });
 
   it('opens a folder too', async () => {
@@ -735,7 +738,10 @@ describe('the middle button on a row', () => {
 
     await middleClick(FOLDER);
 
-    expect(tabs.open).toHaveBeenCalledWith('/browse/Docs/2026', { activate: false });
+    expect(tabs.open).toHaveBeenCalledWith('/browse/Docs/2026', {
+      activate: false,
+      own: true,
+    });
   });
 
   it('does nothing for an entry with nowhere of its own', async () => {

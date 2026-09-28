@@ -285,3 +285,59 @@ describe('turning the mode off', () => {
     expect(store.activeId).toBe(inFront);
   });
 });
+
+/**
+ * Which tabs exist for one thing, and which were merely taken there.
+ *
+ * A document's close button closes the tab it is in — and must close only a tab
+ * that was opened for it. Closing one somebody had been browsing in, and happened
+ * to open a document in, takes a tab away from them. It is the distinction a
+ * browser draws when it refuses `window.close()` to a tab that has been elsewhere.
+ */
+describe('a tab opened for one thing', () => {
+  it('says so, and a tab opened blank does not', () => {
+    const store = withTabsOn();
+
+    expect(store.open('/open/Docs/a.md', { own: true }).own).toBe(true);
+    expect(store.open(HOME).own).toBe(false);
+  });
+
+  it('stops saying so once it is taken somewhere else', () => {
+    const store = withTabsOn();
+    const tab = store.open('/open/Docs/a.md', { own: true });
+
+    store.syncActive('/browse/Docs');
+
+    expect(tab.own).toBe(false);
+  });
+
+  it('keeps saying so while the address does not change', () => {
+    const store = withTabsOn();
+    const tab = store.open('/open/Docs/a.md', { own: true });
+
+    store.syncActive('/open/Docs/a.md');
+
+    expect(tab.own).toBe(true);
+  });
+
+  /** Brought forward is not made: the tab was already somebody's. */
+  it('is not claimed by bringing a single screen forward', () => {
+    const store = withTabsOn();
+    store.open('/trash', { own: true });
+    store.activate(store.tabs[0].id);
+
+    const again = store.open('/trash', { own: true });
+
+    expect(again.own).toBe(false);
+  });
+
+  it('is remembered, because the tab still exists for one thing', () => {
+    const opened = withTabsOn();
+    opened.open('/open/Docs/a.md', { own: true });
+
+    setActivePinia(createPinia());
+    const returning = withTabsOn();
+
+    expect(returning.tabs.map((tab) => tab.own)).toEqual([false, true]);
+  });
+});

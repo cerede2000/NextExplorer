@@ -81,8 +81,8 @@ export function useTabNavigation() {
    * `behind` is the middle-button gesture: the tab is made and the reader is left
    * where they were, which is how somebody queues up four folders to look at.
    */
-  const open = (path, { behind = false } = {}) => {
-    const tab = tabs.open(path, { activate: !behind });
+  const open = (path, { behind = false, own = false } = {}) => {
+    const tab = tabs.open(path, { activate: !behind, own });
     return behind ? tab : go(tab);
   };
 

@@ -1,7 +1,7 @@
 <script setup>
-import { ref } from 'vue';
+import { onUnmounted, ref, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { onClickOutside } from '@vueuse/core';
+import { onClickOutside, useElementSize } from '@vueuse/core';
 import { PlusIcon, XMarkIcon } from '@heroicons/vue/20/solid';
 import { TAB_KINDS_BY_ID, tabTitle } from '@/config/tabKinds';
 import { useTabNavigation } from '@/composables/tabNavigation';
@@ -19,6 +19,28 @@ import { useTabNavigation } from '@/composables/tabNavigation';
  */
 const { tabs, visible, activate, openHome, close, closeOthers } = useTabNavigation();
 const { t } = useI18n();
+
+/**
+ * How tall the strip is, said out loud.
+ *
+ * Two surfaces cover the whole window from `body` — the preview host and the media
+ * viewer — and a document open in a tab is the tab's content, so it has to stop
+ * where the strip starts. Teleported and `fixed`, they cannot be told by being
+ * nested inside anything, so they are told by a custom property instead. Measured
+ * rather than written down: the strip's height is a consequence of its padding and
+ * its type, and a number repeated in a stylesheet would be a number to forget.
+ */
+const stripElement = ref(null);
+const { height } = useElementSize(stripElement);
+const publishHeight = (value) => {
+  document.documentElement.style.setProperty('--tab-strip-height', `${Math.round(value)}px`);
+};
+watchEffect(() => {
+  publishHeight(visible.value ? height.value : 0);
+});
+onUnmounted(() => {
+  publishHeight(0);
+});
 
 const iconFor = (tab) => TAB_KINDS_BY_ID[tab.kind]?.icon;
 const titleFor = (tab) => tabTitle(tab, t) || t('tabs.newTab');
@@ -44,6 +66,7 @@ const runAndShut = (action, id) => {
 <template>
   <div
     v-if="visible"
+    ref="stripElement"
     class="flex items-end gap-1 overflow-x-auto border-b border-neutral-200 bg-zinc-100 px-2 pt-1 dark:border-neutral-700 dark:bg-neutral-800"
     role="tablist"
     :aria-label="t('tabs.strip')"

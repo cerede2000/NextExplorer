@@ -214,7 +214,7 @@ const handleMiddleClick = () => {
   if (!tabsStore.enabled) return;
   const target = addressFor(props.item, { currentPath: props.item?.path || '' });
   if (!target?.path) return;
-  tabsStore.open(target.path, { activate: false });
+  tabsStore.open(target.path, { activate: false, own: true });
 };
 
 const handleDblClick = () => {
