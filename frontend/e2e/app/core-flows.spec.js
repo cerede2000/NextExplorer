@@ -867,11 +867,25 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   // thing make every order of them look alike, and an assertion about the order
   // that cannot fail is worse than none.
   fs.mkdirSync(path.join(volume, 'Gamma'), { recursive: true });
+  // A second text file, read rather than typed into: where the reader was in it
+  // is what a tab has to hold even when nothing was changed.
+  fs.writeFileSync(
+    path.join(volume, 'plain.txt'),
+    Array.from({ length: 400 }, (_, line) => `line ${line + 1} of a file worth scrolling`).join(
+      '\n'
+    )
+  );
   fs.writeFileSync(path.join(volume, 'Alpha', 'alpha.txt'), 'a');
   fs.writeFileSync(path.join(volume, 'Beta', 'beta.txt'), 'b');
   // A text file, which goes to the editor rather than the preview: the cross of
-  // one and the cross of the other have to mean the same thing.
-  fs.writeFileSync(path.join(volume, 'tabbed.txt'), 'in a tab of its own\n');
+  // one and the cross of the other have to mean the same thing. Long enough to
+  // scroll, because where the reader was in it is half of what a tab holds.
+  fs.writeFileSync(
+    path.join(volume, 'tabbed.txt'),
+    Array.from({ length: 400 }, (_, line) => `line ${line + 1} of a file worth scrolling`).join(
+      '\n'
+    )
+  );
 
   const strip = page.locator('[data-test="tab-strip"]');
   const tabs = strip.locator('[data-test="tab"]');
@@ -1121,6 +1135,56 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   await page.locator('[data-test="editor-close"]').click();
   await expect(tabs).toHaveCount(4);
   await expect(page).not.toHaveURL(/\/editor\//);
+
+  /**
+   * And where the reader was, with nothing typed at all.
+   *
+   * Scrolled down and a run of text selected, then another tab in front and back:
+   * the complaint was landing at the top of the file with nothing selected, which
+   * no unit suite can see — jsdom has no layout, so nothing there ever scrolls.
+   */
+  await page.goto('/browse/Projects');
+  await page.locator('[title="plain.txt"]:not([role="tab"])').first().dblclick();
+  await expect(page).toHaveURL(/\/editor\/Projects\/plain\.txt$/);
+  await expect(page.locator('.cm-content')).toBeVisible();
+
+  const where = () =>
+    page.evaluate(() => {
+      const scroller = document.querySelector('.cm-scroller');
+      const selection = window.getSelection();
+      return {
+        scrollTop: Math.round(scroller?.scrollTop ?? 0),
+        selected: String(selection?.toString() || ''),
+      };
+    });
+
+  await page.locator('.cm-scroller').evaluate((node) => {
+    node.scrollTop = 600;
+  });
+  // A run of text selected with the keyboard, which is what a reader's selection
+  // looks like to the editor.
+  await page.locator('.cm-content').click();
+  await page.keyboard.press('ControlOrMeta+End');
+  await page.keyboard.press('Shift+ArrowUp');
+  await page.keyboard.press('Shift+ArrowUp');
+  const before = await where();
+  expect(before.selected.length).toBeGreaterThan(0);
+
+  const plainTab = strip.locator('[role="tab"][title="plain.txt"]');
+  await tabs.first().getByRole('tab').click();
+  await expect(page).toHaveURL(/\/browse\/Projects$/);
+  await plainTab.click();
+  await expect(page).toHaveURL(/\/editor\/Projects\/plain\.txt$/);
+
+  await expect.poll(async () => (await where()).selected).toBe(before.selected);
+  await expect.poll(async () => (await where()).scrollTop).toBeGreaterThan(0);
+
+  // Put back, so the counts below are the counts this journey expects.
+  await tabs
+    .filter({ has: page.locator('[role="tab"][title="plain.txt"]') })
+    .first()
+    .locator('[data-test="tab-close"]')
+    .click();
 
   /**
    * The order of the tabs is the reader's.

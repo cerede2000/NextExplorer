@@ -30,6 +30,27 @@ const documents = (page) =>
     [...document.querySelectorAll('iframe[data-document]')].map((node) => node.dataset.document)
   );
 
+/**
+ * Whether a frame was reloaded, which a count of them cannot say.
+ *
+ * An `iframe` reloads whenever it is inserted into the document — moving it in the
+ * DOM is an insertion — and it comes back with a new window. So a mark is written
+ * inside each one and read again afterwards: still there means the same frame is
+ * still running, and the editor in it still knows where the reader was.
+ */
+const markFrames = (page) =>
+  page.evaluate(() =>
+    [...document.querySelectorAll('iframe[data-document]')].forEach((frame, index) => {
+      frame.contentWindow.__kept = `k${index}`;
+    })
+  );
+const marks = (page) =>
+  page.evaluate(() =>
+    [...document.querySelectorAll('iframe[data-document]')].map(
+      (frame) => frame.contentWindow.__kept ?? null
+    )
+  );
+
 test('one document opens and its element goes, without breaking the page', async ({ page }) => {
   await page.evaluate(() => window.openDocument(0, 'report.docx'));
 
@@ -54,11 +75,16 @@ test('a tab comes forward, and goes back', async ({ page }) => {
   });
   await expect.poll(() => frames(page)).toBe(2);
 
+  await markFrames(page);
+
   await page.evaluate(() => window.activateTab(1));
   await page.evaluate(() => window.activateTab(0));
+  await page.evaluate(() => window.activateTab(1));
 
-  // Nothing was rebuilt to bring one forward: the same two frames are still here.
+  // Nothing was rebuilt to bring one forward, and nothing was reloaded either:
+  // the same two frames, still running, still knowing where their readers were.
   await expect.poll(() => frames(page)).toBe(2);
+  await expect.poll(() => marks(page)).toEqual(['k0', 'k1']);
   expect(await thrown(page)).toEqual([]);
 });
 
@@ -145,10 +171,48 @@ test('a tab closed while its editor is alive', async ({ page }) => {
   });
   await expect.poll(() => frames(page)).toBe(2);
 
+  await markFrames(page);
+
   await page.evaluate(() => window.closeTab(0));
 
   await expect.poll(() => frames(page)).toBe(1);
+  // The one left behind is the one that was there, not a fresh copy of it.
+  await expect.poll(() => marks(page)).toEqual(['k1']);
   expect(await thrown(page)).toEqual([]);
+});
+
+/**
+ * The blue close button the page draws over a viewer that has no header of its
+ * own, and takes away the moment that viewer reports its own.
+ *
+ * It stayed up over a perfectly good editor, which is what an editor rebuilt
+ * behind the page's back looks like: the rebuild clears the flag, the Document
+ * Server's script is asked to attach to an element it already holds, refuses —
+ * "Skip loading. Instance already exists" — and the event that would put the flag
+ * back never comes.
+ */
+const fallbackCloses = (page) =>
+  page.evaluate(() => document.querySelectorAll('[data-test="preview-close"]').length);
+
+test('the page own close button goes once the editor draws its own', async ({ page }) => {
+  await page.evaluate(() => {
+    window.openDocument(0, 'report.docx');
+    window.openDocument(1, 'budget.docx');
+  });
+  await expect.poll(() => frames(page)).toBe(2);
+
+  await expect.poll(() => fallbackCloses(page)).toBe(0);
+
+  await page.evaluate(() => {
+    window.moveTab(0, 1);
+    window.activateTab(1);
+    window.activateTab(0);
+  });
+
+  // And stays gone: nothing about moving a tab or bringing one forward asks the
+  // editor to open again, so nothing takes its own close button away.
+  await expect.poll(() => fallbackCloses(page)).toBe(0);
+  await expect.poll(() => frames(page)).toBe(2);
 });
 
 /** And the same list, with the tabs put in another order underneath them. */
@@ -159,6 +223,8 @@ test('a tab moved while its editor is alive', async ({ page }) => {
   });
   await expect.poll(() => frames(page)).toBe(2);
 
+  await markFrames(page);
+
   await page.evaluate(() => {
     window.moveTab(0, 1);
     window.moveTab(1, 0);
@@ -166,6 +232,9 @@ test('a tab moved while its editor is alive', async ({ page }) => {
   });
 
   await expect.poll(() => frames(page)).toBe(2);
+  // The same two frames, not two new ones: an editor moved in the DOM is an
+  // editor reloaded, and a reloaded editor has forgotten where the reader was.
+  await expect.poll(() => marks(page)).toEqual(['k0', 'k1']);
   expect(await thrown(page)).toEqual([]);
 });
 
@@ -177,6 +246,8 @@ test('a tab opened between two live editors', async ({ page }) => {
   });
   await expect.poll(() => frames(page)).toBe(2);
 
+  await markFrames(page);
+
   await page.evaluate(() => {
     const made = window.newTab();
     window.moveTab(made, 1);
@@ -184,5 +255,7 @@ test('a tab opened between two live editors', async ({ page }) => {
   });
 
   await expect.poll(() => frames(page)).toBe(3);
+  // The two that were already there are untouched; only the third is new.
+  await expect.poll(() => marks(page)).toEqual(['k0', 'k1', null]);
   expect(await thrown(page)).toEqual([]);
 });

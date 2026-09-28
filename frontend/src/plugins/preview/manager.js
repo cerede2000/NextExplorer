@@ -67,20 +67,34 @@ export const usePreviewManager = defineStore('preview-manager', () => {
   const isOpen = computed(() => activeSession.value.isOpen.value);
 
   /**
-   * One surface per tab, in the order of the tabs.
+   * One surface per tab, in the order the sessions were made — **never** in the
+   * order of the tabs.
    *
    * What `PreviewHost` renders: all of them, all of the time, with only the one
    * in front visible. They are not rendered one at a time on purpose — a surface
    * that is unmounted and mounted again is a new one, and ONLYOFFICE would open
    * the document from scratch each time a reader came back to its tab.
    *
+   * The order is the point, and it cost an afternoon to learn: an `iframe` reloads
+   * every time it is inserted into the document, and moving a node in the DOM *is*
+   * an insertion. Rendered in the order of the tabs, dragging one tab past another
+   * made Vue move the surfaces to match — and every office document in the row
+   * came back from the Document Server having forgotten where its reader was.
+   * Nothing on screen depends on this order: each surface covers the window and
+   * only the one in front is visible, so the row can be in whatever order never
+   * moves. That is the order they were made in, which is the map's own.
+   *
    * Every tab and not only the ones holding something: a surface whose session is
    * empty draws nothing, and keeping it means opening and closing a document is
    * the same fade in and out of one component it has always been.
    */
-  const surfaces = computed(() =>
-    tabsStore.tabs.map((tab) => ({ key: tab.id, session: ensureSession(tab.id) }))
-  );
+  const surfaces = computed(() => {
+    const live = new Set(tabsStore.tabs.map((tab) => tab.id));
+    for (const id of live) ensureSession(id);
+    return [...sessions.keys()]
+      .filter((key) => live.has(key))
+      .map((key) => ({ key, session: sessions.get(key) }));
+  });
 
   const getExtension = (item) => {
     if (!item) return '';

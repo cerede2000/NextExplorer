@@ -82,11 +82,11 @@ vi.mock('@/composables/tabNavigation', () => ({
 const drafts = vi.hoisted(() => new Map());
 vi.mock('@/stores/editorDrafts', () => ({
   useEditorDraftsStore: () => ({
-    keep: (key, address, text) => drafts.set(key, { address, text }),
+    keep: (key, address, where) => drafts.set(key, { address, ...where }),
     forget: (key) => drafts.delete(key),
-    textFor: (key, address) => {
+    placeFor: (key, address) => {
       const draft = drafts.get(key);
-      return draft && draft.address === address ? draft.text : null;
+      return draft && draft.address === address ? draft : null;
     },
   }),
 }));
@@ -120,6 +120,10 @@ vi.mock('@/components/editor/CodeSurface.vue', async () => {
       setup(props, { emit, expose }) {
         let text = props.content;
         let saved = props.content;
+        // Where the cursor is and how far down the editor was, which is the rest
+        // of what a tab holds on to.
+        let selection = { anchor: 0, head: 0 };
+        const scrollDOM = { scrollTop: 0 };
         const handle = {
           typeText: (value) => {
             text = value;
@@ -131,17 +135,26 @@ vi.mock('@/components/editor/CodeSurface.vue', async () => {
             saved = doc;
             emit('dirty-change', text !== saved);
           },
-          // What the screen reaches for when it puts a kept draft back: an
-          // ordinary edit, which is how "unsaved" stays the editor's own
-          // comparison with the file rather than something the page decides.
+          // What the screen reaches for when it puts a kept place back: an
+          // ordinary edit for the text — which is how "unsaved" stays the
+          // editor's own comparison with the file rather than something the page
+          // decides — and a selection and a scroll that change no document at
+          // all, so neither of them can make a file look edited.
           view: {
             get state() {
-              return { doc: { toString: () => text, length: text.length } };
+              return {
+                doc: { toString: () => text, length: text.length },
+                selection: { main: selection },
+              };
             },
-            dispatch: ({ changes }) => {
-              text = changes.insert;
-              emit('edit');
-              emit('dirty-change', text !== saved);
+            scrollDOM,
+            dispatch: ({ changes, selection: to }) => {
+              if (changes) {
+                text = changes.insert;
+                emit('edit');
+                emit('dirty-change', text !== saved);
+              }
+              if (to) selection = { ...to };
             },
           },
         };
@@ -1084,10 +1097,63 @@ describe('what a tab holds on to', () => {
 
     await anotherTabComesForward();
 
-    expect(drafts.get('tab-1')).toEqual({
+    expect(drafts.get('tab-1')).toMatchObject({
       address: '/editor/Docs/notes.md',
       text: 'half a sentence',
     });
+  });
+
+  /**
+   * And the place, with nothing typed at all — which was the complaint: scrolled
+   * two hundred lines down, a paragraph selected, and back to the top of the file
+   * with nothing selected.
+   */
+  it('keeps where the reader was, in a file nothing was typed into', async () => {
+    await mountEditor();
+    surface.current.view.dispatch({ selection: { anchor: 40, head: 96 } });
+    surface.current.view.scrollDOM.scrollTop = 720;
+
+    await anotherTabComesForward();
+
+    expect(drafts.get('tab-1')).toMatchObject({
+      text: null,
+      selection: { anchor: 40, head: 96 },
+      scrollTop: 720,
+    });
+  });
+
+  it('hands the place back when its tab comes back', async () => {
+    drafts.set('tab-1', {
+      address: '/editor/Docs/notes.md',
+      text: null,
+      selection: { anchor: 3, head: 5 },
+      scrollTop: 480,
+    });
+
+    await mountEditor();
+    await flushPromises();
+
+    expect(surface.current.view.state.selection.main).toEqual({ anchor: 3, head: 5 });
+    expect(surface.current.view.scrollDOM.scrollTop).toBe(480);
+  });
+
+  /**
+   * The file may have been written to by somebody else while this tab was away,
+   * and a cursor past the end of the document throws.
+   */
+  it('brings a cursor past the end of a shortened file back inside it', async () => {
+    drafts.set('tab-1', {
+      address: '/editor/Docs/notes.md',
+      text: null,
+      selection: { anchor: 900, head: 900 },
+      scrollTop: 0,
+    });
+
+    await mountEditor();
+    await flushPromises();
+
+    // 'hello' is what the file holds.
+    expect(surface.current.view.state.selection.main).toEqual({ anchor: 5, head: 5 });
   });
 
   it('hands it back, still unsaved, when its tab comes back', async () => {
@@ -1102,7 +1168,7 @@ describe('what a tab holds on to', () => {
     expect(view.canSave).toBe(true);
   });
 
-  it('keeps nothing for a file that is only being read', async () => {
+  it('keeps no text for a file that is only being read', async () => {
     Object.assign(route(), {
       name: 'TrashFileViewer',
       fullPath: '/trash/view/id-1/drafts/run.sh',
@@ -1113,15 +1179,17 @@ describe('what a tab holds on to', () => {
 
     await anotherTabComesForward();
 
-    expect(drafts.has('tab-1')).toBe(false);
+    // Its place, yes — nothing about reading a deleted file says where in it the
+    // reader was. Its text, no: there is nothing to write back.
+    expect(drafts.get('tab-1').text).toBeNull();
   });
 
-  it('keeps nothing when there was nothing unsaved', async () => {
+  it('keeps no text when there was nothing unsaved', async () => {
     await mountEditor();
 
     await anotherTabComesForward();
 
-    expect(drafts.has('tab-1')).toBe(false);
+    expect(drafts.get('tab-1').text).toBeNull();
   });
 
   /** The tab stayed in front, so the address changed under it: another file now. */

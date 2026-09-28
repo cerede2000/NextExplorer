@@ -3,67 +3,95 @@ import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
 
 /**
- * What a tab holds on to between two glances.
+ * Where a tab was in a file, held between two glances.
  *
- * Two rules, and both of them are about *not* handing text back: a draft belongs
- * to one address, and it goes when its tab does. Get either wrong and somebody's
- * unsaved work turns up inside another file, which is worse than losing it —
- * losing it they would notice.
+ * Two rules, and both of them are about *not* handing something back: what is
+ * kept belongs to one address, and it goes when its tab does. Get either wrong
+ * and somebody's unsaved work — or their cursor — turns up inside another file,
+ * which is worse than losing it. Losing it they would notice.
  */
 
 import { useEditorDraftsStore } from './editorDrafts';
 import { useTabsStore } from '@/stores/tabs';
 
 const ADDRESS = '/editor/Docs/notes.md';
+const PLACE = { text: 'half a sentence', selection: { anchor: 4, head: 9 }, scrollTop: 320 };
 
 beforeEach(() => {
   setActivePinia(createPinia());
 });
 
-describe('a draft belongs to a tab and an address', () => {
-  it('is handed back to the tab that left it, at the address it was left at', () => {
+describe('what is kept belongs to a tab and an address', () => {
+  it('is handed back whole to the tab that left it', () => {
     const drafts = useEditorDraftsStore();
-    drafts.keep('tab-1', ADDRESS, 'half a sentence');
+    drafts.keep('tab-1', ADDRESS, PLACE);
 
-    expect(drafts.textFor('tab-1', ADDRESS)).toBe('half a sentence');
+    expect(drafts.placeFor('tab-1', ADDRESS)).toEqual({ address: ADDRESS, ...PLACE });
   });
 
-  /** Another file in the same tab: this text has nothing to do with it. */
+  /** Another file in the same tab: none of this has anything to do with it. */
   it('is not handed to another address', () => {
     const drafts = useEditorDraftsStore();
-    drafts.keep('tab-1', ADDRESS, 'half a sentence');
+    drafts.keep('tab-1', ADDRESS, PLACE);
 
-    expect(drafts.textFor('tab-1', '/editor/Docs/other.md')).toBeNull();
+    expect(drafts.placeFor('tab-1', '/editor/Docs/other.md')).toBeNull();
   });
 
   it('is not handed to another tab', () => {
     const drafts = useEditorDraftsStore();
-    drafts.keep('tab-1', ADDRESS, 'half a sentence');
+    drafts.keep('tab-1', ADDRESS, PLACE);
 
-    expect(drafts.textFor('tab-2', ADDRESS)).toBeNull();
+    expect(drafts.placeFor('tab-2', ADDRESS)).toBeNull();
   });
 
   it('is nothing at all until something is kept', () => {
     const drafts = useEditorDraftsStore();
 
-    expect(drafts.textFor('tab-1', ADDRESS)).toBeNull();
+    expect(drafts.placeFor('tab-1', ADDRESS)).toBeNull();
   });
 
-  /** An empty draft is still a draft: everything deleted and not yet saved. */
-  it('keeps an empty document, which is a change like any other', () => {
+  /**
+   * A file nobody typed into still has a place worth keeping — that was the whole
+   * complaint: scrolled two hundred lines down, a paragraph selected, and back to
+   * the top of the file with nothing selected.
+   */
+  it('keeps the place of a file with nothing typed into it', () => {
     const drafts = useEditorDraftsStore();
-    drafts.keep('tab-1', ADDRESS, '');
+    drafts.keep('tab-1', ADDRESS, { selection: { anchor: 12, head: 12 }, scrollTop: 900 });
 
-    expect(drafts.textFor('tab-1', ADDRESS)).toBe('');
+    const kept = drafts.placeFor('tab-1', ADDRESS);
+    expect(kept.text).toBeNull();
+    expect(kept.selection).toEqual({ anchor: 12, head: 12 });
+    expect(kept.scrollTop).toBe(900);
+  });
+
+  /** An empty document is a change like any other, and not "nothing typed". */
+  it('keeps an empty document as text rather than as nothing', () => {
+    const drafts = useEditorDraftsStore();
+    drafts.keep('tab-1', ADDRESS, { text: '' });
+
+    expect(drafts.placeFor('tab-1', ADDRESS).text).toBe('');
+  });
+
+  it('answers a place of its own for a tab that was given none', () => {
+    const drafts = useEditorDraftsStore();
+    drafts.keep('tab-1', ADDRESS, {});
+
+    expect(drafts.placeFor('tab-1', ADDRESS)).toEqual({
+      address: ADDRESS,
+      text: null,
+      selection: null,
+      scrollTop: 0,
+    });
   });
 
   it('is gone once it is let go of', () => {
     const drafts = useEditorDraftsStore();
-    drafts.keep('tab-1', ADDRESS, 'half a sentence');
+    drafts.keep('tab-1', ADDRESS, PLACE);
 
     drafts.forget('tab-1');
 
-    expect(drafts.textFor('tab-1', ADDRESS)).toBeNull();
+    expect(drafts.placeFor('tab-1', ADDRESS)).toBeNull();
   });
 });
 
@@ -72,17 +100,17 @@ describe('a tab that goes', () => {
    * Closing a tab is a decision about what is in it. Kept, the text would come
    * back in whatever tab was later given the same identifier.
    */
-  it('takes its draft with it', async () => {
+  it('takes what was kept with it', async () => {
     const tabs = useTabsStore();
     tabs.setEnabled(true);
     const second = tabs.open('/editor/Docs/notes.md', { own: true });
     const drafts = useEditorDraftsStore();
-    drafts.keep(second.id, ADDRESS, 'half a sentence');
+    drafts.keep(second.id, ADDRESS, PLACE);
 
     tabs.close(second.id);
     await nextTick();
 
-    expect(drafts.textFor(second.id, ADDRESS)).toBeNull();
+    expect(drafts.placeFor(second.id, ADDRESS)).toBeNull();
   });
 
   it('leaves the other tabs holding theirs', async () => {
@@ -91,12 +119,12 @@ describe('a tab that goes', () => {
     const first = tabs.activeId;
     const second = tabs.open('/editor/Docs/notes.md', { own: true });
     const drafts = useEditorDraftsStore();
-    drafts.keep(first, ADDRESS, 'kept');
-    drafts.keep(second.id, ADDRESS, 'goes');
+    drafts.keep(first, ADDRESS, { text: 'kept' });
+    drafts.keep(second.id, ADDRESS, { text: 'goes' });
 
     tabs.close(second.id);
     await nextTick();
 
-    expect(drafts.textFor(first, ADDRESS)).toBe('kept');
+    expect(drafts.placeFor(first, ADDRESS).text).toBe('kept');
   });
 });

@@ -3,29 +3,37 @@ import { watch } from 'vue';
 import { useTabsStore } from '@/stores/tabs';
 
 /**
- * What was typed in a tab and never saved.
+ * Where a tab was in a file: what was typed, where the cursor is, how far down.
  *
  * The text editor is a page, and a page is unmounted the moment another tab comes
- * forward — so everything typed since the last save went with it, silently, for a
- * click that never said "discard". A document open in the preview does not have
- * this problem: its session lives in the preview manager and outlives the page
- * (see `plugins/preview/session.js`). This is the same idea for the one kind of
- * document that is not a preview, and it keeps the only thing that cannot be read
- * back from disk.
+ * forward — so everything went with it. First everything typed since the last
+ * save, silently, for a click that never said "discard"; and then, even with
+ * nothing typed at all, the place: somebody who had scrolled two hundred lines
+ * down and selected a paragraph came back to the top of the file with nothing
+ * selected. A document open in the preview does not have this problem, because
+ * its session lives in the preview manager and outlives the page (see
+ * `plugins/preview/session.js`). This is the same promise for the one kind of
+ * document that is not a preview.
  *
- * Deliberately not the cursor, the selection or the undo history. Those live
- * inside CodeMirror, and keeping them would mean keeping the editor itself alive —
- * which the router cannot do for a page that is not on screen. What is at stake is
- * the text, and the text is what is kept.
+ * Three things, then, and each of them is the answer to "where was I": the text,
+ * when it differs from the file; the selection, which is the cursor when it is
+ * empty; and how far the editor was scrolled. Not the undo history — that lives
+ * inside CodeMirror and would mean keeping the editor itself alive, which the
+ * router cannot do for a page that is not on screen.
  *
- * Kept in memory only, and per tab: a draft is something this window is holding on
- * to between two glances, not a second copy of somebody's file to be found later
- * in their browser's storage.
+ * Kept in memory only, and per tab: this is something the window holds between two
+ * glances, not a second copy of somebody's file to be found later in their
+ * browser's storage.
  */
 export const useEditorDraftsStore = defineStore('editor-drafts', () => {
   const tabsStore = useTabsStore();
 
-  /** tab id → `{ address, text }`. A plain Map: nothing is rendered from it. */
+  /**
+   * tab id → `{ address, text, selection, scrollTop }`. A plain Map: nothing is
+   * rendered from it. `text` is null for a file nothing was typed into, which is
+   * also how a file being read from the trash or from a history is kept — its
+   * place is worth remembering, and it has no text of its own to save.
+   */
   const drafts = new Map();
 
   // A tab that goes takes its draft with it. Closing a tab is a decision about
@@ -40,10 +48,22 @@ export const useEditorDraftsStore = defineStore('editor-drafts', () => {
     }
   );
 
-  /** Hold what is on screen, for the address it belongs to. */
-  const keep = (key, address, text) => {
+  /**
+   * Hold where the tab was, for the address it belongs to.
+   *
+   * @param {string} key  The tab.
+   * @param {string} address  The address it is on; a draft belongs to one.
+   * @param {object} where  `{ text, selection, scrollTop }` — `text` null unless
+   *   it differs from the file.
+   */
+  const keep = (key, address, where = {}) => {
     if (!key || !address) return;
-    drafts.set(key, { address, text });
+    drafts.set(key, {
+      address,
+      text: typeof where.text === 'string' ? where.text : null,
+      selection: where.selection || null,
+      scrollTop: Number.isFinite(where.scrollTop) ? where.scrollTop : 0,
+    });
   };
 
   const forget = (key) => {
@@ -54,13 +74,13 @@ export const useEditorDraftsStore = defineStore('editor-drafts', () => {
    * What was kept for this tab at this address, or null.
    *
    * The address is half the question: a tab that was taken to another file has
-   * nothing to do with the text typed into the previous one, and answering with
-   * it would put one file's work into another file's editor.
+   * nothing to do with what was typed into the previous one, and answering with it
+   * would put one file's work — and one file's cursor — into another file.
    */
-  const textFor = (key, address) => {
+  const placeFor = (key, address) => {
     const draft = drafts.get(key);
-    return draft && draft.address === address ? draft.text : null;
+    return draft && draft.address === address ? draft : null;
   };
 
-  return { keep, forget, textFor };
+  return { keep, forget, placeFor };
 });

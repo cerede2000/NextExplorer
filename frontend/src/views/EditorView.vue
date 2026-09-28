@@ -414,16 +414,28 @@ const routeFolderPath = (targetRoute) => {
  * when the tab has gone, which takes its draft with it.
  */
 onBeforeUnmount(() => {
-  if (isViewerOnly.value || !hasUnsavedChanges.value) {
-    drafts.forget(tabKey);
-    return;
-  }
+  // Gone with its tab: nothing to hold it for.
   if (!tabs.tabs.some((entry) => entry.id === tabKey)) return;
+  // Still the tab in front, so the address changed underneath it: this file is
+  // not what the tab is on any more.
   if (tabs.activeId === tabKey) {
     drafts.forget(tabKey);
     return;
   }
-  drafts.keep(tabKey, shownAddress.value, String(surface.value?.snapshot() ?? ''));
+
+  const editor = surface.value?.view;
+  const selection = editor?.state.selection.main;
+  drafts.keep(tabKey, shownAddress.value, {
+    // The text only when it differs from the file. A file being read from the
+    // trash or from a history has none to keep, and one nobody has typed into is
+    // the file itself — putting it back as an edit would call it unsaved.
+    text:
+      !isViewerOnly.value && hasUnsavedChanges.value
+        ? String(surface.value?.snapshot() ?? '')
+        : null,
+    selection: selection ? { anchor: selection.anchor, head: selection.head } : null,
+    scrollTop: editor?.scrollDOM?.scrollTop ?? 0,
+  });
 });
 
 // BrowserLayout is unmounted while editing text, so the generic folder-to-
@@ -489,28 +501,48 @@ const loadFile = async () => {
 
   // After the editor exists. While the file is being read there is no editor on
   // screen at all, so a draft put back any earlier would have nowhere to go.
-  await restoreKeptText(requestPath);
+  await restoreKeptPlace(requestPath);
 };
 
 /**
- * What was typed in this tab and never saved, put back.
+ * Where this tab was in this file, put back: the text, the cursor, the place.
  *
- * Applied as an edit rather than handed over as the document, so that "unsaved"
- * stays CodeMirror's own comparison with what is on disk: told the draft *was*
- * the document, the editor would consider it saved and the save button would sit
- * grey over text that exists nowhere but this window.
+ * The text is applied as an edit rather than handed over as the document, so that
+ * "unsaved" stays CodeMirror's own comparison with what is on disk: told the
+ * draft *was* the document, the editor would consider it saved and the save
+ * button would sit grey over text that exists nowhere but this window.
+ *
+ * The selection and the scroll are set afterwards and change nothing about the
+ * document, so neither of them makes a file look edited. They are the whole
+ * answer to "where was I", and without them coming back to a tab landed at the
+ * top of the file with nothing selected.
  */
-const restoreKeptText = async (address) => {
-  if (isViewerOnly.value) return;
-  const kept = drafts.textFor(tabKey, address);
-  if (kept === null) return;
+const restoreKeptPlace = async (address) => {
+  const kept = drafts.placeFor(tabKey, address);
+  if (!kept) return;
 
   // After the file's own text has reached the editor.
   await nextTick();
   const editor = surface.value?.view;
   if (!editor || address !== route.fullPath) return;
-  if (editor.state.doc.toString() === kept) return;
-  editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: kept } });
+
+  if (!isViewerOnly.value && kept.text !== null && editor.state.doc.toString() !== kept.text) {
+    editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: kept.text } });
+  }
+
+  const end = editor.state.doc.length;
+  if (kept.selection) {
+    editor.dispatch({
+      // Clamped: the file may have been written to by somebody else while this
+      // tab was away, and a cursor past the end of the document throws.
+      selection: {
+        anchor: Math.min(kept.selection.anchor, end),
+        head: Math.min(kept.selection.head, end),
+      },
+    });
+  }
+  // After the selection, which scrolls to the cursor of its own accord.
+  if (editor.scrollDOM) editor.scrollDOM.scrollTop = kept.scrollTop;
 };
 
 const saveFile = async () => {
