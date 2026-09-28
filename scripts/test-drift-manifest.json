@@ -84,7 +84,7 @@
     {
       "file": "^frontend/src/components/TerminalPanel\\.lazy\\.spec\\.js$",
       "cases": ["^is where xterm lives, so it travels with the panel$"],
-      "note": "renamed when xterm moved house: a terminal became a place, so what a terminal *is* came out of the drawer into `components/TerminalSurface.vue` and a page behind a terminal tab shows one too. The case is `is where xterm lives, so it travels with whatever shows a terminal`, and it is now three of them rather than one — the surface holds xterm, the drawer reaches it and is loaded on demand, and so is the page. What it guards is unchanged: nothing a page loads eagerly may reach 289 kB of terminal"
+      "note": "renamed twice as xterm moved house. A terminal became a place, so what a terminal *is* came out of the drawer into `components/TerminalSurface.vue`; then a terminal became the tab’s rather than the window’s, and the drawer became `components/TerminalHost.vue`, which draws every open terminal and outlives every page — a page is unmounted the moment another tab comes forward, and an unmounted terminal is a killed shell. The case is `is where xterm lives, so it travels with whatever shows a terminal`, and it is now five of them rather than one: the host is loaded on demand, it is not even on the page until a terminal is open, the surface holds xterm, the host reaches it, and the page behind a terminal tab reaches nothing at all. What it guards is unchanged: nothing a page loads eagerly may reach 289 kB of terminal"
     }
   ]
 }

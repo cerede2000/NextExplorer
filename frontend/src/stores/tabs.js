@@ -299,8 +299,8 @@ export const useTabsStore = defineStore('tabs', () => {
   /**
    * The same place again, in a tab beside it.
    *
-   * What a browser's "Duplicate tab" does, and for the same reason: two views of
-   * one folder, one of them about to be taken somewhere else. Beside the tab it
+   * What a browser offers for duplicating a tab, and for the same reason: two
+   * views of one folder, one of them about to be taken somewhere else. Beside the tab it
    * came from rather than at the end of the row, because that is where the reader
    * is looking — and it is a tab of its own from the moment it exists, so it never
    * inherits `own` and cannot be closed by a document's cross.
