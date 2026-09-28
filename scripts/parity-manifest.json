@@ -621,7 +621,7 @@
     },
     {
       "axis": "*",
-      "match": "^\\.github/workflows/(build-image|ci|cleanup-packages|dockerhub-description|measure-solid-7z|package-integration|package-standalone|refresh-images)\\.yml$",
+      "match": "^\\.github/workflows/(build-image|package-tabs|ci|cleanup-packages|dockerhub-description|measure-solid-7z|package-integration|package-standalone|refresh-images)\\.yml$",
       "verdict": "OURS",
       "note": "our release and image workflows; upstream publishes its own"
     },
@@ -1559,6 +1559,13 @@
       "verdict": "DONE",
       "batch": "P3-57",
       "note": "nxzai#484 — taking a selection away without an archive: the plan endpoint and its parts, the two menu entries, the split button and the preference"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/src/stores/tabs\\.js|frontend/src/config/tabKinds\\.js|frontend/src/composables/tabNavigation\\.js|frontend/src/components/TabStrip\\.vue)",
+      "verdict": "PORT",
+      "batch": "P3-59",
+      "note": "tabs, lot 1: a folder per tab, the kinds a tab can hold, the strip, and the switch that offers any of it — P3-59 when it goes"
     }
   ],
   "residue": [
@@ -1585,6 +1592,16 @@
     {
       "match": "^docs/reference/api\\.md$",
       "note": "one line: the examples were run against this fork's live demo, and upstream has no demo to name. Everything else on the page is the same, including the shared editor's save, which came home with this"
+    },
+    {
+      "match": "^(backend/src/services/settingsService\\.js|frontend/src/App\\.vue|frontend/src/components/FileObject\\.vue|frontend/src/stores/appSettings\\.js|frontend/src/stores/fileStore\\.js|frontend/src/views/settings/SettingsUserPreferences\\.vue)$",
+      "note": "tabs, lot 1: a folder per tab, the kinds a tab can hold, the strip, and the switch that offers any of it — P3-59 when it goes, and no branch carries it yet — `fileStore.js` is the whole of what tabs cost the rest of the application, which is a folder per tab where there was one"
+    }
+  ],
+  "controls": [
+    {
+      "match": "^(tabs\\.(newTab|closeTab|closeOthers)|\\\"titleFor\\(tab\\)\\\")$",
+      "note": "tabs, lot 1: a folder per tab, the kinds a tab can hold, the strip, and the switch that offers any of it — P3-59 when it goes — the strip's own buttons, and the name it writes on a tab"
     }
   ]
 }
