@@ -980,6 +980,76 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   await expect(surface).toBeVisible();
   await expect(surface).toHaveAttribute('data-kept', 'yes');
 
+  /**
+   * And several documents, each kept alive in its own tab.
+   *
+   * The question this answers is whether more than one stays in memory at once:
+   * every surface on the page is stamped, the tabs are crossed four times, and
+   * every stamp is still there afterwards. A rebuilt document comes back without
+   * its stamp — and an office document comes back without its connection to the
+   * Document Server, its cursor and its undo history.
+   */
+  fs.writeFileSync(path.join(volume, 'kept-one.md'), '# Kept one\n');
+  fs.writeFileSync(path.join(volume, 'kept-two.md'), '# Kept two\n');
+
+  for (const name of ['kept-one.md', 'kept-two.md']) {
+    await tabs.first().getByRole('tab').click();
+    await expect(page).toHaveURL(/\/browse\/Projects$/);
+    await page.locator(`[title="${name}"]:not([role="tab"])`).first().dblclick();
+    await expect(page).toHaveURL(new RegExp(`/open/Projects/${name.replace('.', '\\.')}$`));
+  }
+
+  const stamped = page.locator('[data-test="preview-surface"][data-kept]');
+  const kept = await page.evaluate(() => {
+    const surfaces = [...document.querySelectorAll('[data-test="preview-surface"]')];
+    surfaces.forEach((node, index) => {
+      node.dataset.kept = `s${index}`;
+    });
+    return surfaces.length;
+  });
+  expect(kept).toBeGreaterThan(1);
+
+  const documentTabs = strip.locator('[role="tab"][title$=".md"]');
+  for (let crossing = 0; crossing < 2; crossing += 1) {
+    await documentTabs.first().click();
+    await documentTabs.last().click();
+  }
+
+  await expect(stamped).toHaveCount(kept);
+
+  /**
+   * One rule for opening in a tab: command, or control, with the gesture that
+   * opens. On a row that is the double click — the single one selects, and with
+   * that modifier it adds to the selection, which is worth more than a tab.
+   *
+   * A favourite and a volume take the same modifier on their single click, which
+   * is the gesture that opens *them*; `FavMenu.spec.js` holds that wiring, since
+   * making a favourite here would be a journey of its own.
+   */
+  await tabs.first().getByRole('tab').click();
+  await expect(page).toHaveURL(/\/browse\/Projects$/);
+  const openedTabs = await tabs.count();
+
+  await page
+    .locator('[title="Alpha"]:not([role="tab"])')
+    .first()
+    .dblclick({ modifiers: ['ControlOrMeta'] });
+
+  await expect(tabs).toHaveCount(openedTabs + 1);
+  // Behind: the reader is still in the folder they were reading.
+  await expect(page).toHaveURL(/\/browse\/Projects$/);
+
+  // And the row put back as the rest of this journey found it: the counts below
+  // are absolute, on purpose, so tabs left behind here would be counted there.
+  for (const name of ['kept-one.md', 'kept-two.md', 'Alpha']) {
+    await tabs
+      .filter({ has: page.locator(`[role="tab"][title="${name}"]`) })
+      .first()
+      .locator('[data-test="tab-close"]')
+      .click();
+  }
+  await expect(tabs).toHaveCount(3);
+
   // And the middle button does the same for a file, behind: a document is a place
   // like a folder is, which is the whole point of a tab being an address.
   await page.goto('/browse/Projects');

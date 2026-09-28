@@ -36,6 +36,7 @@ import {
 } from '@/utils/folderKeyboard';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
 import { useNavigation } from '@/composables/navigation';
+import { useOpenItemInTab } from '@/composables/itemAddress';
 import { useFileActions } from '@/composables/fileActions';
 import { useDeleteConfirm } from '@/composables/useDeleteConfirm';
 import { useOperationTasksStore } from '@/stores/operationTasks';
@@ -82,6 +83,9 @@ const handleCurrentFolderDrop = (event) => {
   handleDrop(event, currentFolderDropTarget.value);
 };
 const { openItem, goNext, goPrev, goUp } = useNavigation();
+// Command (or control) with the key that opens things: a tab behind, as a
+// browser does with a link.
+const { openItemInTab } = useOpenItemInTab();
 const actions = useFileActions();
 const { isDeleteConfirmOpen } = useDeleteConfirm();
 
@@ -659,6 +663,16 @@ const handleFolderKeydown = (event) => {
   if (event.key === 'Enter' || (event.key === 'ArrowRight' && selected?.kind === 'directory')) {
     if (!selected) return;
     event.preventDefault();
+    // The modifier a browser uses to open a link in a tab, on the key that opens
+    // things here. `metaKey` first: on a Mac the command key is the one people
+    // reach for, and control there means something else entirely.
+    //
+    // It is the *keyboard* that carries this, because on a row the same modifier
+    // with a click already means "and this one too" — taking multiple selection
+    // away to offer a tab would be a poor trade. The middle button and the row's
+    // own menu say it with a pointer.
+    if ((event.metaKey || event.ctrlKey) && openItemInTab(selected, fileStore.currentPath || ''))
+      return;
     openItem(selected);
     return;
   }

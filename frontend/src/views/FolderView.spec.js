@@ -92,6 +92,7 @@ const composables = vi.hoisted(() => ({
   toggleSelection: vi.fn(),
   openBackgroundMenu: vi.fn(),
   openItem: vi.fn(),
+  openItemInTab: vi.fn(() => true),
   goNext: vi.fn(),
   goPrev: vi.fn(),
   goUp: vi.fn(),
@@ -110,6 +111,12 @@ vi.mock('@/composables/itemSelection', () => ({
 }));
 vi.mock('@/composables/contextMenu', () => ({
   useExplorerContextMenu: () => ({ openBackgroundMenu: composables.openBackgroundMenu }),
+}));
+// What a tab behind means is the rule's own, held in
+// `composables/itemAddress.openInTab.spec.js`. What is asked here is that the key
+// that opens things asks it when the modifier is held.
+vi.mock('@/composables/itemAddress', () => ({
+  useOpenItemInTab: () => ({ openItemInTab: composables.openItemInTab }),
 }));
 vi.mock('@/composables/navigation', () => ({
   useNavigation: () => ({
@@ -199,6 +206,8 @@ beforeEach(() => {
   composables.clearSelection.mockClear();
   composables.toggleSelection.mockClear();
   composables.openItem.mockClear();
+  composables.openItemInTab.mockClear();
+  composables.openItemInTab.mockReturnValue(true);
   composables.goNext.mockClear();
   composables.goPrev.mockClear();
   composables.goUp.mockClear();
@@ -632,6 +641,45 @@ describe('walking the folder with the arrow keys', () => {
 describe('opening and leaving with the keyboard', () => {
   beforeEach(() => {
     stores.file.items = [file('a.txt'), folder('sub')];
+  });
+
+  /**
+   * One rule everywhere: command, or control, turns *opening* into opening in a
+   * tab behind. Here it rides the key that opens, because on a row the same
+   * modifier with a click already means "and this one too".
+   */
+  it('opens in a tab behind when command is held', async () => {
+    await mountFolder();
+    await press('ArrowDown');
+
+    await press('Enter', { metaKey: true });
+
+    expect(composables.openItemInTab).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'a.txt' }),
+      'Docs'
+    );
+    expect(composables.openItem).not.toHaveBeenCalled();
+  });
+
+  it('does the same on control, for everyone else', async () => {
+    await mountFolder();
+    await press('ArrowDown');
+
+    await press('Enter', { ctrlKey: true });
+
+    expect(composables.openItemInTab).toHaveBeenCalled();
+    expect(composables.openItem).not.toHaveBeenCalled();
+  });
+
+  /** Nowhere of its own, or tabs off: the modifier changes nothing. */
+  it('opens the ordinary way when there is no tab to open it in', async () => {
+    composables.openItemInTab.mockReturnValue(false);
+    await mountFolder();
+    await press('ArrowDown');
+
+    await press('Enter', { metaKey: true });
+
+    expect(composables.openItem).toHaveBeenCalledWith(expect.objectContaining({ name: 'a.txt' }));
   });
 
   it('opens what the ring is on', async () => {

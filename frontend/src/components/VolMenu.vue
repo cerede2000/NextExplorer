@@ -56,8 +56,19 @@ const isActiveVolume = (volumeName = '') => {
   return volumeName === activeVolumeName.value;
 };
 
-const openPersonal = () => {
+/**
+ * Command, or control, opens it in a tab behind — what a browser does with a
+ * link. `metaKey` first, because on a Mac the command key is the one people
+ * reach for and control there means something else entirely.
+ */
+const openPersonal = (event) => {
+  if ((event?.metaKey || event?.ctrlKey) && openPlaceInTab('personal')) return;
   openBreadcrumb('personal');
+};
+
+const openVolume = (volume, event) => {
+  if ((event?.metaKey || event?.ctrlKey) && openPlaceInTab(volume.name)) return;
+  openItem(volume);
 };
 </script>
 
@@ -68,7 +79,7 @@ const openPersonal = () => {
         {{ $t('drives.personal') }}
       </h4>
       <button
-        @click="openPersonal"
+        @click="openPersonal($event)"
         @auxclick.middle.prevent="openPlaceInTab('personal')"
         :class="[
           'cursor-pointer flex w-full items-center gap-3 my-3 rounded-lg transition-colors duration-200 text-sm',
@@ -107,7 +118,7 @@ const openPersonal = () => {
           <button
             v-for="volume in volumes"
             :key="volume.name"
-            @click="openItem(volume)"
+            @click="openVolume(volume, $event)"
             @auxclick.middle.prevent="openPlaceInTab(volume.name)"
             :class="[
               'cursor-pointer flex w-full gap-3 my-3 rounded-lg text-left transition-colors duration-200 text-sm',

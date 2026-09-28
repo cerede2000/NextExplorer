@@ -3,6 +3,7 @@ import { documentRoute } from '@/utils/documentRoute';
 import { isEditableExtension } from '@/config/editor';
 import { usePreviewManager } from '@/plugins/preview/manager';
 import { useAppSettings } from '@/stores/appSettings';
+import { useTabsStore } from '@/stores/tabs';
 
 // Kept beside the markdown preview plugin's own list, which matches the same
 // two extensions.
@@ -61,4 +62,30 @@ export function useItemAddress() {
   };
 
   return { addressFor };
+}
+
+/**
+ * An entry in a listing, opened in a tab behind.
+ *
+ * Here rather than beside `openPlaceInTab`, which answers the same question for
+ * a favourite or a volume: this one needs an address worked out, and working one
+ * out reaches for the preview manager — which reaches for the router. A file in
+ * the sidebar that only wanted to open a folder was pulling all of it into every
+ * screen that draws one.
+ *
+ * Behind, and marked `own` so a document opened in it can close it again.
+ * Answers false for an entry with nowhere of its own — a file with neither a
+ * preview nor an editor is a download, not somewhere to be — and with tabs off,
+ * which leaves the ordinary gesture to do what it has always done.
+ */
+export function useOpenItemInTab() {
+  const openItemInTab = (item, currentPath = '') => {
+    const tabs = useTabsStore();
+    if (!tabs.enabled) return false;
+    const target = useItemAddress().addressFor(item, { currentPath });
+    if (!target?.path) return false;
+    return Boolean(tabs.open(target.path, { activate: false, own: true }));
+  };
+
+  return { openItemInTab };
 }

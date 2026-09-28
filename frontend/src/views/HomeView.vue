@@ -45,14 +45,26 @@ const quickAccess = computed(() =>
   })
 );
 
-const handleOpenFavorite = (favorite) => {
+/**
+ * Command, or control, opens it in a tab behind — what a browser does with a
+ * link. `metaKey` first, because on a Mac the command key is the one people
+ * reach for and control there means something else entirely.
+ */
+const handleOpenFavorite = (favorite, event) => {
   if (!favorite?.path) return;
+  if ((event?.metaKey || event?.ctrlKey) && openPlaceInTab(favorite.path)) return;
   openBreadcrumb(favorite.path);
+};
+
+const openVolume = (volume, event) => {
+  if ((event?.metaKey || event?.ctrlKey) && openPlaceInTab(volume.name)) return;
+  openItem(volume);
 };
 
 const PersonalIcon = OutlineIcons.FolderIcon || SolidIcons.FolderIcon;
 
-const openPersonal = () => {
+const openPersonal = (event) => {
+  if ((event?.metaKey || event?.ctrlKey) && openPlaceInTab('personal')) return;
   openBreadcrumb('personal');
 };
 </script>
@@ -80,7 +92,7 @@ const openPersonal = () => {
           :key="fav.path"
           type="button"
           :title="fav.label"
-          @click="handleOpenFavorite(fav)"
+          @click="handleOpenFavorite(fav, $event)"
           @auxclick.middle.prevent="openPlaceInTab(fav.path)"
           class="flex w-full items-center gap-3 rounded-md py-3 text-left text-neutral-700 select-none dark:text-neutral-300"
         >
@@ -116,7 +128,7 @@ const openPersonal = () => {
           v-for="vol in volumes"
           :key="vol.name"
           type="button"
-          @click="openItem(vol)"
+          @click="openVolume(vol, $event)"
           @auxclick.middle.prevent="openPlaceInTab(vol.name)"
           :class="[
             'w-full max-w-full rounded-lg py-3 pr-3 text-left transition-colors hover:bg-neutral-100/70 dark:hover:bg-neutral-800/60',
@@ -169,7 +181,7 @@ const openPersonal = () => {
       <div v-if="!loading">
         <button
           type="button"
-          @click="openPersonal"
+          @click="openPersonal($event)"
           @auxclick.middle.prevent="openPlaceInTab('personal')"
           class="flex items-center gap-3 py-4 text-left"
         >

@@ -25,8 +25,7 @@ import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
 import InlineQuickActions from '@/components/InlineQuickActions.vue';
 import { useQuickActionsStore } from '@/stores/quickActions';
-import { useTabsStore } from '@/stores/tabs';
-import { useItemAddress } from '@/composables/itemAddress';
+import { useOpenItemInTab } from '@/composables/itemAddress';
 import { useI18n } from 'vue-i18n';
 import { useNotificationsStore } from '@/stores/notifications';
 
@@ -207,19 +206,23 @@ const handleClick = (event) => {
 // one case that does not navigate, so nothing here needs a router — and asking for
 // the composable put the settings store, the accounts store and the router itself
 // into the module graph of every row in the listing.
-const tabsStore = useTabsStore();
-const { addressFor } = useItemAddress();
+const { openItemInTab } = useOpenItemInTab();
 const handleMiddleClick = () => {
   if (isRenaming.value || isOutsideLink.value) return;
-  if (!tabsStore.enabled) return;
-  const target = addressFor(props.item, { currentPath: props.item?.path || '' });
-  if (!target?.path) return;
-  tabsStore.open(target.path, { activate: false, own: true });
+  openItemInTab(props.item, props.item?.path || '');
 };
 
-const handleDblClick = () => {
+const handleDblClick = (event) => {
   if (isRenaming.value) return;
   if (isTouchDevice.value && selectionMode.value) return;
+  // One rule everywhere: command, or control, turns *opening* into opening in a
+  // tab behind. On a row the gesture that opens is the double click — the single
+  // one selects, and with this modifier it adds to the selection, which is worth
+  // more than a tab. On a favourite or a volume there is no selection to make, so
+  // there it is the single click. The middle button says the same thing on both.
+  if ((event?.metaKey || event?.ctrlKey) && openItemInTab(props.item, props.item?.path || '')) {
+    return;
+  }
   openItem(props.item);
 };
 
