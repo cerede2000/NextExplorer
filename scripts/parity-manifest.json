@@ -1562,10 +1562,10 @@
     },
     {
       "axis": "*",
-      "match": "^(frontend/src/stores/tabs\\.js|frontend/src/config/tabKinds\\.js|frontend/src/composables/tabNavigation\\.js|frontend/src/components/TabStrip\\.vue)",
+      "match": "^(frontend/src/stores/tabs\\.js|frontend/src/config/tabKinds\\.js|frontend/src/composables/tabNavigation\\.js|frontend/src/components/TabStrip\\.vue|frontend/src/composables/itemAddress\\.js|frontend/src/layouts/EditorLayout\\.vue)",
       "verdict": "PORT",
       "batch": "P3-59",
-      "note": "tabs, lot 1: a folder per tab, the kinds a tab can hold, the strip, and the switch that offers any of it — P3-59 when it goes"
+      "note": "tabs, lot 1: a folder per tab, the kinds a tab can hold, the strip, and the switch that offers any of it — P3-59 when it goes, and where an entry opens, which three of them ask"
     }
   ],
   "residue": [
@@ -1594,13 +1594,13 @@
       "note": "one line: the examples were run against this fork's live demo, and upstream has no demo to name. Everything else on the page is the same, including the shared editor's save, which came home with this"
     },
     {
-      "match": "^(backend/src/services/settingsService\\.js|frontend/src/App\\.vue|frontend/src/components/FileObject\\.vue|frontend/src/stores/appSettings\\.js|frontend/src/stores/fileStore\\.js|frontend/src/views/settings/SettingsUserPreferences\\.vue)$",
-      "note": "tabs, lot 1: a folder per tab, the kinds a tab can hold, the strip, and the switch that offers any of it — P3-59 when it goes, and no branch carries it yet — `fileStore.js` is the whole of what tabs cost the rest of the application, which is a folder per tab where there was one"
+      "match": "^(backend/src/services/settingsService\\.js|frontend/src/App\\.vue|frontend/src/components/FileObject\\.vue|frontend/src/stores/appSettings\\.js|frontend/src/stores/fileStore\\.js|frontend/src/views/settings/SettingsUserPreferences\\.vue|frontend/src/components/ExplorerContextMenu\\.vue|frontend/src/composables/(contextMenuSections|navigation)\\.js|frontend/src/layouts/(BrowserLayout|EditorLayout)\\.vue)$",
+      "note": "tabs, lot 1: a folder per tab, the kinds a tab can hold, the strip, and the switch that offers any of it — P3-59 when it goes, and no branch carries it yet — `fileStore.js` is the whole of what tabs cost the rest of the application, the two layouts fill what they are given rather than reaching for the viewport now that something sits above them, and the menu and `navigation.js` are where an entry is opened in one"
     }
   ],
   "controls": [
     {
-      "match": "^(tabs\\.(newTab|closeTab|closeOthers)|\\\"titleFor\\(tab\\)\\\")$",
+      "match": "^(tabs\\.(newTab|closeTab|closeOthers|openInNewTab)|\\\"titleFor\\(tab\\)\\\")$",
       "note": "tabs, lot 1: a folder per tab, the kinds a tab can hold, the strip, and the switch that offers any of it — P3-59 when it goes — the strip's own buttons, and the name it writes on a tab"
     }
   ]
