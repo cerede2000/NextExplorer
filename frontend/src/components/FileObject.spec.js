@@ -32,6 +32,15 @@ const features = vi.hoisted(() => ({ folderSizeEnabled: true }));
 const sizeFor = vi.hoisted(() => vi.fn(() => null));
 
 vi.mock('@/composables/navigation', () => ({ useNavigation: () => navigation }));
+// Where an entry opens is the preview manager's business, and mocking it here
+// keeps the plugin registry — and the i18n instance it builds — out of a spec
+// about one row. The row's own part is that it asks, and that it asks only when
+// tabs are on.
+const addressFor = vi.hoisted(() => vi.fn(() => ({ path: '/open/Docs/rapport.docx' })));
+vi.mock('@/composables/itemAddress', () => ({ useItemAddress: () => ({ addressFor }) }));
+const tabs = vi.hoisted(() => ({ enabled: true, open: vi.fn() }));
+vi.mock('@/stores/tabs', () => ({ useTabsStore: () => tabs }));
+
 vi.mock('@/composables/itemSelection', () => ({ useSelection: () => selection }));
 vi.mock('@/composables/contextMenu', () => ({ useExplorerContextMenu: () => contextMenu }));
 vi.mock('@/composables/useFileDragDrop', () => ({ useFileDragDrop: () => dragDrop }));
@@ -142,6 +151,10 @@ beforeEach(() => {
   setActivePinia(createPinia());
   inputMode.touch = false;
   features.folderSizeEnabled = true;
+  tabs.enabled = true;
+  tabs.open.mockReset();
+  addressFor.mockReset();
+  addressFor.mockReturnValue({ path: '/open/Docs/rapport.docx' });
   [
     navigation.openItem,
     selection.handleSelection,
@@ -692,5 +705,53 @@ describe('where the quick actions sit in the row', () => {
     mountRow();
 
     expect(slot().exists()).toBe(false);
+  });
+});
+
+/**
+ * The middle button opens an entry in a tab behind.
+ *
+ * Anything with an address of its own — a folder, a document, a spreadsheet, a
+ * file the editor opens — because that is what somebody queueing up four things
+ * to look at expects, and because the address is the one a plain click would take
+ * them to. With tabs off it does nothing rather than navigating: the store would
+ * put it in the one tab there is, which is a move nobody asked for.
+ */
+describe('the middle button on a row', () => {
+  const middleClick = async (item = FILE) => {
+    mountRow(item);
+    await wrapper.find('[title]').trigger('auxclick', { button: 1 });
+  };
+
+  it('opens the entry in a tab behind', async () => {
+    await middleClick();
+
+    expect(addressFor).toHaveBeenCalledWith(FILE, { currentPath: 'Docs' });
+    expect(tabs.open).toHaveBeenCalledWith('/open/Docs/rapport.docx', { activate: false });
+  });
+
+  it('opens a folder too', async () => {
+    addressFor.mockReturnValue({ path: '/browse/Docs/2026' });
+
+    await middleClick(FOLDER);
+
+    expect(tabs.open).toHaveBeenCalledWith('/browse/Docs/2026', { activate: false });
+  });
+
+  it('does nothing for an entry with nowhere of its own', async () => {
+    addressFor.mockReturnValue(null);
+
+    await middleClick();
+
+    expect(tabs.open).not.toHaveBeenCalled();
+  });
+
+  it('does nothing at all while tabs are off', async () => {
+    tabs.enabled = false;
+
+    await middleClick();
+
+    expect(tabs.open).not.toHaveBeenCalled();
+    expect(addressFor).not.toHaveBeenCalled();
   });
 });

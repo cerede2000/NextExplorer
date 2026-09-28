@@ -1,6 +1,7 @@
 import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { HOME, useTabsStore } from '@/stores/tabs';
+import { useAppSettings } from '@/stores/appSettings';
 import { tabKindForPath } from '@/config/tabKinds';
 
 /**
@@ -33,6 +34,7 @@ import { tabKindForPath } from '@/config/tabKinds';
  */
 export function useTabRouteSync() {
   const tabs = useTabsStore();
+  const appSettings = useAppSettings();
   const route = useRoute();
 
   // The address is the truth. `immediate` so the tab in front starts out saying
@@ -40,6 +42,21 @@ export function useTabRouteSync() {
   watch(
     () => route.fullPath,
     (path) => tabs.syncActive(path),
+    { immediate: true }
+  );
+
+  /**
+   * And the account's answer about tabs, told to the store once it is known.
+   *
+   * `loaded` is the whole point. Before the settings arrive `browseInTabs` is not
+   * false, it is *unknown*, and telling the store "off" then threw away every tab
+   * the reader had — on every page load, a moment before the answer came.
+   */
+  watch(
+    () => [appSettings.loaded, appSettings.userSettings?.browseInTabs],
+    ([ready, on]) => {
+      if (ready) tabs.setEnabled(on === true);
+    },
     { immediate: true }
   );
 }

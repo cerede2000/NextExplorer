@@ -901,6 +901,106 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   await tabs.last().locator('[data-test="tab-close"]').click();
   await expect(tabs).toHaveCount(2);
 
+  /**
+   * A document opens in a tab of this application, not of the browser.
+   *
+   * `documentsOpenInNewTab` is already on by this point in the journey, and with
+   * tabs on it means one of ours: a tab beside the folder it came from, in the
+   * window that still holds the clipboard and the transfers. The address is left
+   * loose between `/open` and `/editor` on purpose — which of the two a markdown
+   * file goes to is another preference's business, and this is about the tab.
+   */
+  // Turned on here rather than relied on from an earlier test: what another test
+  // left behind is not a state this one should be built on, and the first version
+  // of this was — it found the preference off and opened nothing.
+  await page.goto('/settings/user-preferences');
+  const inNewTab = page.locator('[data-test="documents-in-new-tab"]');
+  if ((await inNewTab.getAttribute('aria-checked')) !== 'true') {
+    await inNewTab.click();
+    await page.getByRole('button', { name: 'Save' }).click();
+  }
+  await expect(inNewTab).toHaveAttribute('aria-checked', 'true');
+
+  // Counted absolutely, from the two left above: a count read straight after a
+  // navigation is read before the strip has drawn, and `before + 1` then asks for
+  // one tab where there are two.
+  const document = () => page.locator('[title="tabbed.md"]:not([role="tab"])').first();
+  await page.goto('/browse/Projects');
+  await expect(tabs).toHaveCount(2);
+  // A double click, because on a desktop a single one selects.
+  await document().dblclick();
+  await expect(tabs).toHaveCount(3);
+  await expect(page).toHaveURL(/\/(open|editor)\/Projects\/tabbed\.md$/);
+  await expect(strip.locator('[data-test="tab"][data-active="true"]')).toContainText('tabbed.md');
+
+  // And the middle button does the same for a file, behind: a document is a place
+  // like a folder is, which is the whole point of a tab being an address.
+  await page.goto('/browse/Projects');
+  await expect(tabs).toHaveCount(3);
+  await document().click({ button: 'middle' });
+  await expect(tabs).toHaveCount(4);
+  await expect(page).toHaveURL(/\/browse\/Projects$/);
+
+  // The menu says so too, for whoever has no middle button.
+  await document().click({ button: 'right' });
+  await page.getByRole('button', { name: 'Open in a new tab' }).click();
+  await expect(tabs).toHaveCount(5);
+  await expect(page).toHaveURL(/\/(open|editor)\/Projects\/tabbed\.md$/);
+
+  /**
+   * The strip does not make the page taller than the window.
+   *
+   * It did: added above a layout that was already a viewport tall, every screen
+   * became the viewport *plus* the strip, the document grew a scrollbar and the
+   * bottom of every folder sat below the fold. The reachability sweeps at the end
+   * of this file did not see it — content you can scroll to is reachable — so this
+   * is the assertion that would have.
+   */
+  const overflowing = () =>
+    page.evaluate(() => {
+      const root = document.scrollingElement || document.documentElement;
+      return {
+        scrollHeight: root.scrollHeight,
+        clientHeight: root.clientHeight,
+        scrollWidth: root.scrollWidth,
+        clientWidth: root.clientWidth,
+      };
+    });
+
+  for (const route of ['/browse/Projects', '/trash', '/settings/user-preferences']) {
+    await page.goto(route);
+    await expect(strip).toBeVisible();
+    const box = await overflowing();
+    expect(box.scrollHeight, `${route} is taller than the window: ${JSON.stringify(box)}`).toBe(
+      box.clientHeight
+    );
+    expect(box.scrollWidth, `${route} is wider than the window: ${JSON.stringify(box)}`).toBe(
+      box.clientWidth
+    );
+  }
+
+  // On a phone the strip is the one thing added above everything else, and the
+  // width it wants does not exist there. It has to scroll inside itself rather
+  // than push the page sideways or cover anything — checked with the same reader
+  // the sweeps at the end of this file use, since those run with tabs off.
+  await page.setViewportSize({ width: 390, height: 844 });
+  try {
+    await page.goto('/browse/Projects');
+    await expect(strip).toBeVisible();
+    await page.mouse.move(2, 2);
+    const hidden = await page.evaluate(findUnreachableContent);
+    expect(
+      hidden,
+      `the strip hides content on a phone: ${JSON.stringify(hidden, null, 2)}`
+    ).toEqual([]);
+    const box = await overflowing();
+    expect(box.scrollHeight, `a phone scrolls the page: ${JSON.stringify(box)}`).toBe(
+      box.clientHeight
+    );
+  } finally {
+    await page.setViewportSize({ width: 1280, height: 720 });
+  }
+
   await page.goto('/settings/user-preferences');
   await preference.click();
   await page.getByRole('button', { name: 'Save' }).click();

@@ -1037,6 +1037,7 @@
   },
   "tabs": {
     "strip": "Open tabbladen",
+    "openInNewTab": "In een nieuw tabblad openen",
     "newTab": "Nieuw tabblad",
     "closeTab": "Tabblad sluiten",
     "closeOthers": "De andere tabbladen sluiten"

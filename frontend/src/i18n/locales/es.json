@@ -1037,6 +1037,7 @@
   },
   "tabs": {
     "strip": "Pestañas abiertas",
+    "openInNewTab": "Abrir en una pestaña nueva",
     "newTab": "Nueva pestaña",
     "closeTab": "Cerrar la pestaña",
     "closeOthers": "Cerrar las demás pestañas"

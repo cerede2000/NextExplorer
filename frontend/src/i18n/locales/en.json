@@ -1037,6 +1037,7 @@
   },
   "tabs": {
     "strip": "Open tabs",
+    "openInNewTab": "Open in a new tab",
     "newTab": "New tab",
     "closeTab": "Close tab",
     "closeOthers": "Close the other tabs"

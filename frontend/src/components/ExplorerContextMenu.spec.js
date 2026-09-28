@@ -69,6 +69,25 @@ const actionsProxy = new Proxy(
   }
 );
 vi.mock('@/composables/fileActions', () => ({ useFileActions: () => actionsProxy }));
+// Where an entry opens is the preview plugins' business; mocked here so a spec
+// about the menu does not build the plugin registry, and so the one thing the menu
+// decides — whether to offer the entry at all — can be moved.
+const address = vi.hoisted(() => ({
+  addressFor: vi.fn(() => ({ path: '/open/Docs/report.docx' })),
+  enabled: true,
+  open: vi.fn(),
+}));
+vi.mock('@/composables/itemAddress', () => ({
+  useItemAddress: () => ({ addressFor: address.addressFor }),
+}));
+vi.mock('@/composables/tabNavigation', () => ({
+  useTabNavigation: () => ({
+    get tabs() {
+      return { enabled: address.enabled };
+    },
+    open: address.open,
+  }),
+}));
 vi.mock('@/stores/fileStore', () => ({ useFileStore: () => fileStore }));
 vi.mock('@/stores/infoPanel', () => ({
   useInfoPanelStore: () => ({ open: infoOpen, close: infoClose }),
@@ -1317,5 +1336,55 @@ describe('an archive that wants a password', () => {
     await view.submitArchivePassword('hunter2');
 
     expect(fileStore.extractZipArchive).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Opening an entry in a tab of this application.
+ *
+ * Offered where a browser offers it and for the same reason: it is about *this*
+ * entry, and it is the first thing somebody with tabs open reaches for. Not
+ * offered where it would do nothing — tabs off, or an entry with no address of its
+ * own, which is a download rather than a place.
+ */
+describe('open in a new tab', () => {
+  beforeEach(() => {
+    address.enabled = true;
+    address.open.mockReset();
+    address.addressFor.mockReset();
+    address.addressFor.mockReturnValue({ path: '/open/Docs/report.docx' });
+  });
+
+  const openOnFileEntry = async () => {
+    document.body.innerHTML = '';
+    const { api } = await mountMenu();
+    api.openItemMenu(rightClick(), FILE);
+    await flushPromises();
+  };
+
+  it('is offered, and opens the address the entry has', async () => {
+    await openOnFileEntry();
+    expect(labels()).toContain('tabs.openInNewTab');
+
+    await clickLabel('tabs.openInNewTab');
+
+    expect(address.addressFor).toHaveBeenCalledWith(FILE, { currentPath: 'Docs' });
+    expect(address.open).toHaveBeenCalledWith('/open/Docs/report.docx');
+  });
+
+  it('is not offered while tabs are off', async () => {
+    address.enabled = false;
+
+    await openOnFileEntry();
+
+    expect(labels()).not.toContain('tabs.openInNewTab');
+  });
+
+  it('is not offered for an entry with nowhere of its own', async () => {
+    address.addressFor.mockReturnValue(null);
+
+    await openOnFileEntry();
+
+    expect(labels()).not.toContain('tabs.openInNewTab');
   });
 });

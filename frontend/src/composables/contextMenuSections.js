@@ -7,6 +7,7 @@ import {
   ShareIcon,
   ArchiveBoxArrowDownIcon,
   ArrowUpOnSquareIcon,
+  ArrowTopRightOnSquareIcon,
   ClockIcon,
 } from '@heroicons/vue/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/vue/24/solid';
@@ -205,6 +206,15 @@ const itemSections = (situation, run, entries, words) => {
     infoSection.push(mk('versions', t('versions.menu'), ClockIcon, run.showVersions));
   }
   sections.push(infoSection);
+
+  // Where a browser puts it, and for the same reason: it is about *this* entry, and
+  // it is the first thing somebody with tabs open reaches for. Offered only where
+  // it would do something — tabs on, and an entry that has an address of its own.
+  if (situation.canOpenInTab) {
+    sections.push([
+      mk('open-in-tab', t('tabs.openInNewTab'), ArrowTopRightOnSquareIcon, run.openInTab),
+    ]);
+  }
 
   if (situation.kind === 'file') {
     const openSection = [

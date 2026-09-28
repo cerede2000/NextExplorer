@@ -37,10 +37,20 @@ const configWarning = computed(() =>
     :expected-origin="configError.expectedOrigin"
     :request-origin="configError.requestOrigin"
   />
-  <template v-else>
-    <!-- Above everything a tab can hold, and drawn only where one can be: the
-         strip decides that for itself. -->
-    <TabStrip />
-    <router-view></router-view>
-  </template>
+  <!-- One viewport tall, as a column: the strip takes the height it needs and
+       what a tab holds takes the rest. Before this the strip was simply added
+       above a layout that was already `h-dvh`, so every screen was the viewport
+       *plus* the strip — the page grew a scrollbar and the bottom of every folder
+       was below the fold. `min-h-0` is what lets the row below actually shrink.
+
+       No `overflow-hidden` here on purpose: the layouts that want to be exactly
+       the viewport say so themselves, and the sign-in screen is taller than one
+       on a small window and has to be able to scroll. -->
+  <div v-else class="flex h-dvh flex-col">
+    <!-- Drawn only where a tab can be, which the strip decides for itself. -->
+    <TabStrip class="shrink-0" />
+    <div class="relative min-h-0 flex-1">
+      <router-view></router-view>
+    </div>
+  </div>
 </template>

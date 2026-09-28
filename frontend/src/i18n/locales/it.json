@@ -1037,6 +1037,7 @@
   },
   "tabs": {
     "strip": "Schede aperte",
+    "openInNewTab": "Apri in una nuova scheda",
     "newTab": "Nuova scheda",
     "closeTab": "Chiudi la scheda",
     "closeOthers": "Chiudi le altre schede"

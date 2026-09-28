@@ -1,6 +1,5 @@
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
-import { useAppSettings } from '@/stores/appSettings';
 import { TAB_KINDS_BY_ID, tabKindForPath } from '@/config/tabKinds';
 
 /**
@@ -16,11 +15,14 @@ import { TAB_KINDS_BY_ID, tabKindForPath } from '@/config/tabKinds';
  * wants to go; pushing that address is the caller's, which keeps it testable
  * without a router and keeps one place deciding what the address bar says.
  *
- * Kept per device rather than per account, and in the same place the other
- * per-device choices are kept: which folders are open on this screen is not a
- * preference that should follow somebody to their phone. Whether tabs exist at
- * all *is* an account preference — `browseInTabs` — because it is a choice about
- * how the application works rather than about this window.
+ * Kept per device rather than per account: which folders are open on this screen
+ * is not a preference that should follow somebody to their phone. Whether tabs
+ * exist at all *is* an account preference — `browseInTabs` — but this store does
+ * not go and read it. It is told, by `useTabRouteSync`, and that is not a detail:
+ * reaching into the settings store from here put pinia and the router into the
+ * module graph of every screen that opens a file, and two specs that had mocked
+ * neither stopped loading at all. A store that is told what it needs is a store
+ * anything can hold.
  */
 
 /** A shape the persisted list can be trusted to have, or it is dropped. */
@@ -81,19 +83,24 @@ export const useTabsStore = defineStore('tabs', () => {
   };
 
   /**
-   * What was stored, minus what cannot be opened again.
+   * What was stored, as something openable.
    *
-   * A kind that no longer exists goes, a malformed entry goes, and a kind that
-   * says it does not come back goes with them: somebody who closed the browser on
-   * a settings page was not in the middle of anything there. What is left is at
-   * least one tab, because a window with no tabs has nowhere to be.
+   * A kind that no longer exists goes with the malformed entries, because there is
+   * nothing to open. A kind that says it should not come back where it was keeps
+   * its tab and comes back at the volumes: the reader had that tab, and losing it
+   * because of the page it happened to be showing is not something they asked for.
+   * What is left is at least one tab, because a window with no tabs has nowhere to
+   * be.
    */
   const load = () => {
     const remembered = read(OPEN_KEY, []);
     const kept = (Array.isArray(remembered) ? remembered : [])
       .filter(isTab)
-      .filter((entry) => TAB_KINDS_BY_ID[entry.kind].restores)
-      .map((entry) => ({ id: entry.id, kind: entry.kind, path: entry.path }));
+      .map((entry) =>
+        TAB_KINDS_BY_ID[entry.kind].restores
+          ? { id: entry.id, kind: entry.kind, path: entry.path }
+          : { id: entry.id, kind: 'folder', path: HOME }
+      );
     return kept.length > 0 ? kept : [makeTab(HOME)];
   };
 
@@ -103,8 +110,8 @@ export const useTabsStore = defineStore('tabs', () => {
     tabs.value.some((tab) => tab.id === rememberedActive) ? rememberedActive : tabs.value[0].id
   );
 
-  /** Whether this account asked for tabs at all. Read late: the settings load. */
-  const enabled = computed(() => useAppSettings().userSettings?.browseInTabs === true);
+  /** Whether this account asked for tabs at all. Set from the settings, not read. */
+  const enabled = ref(false);
 
   const activeTab = computed(
     () => tabs.value.find((tab) => tab.id === activeId.value) || tabs.value[0] || null
@@ -238,26 +245,23 @@ export const useTabsStore = defineStore('tabs', () => {
   };
 
   /**
-   * With tabs off there is one tab, and it is the one in front.
+   * Told what the account asked for, and told only once that is known.
    *
-   * Otherwise the others would still be there, kept and unreachable, and turning
-   * the setting back on would bring back tabs from before it was turned off —
-   * state the reader cannot see is state the reader cannot trust.
+   * With tabs off there is one tab, and it is the one in front: the others would
+   * otherwise be kept and unreachable, and turning the setting back on would bring
+   * back tabs from before it was turned off — state the reader cannot see is state
+   * the reader cannot trust.
    *
-   * Waited for, and this is the part that had to be found in a browser: at the
-   * first paint the settings have not arrived, so `browseInTabs` is not false, it
-   * is *unknown* — and a watcher that could not tell the difference threw away
-   * every tab a reader had, on every page load, a moment before the answer came.
-   * So it acts on what the server said, and only once the server has said it.
+   * Which is why this is a `set` and not a watcher over the settings. At the first
+   * paint the settings have not arrived, so `browseInTabs` is not false, it is
+   * *unknown* — and the watcher that could not tell the difference threw away every
+   * tab a reader had, on every page load, a moment before the answer came. Whoever
+   * calls this knows the answer; nobody calls it guessing.
    */
-  watch(
-    () => [enabled.value, useAppSettings().loaded],
-    ([on, ready]) => {
-      if (!ready) return;
-      if (!on && tabs.value.length > 1) closeOthers(activeId.value);
-    },
-    { immediate: true }
-  );
+  const setEnabled = (value) => {
+    enabled.value = value === true;
+    if (!enabled.value && tabs.value.length > 1) closeOthers(activeId.value);
+  };
 
   return {
     tabs,
@@ -267,6 +271,7 @@ export const useTabsStore = defineStore('tabs', () => {
     count,
     canClose,
     enabled,
+    setEnabled,
     open,
     close,
     closeOthers,

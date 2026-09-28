@@ -1037,6 +1037,7 @@
   },
   "tabs": {
     "strip": "Taburi deschise",
+    "openInNewTab": "Deschide într-un tab nou",
     "newTab": "Tab nou",
     "closeTab": "Închide tabul",
     "closeOthers": "Închide celelalte taburi"

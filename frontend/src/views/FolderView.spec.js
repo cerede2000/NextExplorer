@@ -46,6 +46,11 @@ vi.mock('vue-router', async () => {
     useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
     onBeforeRouteLeave: (guard) => shared.routeLeaveGuards.push(guard),
     RouterLink: { template: '<a><slot /></a>' },
+    // A row asks where an entry opens, which asks the preview plugins, and the
+    // plugin manager imports the application's own router — so loading this view
+    // now loads the module that builds it. Mocking a router means mocking that too.
+    createRouter: () => ({ beforeEach: vi.fn(), afterEach: vi.fn(), resolve: vi.fn() }),
+    createWebHistory: () => ({}),
   };
 });
 

@@ -41,10 +41,7 @@ vi.mock('@/stores/settings', () => ({
   }),
 }));
 vi.mock('@/stores/appSettings', () => ({
-  useAppSettings: () => ({
-    thumbnailsEnabledForSession: false,
-    userSettings: { browseInTabs: true },
-  }),
+  useAppSettings: () => ({ thumbnailsEnabledForSession: false }),
 }));
 vi.mock('@/stores/favorites', () => ({ useFavoritesStore: () => ({ loadFavorites: vi.fn() }) }));
 vi.mock('@/stores/volumeUsage', () => ({
@@ -76,6 +73,8 @@ const item = (name, path = 'Docs') => ({ name, path, kind: 'txt' });
 /** A tab on `path`, holding `listing`, left in front. */
 const openFolder = async (path, listing) => {
   const tabs = useTabsStore();
+  // As `useTabRouteSync` tells it once the settings have arrived.
+  tabs.setEnabled(true);
   const store = useFileStore();
   browse.mockResolvedValue({ items: listing, path });
   await store.fetchPathItems(path);

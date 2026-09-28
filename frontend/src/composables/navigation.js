@@ -1,10 +1,11 @@
 import { useRouter, useRoute } from 'vue-router';
 import { withViewTransition } from '@/utils';
 import { folderRoute } from '@/utils/folderRoute';
-import { documentRoute } from '@/utils/documentRoute';
 import { isEditableExtension } from '@/config/editor';
 import { usePreviewManager } from '@/plugins/preview/manager';
 import { useAppSettings } from '@/stores/appSettings';
+import { useItemAddress } from '@/composables/itemAddress';
+import { useTabsStore } from '@/stores/tabs';
 
 // Kept beside the markdown preview plugin's own list, which matches the same
 // two extensions.
@@ -15,6 +16,7 @@ export function useNavigation() {
   const route = useRoute();
   const previewManager = usePreviewManager();
   const appSettings = useAppSettings();
+  const { addressFor } = useItemAddress();
 
   const navigate = withViewTransition((to) => router.push(to));
   const goPrev = withViewTransition(() => router.back());
@@ -68,21 +70,29 @@ export function useNavigation() {
     // A tab of its own, when that is what this account asked for.
     //
     // One decision for every kind of file rather than one per plugin: a
-    // spreadsheet and a photograph open the same way, because a preference
-    // that holds for some files and not others is a preference nobody can
-    // predict. Both addresses already exist — `/open` for anything with a
-    // preview, `/editor` for anything the text editor opens — so this is the
-    // browser being handed one of them instead of this page filling itself.
+    // spreadsheet and a photograph open the same way, because a preference that
+    // holds for some files and not others is a preference nobody can predict.
+    // Both addresses already exist — `/open` for anything with a preview,
+    // `/editor` for anything the text editor opens — so this hands one of them to
+    // whoever provides the tabs.
+    //
+    // Which is now a choice. With `browseInTabs` on, this application has tabs of
+    // its own, and a document belongs in one of those: a tab beside the folder it
+    // came from, where the same window still holds the clipboard and the
+    // transfers. With it off, the browser provides them as it always did.
     if (appSettings.userSettings?.documentsOpenInNewTab) {
-      // Asked once: matching a plugin builds a context and walks the list.
-      const previewable = !opensInEditor && Boolean(previewManager.findPlugin(item));
-      const target = previewable
-        ? documentRoute(fullPath)
-        : opensInEditor || editable
-          ? { path: `/editor/${fullPath.split('/').map(encodeURIComponent).join('/')}` }
-          : null;
+      const target = addressFor(item, { currentPath });
 
       if (target) {
+        // The account's own answer, read here rather than asked of the tabs store:
+        // reaching for the store to find out would build it on every screen that
+        // opens a file, and it is the settings that know. The store is only asked
+        // for when there is a tab to open in it.
+        if (appSettings.userSettings?.browseInTabs === true) {
+          const tab = useTabsStore().open(target.path);
+          if (tab) navigate({ path: tab.path });
+          return;
+        }
         // `noopener` because the page opened must not be able to reach back
         // into this one through `window.opener`.
         window.open(router.resolve(target).href, '_blank', 'noopener');

@@ -25,8 +25,8 @@ import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
 import InlineQuickActions from '@/components/InlineQuickActions.vue';
 import { useQuickActionsStore } from '@/stores/quickActions';
-import { useTabNavigation } from '@/composables/tabNavigation';
-import { folderRoute } from '@/utils/folderRoute';
+import { useTabsStore } from '@/stores/tabs';
+import { useItemAddress } from '@/composables/itemAddress';
 import { useI18n } from 'vue-i18n';
 import { useNotificationsStore } from '@/stores/notifications';
 
@@ -194,17 +194,27 @@ const handleClick = (event) => {
   openItem(props.item);
 };
 
-// The middle button opens a place in a tab behind, which is what it does on a
-// link and what somebody queueing up four folders to look at will try. A file is
-// not a place, and a link out of the volume is one the server refuses to follow,
-// so both are left to the ordinary click. With tabs off the store has one tab and
-// puts it there, which would be a navigation nobody asked for — so it is not
-// offered at all.
-const tabNavigation = useTabNavigation();
+// The middle button opens this entry in a tab behind, which is what it does on a
+// link and what somebody queueing up four things to look at will try. A folder, a
+// document, a spreadsheet, a file the editor opens — whatever the entry has an
+// address for, which is the same address a plain click would take it to.
+//
+// A link out of the volume is one the server refuses to follow, and a file with
+// neither a preview nor an editor has nowhere of its own, so both are left to the
+// ordinary click. With tabs off the store has one tab and would put this there,
+// which is a navigation nobody asked for — so it is not offered at all.
+// The store rather than the navigation composable: a tab opened *behind* is the
+// one case that does not navigate, so nothing here needs a router — and asking for
+// the composable put the settings store, the accounts store and the router itself
+// into the module graph of every row in the listing.
+const tabsStore = useTabsStore();
+const { addressFor } = useItemAddress();
 const handleMiddleClick = () => {
-  if (isRenaming.value || !isDirectory.value || isOutsideLink.value) return;
-  if (!tabNavigation.tabs.enabled) return;
-  tabNavigation.open(folderRoute(folderFullPath.value).path, { behind: true });
+  if (isRenaming.value || isOutsideLink.value) return;
+  if (!tabsStore.enabled) return;
+  const target = addressFor(props.item, { currentPath: props.item?.path || '' });
+  if (!target?.path) return;
+  tabsStore.open(target.path, { activate: false });
 };
 
 const handleDblClick = () => {

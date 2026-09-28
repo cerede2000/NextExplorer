@@ -1,6 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
-import { ref } from 'vue';
 import { nextTick } from 'vue';
 
 /**
@@ -14,35 +13,25 @@ import { nextTick } from 'vue';
  * without a router.
  */
 
-const userSettings = ref({ browseInTabs: true });
-// `loaded` matters: before the settings arrive, `browseInTabs` is not false but
-// unknown, and the store is careful about the difference.
-const loaded = ref(true);
-vi.mock('@/stores/appSettings', () => ({
-  useAppSettings: () => ({
-    get userSettings() {
-      return userSettings.value;
-    },
-    get loaded() {
-      return loaded.value;
-    },
-  }),
-}));
-
 import { HOME, useTabsStore } from './tabs';
 
 const paths = (store) => store.tabs.map((tab) => tab.path);
 
+/** The store as `useTabRouteSync` hands it over once the settings have arrived. */
+const withTabsOn = () => {
+  const store = useTabsStore();
+  store.setEnabled(true);
+  return store;
+};
+
 beforeEach(() => {
   localStorage.clear();
-  userSettings.value = { browseInTabs: true };
-  loaded.value = true;
   setActivePinia(createPinia());
 });
 
 describe('what a fresh window holds', () => {
   it('is one tab, at the volumes', () => {
-    const store = useTabsStore();
+    const store = withTabsOn();
 
     expect(store.count).toBe(1);
     expect(store.activeTab).toMatchObject({ kind: 'folder', path: HOME });
@@ -50,7 +39,7 @@ describe('what a fresh window holds', () => {
   });
 
   it('cannot close it: there would be nowhere to be', () => {
-    const store = useTabsStore();
+    const store = withTabsOn();
 
     expect(store.canClose).toBe(false);
     expect(store.close(store.activeId)).toBeNull();
@@ -63,7 +52,7 @@ describe('what was stored is read back as something openable', () => {
     localStorage.setItem('settings:tabs:open', JSON.stringify(open));
     localStorage.setItem('settings:tabs:active', JSON.stringify(active));
     setActivePinia(createPinia());
-    return useTabsStore();
+    return withTabsOn();
   };
 
   it('keeps the tabs that are still tabs', () => {
@@ -87,18 +76,24 @@ describe('what was stored is read back as something openable', () => {
     expect(paths(kept)).toEqual(['/browse/Docs']);
   });
 
-  /** Somebody who closed the browser on a settings page was not mid-anything. */
-  it('does not bring back a kind that says it should not come back', () => {
+  /**
+   * Somebody who closed the browser on a settings page was not mid-anything there
+   * — but they *did* have that tab. It comes back at the volumes rather than not
+   * coming back: dropping it lost a reader a tab because of the page it happened
+   * to be showing, which the browser suite found by taking one to the settings.
+   */
+  it('brings a kind that should not come back to the volumes instead', () => {
     const kept = store([
       { id: 'a', kind: 'settings', path: '/settings/about' },
       { id: 'b', kind: 'search', path: '/search?q=x' },
       { id: 'c', kind: 'folder', path: '/browse/Docs' },
     ]);
 
-    expect(paths(kept)).toEqual(['/browse/Docs']);
+    expect(paths(kept)).toEqual([HOME, HOME, '/browse/Docs']);
+    expect(kept.tabs.map((tab) => tab.kind)).toEqual(['folder', 'folder', 'folder']);
   });
 
-  it('opens one tab when nothing survived', () => {
+  it('keeps one tab when that is all there was', () => {
     const kept = store([{ id: 'a', kind: 'settings', path: '/settings/about' }]);
 
     expect(paths(kept)).toEqual([HOME]);
@@ -122,13 +117,13 @@ describe('what was stored is read back as something openable', () => {
    * on its own schedule.
    */
   it('writes what it holds, so the next visit finds it', async () => {
-    const opened = useTabsStore();
+    const opened = withTabsOn();
     opened.open('/browse/Docs');
     const wasActive = opened.activeId;
     await nextTick();
 
     setActivePinia(createPinia());
-    const returning = useTabsStore();
+    const returning = withTabsOn();
 
     expect(paths(returning)).toEqual([HOME, '/browse/Docs']);
     expect(returning.activeId).toBe(wasActive);
@@ -137,7 +132,7 @@ describe('what was stored is read back as something openable', () => {
 
 describe('opening a tab', () => {
   it('lands it immediately after the one it was opened from', () => {
-    const store = useTabsStore();
+    const store = withTabsOn();
     store.open('/browse/A');
     store.activate(store.tabs[0].id);
     store.open('/browse/B');
@@ -146,7 +141,7 @@ describe('opening a tab', () => {
   });
 
   it('leaves the reader where they were when asked to', () => {
-    const store = useTabsStore();
+    const store = withTabsOn();
     const first = store.activeId;
     const tab = store.open('/browse/A', { activate: false });
 
@@ -155,7 +150,7 @@ describe('opening a tab', () => {
   });
 
   it('brings forward the one screen there is only one of', () => {
-    const store = useTabsStore();
+    const store = withTabsOn();
     const trash = store.open('/trash');
     store.activate(store.tabs[0].id);
 
@@ -167,7 +162,7 @@ describe('opening a tab', () => {
   });
 
   it('refuses an address no tab can be on', () => {
-    const store = useTabsStore();
+    const store = withTabsOn();
 
     expect(store.open('/auth/login')).toBeNull();
     expect(store.count).toBe(1);
@@ -175,7 +170,6 @@ describe('opening a tab', () => {
 
   /** With the mode off there is one tab and it goes where it is told. */
   it('moves the one tab when tabs are off', () => {
-    userSettings.value = { browseInTabs: false };
     const store = useTabsStore();
 
     const tab = store.open('/browse/Docs');
@@ -188,7 +182,7 @@ describe('opening a tab', () => {
 
 describe('closing a tab', () => {
   const three = () => {
-    const store = useTabsStore();
+    const store = withTabsOn();
     store.open('/browse/A');
     store.open('/browse/B');
     return store;
@@ -235,7 +229,7 @@ describe('closing a tab', () => {
 
 describe('finding the next tab', () => {
   it('wraps in both directions', () => {
-    const store = useTabsStore();
+    const store = withTabsOn();
     store.open('/browse/A');
     store.open('/browse/B');
     store.activate(store.tabs[2].id);
@@ -245,11 +239,11 @@ describe('finding the next tab', () => {
   });
 
   it('has no neighbour to find with one tab', () => {
-    expect(useTabsStore().neighbour(1)).toBeNull();
+    expect(withTabsOn().neighbour(1)).toBeNull();
   });
 
   it('counts from one, as a reader would', () => {
-    const store = useTabsStore();
+    const store = withTabsOn();
     store.open('/browse/A');
 
     expect(store.at(1).path).toBe(HOME);
@@ -260,7 +254,7 @@ describe('finding the next tab', () => {
 
 describe('the tab in front follows the address', () => {
   it('becomes whatever the router is showing', () => {
-    const store = useTabsStore();
+    const store = withTabsOn();
 
     store.syncActive('/trash');
 
@@ -269,7 +263,7 @@ describe('the tab in front follows the address', () => {
   });
 
   it('is left alone by an address no tab can be on', () => {
-    const store = useTabsStore();
+    const store = withTabsOn();
     store.syncActive('/browse/Docs');
 
     store.syncActive('/auth/login');
@@ -280,13 +274,12 @@ describe('the tab in front follows the address', () => {
 
 describe('turning the mode off', () => {
   it('leaves the tab in front and nothing kept behind it', async () => {
-    const store = useTabsStore();
+    const store = withTabsOn();
     store.open('/browse/A');
     const inFront = store.activeId;
     expect(store.count).toBe(2);
 
-    userSettings.value = { browseInTabs: false };
-    await nextTick();
+    store.setEnabled(false);
 
     expect(store.count).toBe(1);
     expect(store.activeId).toBe(inFront);

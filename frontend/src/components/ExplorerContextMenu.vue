@@ -3,6 +3,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } f
 import { offset, flip, shift, useFloating, autoUpdate } from '@floating-ui/vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
+import { useItemAddress } from '@/composables/itemAddress';
+import { useTabNavigation } from '@/composables/tabNavigation';
 import { explorerContextMenuSymbol } from '@/composables/contextMenu';
 import { buildMenuSections, quickActionAvailable } from '@/composables/contextMenuSections';
 import { useDeleteDialogWording } from '@/composables/deleteDialogWording';
@@ -215,6 +217,28 @@ const runPasteIntoCurrent = async () => {
 };
 
 const runRename = () => actions.runRename();
+
+/**
+ * This entry, in a tab of this application.
+ *
+ * Asked here rather than in `fileActions`: knowing where an entry opens means
+ * asking the preview plugins, and every screen that offers an action builds
+ * `fileActions` — most of them never open anything.
+ */
+const { addressFor } = useItemAddress();
+const tabNavigation = useTabNavigation();
+const openInTabTarget = computed(() => {
+  if (!tabNavigation.tabs.enabled) return null;
+  const item = primaryItem.value;
+  return item ? addressFor(item, { currentPath: item.path || '' }) : null;
+});
+const runOpenInTab = () => {
+  // `target.path` rather than asking the router to resolve it: every address
+  // `addressFor` answers with is a path and nothing else, so resolving it would be
+  // a round trip through the router to be handed back the string it was given.
+  const target = openInTabTarget.value;
+  if (target?.path) tabNavigation.open(target.path);
+};
 
 const runDownload = () => actions.runDownload();
 const runDownloadAsZip = () => actions.runDownloadAsZip();
@@ -439,6 +463,7 @@ const menuSections = computed(() => {
       canPaste: actions.canPaste.value,
       canRename: actions.canRename.value,
       canDelete: actions.canDelete.value,
+      canOpenInTab: Boolean(openInTabTarget.value),
       canDownloadSeparately: actions.canDownloadSeparately.value,
       downloadMode: actions.downloadMode.value,
       canShowVersions: canShowVersions.value,
@@ -455,6 +480,7 @@ const menuSections = computed(() => {
       showVersions: runShowVersions,
       openWithEditor: runOpenWithEditor,
       openWithTerminal: runOpenWithTerminal,
+      openInTab: runOpenInTab,
       download: runDownload,
       downloadAsZip: runDownloadAsZip,
       downloadSeparately: runDownloadSeparately,

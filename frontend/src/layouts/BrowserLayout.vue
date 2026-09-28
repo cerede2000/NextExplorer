@@ -146,9 +146,9 @@ const handleGuestLogin = () => {
 </script>
 
 <template>
-  <div class="relative flex h-dvh w-full overflow-hidden">
+  <div class="relative flex h-full w-full overflow-hidden">
     <aside
-      class="flex flex-col bg-default-muted dark:bg-default-muted pt-4 pb-2 px-6 shrink-0 fixed inset-y-0 left-0 transition-transform duration-200 ease-in-out z-50 lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0"
+      class="flex flex-col bg-default-muted dark:bg-default-muted pt-4 pb-2 px-6 shrink-0 fixed inset-y-0 left-0 transition-transform duration-200 ease-in-out z-50 lg:sticky lg:top-0 lg:h-full lg:translate-x-0"
       :class="isSidebarOpen ? 'translate-x-0' : '-translate-x-full'"
       :style="{ width: asideWidth + 'px' }"
     >

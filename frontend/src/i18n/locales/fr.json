@@ -1037,6 +1037,7 @@
   },
   "tabs": {
     "strip": "Onglets ouverts",
+    "openInNewTab": "Ouvrir dans un nouvel onglet",
     "newTab": "Nouvel onglet",
     "closeTab": "Fermer l'onglet",
     "closeOthers": "Fermer les autres onglets"

@@ -1037,6 +1037,7 @@
   },
   "tabs": {
     "strip": "Abas abertas",
+    "openInNewTab": "Abrir em uma nova aba",
     "newTab": "Nova aba",
     "closeTab": "Fechar a aba",
     "closeOthers": "Fechar as outras abas"
