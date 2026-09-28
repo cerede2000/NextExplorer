@@ -154,10 +154,10 @@
     },
     {
       "axis": "*",
-      "match": "^(frontend/src/plugins/preview/(session\\.js|PreviewSurface\\.vue)|frontend/src/stores/editorDrafts\\.js)$",
+      "match": "^(frontend/src/plugins/preview/(session\\.js|PreviewSurface\\.vue)|frontend/src/stores/editorDrafts\\.js|frontend/src/composables/openPlaceInTab\\.js)$",
       "verdict": "PORT",
       "batch": "P3-59",
-      "note": "tabs, lot 2: what a tab is holding stays alive while another tab is in front — a preview session per tab, one surface per tab drawn all at once, and the text an editor was given and never saved — P3-59 when it goes. Declared before the rule that owns the preview plugins, which was written when every file under them had already been sent and cannot speak for files that did not exist"
+      "note": "tabs, lot 2: what a tab is holding stays alive while another tab is in front — a preview session per tab, one surface per tab drawn all at once, and the text an editor was given and never saved, and a place opened in a tab from wherever a place is offered — P3-59 when it goes. Declared before the rule that owns the preview plugins, which was written when every file under them had already been sent and cannot speak for files that did not exist"
     },
     {
       "axis": "*",
@@ -1607,6 +1607,10 @@
     {
       "match": "^(frontend/src/plugins/preview/manager\\.js|frontend/src/views/EditorView\\.vue|frontend/src/plugins/(onlyoffice/OnlyOfficePreview|collabora/CollaboraPreview)\\.vue)$",
       "note": "tabs, lot 2: what a tab is holding stays alive while another tab is in front — P3-59 when it goes, and no branch carries it yet. The manager keeps one session per tab instead of one document for the window, and the two office plugins close through the session they were opened in rather than through whatever is in front — a background editor asked to close must not close the document somebody is reading. `EditorView.vue` is the other half: its cross closes the tab it was opened in, as the preview's does, and what was typed and never saved is held by the tab rather than lost to another tab coming forward"
+    },
+    {
+      "match": "^(frontend/src/components/(FavMenu|VolMenu)\\.vue|frontend/src/views/HomeView\\.vue)$",
+      "note": "tabs, lot 2 — P3-59 when it goes, and no branch carries it yet: the middle button opens a place in a tab behind wherever a place is offered, which is a favourite and a volume in the sidebar and both again on the home page, the personal folder included. The rule itself is `composables/openPlaceInTab.js`; these four are the gesture reaching it"
     }
   ],
   "controls": [
