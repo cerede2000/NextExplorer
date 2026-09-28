@@ -1609,8 +1609,8 @@
       "note": "tabs, lot 2: what a tab is holding stays alive while another tab is in front — P3-59 when it goes, and no branch carries it yet. The manager keeps one session per tab instead of one document for the window, and the two office plugins close through the session they were opened in rather than through whatever is in front — a background editor asked to close must not close the document somebody is reading. `EditorView.vue` is the other half: its cross closes the tab it was opened in, as the preview's does, and what was typed and never saved is held by the tab rather than lost to another tab coming forward. `OnlyOfficePreview.vue` also carries a fix that is nothing to do with tabs and that upstream wants whether or not this batch ever goes: the editor sat directly under a `v-if`, and the Document Server's script takes that element out of the page — so opening a second document over a live one asked a node with no parent where to put the mark of what was removed, and the render died. The question is asked of a box now"
     },
     {
-      "match": "^(frontend/src/components/(FavMenu|VolMenu)\\.vue|frontend/src/views/HomeView\\.vue)$",
-      "note": "tabs, lot 2 — P3-59 when it goes, and no branch carries it yet: the middle button opens a place in a tab behind wherever a place is offered, which is a favourite and a volume in the sidebar and both again on the home page, the personal folder included. The rule itself is `composables/openPlaceInTab.js`; these four are the gesture reaching it"
+      "match": "^(frontend/src/components/(FavMenu|VolMenu)\\.vue|frontend/src/views/(HomeView|FolderView)\\.vue)$",
+      "note": "tabs, lot 2 — P3-59 when it goes, and no branch carries it yet: the middle button opens a place in a tab behind wherever a place is offered, which is a favourite and a volume in the sidebar and both again on the home page, the personal folder included. The rule itself is `composables/openPlaceInTab.js`; these are the gesture reaching it — and the same modifier on the key that opens, in the listing, which is where a keyboard says it"
     }
   ],
   "controls": [
