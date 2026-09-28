@@ -259,3 +259,72 @@ test('a tab opened between two live editors', async ({ page }) => {
   await expect.poll(() => marks(page)).toEqual(['k0', 'k1', null]);
   expect(await thrown(page)).toEqual([]);
 });
+
+/**
+ * The same thing the way a reader does it: documents at their addresses, tabs
+ * brought forward by the strip.
+ *
+ * Everything above drives the preview manager directly, which is the host's own
+ * story. In the application a document lives at an address, so bringing a tab
+ * forward unmounts one page and mounts another, and `views/DocumentView.vue`
+ * decides whether the document goes with the page it was on. That decision is
+ * what these ask about, and nothing above them could.
+ */
+test.describe('documents at their addresses, crossed by the strip', () => {
+  const open = async (page, which, name) => {
+    await page.evaluate(([tab, file]) => window.openDocumentAtItsAddress(tab, file), [which, name]);
+  };
+
+  test('two of them, crossed four times, are the same two afterwards', async ({ page }) => {
+    await open(page, 0, 'report.docx');
+    await open(page, 1, 'budget.docx');
+    await expect.poll(() => frames(page)).toBe(2);
+
+    await markFrames(page);
+
+    for (let crossing = 0; crossing < 2; crossing += 1) {
+      await page.evaluate(() => window.goToTab(0));
+      await page.evaluate(() => window.goToTab(1));
+    }
+
+    await expect.poll(() => frames(page)).toBe(2);
+    await expect.poll(() => marks(page)).toEqual(['k0', 'k1']);
+    expect(await thrown(page)).toEqual([]);
+  });
+
+  test('and moving a tab between two crossings changes nothing', async ({ page }) => {
+    await open(page, 0, 'report.docx');
+    await open(page, 1, 'budget.docx');
+    await expect.poll(() => frames(page)).toBe(2);
+
+    await markFrames(page);
+
+    await page.evaluate(() => window.goToTab(0));
+    await page.evaluate(() => window.moveTab(0, 1));
+    await page.evaluate(() => window.goToTab(1));
+    await page.evaluate(() => window.moveTab(1, 0));
+    await page.evaluate(() => window.goToTab(0));
+
+    await expect.poll(() => marks(page)).toEqual(['k0', 'k1']);
+    expect(await thrown(page)).toEqual([]);
+  });
+
+  /** A folder tab in the middle of it, which is what a reader really does. */
+  test('a folder tab in between leaves both documents alone', async ({ page }) => {
+    await open(page, 0, 'report.docx');
+    await open(page, 1, 'budget.docx');
+    await expect.poll(() => frames(page)).toBe(2);
+
+    await markFrames(page);
+
+    await page.evaluate(() => {
+      const made = window.newTab();
+      return window.goToTab(made);
+    });
+    await page.evaluate(() => window.goToTab(0));
+    await page.evaluate(() => window.goToTab(1));
+
+    await expect.poll(() => marks(page)).toEqual(['k0', 'k1']);
+    expect(await thrown(page)).toEqual([]);
+  });
+});

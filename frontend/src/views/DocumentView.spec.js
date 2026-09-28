@@ -64,6 +64,11 @@ vi.mock('vue-router', () => ({
     get params() {
       return { path: routePath.value };
     },
+    // The address, which is what says this page has changed hands: two tabs can
+    // hold the same document, and crossing between them changes nothing else.
+    get fullPath() {
+      return `/open/${routePath.value}`;
+    },
   }),
   useRouter: () => ({ replace }),
 }));
@@ -300,6 +305,56 @@ describe('opening a document at its own address', () => {
       query: { select: 'report.docx' },
     });
     wrapper.unmount();
+  });
+
+  /**
+   * Crossing from one document tab to another does not mount a new page: both
+   * addresses match the same route, so vue-router keeps this component and hands
+   * it new parameters. A tab read once at setup went on speaking for the tab the
+   * reader had left — the document they opened went into that tab's session, and
+   * the tab they were on stayed empty.
+   */
+  it('changes hands when another tab comes forward with a document', async () => {
+    appTabs.enabled = true;
+    appTabs.activeId = 'tab-2';
+    appTabs.tabs = [
+      { id: 'tab-2', own: true },
+      { id: 'tab-9', own: true },
+    ];
+    await show('Docs/first.docx');
+    expect(openIn).toHaveBeenCalledWith('tab-2', { name: 'first.docx', path: 'Docs' });
+
+    // What the strip does: the other tab is in front, and its address follows.
+    appTabs.activeId = 'tab-9';
+    routePath.value = 'Docs/second.docx';
+    await flushPromises();
+
+    expect(openIn).toHaveBeenLastCalledWith('tab-9', { name: 'second.docx', path: 'Docs' });
+    // And the tab that was left keeps what it was holding.
+    expect(closeIn).not.toHaveBeenCalled();
+    // Nor is any of this read as "the document I was showing has gone", which
+    // sent the reader to a folder — or closed the window — on every crossing.
+    expect(replace).not.toHaveBeenCalled();
+    expect(window.close).not.toHaveBeenCalled();
+  });
+
+  /** A document already on screen in the tab that comes forward is left alone. */
+  it('opens nothing again when the tab coming forward already has it', async () => {
+    appTabs.enabled = true;
+    appTabs.activeId = 'tab-2';
+    appTabs.tabs = [
+      { id: 'tab-2', own: true },
+      { id: 'tab-9', own: true },
+    ];
+    await show('Docs/first.docx');
+    sessions['tab-9'] = { open: true, item: { name: 'second.docx', path: 'Docs' } };
+    openIn.mockClear();
+
+    appTabs.activeId = 'tab-9';
+    routePath.value = 'Docs/second.docx';
+    await flushPromises();
+
+    expect(openIn).not.toHaveBeenCalled();
   });
 
   it('opens the next document when the address changes under it', async () => {

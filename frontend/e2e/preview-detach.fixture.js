@@ -1,6 +1,7 @@
 import { createApp, h } from 'vue';
 import { createPinia } from 'pinia';
 import { createI18n } from 'vue-i18n';
+import { createRouter, createWebHashHistory, RouterView } from 'vue-router';
 
 // The application's stylesheet, without which none of this is what the browser
 // actually lays out — and, more to the point, without which the fade that this
@@ -8,8 +9,11 @@ import { createI18n } from 'vue-i18n';
 import '../src/assets/main.css';
 import en from '../src/i18n/locales/en.json';
 import PreviewHost from '../src/plugins/preview/PreviewHost.vue';
+import DocumentView from '../src/views/DocumentView.vue';
+import { useTabRouteSync } from '../src/composables/tabNavigation';
 import { usePreviewManager } from '../src/plugins/preview/manager';
 import { useTabsStore } from '../src/stores/tabs';
+import { useAppSettings } from '../src/stores/appSettings';
 
 /**
  * A viewer that takes its own element out of the page, in a real browser.
@@ -94,14 +98,41 @@ window.fetch = (input, init = {}) => {
   );
 };
 
+/**
+ * The page the application really puts around a document.
+ *
+ * The host on its own was not enough to say the whole truth: in the application a
+ * document lives at an address, so bringing a tab forward unmounts one page and
+ * mounts another, and it is `views/DocumentView.vue` that decides whether the
+ * document it was showing goes with it. Everything below is that arrangement —
+ * the router, the page, and the watcher that keeps the tabs and the address in
+ * step — so what is measured here is what a reader gets.
+ */
+const Folder = { render: () => h('div', { class: 'folder' }, 'a folder listing') };
+
+const router = createRouter({
+  history: createWebHashHistory(),
+  routes: [
+    { path: '/', redirect: '/browse/' },
+    { path: '/browse/:path(.*)*', name: 'FolderView', component: Folder },
+    { path: '/open/:path(.*)*', name: 'DocumentView', component: DocumentView },
+  ],
+});
+
 const pinia = createPinia();
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } });
-const app = createApp({ render: () => h(PreviewHost) });
+const Shell = {
+  setup() {
+    useTabRouteSync();
+    return () => h('div', null, [h(RouterView), h(PreviewHost)]);
+  },
+};
+const app = createApp(Shell);
 app.config.errorHandler = (error, instance, info) => {
   window.thrown.push(String(error?.message || error));
   window.stacks.push(`${info}\n${error?.stack || ''}`);
 };
-app.use(pinia).use(i18n).mount('#app');
+app.use(pinia).use(i18n).use(router).mount('#app');
 
 const manager = usePreviewManager(pinia);
 const tabs = useTabsStore(pinia);
@@ -113,10 +144,35 @@ manager.register({
   component: () => import('../src/plugins/onlyoffice/OnlyOfficePreview.vue'),
 });
 
+// The settings the application would have read by now: tabs on, and known to be.
+const appSettings = useAppSettings(pinia);
+appSettings.userSettings = { ...(appSettings.userSettings || {}), browseInTabs: true };
+appSettings.loaded = true;
 tabs.setEnabled(true);
-// Two tabs, so a document can be opened in one while another is in front.
-const second = tabs.open('/browse/Second', { activate: false });
-const ids = [tabs.tabs[0].id, second.id];
+
+// Two tabs, so a document can be opened in one while another is in front. Made
+// once however many times this module is evaluated: the dev server can hand the
+// same module to the page twice, and a second pass would open a third tab.
+if (tabs.count < 2) tabs.open('/browse/Second', { activate: false });
+const ids = tabs.tabs.map((tab) => tab.id);
+
+/**
+ * Bringing a tab forward, the way the application does it: the store says which
+ * tab is in front, and the address follows — which is what unmounts one page and
+ * mounts another.
+ */
+window.goToTab = async (which) => {
+  const tab = tabs.activate(ids[which]);
+  if (tab) await router.push(tab.path).catch(() => {});
+};
+
+/** Opening a document *at its address*, as a double click in a listing does. */
+window.openDocumentAtItsAddress = async (which, name) => {
+  const tab = tabs.activate(ids[which]);
+  if (!tab) return;
+  tab.own = true;
+  await router.push(`/open/Docs/${name}`).catch(() => {});
+};
 
 window.tabsOpen = () => ids.length;
 window.openDocument = (which, name) =>
@@ -131,3 +187,13 @@ window.newTab = () => {
   return ids.length - 1;
 };
 window.frames_ = () => document.querySelectorAll('iframe[data-document]').length;
+// What the manager and the tabs actually hold, for a probe that needs to see the
+// moment a session goes.
+window.sessionsNow = () =>
+  manager.surfaces.map((surface) => ({
+    key: surface.key,
+    open: surface.session.isOpen.value,
+    file: surface.session.item.value?.filePath ?? null,
+  }));
+window.tabsNow = () =>
+  tabs.tabs.map((tab) => ({ id: tab.id, path: tab.path, active: tab.id === tabs.activeId }));

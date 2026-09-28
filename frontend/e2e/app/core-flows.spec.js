@@ -1013,15 +1013,26 @@ test('tabs keep two folders open, and the middle button opens one behind', async
     await expect(page).toHaveURL(new RegExp(`/open/Projects/${name.replace('.', '\\.')}$`));
   }
 
-  const stamped = page.locator('[data-test="preview-surface"][data-kept]');
+  /**
+   * Stamped inside the surfaces, not on them.
+   *
+   * A mark on the surface itself survives a viewer that was torn down and built
+   * again underneath it — the surface is the page's, the viewer is the plugin's —
+   * so the first version of this agreed with a defect it was written to catch.
+   * Every node inside is marked instead, and every one of them has to still be
+   * there afterwards.
+   */
   const kept = await page.evaluate(() => {
-    const surfaces = [...document.querySelectorAll('[data-test="preview-surface"]')];
-    surfaces.forEach((node, index) => {
-      node.dataset.kept = `s${index}`;
+    const inside = [...document.querySelectorAll('[data-test="preview-surface"] *')];
+    inside.forEach((node, index) => {
+      node.dataset.inside = `k${index}`;
     });
-    return surfaces.length;
+    return inside.length;
   });
   expect(kept).toBeGreaterThan(1);
+  expect(
+    await page.evaluate(() => document.querySelectorAll('[data-test="preview-surface"]').length)
+  ).toBeGreaterThan(1);
 
   const documentTabs = strip.locator('[role="tab"][title$=".md"]');
   for (let crossing = 0; crossing < 2; crossing += 1) {
@@ -1029,7 +1040,16 @@ test('tabs keep two folders open, and the middle button opens one behind', async
     await documentTabs.last().click();
   }
 
-  await expect(stamped).toHaveCount(kept);
+  // Every node that was there is still there. Not "the same number of nodes":
+  // a viewer is free to add to itself — a caption, a toolbar coming in late — and
+  // what is being asked is that nothing was thrown away and built again.
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.querySelectorAll('[data-test="preview-surface"] [data-inside]').length
+      )
+    )
+    .toBe(kept);
 
   /**
    * One rule for opening in a tab: command, or control, with the gesture that

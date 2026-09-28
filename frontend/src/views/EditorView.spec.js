@@ -1193,6 +1193,57 @@ describe('what a tab holds on to', () => {
   });
 
   /** The tab stayed in front, so the address changed under it: another file now. */
+  /**
+   * Crossing from one text tab to another does not mount a new page: both
+   * addresses match the same route, so vue-router keeps this component and hands
+   * it new parameters. A tab read once at setup kept the place for the tab the
+   * reader had left, and gave the tab they were on nothing back.
+   */
+  it('changes hands when another tab comes forward with a file', async () => {
+    appTabs.tabs = [{ id: 'tab-1' }, { id: 'tab-9' }];
+    const view = await mountEditor();
+    await type(view, 'half a sentence');
+
+    // What the strip does: the other tab is in front, and its address follows.
+    appTabs.activeId = 'tab-9';
+    route().fullPath = '/editor/Docs/other.md';
+    await flushPromises();
+
+    // The tab that was left keeps what was in it…
+    expect(drafts.get('tab-1')).toMatchObject({
+      address: '/editor/Docs/notes.md',
+      text: 'half a sentence',
+    });
+    // …and nothing was kept for the tab that came forward, which has its own.
+    expect(drafts.has('tab-9')).toBe(false);
+  });
+
+  /**
+   * The other half of changing hands: what the tab coming forward had kept is
+   * what is put back. Kept for the tab that was left, it would be handed to
+   * nobody — and the reader would land at the top of a file they had scrolled.
+   */
+  it('takes back what the tab coming forward had kept', async () => {
+    appTabs.tabs = [{ id: 'tab-1' }, { id: 'tab-9' }];
+    drafts.set('tab-9', {
+      address: '/editor/Docs/other.md',
+      text: null,
+      selection: { anchor: 2, head: 4 },
+      scrollTop: 360,
+    });
+    await mountEditor();
+
+    appTabs.activeId = 'tab-9';
+    Object.assign(route(), {
+      fullPath: '/editor/Docs/other.md',
+      params: { path: 'Docs/other.md' },
+    });
+    await flushPromises();
+
+    expect(surface.current.view.state.selection.main).toEqual({ anchor: 2, head: 4 });
+    expect(surface.current.view.scrollDOM.scrollTop).toBe(360);
+  });
+
   it('lets go when the tab itself is taken somewhere else', async () => {
     const view = await mountEditor();
     await type(view, 'half a sentence');

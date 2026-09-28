@@ -64,13 +64,22 @@ const tabNavigation = useTabNavigation();
 const tabs = tabNavigation.tabs;
 
 /**
- * The tab this document belongs to, taken once and kept.
+ * The tab this page is showing a document for.
  *
- * Once, because this page is the document's and the document is that tab's: read
- * again later — on the way out, say — `activeId` would already name whichever tab
- * had come forward, and the session that was ended would be somebody else's.
+ * Not taken once, and that was the defect behind half a week of "my tabs keep
+ * reloading": bringing one document tab forward while another document tab is in
+ * front does **not** mount a new page. The address matches the same route, so
+ * vue-router keeps this component and hands it new parameters — and a key read
+ * once at setup went on speaking for the tab the reader had left. The document
+ * they opened went into that tab's session, the tab they were actually on stayed
+ * empty, and coming back to either of them found the wrong thing there and built
+ * it again.
+ *
+ * So it is re-read whenever the address changes, which is the only moment it can
+ * change hands. Never in between: read on the way out it would already name
+ * whichever tab had come forward, and the session ended would be somebody else's.
  */
-const tabKey = tabs.activeId;
+const tabKey = ref(tabs.activeId);
 
 /** Back where closing the panel would have left you. */
 const leave = () => {
@@ -150,7 +159,7 @@ const openDocument = async () => {
   // ONLYOFFICE would reconnect, the cursor and the undo history would go, and
   // whoever was typing would watch it happen. Answered before anything else is
   // asked, so nothing is fetched either.
-  if (previewManager.shows(tabKey, itemFromPath())) return;
+  if (previewManager.shows(tabKey.value, itemFromPath())) return;
 
   // The folder behind it, so that moving to the next image or the previous one
   // works here exactly as it does over the listing — the plugins read the
@@ -163,7 +172,7 @@ const openDocument = async () => {
   // document ONLYOFFICE was a moment away from claiming.
   await whenPreviewPluginsReady();
 
-  if (previewManager.openIn(tabKey, itemFromPath())) return;
+  if (previewManager.openIn(tabKey.value, itemFromPath())) return;
 
   // No preview: the text editor has its own page, and it is where this kind of
   // file opens from the listing too.
@@ -190,10 +199,15 @@ const openDocument = async () => {
  * closed the tab that had just come forward instead.
  */
 watch(
-  () => previewManager.isOpenIn(tabKey),
-  (open, wasOpen) => {
+  () => [tabKey.value, previewManager.isOpenIn(tabKey.value)],
+  ([key, open], [wasKey, wasOpen]) => {
+    // The page changed hands rather than a document closing: the tab it speaks
+    // for is another one now, and what it is showing is that tab's business.
+    // Without this, crossing from one document tab to another read as "the
+    // document I was showing has gone" and sent the reader to a folder.
+    if (key !== wasKey) return;
     if (!wasOpen || open) return;
-    if (tabs.activeId !== tabKey) return;
+    if (tabs.activeId !== key) return;
     closeTabOrLeave();
   }
 );
@@ -214,15 +228,26 @@ onBeforeUnmount(() => {
   //
   // And when the tab itself has gone there is nothing to do: the manager ended
   // the session the moment the tab did, beacon and all.
-  if (!tabs.tabs.some((entry) => entry.id === tabKey)) return;
-  if (tabs.activeId !== tabKey) return;
-  if (previewManager.isOpenIn(tabKey)) void previewManager.closeIn(tabKey);
+  if (!tabs.tabs.some((entry) => entry.id === tabKey.value)) return;
+  if (tabs.activeId !== tabKey.value) return;
+  if (previewManager.isOpenIn(tabKey.value)) void previewManager.closeIn(tabKey.value);
 });
 
-// A second document opened in the same tab — a link followed from inside one.
-watch(documentPath, () => {
-  void openDocument();
-});
+/**
+ * The address changed under this page: another document, or another tab holding
+ * one. Which of the two it was is what `activeId` says, and it is the only moment
+ * this page can change hands — so the tab is read again before anything is opened.
+ *
+ * Watched on the whole address rather than on the path: two tabs can hold the same
+ * document, and crossing between them changes nothing but the address.
+ */
+watch(
+  () => route.fullPath,
+  () => {
+    tabKey.value = tabs.activeId;
+    void openDocument();
+  }
+);
 </script>
 
 <template>

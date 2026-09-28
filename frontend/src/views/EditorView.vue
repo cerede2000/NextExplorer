@@ -223,13 +223,19 @@ const tabs = tabNavigation.tabs;
 const drafts = useEditorDraftsStore();
 
 /**
- * The tab this file is being edited in, taken once and kept.
+ * The tab this page is editing a file for.
  *
- * Once, because read again on the way out `activeId` would already name whichever
- * tab had come forward, and the draft would be kept for — or taken from — a tab
- * that has nothing to do with this file.
+ * Not taken once. Crossing from one text tab to another does **not** mount a new
+ * page: both addresses match the same route, so vue-router keeps this component
+ * and hands it new parameters — and a key read once at setup went on speaking for
+ * the tab the reader had left. What they had typed, where their cursor was and how
+ * far they had scrolled were kept for that other tab, and the tab they were
+ * actually on got nothing back.
+ *
+ * So it changes hands when the address does, and only then: read on the way out it
+ * would already name whichever tab had come forward.
  */
-const tabKey = tabs.activeId;
+const tabKey = ref(tabs.activeId);
 
 /**
  * The address this page is showing, which is not what the router says by the time
@@ -413,19 +419,11 @@ const routeFolderPath = (targetRoute) => {
  * changed underneath it and this file is not what the tab is on any more; and
  * when the tab has gone, which takes its draft with it.
  */
-onBeforeUnmount(() => {
-  // Gone with its tab: nothing to hold it for.
-  if (!tabs.tabs.some((entry) => entry.id === tabKey)) return;
-  // Still the tab in front, so the address changed underneath it: this file is
-  // not what the tab is on any more.
-  if (tabs.activeId === tabKey) {
-    drafts.forget(tabKey);
-    return;
-  }
-
+/** Where the reader is in this file, right now. */
+const placeNow = () => {
   const editor = surface.value?.view;
   const selection = editor?.state.selection.main;
-  drafts.keep(tabKey, shownAddress.value, {
+  return {
     // The text only when it differs from the file. A file being read from the
     // trash or from a history has none to keep, and one nobody has typed into is
     // the file itself — putting it back as an edit would call it unsaved.
@@ -435,8 +433,46 @@ onBeforeUnmount(() => {
         : null,
     selection: selection ? { anchor: selection.anchor, head: selection.head } : null,
     scrollTop: editor?.scrollDOM?.scrollTop ?? 0,
-  });
-});
+  };
+};
+
+/**
+ * Letting go of the tab this page was speaking for.
+ *
+ * Called on the way out of the page *and* on the way from one tab's file to
+ * another's, because crossing between two text tabs never unmounts anything: the
+ * only sign that a tab has been left is that the address changed.
+ */
+const handOver = (key, address) => {
+  // Gone with its tab: nothing to hold it for.
+  if (!key || !tabs.tabs.some((entry) => entry.id === key)) return;
+  // Still the tab in front, so the address changed underneath it: this file is
+  // not what the tab is on any more.
+  if (tabs.activeId === key) {
+    drafts.forget(key);
+    return;
+  }
+  drafts.keep(key, address, placeNow());
+};
+
+onBeforeUnmount(() => handOver(tabKey.value, shownAddress.value));
+
+/**
+ * The address changed under this page: another file, or another tab holding one.
+ * Which of the two it was is what `activeId` says, and it is the only moment this
+ * page can change hands — so what the tab it was speaking for should keep is
+ * settled first, and the new tab is adopted before anything is read.
+ *
+ * Declared before the watcher that reads the file, so it runs first: what is
+ * restored afterwards has to be this tab's, not the one just left.
+ */
+watch(
+  () => route.fullPath,
+  () => {
+    handOver(tabKey.value, shownAddress.value);
+    tabKey.value = tabs.activeId;
+  }
+);
 
 // BrowserLayout is unmounted while editing text, so the generic folder-to-
 // folder navigation rule cannot infer this return journey. Mark it directly
@@ -518,7 +554,7 @@ const loadFile = async () => {
  * top of the file with nothing selected.
  */
 const restoreKeptPlace = async (address) => {
-  const kept = drafts.placeFor(tabKey, address);
+  const kept = drafts.placeFor(tabKey.value, address);
   if (!kept) return;
 
   // After the file's own text has reached the editor.
@@ -565,7 +601,7 @@ const saveFile = async () => {
     // still unsaved.
     surface.value?.markSaved(doc);
     // On disk now, so there is nothing for this tab to hold on to.
-    drafts.forget(tabKey);
+    drafts.forget(tabKey.value);
   } catch (err) {
     saveError.value = err.message;
   } finally {
@@ -601,7 +637,7 @@ const requestClose = () => {
     return;
 
   // Said out loud, so the text is not kept for the tab to hand back later.
-  drafts.forget(tabKey);
+  drafts.forget(tabKey.value);
 
   // In one of this application's own tabs, the thing to close is that tab — the
   // same rule the preview follows, and the same one, which is why it lives in
