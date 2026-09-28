@@ -1,10 +1,11 @@
 <script setup>
-import { onUnmounted, ref, watchEffect } from 'vue';
+import { computed, onUnmounted, ref, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { onClickOutside, useElementSize } from '@vueuse/core';
 import { PlusIcon, XMarkIcon } from '@heroicons/vue/20/solid';
 import { TAB_KINDS_BY_ID, tabTitle } from '@/config/tabKinds';
 import { useTabNavigation } from '@/composables/tabNavigation';
+import { useAppSettings } from '@/stores/appSettings';
 
 /**
  * The strip of tabs, above everything a tab can hold.
@@ -17,8 +18,23 @@ import { useTabNavigation } from '@/composables/tabNavigation';
  * inside the other, which is not something a browser will lay out and not
  * something a screen reader can read.
  */
-const { tabs, visible, activate, openHome, close, closeOthers } = useTabNavigation();
+const { tabs, visible, activate, openHome, close, closeOthers, closeAll } = useTabNavigation();
 const { t } = useI18n();
+
+/**
+ * Whether a double click on a tab closes it, which is an account's answer.
+ *
+ * Off by default, because a double click is also how somebody with a trackpad
+ * ends up clicking twice: offered rather than assumed, like everything else about
+ * tabs.
+ */
+const appSettings = useAppSettings();
+const closesOnDoubleClick = computed(
+  () => appSettings.userSettings?.closeTabsOnDoubleClick === true
+);
+const handleDoubleClick = (id) => {
+  if (closesOnDoubleClick.value) close(id);
+};
 
 /**
  * How tall the strip is, said out loud.
@@ -115,7 +131,7 @@ const nudge = (id, step) => {
   <div
     v-if="visible"
     ref="stripElement"
-    class="flex items-end gap-1 overflow-x-auto border-b border-neutral-200 bg-zinc-100 px-2 pt-1 dark:border-neutral-700 dark:bg-neutral-800"
+    class="flex items-end gap-1 overflow-hidden border-b border-neutral-200 bg-zinc-100 px-2 pt-1 dark:border-neutral-700 dark:bg-neutral-800"
     role="tablist"
     :aria-label="t('tabs.strip')"
     data-test="tab-strip"
@@ -123,7 +139,7 @@ const nudge = (id, step) => {
     <div
       v-for="tab in tabs.tabs"
       :key="tab.id"
-      class="group relative flex min-w-0 shrink-0 items-center rounded-t-md border border-b-0 text-sm"
+      class="group relative flex min-w-0 flex-1 basis-0 items-center rounded-t-md border border-b-0 text-sm has-[+*]:max-w-56 max-w-56"
       :class="
         tab.id === tabs.activeId
           ? 'border-neutral-200 bg-white dark:border-neutral-700 dark:bg-default'
@@ -153,8 +169,9 @@ const nudge = (id, step) => {
         draggable="true"
         :aria-selected="tab.id === tabs.activeId"
         :title="titleFor(tab)"
-        class="flex min-w-0 max-w-56 items-center gap-1.5 px-2 py-1.5"
+        class="flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1.5"
         @click="activate(tab.id)"
+        @dblclick="handleDoubleClick(tab.id)"
         @auxclick.middle.prevent="close(tab.id)"
         @contextmenu.prevent="openMenu(tab.id)"
       >
@@ -218,13 +235,28 @@ const nudge = (id, step) => {
 
     <button
       type="button"
-      class="mb-1 shrink-0 rounded p-1.5 hover:bg-zinc-200 dark:hover:bg-neutral-700"
-      :title="t('tabs.newTab')"
+      class="mb-1 shrink-0 rounded p-1.5 hover:bg-zinc-200 disabled:opacity-40 disabled:hover:bg-transparent dark:hover:bg-neutral-700"
+      :title="tabs.atLimit ? t('tabs.full', { count: tabs.limit }) : t('tabs.newTab')"
       :aria-label="t('tabs.newTab')"
+      :disabled="tabs.atLimit"
       data-test="tab-new"
       @click="openHome"
     >
       <PlusIcon class="h-4 w-4" />
+    </button>
+
+    <!-- Everything closed and one new tab at the volumes: a window with no tabs
+         has nowhere to be, so "close them all" means "start again". -->
+    <button
+      v-if="tabs.canClose"
+      type="button"
+      class="mb-1 shrink-0 rounded p-1.5 hover:bg-zinc-200 dark:hover:bg-neutral-700"
+      :title="t('tabs.closeAll')"
+      :aria-label="t('tabs.closeAll')"
+      data-test="tab-close-all"
+      @click="closeAll"
+    >
+      <XMarkIcon class="h-4 w-4" />
     </button>
   </div>
 </template>

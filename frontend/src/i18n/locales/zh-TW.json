@@ -510,6 +510,7 @@
       "activity": "活動記錄",
       "accountApiTokens": "API 權杖",
       "folderSize": "檔案夾大小",
+      "tabs": "分頁",
       "searchIndex": "搜尋索引"
     },
     "about": {
@@ -593,6 +594,8 @@
       "documentsOpenInNewTabHelp": "開啟檔案時給它一個獨立的瀏覽器分頁，這樣你繼續瀏覽時可以同時開著好幾個。關閉後，它像現在一樣覆蓋在資料夾上開啟。",
       "browseInTabs": "以索引標籤瀏覽",
       "browseInTabsHelp": "同時開啟多個位置——資料夾、文件、回收筒——各在一個索引標籤中，就像桌面上的檔案管理員那樣。關閉時一次只有一個位置，工具列上方不繪製任何內容。",
+      "closeTabsOnDoubleClick": "雙擊關閉分頁",
+      "closeTabsOnDoubleClickHelp": "在分頁上任意位置雙擊即可關閉，與關閉按鈕一樣。",
       "downloadMode": "下載多個項目",
       "downloadModeHelp": "同時下載多個項目時的處理方式。所選資料夾一律作為一個壓縮檔。",
       "downloadModeZip": "一個 ZIP 壓縮檔",
@@ -1017,6 +1020,12 @@
       "placeholder": "Stacks/docker/overlay2",
       "none": "未設定任何路徑"
     },
+    "tabs": {
+      "title": "分頁",
+      "description": "本安裝中所有人的分頁瀏覽行為。",
+      "maxOpen": "同時開啟的分頁上限",
+      "maxOpenHelp": "分頁列不會捲動：達到上限即停止，而不是把分頁壓窄到看不清。"
+    },
     "searchIndex": {
       "title": "搜尋索引",
       "subtitle": "將路徑排除在內容索引之外。",
@@ -1042,7 +1051,9 @@
     "moveLeft": "向左移動",
     "moveRight": "向右移動",
     "closeTab": "關閉索引標籤",
-    "closeOthers": "關閉其他索引標籤"
+    "closeOthers": "關閉其他索引標籤",
+    "closeAll": "關閉所有分頁",
+    "full": "沒有空間再開分頁（上限：{count}）"
   },
   "mediaPreview": {
     "audioTrack": "音軌",

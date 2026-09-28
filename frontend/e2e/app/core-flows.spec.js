@@ -1251,6 +1251,32 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   await expect(page.locator('[data-test="tab-move-right"]')).toBeEnabled();
 
   /**
+   * A new tab lands at the end of the row, wherever it was opened from — which is
+   * where Edge and Chrome put one, and where somebody who opened it will look for
+   * it. It used to land beside the tab it came from, so a row built up backwards.
+   */
+  await tabButtons.first().click();
+  await strip.locator('[data-test="tab-new"]').click();
+  await expect.poll(names).toEqual(['Alpha', 'Projects', 'Beta', 'Gamma', 'Volumes']);
+
+  /**
+   * And closing every one of them means starting again: a window with no tabs has
+   * nowhere to be.
+   */
+  await strip.locator('[data-test="tab-close-all"]').click();
+  await expect(tabs).toHaveCount(1);
+  await expect(page).toHaveURL(/\/browse\/?$/);
+  // With one tab there is nothing left to close them all with.
+  await expect(strip.locator('[data-test="tab-close-all"]')).toHaveCount(0);
+
+  // Back to the row the rest of this journey expects.
+  for (const place of ['Projects/Alpha', 'Projects/Beta', 'Projects']) {
+    await strip.locator('[data-test="tab-new"]').click();
+    await page.goto(`/browse/${place}`);
+  }
+  await expect(tabs).toHaveCount(4);
+
+  /**
    * A folder tab comes back where it was, with what was selected still selected.
    *
    * The tab already holds its listing, its selection and the rename it is in the

@@ -510,6 +510,7 @@
       "activity": "Jurnal de activitate",
       "accountApiTokens": "Jetoane API",
       "folderSize": "Dimensiunea dosarelor",
+      "tabs": "File",
       "searchIndex": "Index de căutare"
     },
     "about": {
@@ -593,6 +594,8 @@
       "documentsOpenInNewTabHelp": "Deschiderea unui fișier îi dă o filă proprie de browser, așa că mai multe rămân deschise cât timp navigați. Oprit, se deschide peste dosar ca până acum.",
       "browseInTabs": "Navigare în taburi",
       "browseInTabsHelp": "Mai multe locuri deschise în același timp — foldere, documente, coșul — fiecare într-un tab, așa cum face un manager de fișiere de birou. Oprit: un loc pe rând, și deasupra barei de instrumente nu se desenează nimic.",
+      "closeTabsOnDoubleClick": "Închide o filă prin dublu clic",
+      "closeTabsOnDoubleClickHelp": "Un dublu clic oriunde pe filă o închide, pe lângă cruce.",
       "downloadMode": "Descărcarea mai multor elemente",
       "downloadModeHelp": "Ce se întâmplă când se descarcă mai mult de un element deodată. Folderele selectate vin întotdeauna ca o singură arhivă.",
       "downloadModeZip": "O singură arhivă ZIP",
@@ -1017,6 +1020,12 @@
       "placeholder": "Stacks/docker/overlay2",
       "none": "Nicio cale configurată"
     },
+    "tabs": {
+      "title": "File",
+      "description": "Cum funcționează navigarea în file pentru toată lumea pe această instalare.",
+      "maxOpen": "Numărul maxim de file",
+      "maxOpenHelp": "Bara nu derulează niciodată: rândul se oprește aici în loc să facă filele imposibil de citit."
+    },
     "searchIndex": {
       "title": "Index de căutare",
       "subtitle": "Excludeți căi din indexarea conținutului.",
@@ -1042,7 +1051,9 @@
     "moveLeft": "Mută la stânga",
     "moveRight": "Mută la dreapta",
     "closeTab": "Închide tabul",
-    "closeOthers": "Închide celelalte taburi"
+    "closeOthers": "Închide celelalte taburi",
+    "closeAll": "Închide toate filele",
+    "full": "Nu mai este loc pentru încă o filă (limită: {count})"
   },
   "mediaPreview": {
     "audioTrack": "Pistă audio",

@@ -510,6 +510,7 @@
       "activity": "Registro attività",
       "accountApiTokens": "Token API",
       "folderSize": "Dimensioni cartelle",
+      "tabs": "Schede",
       "searchIndex": "Indice di ricerca"
     },
     "about": {
@@ -593,6 +594,8 @@
       "documentsOpenInNewTabHelp": "Aprire un file gli dà una scheda del browser tutta sua, così più documenti restano aperti mentre continuate a navigare. Spento, si apre sopra la cartella come oggi.",
       "browseInTabs": "Navigare a schede",
       "browseInTabsHelp": "Tenere aperti più luoghi alla volta — cartelle, documenti, il cestino — ognuno in una scheda, come fa un gestore di file da scrivania. Disattivato: un luogo alla volta, e sopra la barra degli strumenti non viene disegnato nulla.",
+      "closeTabsOnDoubleClick": "Chiudere una scheda con un doppio clic",
+      "closeTabsOnDoubleClickHelp": "Un doppio clic in qualsiasi punto della scheda la chiude, oltre alla croce.",
       "downloadMode": "Scaricare più elementi",
       "downloadModeHelp": "Cosa accade quando si scarica più di un elemento alla volta. Le cartelle selezionate arrivano sempre come un unico archivio.",
       "downloadModeZip": "Un unico archivio ZIP",
@@ -1017,6 +1020,12 @@
       "placeholder": "Stacks/docker/overlay2",
       "none": "Nessun percorso configurato"
     },
+    "tabs": {
+      "title": "Schede",
+      "description": "Come si comporta la navigazione a schede per tutti su questa installazione.",
+      "maxOpen": "Numero massimo di schede",
+      "maxOpenHelp": "La barra non scorre mai: la fila si ferma qui invece di rendere le schede illeggibili."
+    },
     "searchIndex": {
       "title": "Indice di ricerca",
       "subtitle": "Escludere percorsi dall'indicizzazione dei contenuti.",
@@ -1042,7 +1051,9 @@
     "moveLeft": "Sposta a sinistra",
     "moveRight": "Sposta a destra",
     "closeTab": "Chiudi la scheda",
-    "closeOthers": "Chiudi le altre schede"
+    "closeOthers": "Chiudi le altre schede",
+    "closeAll": "Chiudi tutte le schede",
+    "full": "Non c’è spazio per un’altra scheda (limite: {count})"
   },
   "mediaPreview": {
     "audioTrack": "Traccia audio",

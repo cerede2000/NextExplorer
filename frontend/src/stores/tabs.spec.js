@@ -13,7 +13,7 @@ import { nextTick } from 'vue';
  * without a router.
  */
 
-import { HOME, useTabsStore } from './tabs';
+import { DEFAULT_TAB_LIMIT, HOME, useTabsStore } from './tabs';
 
 const paths = (store) => store.tabs.map((tab) => tab.path);
 
@@ -131,13 +131,18 @@ describe('what was stored is read back as something openable', () => {
 });
 
 describe('opening a tab', () => {
-  it('lands it immediately after the one it was opened from', () => {
+  /**
+   * At the end of the row, wherever it was opened from — which is where Edge and
+   * Chrome put one, and where somebody who opened it will look for it. It used to
+   * land beside the tab it came from, so a row built up backwards.
+   */
+  it('lands it at the end of the row', () => {
     const store = withTabsOn();
     store.open('/browse/A');
     store.activate(store.tabs[0].id);
     store.open('/browse/B');
 
-    expect(paths(store)).toEqual([HOME, '/browse/B', '/browse/A']);
+    expect(paths(store)).toEqual([HOME, '/browse/A', '/browse/B']);
   });
 
   it('leaves the reader where they were when asked to', () => {
@@ -492,5 +497,96 @@ describe('the tab just brought forward', () => {
     tabs.close(second);
 
     expect(tabs.takeBroughtForward(first)).toBe(true);
+  });
+});
+
+/**
+ * How many tabs a row holds.
+ *
+ * A row that never scrolls has to stop somewhere: past a certain number they are
+ * too narrow to read, and a strip that scrolls hides the very tabs somebody
+ * opened. The number is an administrator's, and this store is told it.
+ */
+describe('the room there is for another tab', () => {
+  it('starts at ten, which is what an installation that never said gets', () => {
+    const store = withTabsOn();
+
+    expect(store.limit).toBe(DEFAULT_TAB_LIMIT);
+  });
+
+  it('opens nothing once the row is full, and says so', () => {
+    const store = withTabsOn();
+    store.setLimit(3);
+    store.open('/browse/A');
+    store.open('/browse/B');
+
+    expect(store.atLimit).toBe(true);
+    expect(store.open('/browse/C')).toBeNull();
+    expect(store.count).toBe(3);
+  });
+
+  /** A singleton screen already open is brought forward, not opened again. */
+  it('still brings forward a screen there is only one of', () => {
+    const store = withTabsOn();
+    store.setLimit(2);
+    store.open('/trash');
+
+    expect(store.count).toBe(2);
+    expect(store.open('/trash')?.path).toBe('/trash');
+    expect(store.count).toBe(2);
+  });
+
+  it('is nothing at all with tabs turned off, where there is one tab anyway', () => {
+    const store = useTabsStore();
+    store.setEnabled(false);
+    store.setLimit(1);
+
+    expect(store.atLimit).toBe(false);
+    expect(store.open('/browse/A')?.path).toBe('/browse/A');
+  });
+
+  it('takes a number, and nothing else', () => {
+    const store = withTabsOn();
+
+    store.setLimit('15');
+    expect(store.limit).toBe(15);
+
+    store.setLimit('not a number');
+    expect(store.limit).toBe(DEFAULT_TAB_LIMIT);
+
+    store.setLimit(0);
+    expect(store.limit).toBe(1);
+  });
+});
+
+/**
+ * Closing all of them.
+ *
+ * A window with no tabs has nowhere to be, so this means "start again" — which is
+ * what it means in a browser, and what somebody with twelve open and none of them
+ * wanted is asking for.
+ */
+describe('closing every tab', () => {
+  it('leaves one, at the volumes, in front', () => {
+    const store = withTabsOn();
+    store.open('/browse/A');
+    store.open('/trash');
+
+    const left = store.closeAll();
+
+    expect(paths(store)).toEqual([HOME]);
+    expect(store.activeId).toBe(left.id);
+    expect(left.path).toBe(HOME);
+  });
+
+  it('is written down, like everything else about the row', () => {
+    const store = withTabsOn();
+    store.open('/browse/A');
+
+    store.closeAll();
+
+    expect(JSON.parse(localStorage.getItem('settings:tabs:open')).map((tab) => tab.path)).toEqual([
+      HOME,
+    ]);
   });
 });

@@ -12,6 +12,7 @@ import {
   PhotoIcon,
   ArrowUpTrayIcon,
   CircleStackIcon,
+  Squares2X2Icon,
   MagnifyingGlassIcon,
   KeyIcon,
   UsersIcon,
@@ -115,6 +116,12 @@ const adminCategories = [
     i18nKey: 'folderSize',
     name: 'Folder size',
     icon: CircleStackIcon,
+  },
+  {
+    key: 'tabs',
+    i18nKey: 'tabs',
+    name: 'Tabs',
+    icon: Squares2X2Icon,
   },
   {
     key: 'search-index',

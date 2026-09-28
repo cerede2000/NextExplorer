@@ -510,6 +510,7 @@
       "activity": "Dziennik aktywności",
       "accountApiTokens": "Tokeny API",
       "folderSize": "Rozmiary folderów",
+      "tabs": "Karty",
       "searchIndex": "Indeks wyszukiwania"
     },
     "about": {
@@ -593,6 +594,8 @@
       "documentsOpenInNewTabHelp": "Otwarcie pliku daje mu własną kartę przeglądarki, więc kilka pozostaje otwartych, gdy przeglądasz dalej. Wyłączone — otwiera się nad folderem, tak jak dziś.",
       "browseInTabs": "Przeglądanie w kartach",
       "browseInTabsHelp": "Kilka miejsc otwartych naraz — foldery, dokumenty, kosz — każde we własnej karcie, tak jak w menedżerze plików na pulpicie. Wyłączone: jedno miejsce naraz, a nad paskiem narzędzi nic się nie rysuje.",
+      "closeTabsOnDoubleClick": "Zamykanie karty podwójnym kliknięciem",
+      "closeTabsOnDoubleClickHelp": "Podwójne kliknięcie w dowolnym miejscu karty zamyka ją, obok krzyżyka.",
       "downloadMode": "Pobieranie wielu elementów",
       "downloadModeHelp": "Co się dzieje przy pobieraniu więcej niż jednego elementu naraz. Wybrane foldery zawsze przychodzą jako jedno archiwum.",
       "downloadModeZip": "Jedno archiwum ZIP",
@@ -1017,6 +1020,12 @@
       "placeholder": "Stacks/docker/overlay2",
       "none": "Nie skonfigurowano żadnych ścieżek"
     },
+    "tabs": {
+      "title": "Karty",
+      "description": "Jak działa przeglądanie w kartach dla wszystkich w tej instalacji.",
+      "maxOpen": "Najwięcej kart naraz",
+      "maxOpenHelp": "Pasek nigdy się nie przewija: rząd kończy się tutaj, zamiast zwężać karty nie do odczytania."
+    },
     "searchIndex": {
       "title": "Indeks wyszukiwania",
       "subtitle": "Wyklucz ścieżki z indeksowania treści.",
@@ -1042,7 +1051,9 @@
     "moveLeft": "Przenieś w lewo",
     "moveRight": "Przenieś w prawo",
     "closeTab": "Zamknij kartę",
-    "closeOthers": "Zamknij pozostałe karty"
+    "closeOthers": "Zamknij pozostałe karty",
+    "closeAll": "Zamknij wszystkie karty",
+    "full": "Brak miejsca na kolejną kartę (limit: {count})"
   },
   "mediaPreview": {
     "audioTrack": "Ścieżka dźwiękowa",

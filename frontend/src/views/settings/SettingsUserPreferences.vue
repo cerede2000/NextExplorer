@@ -37,6 +37,7 @@ const local = reactive({
   locale: null,
   downloadMode: 'zip',
   browseInTabs: false,
+  closeTabsOnDoubleClick: false,
 });
 
 const original = computed(() => appSettings.userSettings);
@@ -61,7 +62,8 @@ const dirty = computed(() => {
     local.showVersionMarks !== (orig.showVersionMarks ?? true) ||
     local.locale !== (orig.locale ?? null) ||
     local.downloadMode !== (orig.downloadMode ?? 'zip') ||
-    local.browseInTabs !== (orig.browseInTabs ?? false)
+    local.browseInTabs !== (orig.browseInTabs ?? false) ||
+    local.closeTabsOnDoubleClick !== (orig.closeTabsOnDoubleClick ?? false)
   );
 });
 
@@ -133,6 +135,7 @@ watch(
     local.locale = userSettings.locale ?? null;
     local.downloadMode = userSettings.downloadMode ?? 'zip';
     local.browseInTabs = userSettings.browseInTabs ?? false;
+    local.closeTabsOnDoubleClick = userSettings.closeTabsOnDoubleClick ?? false;
   },
   { immediate: true }
 );
@@ -186,6 +189,7 @@ const save = async () => {
       locale: local.locale,
       downloadMode: local.downloadMode,
       browseInTabs: local.browseInTabs,
+      closeTabsOnDoubleClick: local.closeTabsOnDoubleClick,
     },
   });
 };
@@ -329,6 +333,28 @@ const save = async () => {
             </div>
           </div>
           <ToggleSwitch v-model="local.browseInTabs" data-test="browse-in-tabs" />
+        </div>
+
+        <!-- Under the switch that offers tabs at all, and greyed out without it:
+             a way of closing something that does not exist is a control that can
+             only puzzle. -->
+        <div
+          class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+          :class="local.browseInTabs ? '' : 'opacity-50'"
+        >
+          <div class="pl-6">
+            <div class="font-medium text-zinc-900 dark:text-zinc-100">
+              {{ t('settings.userPreferences.closeTabsOnDoubleClick') }}
+            </div>
+            <div class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              {{ t('settings.userPreferences.closeTabsOnDoubleClickHelp') }}
+            </div>
+          </div>
+          <ToggleSwitch
+            v-model="local.closeTabsOnDoubleClick"
+            :disabled="!local.browseInTabs"
+            data-test="close-tabs-on-double-click"
+          />
         </div>
 
         <div

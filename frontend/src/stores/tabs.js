@@ -38,6 +38,14 @@ const isTab = (entry) =>
 
 export const HOME = '/browse/';
 
+/**
+ * How many tabs a row holds before it refuses another, when nobody has said.
+ *
+ * Ten is what the settings offer as their middle choice, and what an installation
+ * that never opens the setting gets.
+ */
+export const DEFAULT_TAB_LIMIT = 10;
+
 export const useTabsStore = defineStore('tabs', () => {
   /**
    * Read once and written by hand, rather than through `useStorage`.
@@ -179,12 +187,34 @@ export const useTabsStore = defineStore('tabs', () => {
   };
 
   /**
+   * How many tabs this installation allows, told by whoever knows.
+   *
+   * A row of tabs that never scrolls has to stop somewhere: past a certain number
+   * they are too narrow to read, and a strip that scrolls hides the very tabs
+   * somebody opened. The number is an administrator's to choose — see the Tabs
+   * settings — and is told to this store rather than read from here, for the same
+   * reason `enabled` is.
+   */
+  const limit = ref(DEFAULT_TAB_LIMIT);
+
+  const setLimit = (value) => {
+    const asked = Number(value);
+    limit.value = Number.isFinite(asked) ? Math.max(1, Math.round(asked)) : DEFAULT_TAB_LIMIT;
+  };
+
+  /** Whether there is room for another. */
+  const atLimit = computed(() => enabled.value && tabs.value.length >= limit.value);
+
+  /**
    * Open an address in a tab, and answer with the tab it is in.
    *
    * A second tab on a screen there is only one of — the trash, the settings — is
    * two views of one thing, so the one already open is brought forward instead.
-   * A new tab lands immediately after the one it was opened from, which is where
-   * every browser puts it and where the reader will look for it.
+   * A new tab lands at the end of the row, which is where Edge and Chrome put one
+   * and where the reader will look for it.
+   *
+   * Nothing opens once the row is full: answering null leaves the gesture to say
+   * so, rather than making a tab too narrow to read or pushing one out of sight.
    *
    * With tabs turned off there is one tab and it goes where it is told, which is
    * what the application did before any of this existed.
@@ -214,11 +244,26 @@ export const useTabsStore = defineStore('tabs', () => {
       }
     }
 
+    if (atLimit.value) return null;
+
     const tab = makeTab(path, own);
-    const at = activeIndex.value;
-    tabs.value.splice(at < 0 ? tabs.value.length : at + 1, 0, tab);
+    tabs.value.push(tab);
     persist();
     return shouldActivate ? activate(tab.id) : tab;
+  };
+
+  /**
+   * Everything closed, and one new tab at the volumes.
+   *
+   * A window with no tabs has nowhere to be, so "close them all" means "start
+   * again" — which is what it means in a browser, and what somebody who has
+   * twelve of them open and wants none of them is asking for.
+   */
+  const closeAll = () => {
+    tabs.value = [makeTab(HOME)];
+    activeId.value = tabs.value[0].id;
+    persist();
+    return activeTab.value;
   };
 
   /**
@@ -343,9 +388,13 @@ export const useTabsStore = defineStore('tabs', () => {
     canClose,
     enabled,
     setEnabled,
+    limit,
+    setLimit,
+    atLimit,
     open,
     close,
     closeOthers,
+    closeAll,
     activate,
     takeBroughtForward,
     move,

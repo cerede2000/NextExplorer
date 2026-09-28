@@ -53,6 +53,9 @@ describe('Features Routes', () => {
       expect(response.body.collabora.enabled).toBe(false);
       expect(response.body.collabora.extensions).toEqual([]);
       expect(response.body.editor.extensions).toEqual([]);
+      // How many tabs a row may hold, which the strip needs before it draws one:
+      // it never scrolls, so this is what keeps a tab wide enough to read.
+      expect(response.body.tabs.maxOpen).toBe(10);
       expect(response.body.hiddenFiles.patterns).toEqual([
         '.',
         'regex:\\.download$',

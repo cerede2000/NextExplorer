@@ -510,6 +510,7 @@
       "activity": "Aktivitätsprotokoll",
       "accountApiTokens": "API-Token",
       "folderSize": "Ordnergrößen",
+      "tabs": "Tabs",
       "searchIndex": "Suchindex"
     },
     "about": {
@@ -593,6 +594,8 @@
       "documentsOpenInNewTabHelp": "Eine Datei bekommt beim Öffnen einen eigenen Browser-Tab, sodass mehrere offen bleiben, während Sie weiter stöbern. Aus öffnet sie sich wie bisher über dem Ordner.",
       "browseInTabs": "In Tabs arbeiten",
       "browseInTabsHelp": "Mehrere Orte gleichzeitig offen halten — Ordner, Dokumente, den Papierkorb — jeden in einem Tab, wie es ein Dateimanager auf dem Schreibtisch tut. Aus: ein Ort zur Zeit, und über der Werkzeugleiste wird nichts gezeichnet.",
+      "closeTabsOnDoubleClick": "Tab per Doppelklick schließen",
+      "closeTabsOnDoubleClickHelp": "Ein Doppelklick irgendwo auf einem Tab schließt ihn, zusätzlich zum Kreuz.",
       "downloadMode": "Mehrere Elemente herunterladen",
       "downloadModeHelp": "Was beim Herunterladen von mehr als einem Element gleichzeitig geschieht. Ausgewählte Ordner kommen immer als ein Archiv.",
       "downloadModeZip": "Ein ZIP-Archiv",
@@ -1017,6 +1020,12 @@
       "placeholder": "Stacks/docker/overlay2",
       "none": "Keine Pfade konfiguriert"
     },
+    "tabs": {
+      "title": "Tabs",
+      "description": "Wie das Browsen in Tabs für alle auf dieser Installation funktioniert.",
+      "maxOpen": "Höchstzahl gleichzeitiger Tabs",
+      "maxOpenHelp": "Die Leiste scrollt nie: Die Reihe endet hier, statt Tabs unlesbar schmal zu machen."
+    },
     "searchIndex": {
       "title": "Suchindex",
       "subtitle": "Pfade von der Inhaltsindizierung ausschließen.",
@@ -1042,7 +1051,9 @@
     "moveLeft": "Nach links verschieben",
     "moveRight": "Nach rechts verschieben",
     "closeTab": "Tab schließen",
-    "closeOthers": "Die anderen Tabs schließen"
+    "closeOthers": "Die anderen Tabs schließen",
+    "closeAll": "Alle Tabs schließen",
+    "full": "Kein Platz für einen weiteren Tab (Grenze: {count})"
   },
   "mediaPreview": {
     "audioTrack": "Tonspur",

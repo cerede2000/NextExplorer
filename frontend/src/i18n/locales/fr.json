@@ -510,6 +510,7 @@
       "activity": "Journal d’activité",
       "accountApiTokens": "Jetons d’API",
       "folderSize": "Taille des dossiers",
+      "tabs": "Onglets",
       "searchIndex": "Index de recherche"
     },
     "about": {
@@ -593,6 +594,8 @@
       "documentsOpenInNewTabHelp": "Ouvrir un fichier lui donne son propre onglet de navigateur : plusieurs restent ouverts pendant que vous continuez à naviguer. Désactivé, il s’ouvre par-dessus le dossier comme aujourd’hui.",
       "browseInTabs": "Naviguer en onglets",
       "browseInTabsHelp": "Garder plusieurs endroits ouverts à la fois — dossiers, documents, corbeille — chacun dans un onglet, comme le fait un gestionnaire de fichiers de bureau. Désactivé : un seul endroit à la fois, et rien n'est dessiné au-dessus de la barre d'outils.",
+      "closeTabsOnDoubleClick": "Fermer un onglet par double-clic",
+      "closeTabsOnDoubleClickHelp": "Un double-clic n’importe où sur un onglet le ferme, en plus de la croix.",
       "downloadMode": "Téléchargement de plusieurs éléments",
       "downloadModeHelp": "Ce qui se passe quand plusieurs éléments sont téléchargés à la fois. Les dossiers sélectionnés arrivent toujours dans une archive.",
       "downloadModeZip": "Une archive ZIP",
@@ -1017,6 +1020,12 @@
       "placeholder": "Stacks/docker/overlay2",
       "none": "Aucun chemin configuré"
     },
+    "tabs": {
+      "title": "Onglets",
+      "description": "Le comportement de la navigation par onglets pour tout le monde sur cette installation.",
+      "maxOpen": "Nombre maximal d’onglets",
+      "maxOpenHelp": "La barre ne défile jamais : la rangée s’arrête ici plutôt que de rendre les onglets illisibles."
+    },
     "searchIndex": {
       "title": "Index de recherche",
       "subtitle": "Exclure des chemins de l'indexation du contenu.",
@@ -1042,7 +1051,9 @@
     "moveLeft": "Déplacer vers la gauche",
     "moveRight": "Déplacer vers la droite",
     "closeTab": "Fermer l'onglet",
-    "closeOthers": "Fermer les autres onglets"
+    "closeOthers": "Fermer les autres onglets",
+    "closeAll": "Fermer tous les onglets",
+    "full": "Plus de place pour un onglet (limite : {count})"
   },
   "mediaPreview": {
     "audioTrack": "Piste audio",

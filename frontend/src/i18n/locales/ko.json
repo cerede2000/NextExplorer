@@ -510,6 +510,7 @@
       "activity": "활동 로그",
       "accountApiTokens": "API 토큰",
       "folderSize": "폴더 크기",
+      "tabs": "탭",
       "searchIndex": "검색 색인"
     },
     "about": {
@@ -593,6 +594,8 @@
       "documentsOpenInNewTabHelp": "파일을 열면 브라우저 탭이 따로 생기므로, 계속 탐색하는 동안 여러 개를 열어 둘 수 있습니다. 끄면 지금처럼 폴더 위에서 열립니다.",
       "browseInTabs": "탭으로 탐색",
       "browseInTabsHelp": "폴더, 문서, 휴지통 등 여러 곳을 각각 탭으로 한꺼번에 열어 둡니다. 데스크톱 파일 관리자와 같은 방식입니다. 끄면 한 번에 한 곳만 열리고, 도구 모음 위에는 아무것도 표시되지 않습니다.",
+      "closeTabsOnDoubleClick": "더블 클릭으로 탭 닫기",
+      "closeTabsOnDoubleClickHelp": "탭의 아무 곳이나 더블 클릭하면 닫힙니다. 닫기 버튼과 함께 쓸 수 있습니다.",
       "downloadMode": "여러 항목 다운로드",
       "downloadModeHelp": "한 번에 두 개 이상을 다운로드할 때의 동작입니다. 선택한 폴더는 항상 하나의 압축 파일로 받습니다.",
       "downloadModeZip": "하나의 ZIP 압축 파일",
@@ -1017,6 +1020,12 @@
       "placeholder": "Stacks/docker/overlay2",
       "none": "설정된 경로 없음"
     },
+    "tabs": {
+      "title": "탭",
+      "description": "이 설치에서 모든 사용자에게 적용되는 탭 탐색 동작입니다.",
+      "maxOpen": "동시에 열 수 있는 최대 탭 수",
+      "maxOpenHelp": "탭 막대는 스크롤되지 않습니다. 읽을 수 없을 만큼 좁아지는 대신 여기서 멈춥니다."
+    },
     "searchIndex": {
       "title": "검색 색인",
       "subtitle": "콘텐츠 색인에서 경로를 제외합니다.",
@@ -1042,7 +1051,9 @@
     "moveLeft": "왼쪽으로 이동",
     "moveRight": "오른쪽으로 이동",
     "closeTab": "탭 닫기",
-    "closeOthers": "다른 탭 닫기"
+    "closeOthers": "다른 탭 닫기",
+    "closeAll": "모든 탭 닫기",
+    "full": "탭을 더 열 공간이 없습니다 (한도: {count})"
   },
   "mediaPreview": {
     "audioTrack": "오디오 트랙",

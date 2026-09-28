@@ -510,6 +510,7 @@
       "activity": "Registro de actividad",
       "accountApiTokens": "Tokens de API",
       "folderSize": "Tamaño de carpetas",
+      "tabs": "Pestañas",
       "searchIndex": "Índice de búsqueda"
     },
     "about": {
@@ -593,6 +594,8 @@
       "documentsOpenInNewTabHelp": "Al abrir un archivo se le da su propia pestaña del navegador, así varios siguen abiertos mientras usted sigue navegando. Desactivado, se abre sobre la carpeta como hasta ahora.",
       "browseInTabs": "Navegar en pestañas",
       "browseInTabsHelp": "Mantener varios lugares abiertos a la vez — carpetas, documentos, la papelera — cada uno en una pestaña, como hace un gestor de archivos de escritorio. Desactivado: un lugar a la vez, y no se dibuja nada encima de la barra de herramientas.",
+      "closeTabsOnDoubleClick": "Cerrar una pestaña con doble clic",
+      "closeTabsOnDoubleClickHelp": "Un doble clic en cualquier parte de la pestaña la cierra, además de la cruz.",
       "downloadMode": "Descargar varios elementos",
       "downloadModeHelp": "Qué ocurre al descargar más de un elemento a la vez. Las carpetas seleccionadas siempre llegan como un único archivo comprimido.",
       "downloadModeZip": "Un archivo ZIP",
@@ -1017,6 +1020,12 @@
       "placeholder": "Stacks/docker/overlay2",
       "none": "No hay rutas configuradas"
     },
+    "tabs": {
+      "title": "Pestañas",
+      "description": "Cómo se comporta la navegación por pestañas para todos en esta instalación.",
+      "maxOpen": "Máximo de pestañas a la vez",
+      "maxOpenHelp": "La barra nunca se desplaza: la fila se detiene aquí en lugar de dejar pestañas ilegibles."
+    },
     "searchIndex": {
       "title": "Índice de búsqueda",
       "subtitle": "Excluir rutas de la indexación de contenido.",
@@ -1042,7 +1051,9 @@
     "moveLeft": "Mover a la izquierda",
     "moveRight": "Mover a la derecha",
     "closeTab": "Cerrar la pestaña",
-    "closeOthers": "Cerrar las demás pestañas"
+    "closeOthers": "Cerrar las demás pestañas",
+    "closeAll": "Cerrar todas las pestañas",
+    "full": "No hay sitio para otra pestaña (límite: {count})"
   },
   "mediaPreview": {
     "audioTrack": "Pista de audio",

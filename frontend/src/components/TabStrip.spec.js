@@ -16,6 +16,8 @@ const state = {
   tabs: ref([]),
   activeId: ref(''),
   canClose: ref(true),
+  atLimit: ref(false),
+  limit: ref(10),
 };
 const actions = {
   activate: vi.fn(),
@@ -23,6 +25,7 @@ const actions = {
   openHome: vi.fn(),
   close: vi.fn(),
   closeOthers: vi.fn(),
+  closeAll: vi.fn(),
 };
 
 // The store's own reordering, as the strip reaches it. `canMove` answers from the
@@ -48,6 +51,12 @@ vi.mock('@/composables/tabNavigation', () => ({
       get canClose() {
         return state.canClose.value;
       },
+      get atLimit() {
+        return state.atLimit.value;
+      },
+      get limit() {
+        return state.limit.value;
+      },
       move: (...args) => store.move(...args),
       nudge: (...args) => store.nudge(...args),
       canMove: (id, step) => {
@@ -58,6 +67,10 @@ vi.mock('@/composables/tabNavigation', () => ({
   }),
 }));
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key) => key }) }));
+// Whether a double click closes a tab is an account's answer, and this spec is
+// about the strip: what is asked here is that it obeys.
+const userSettings = vi.hoisted(() => ({ closeTabsOnDoubleClick: false }));
+vi.mock('@/stores/appSettings', () => ({ useAppSettings: () => ({ userSettings }) }));
 
 import TabStrip from './TabStrip.vue';
 
@@ -75,6 +88,9 @@ beforeEach(() => {
   state.tabs.value = [];
   state.activeId.value = '';
   state.canClose.value = true;
+  state.atLimit.value = false;
+  state.limit.value = 10;
+  userSettings.closeTabsOnDoubleClick = false;
   Object.values(actions).forEach((fn) => fn.mockReset());
   Object.values(store).forEach((fn) => fn.mockReset());
 });
@@ -253,5 +269,78 @@ describe('moving a tab along the row', () => {
 
     expect(wrapper.get('[data-test="tab-move-left"]').attributes('disabled')).toBeDefined();
     expect(wrapper.get('[data-test="tab-move-right"]').attributes('disabled')).toBeUndefined();
+  });
+});
+
+/**
+ * A row that never scrolls, and what happens when it is full.
+ *
+ * Past a certain number tabs are too narrow to read, and a strip that scrolls
+ * hides the very tabs somebody opened — so the row stops instead, at a number an
+ * administrator chooses. The "+" says why rather than doing nothing.
+ */
+describe('a row with no room left', () => {
+  it('offers no new tab, and says why', () => {
+    state.atLimit.value = true;
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A')]);
+
+    const plus = wrapper.get('[data-test="tab-new"]');
+    expect(plus.attributes('disabled')).toBeDefined();
+    expect(plus.attributes('title')).toBe('tabs.full');
+  });
+
+  it('offers one, named plainly, while there is room', () => {
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A')]);
+
+    const plus = wrapper.get('[data-test="tab-new"]');
+    expect(plus.attributes('disabled')).toBeUndefined();
+    expect(plus.attributes('title')).toBe('tabs.newTab');
+  });
+});
+
+/**
+ * Closing all of them, which means starting again: a window with no tabs has
+ * nowhere to be.
+ */
+describe('closing every tab', () => {
+  it('is offered while there is more than one', async () => {
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')]);
+
+    await wrapper.get('[data-test="tab-close-all"]').trigger('click');
+
+    expect(actions.closeAll).toHaveBeenCalled();
+  });
+
+  /** With one tab there is nothing to close: it would close and reopen itself. */
+  it('is not offered for a single tab', () => {
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A')]);
+
+    expect(wrapper.find('[data-test="tab-close-all"]').exists()).toBe(false);
+  });
+});
+
+/**
+ * Closing a tab by double-clicking it, which is an account's answer.
+ *
+ * Off by default: a double click is also how somebody with a trackpad ends up
+ * clicking twice, and a tab closing under them would be a surprise nobody asked
+ * for.
+ */
+describe('a double click on a tab', () => {
+  it('closes it when that is what this account asked for', async () => {
+    userSettings.closeTabsOnDoubleClick = true;
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')]);
+
+    await wrapper.findAll('[role="tab"]')[1].trigger('dblclick');
+
+    expect(actions.close).toHaveBeenCalledWith('b');
+  });
+
+  it('does nothing otherwise, which is what it did before', async () => {
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')]);
+
+    await wrapper.findAll('[role="tab"]')[1].trigger('dblclick');
+
+    expect(actions.close).not.toHaveBeenCalled();
   });
 });

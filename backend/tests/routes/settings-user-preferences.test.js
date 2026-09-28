@@ -68,6 +68,9 @@ const NON_DEFAULT = {
   // Off by default: tabs change the shape of every screen, so nobody gets them
   // without asking.
   browseInTabs: true,
+  // Off by default: a double click is also how somebody with a trackpad ends up
+  // clicking twice, and a tab closing under them is a surprise nobody asked for.
+  closeTabsOnDoubleClick: true,
 };
 
 describe('PATCH /api/settings — user preferences', () => {

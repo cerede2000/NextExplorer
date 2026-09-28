@@ -2,6 +2,7 @@ import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { HOME, useTabsStore } from '@/stores/tabs';
 import { useAppSettings } from '@/stores/appSettings';
+import { useFeaturesStore } from '@/stores/features';
 import { tabKindForPath } from '@/config/tabKinds';
 
 /**
@@ -59,6 +60,18 @@ export function useTabRouteSync() {
     },
     { immediate: true }
   );
+
+  /**
+   * And how many of them this installation allows, which is an administrator's
+   * answer rather than an account's — told the same way, and from the same place,
+   * so the store still knows nothing about where either comes from.
+   */
+  const features = useFeaturesStore();
+  watch(
+    () => features.maxTabs,
+    (many) => tabs.setLimit(many),
+    { immediate: true }
+  );
 }
 
 /** The actions, safe to ask for anywhere: no watchers, nothing installed. */
@@ -90,6 +103,8 @@ export function useTabNavigation() {
 
   const close = (id) => go(tabs.close(id));
   const closeOthers = (id) => go(tabs.closeOthers(id));
+  /** Every one of them, and a new tab at the volumes to land in. */
+  const closeAll = () => go(tabs.closeAll());
 
   /**
    * Close the tab that exists *for* what is on screen, and say whether it did.
@@ -115,5 +130,5 @@ export function useTabNavigation() {
   /** Whether the strip belongs on screen at all: the mode, and a place to be. */
   const visible = computed(() => tabs.enabled && Boolean(tabKindForPath(route.fullPath)));
 
-  return { tabs, visible, activate, open, openHome, close, closeOthers, closeOwn };
+  return { tabs, visible, activate, open, openHome, close, closeOthers, closeAll, closeOwn };
 }

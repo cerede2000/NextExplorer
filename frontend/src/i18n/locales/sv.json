@@ -510,6 +510,7 @@
       "activity": "Aktivitetslogg",
       "accountApiTokens": "API-nycklar",
       "folderSize": "Mappstorlekar",
+      "tabs": "Flikar",
       "searchIndex": "Sökindex"
     },
     "about": {
@@ -593,6 +594,8 @@
       "documentsOpenInNewTabHelp": "En fil som öppnas får en egen webbläsarflik, så att flera kan stå öppna medan du bläddrar vidare. Av öppnas den ovanpå mappen som i dag.",
       "browseInTabs": "Bläddra i flikar",
       "browseInTabsHelp": "Håll flera platser öppna samtidigt — mappar, dokument, papperskorgen — var och en i en flik, som en filhanterare på skrivbordet gör. Av: en plats i taget, och ovanför verktygsraden ritas ingenting.",
+      "closeTabsOnDoubleClick": "Stäng en flik med dubbelklick",
+      "closeTabsOnDoubleClickHelp": "Ett dubbelklick var som helst på fliken stänger den, utöver krysset.",
       "downloadMode": "Ladda ner flera element",
       "downloadModeHelp": "Vad som händer när mer än ett element laddas ner samtidigt. Valda mappar kommer alltid som ett arkiv.",
       "downloadModeZip": "Ett ZIP-arkiv",
@@ -1017,6 +1020,12 @@
       "placeholder": "Stacks/docker/overlay2",
       "none": "Inga sökvägar konfigurerade"
     },
+    "tabs": {
+      "title": "Flikar",
+      "description": "Hur flikbläddring fungerar för alla i den här installationen.",
+      "maxOpen": "Högsta antal flikar samtidigt",
+      "maxOpenHelp": "Listen rullar aldrig: raden stannar här i stället för att göra flikarna oläsligt smala."
+    },
     "searchIndex": {
       "title": "Sökindex",
       "subtitle": "Uteslut sökvägar från innehållsindexering.",
@@ -1042,7 +1051,9 @@
     "moveLeft": "Flytta till vänster",
     "moveRight": "Flytta till höger",
     "closeTab": "Stäng fliken",
-    "closeOthers": "Stäng de andra flikarna"
+    "closeOthers": "Stäng de andra flikarna",
+    "closeAll": "Stäng alla flikar",
+    "full": "Ingen plats för ännu en flik (gräns: {count})"
   },
   "mediaPreview": {
     "audioTrack": "Ljudspår",

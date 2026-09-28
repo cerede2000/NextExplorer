@@ -510,6 +510,7 @@
       "activity": "Activiteitenlogboek",
       "accountApiTokens": "API-tokens",
       "folderSize": "Mapgroottes",
+      "tabs": "Tabbladen",
       "searchIndex": "Zoekindex"
     },
     "about": {
@@ -593,6 +594,8 @@
       "documentsOpenInNewTabHelp": "Een bestand openen geeft het een eigen browsertabblad, zodat er meerdere open blijven terwijl u verder bladert. Uit opent het over de map heen, zoals nu.",
       "browseInTabs": "Met tabbladen werken",
       "browseInTabsHelp": "Meerdere plekken tegelijk openhouden — mappen, documenten, de prullenbak — elk in een tabblad, zoals een bestandsbeheerder op het bureaublad doet. Uit: één plek tegelijk, en boven de werkbalk wordt niets getekend.",
+      "closeTabsOnDoubleClick": "Een tabblad sluiten met dubbelklik",
+      "closeTabsOnDoubleClickHelp": "Dubbelklikken op een tabblad sluit het, naast het kruisje.",
       "downloadMode": "Meerdere items downloaden",
       "downloadModeHelp": "Wat er gebeurt als er meer dan één item tegelijk wordt gedownload. Geselecteerde mappen komen altijd als één archief.",
       "downloadModeZip": "Één ZIP-archief",
@@ -1017,6 +1020,12 @@
       "placeholder": "Stacks/docker/overlay2",
       "none": "Geen paden ingesteld"
     },
+    "tabs": {
+      "title": "Tabbladen",
+      "description": "Hoe bladeren met tabbladen werkt voor iedereen op deze installatie.",
+      "maxOpen": "Maximaal aantal tabbladen",
+      "maxOpenHelp": "De balk schuift nooit: de rij stopt hier in plaats van tabbladen onleesbaar smal te maken."
+    },
     "searchIndex": {
       "title": "Zoekindex",
       "subtitle": "Paden uitsluiten van het indexeren van inhoud.",
@@ -1042,7 +1051,9 @@
     "moveLeft": "Naar links verplaatsen",
     "moveRight": "Naar rechts verplaatsen",
     "closeTab": "Tabblad sluiten",
-    "closeOthers": "De andere tabbladen sluiten"
+    "closeOthers": "De andere tabbladen sluiten",
+    "closeAll": "Alle tabbladen sluiten",
+    "full": "Geen ruimte voor nog een tabblad (limiet: {count})"
   },
   "share": {
     "sharedWithMe": "Gedeeld met mij",

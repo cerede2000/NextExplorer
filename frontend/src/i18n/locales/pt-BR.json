@@ -510,6 +510,7 @@
       "activity": "Registro de atividades",
       "accountApiTokens": "Tokens de API",
       "folderSize": "Tamanho das pastas",
+      "tabs": "Abas",
       "searchIndex": "Índice de busca"
     },
     "about": {
@@ -593,6 +594,8 @@
       "documentsOpenInNewTabHelp": "Abrir um arquivo lhe dá uma aba do navegador só dele, então vários continuam abertos enquanto você navega. Desligado, ele abre sobre a pasta como hoje.",
       "browseInTabs": "Navegar em abas",
       "browseInTabsHelp": "Manter vários lugares abertos ao mesmo tempo — pastas, documentos, a lixeira — cada um em uma aba, como faz um gerenciador de arquivos de mesa. Desligado: um lugar por vez, e nada é desenhado acima da barra de ferramentas.",
+      "closeTabsOnDoubleClick": "Fechar uma aba com clique duplo",
+      "closeTabsOnDoubleClickHelp": "Um clique duplo em qualquer parte da aba a fecha, além do xis.",
       "downloadMode": "Baixar vários itens",
       "downloadModeHelp": "O que acontece ao baixar mais de um item de uma vez. As pastas selecionadas sempre chegam como um único arquivo compactado.",
       "downloadModeZip": "Um único arquivo ZIP",
@@ -1017,6 +1020,12 @@
       "placeholder": "Stacks/docker/overlay2",
       "none": "Nenhum caminho configurado"
     },
+    "tabs": {
+      "title": "Abas",
+      "description": "Como a navegação em abas se comporta para todos nesta instalação.",
+      "maxOpen": "Máximo de abas ao mesmo tempo",
+      "maxOpenHelp": "A barra nunca rola: a fila para aqui em vez de deixar as abas ilegíveis."
+    },
     "searchIndex": {
       "title": "Índice de busca",
       "subtitle": "Exclua caminhos da indexação de conteúdo.",
@@ -1042,7 +1051,9 @@
     "moveLeft": "Mover para a esquerda",
     "moveRight": "Mover para a direita",
     "closeTab": "Fechar a aba",
-    "closeOthers": "Fechar as outras abas"
+    "closeOthers": "Fechar as outras abas",
+    "closeAll": "Fechar todas as abas",
+    "full": "Sem espaço para outra aba (limite: {count})"
   },
   "mediaPreview": {
     "audioTrack": "Faixa de áudio",

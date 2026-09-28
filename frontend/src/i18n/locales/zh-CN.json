@@ -510,6 +510,7 @@
       "activity": "活动日志",
       "accountApiTokens": "API 令牌",
       "folderSize": "文件夹大小",
+      "tabs": "标签页",
       "searchIndex": "搜索索引"
     },
     "about": {
@@ -593,6 +594,8 @@
       "documentsOpenInNewTabHelp": "打开文件时给它一个独立的浏览器标签页，这样你继续浏览时可以同时开着好几个。关闭后，它像现在一样覆盖在文件夹上打开。",
       "browseInTabs": "以标签页浏览",
       "browseInTabsHelp": "同时打开多个位置——文件夹、文档、回收站——各在一个标签页中，就像桌面上的文件管理器那样。关闭时一次只有一个位置，工具栏上方不绘制任何内容。",
+      "closeTabsOnDoubleClick": "双击关闭标签页",
+      "closeTabsOnDoubleClickHelp": "在标签页上任意位置双击即可关闭，与关闭按钮一样。",
       "downloadMode": "下载多个项目",
       "downloadModeHelp": "同时下载多个项目时的处理方式。所选文件夹始终作为一个压缩包。",
       "downloadModeZip": "一个 ZIP 压缩包",
@@ -1017,6 +1020,12 @@
       "placeholder": "Stacks/docker/overlay2",
       "none": "未配置任何路径"
     },
+    "tabs": {
+      "title": "标签页",
+      "description": "本安装中所有人的标签页浏览行为。",
+      "maxOpen": "同时打开的标签页上限",
+      "maxOpenHelp": "标签栏不会滚动：达到上限即停止，而不是把标签压窄到看不清。"
+    },
     "searchIndex": {
       "title": "搜索索引",
       "subtitle": "将路径排除在内容索引之外。",
@@ -1042,7 +1051,9 @@
     "moveLeft": "向左移动",
     "moveRight": "向右移动",
     "closeTab": "关闭标签页",
-    "closeOthers": "关闭其他标签页"
+    "closeOthers": "关闭其他标签页",
+    "closeAll": "关闭所有标签页",
+    "full": "没有空间再打开标签页（上限：{count}）"
   },
   "mediaPreview": {
     "audioTrack": "音轨",
