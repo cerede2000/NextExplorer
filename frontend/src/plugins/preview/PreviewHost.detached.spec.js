@@ -1,7 +1,7 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import { defineComponent, h, onMounted, ref, nextTick } from 'vue';
+import { defineComponent, h, onMounted, ref, nextTick, Teleport } from 'vue';
 
 /**
  * Two documents whose viewers take their own elements out of the page.
@@ -34,7 +34,34 @@ import PreviewHost from './PreviewHost.vue';
 import { usePreviewManager } from './manager';
 import { useTabsStore } from '@/stores/tabs';
 
-/** A viewer that replaces the element it was given, as DocsAPI does. */
+/**
+ * The shape ONLYOFFICE really has.
+ *
+ * The element the Document Server's script replaces is the root of a component
+ * of its own — `<DocumentEditor>` — and it only appears once the configuration
+ * has been fetched, so the viewer draws a loading line first and swaps it for the
+ * editor after. Both matter: Vue updates a component by patching into
+ * `parentNode` of what it rendered last time, and the last thing this one
+ * rendered is a node the page no longer holds — so the parent is null and
+ * anything mounted during that patch throws.
+ */
+const DocumentEditor = defineComponent({
+  name: 'DocumentEditor',
+  props: { config: { type: Object, required: true } },
+  setup(props) {
+    const host = ref(null);
+    onMounted(() => {
+      const frame = document.createElement('iframe');
+      frame.dataset.document = props.config.document;
+      host.value?.replaceWith(frame);
+    });
+    return () => h('div', { ref: host }, 'the editor');
+  },
+});
+
+/** Set by the viewer as it mounts, so a test can make it rebuild in place. */
+let reload = async () => {};
+
 const DetachingViewer = defineComponent({
   name: 'DetachingViewer',
   props: {
@@ -47,21 +74,39 @@ const DetachingViewer = defineComponent({
   },
   setup(props) {
     const { previewState } = props;
-    const host = ref(null);
-    onMounted(() => {
-      const element = host.value;
-      const frame = document.createElement('iframe');
-      frame.dataset.document = props.filePath;
-      element?.replaceWith(frame);
-      // As the editor does once the document is ready: its own close button is
-      // drawn, and the page's fallback one is taken away — a change the surface
-      // around it reacts to while the element underneath is already gone. Written
-      // on the object rather than through the prop, which is what the plugins do:
-      // `previewState` belongs to the preview manager and is handed over to be
-      // written on.
+    const config = ref(null);
+    onMounted(async () => {
+      // The configuration is fetched, so the editor is a tick late.
+      await Promise.resolve();
+      config.value = { document: props.filePath };
+      await nextTick();
+      // And once it has opened, it draws its own close button, which takes the
+      // page's fallback one away — a change above an element that is already gone.
       Object.assign(previewState, { hasNativeClose: true });
     });
-    return () => h('div', { ref: host }, 'the editor');
+    // What `load({ inPlace: false })` does: the configuration is cleared, the
+    // editor on screen is taken off by that very render, and a new one is built
+    // once the answer comes back. A rename from the title bar does it, and so
+    // does a document the server reports as outdated.
+    reload = async () => {
+      config.value = null;
+      await nextTick();
+      config.value = { document: `${props.filePath}#again` };
+      await nextTick();
+    };
+
+    return () =>
+      h('div', { class: 'h-full w-full' }, [
+        config.value
+          ? h(DocumentEditor, { key: props.filePath, config: config.value })
+          : h('div', 'Loading ONLYOFFICE…'),
+        // The dialogs the editor opens — sharing, and the picker it asks for a
+        // file with — which teleport to the body and are siblings of the element
+        // the editor took away. Patching that row of children is where Vue has to
+        // find its place again, and the element it would look at is gone.
+        h(Teleport, { to: 'body' }, [h('div', { class: 'share-dialog' })]),
+        h(Teleport, { to: 'body' }, [h('div', { class: 'picker-dialog' })]),
+      ]);
   },
 });
 
@@ -165,6 +210,50 @@ describe('viewers that take their own element out of the page', () => {
 
     expect(errors).toEqual([]);
     expect(manager.shows(first, REPORT)).toBe(true);
+  });
+
+  /**
+   * The one the crash came from: a tab already holding an editor is handed
+   * another document. Vue then has to take the first editor away — and what it
+   * rendered last is a node the page no longer holds.
+   */
+  it('survive a second document opening in the same tab', async () => {
+    const { manager, first } = await twoDocuments();
+
+    manager.openIn(first, { name: 'other.docx', path: 'Docs', kind: 'docx' });
+    await flushPromises();
+    await nextTick();
+
+    expect(errors).toEqual([]);
+    expect(manager.shows(first, { name: 'other.docx', path: 'Docs', kind: 'docx' })).toBe(true);
+  });
+
+  it('survive a document closed and opened again in the same tab', async () => {
+    const { manager, first } = await twoDocuments();
+
+    await manager.closeIn(first);
+    await nextTick();
+    manager.openIn(first, REPORT);
+    await flushPromises();
+    await nextTick();
+
+    expect(errors).toEqual([]);
+  });
+
+  /**
+   * The editor rebuilt where it stands: the configuration is cleared and asked
+   * for again, so the element on screen is taken off by that render and another
+   * one takes its place. A rename from the title bar does this, and so does a
+   * document the server reports as outdated.
+   */
+  it('survive the editor being rebuilt in place', async () => {
+    await twoDocuments();
+
+    await reload();
+    await flushPromises();
+    await nextTick();
+
+    expect(errors).toEqual([]);
   });
 
   it('survive their tab being closed', async () => {

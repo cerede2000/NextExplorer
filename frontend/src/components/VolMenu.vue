@@ -4,6 +4,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useNavigation } from '@/composables/navigation';
+import { useOpenPlaceInTab } from '@/composables/openPlaceInTab';
 import { useFeaturesStore } from '@/stores/features';
 import { useVolumeUsageStore } from '@/stores/volumeUsage';
 import { FolderIcon } from '@heroicons/vue/24/outline';
@@ -12,6 +13,8 @@ import ReadOnlyMark from '@/components/ReadOnlyMark.vue';
 
 const { t } = useI18n();
 const { openItem, openBreadcrumb } = useNavigation();
+// The middle button opens a place in a tab behind, as it does a folder row.
+const { openPlaceInTab } = useOpenPlaceInTab();
 const route = useRoute();
 const featuresStore = useFeaturesStore();
 const volumeUsageStore = useVolumeUsageStore();
@@ -66,6 +69,7 @@ const openPersonal = () => {
       </h4>
       <button
         @click="openPersonal"
+        @auxclick.middle.prevent="openPlaceInTab('personal')"
         :class="[
           'cursor-pointer flex w-full items-center gap-3 my-3 rounded-lg transition-colors duration-200 text-sm',
           isActiveVolume('personal') ? 'dark:text-white' : 'dark:text-neutral-300/90',
@@ -104,6 +108,7 @@ const openPersonal = () => {
             v-for="volume in volumes"
             :key="volume.name"
             @click="openItem(volume)"
+            @auxclick.middle.prevent="openPlaceInTab(volume.name)"
             :class="[
               'cursor-pointer flex w-full gap-3 my-3 rounded-lg text-left transition-colors duration-200 text-sm',
               showVolumeUsage ? 'items-start' : 'items-center',

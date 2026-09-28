@@ -13,8 +13,20 @@
     </div>
   </div>
 
-  <!-- Regular plugins render in modal -->
-  <transition v-else name="preview-fade">
+  <!--
+    Regular plugins render in modal.
+
+    Deliberately without a fade. The two hundred milliseconds it lasted are two
+    hundred milliseconds in which the old document is still in the page while the
+    next one is being built — and a viewer that has taken its own element out of
+    the page (ONLYOFFICE replaces it with an `iframe`) leaves Vue patching around
+    a node the page no longer holds: the parent it patches into comes back null
+    and the render dies, taking every later one with it. Switching tabs is a
+    gesture people make far faster than a fade, so the two overlapped constantly.
+    A test cannot see this — jsdom reports no transition support, so the leave is
+    immediate there and the race never happens.
+  -->
+  <div v-else>
     <div
       v-if="isOpen"
       data-test="preview-surface"
@@ -140,7 +152,7 @@
         </main>
       </div>
     </div>
-  </transition>
+  </div>
 </template>
 
 <script setup>
@@ -236,15 +248,3 @@ const getActionIcon = (id) => {
   return icons[id];
 };
 </script>
-
-<style scoped>
-.preview-fade-enter-active,
-.preview-fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.preview-fade-enter-from,
-.preview-fade-leave-to {
-  opacity: 0;
-}
-</style>

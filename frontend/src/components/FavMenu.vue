@@ -7,6 +7,7 @@ import { storeToRefs } from 'pinia';
 import draggable from 'vuedraggable';
 import { useFavoritesStore } from '@/stores/favorites';
 import { useNavigation } from '@/composables/navigation';
+import { useOpenPlaceInTab } from '@/composables/openPlaceInTab';
 import { normalizePath } from '@/api';
 import { useI18n } from 'vue-i18n';
 import { useFavoriteEditor } from '@/composables/useFavoriteEditor';
@@ -28,6 +29,8 @@ const favoritesStore = useFavoritesStore();
 const { favorites } = storeToRefs(favoritesStore);
 const route = useRoute();
 const { openBreadcrumb } = useNavigation();
+// The middle button opens a place in a tab behind, as it does a folder row.
+const { openPlaceInTab } = useOpenPlaceInTab();
 const { openEditorForFavorite } = useFavoriteEditor();
 const { handleDragOver, handleDragLeave, handleDrop, isDragTarget, isCopyDragTarget } =
   useFileDragDrop();
@@ -191,6 +194,7 @@ onBeforeUnmount(() => {
                   <button
                     type="button"
                     @click="handleOpenFavorite(favorite)"
+                    @auxclick.middle.prevent="openPlaceInTab(favorite.path)"
                     @dragover="handleDragOver($event, favoriteDropTarget(favorite))"
                     @dragleave="handleDragLeave($event, favoriteDropTarget(favorite))"
                     @drop="handleDrop($event, favoriteDropTarget(favorite))"

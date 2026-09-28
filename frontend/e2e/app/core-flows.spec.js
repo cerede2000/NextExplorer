@@ -29,9 +29,20 @@ let page;
 const requested = [];
 const loadedUploader = () => requested.some((url) => /\/assets\/uploadEngine-[^/]*\.js$/.test(url));
 
+/**
+ * Anything the page threw, for the whole journey.
+ *
+ * A render that dies leaves the screen it was drawing half built and takes every
+ * later one with it, and none of that is an assertion any single step would fail
+ * on — the thing being clicked is usually still there. So the errors are
+ * collected across the journey and read at the end.
+ */
+const thrown = [];
+
 test.beforeAll(async ({ browser }) => {
   page = await browser.newPage();
   page.on('request', (request) => requested.push(request.url()));
+  page.on('pageerror', (error) => thrown.push(error.message));
 });
 
 test.afterAll(async () => {
@@ -1426,4 +1437,59 @@ test('nothing is hidden on a phone either', async () => {
   } finally {
     await page.setViewportSize({ width: 1280, height: 720 });
   }
+});
+
+/**
+ * A document opened and shut again and again, faster than anything can fade.
+ *
+ * This is where the tabs hurt: a viewer that takes its own element out of the
+ * page — ONLYOFFICE replaces it with an `iframe` — leaves Vue patching around a
+ * node the page no longer holds, and the two hundred milliseconds a fade lasted
+ * were two hundred milliseconds in which the document being shut was still there
+ * while the next one was being built. Switching tabs is a gesture people make far
+ * faster than that.
+ *
+ * No unit suite can see it: jsdom reports no transition support, so the leave is
+ * immediate there and the two never overlap. Only a browser can.
+ */
+test('opening and shutting documents faster than a fade leaves nothing broken', async () => {
+  fs.writeFileSync(path.join(volume, 'quick-one.md'), '# One\n');
+  fs.writeFileSync(path.join(volume, 'quick-two.md'), '# Two\n');
+
+  // In tabs, which is where it hurt: each document opens in one of ours and its
+  // cross closes that tab again.
+  await page.goto('/settings/user-preferences');
+  const inTabs = page.locator('[data-test="browse-in-tabs"]');
+  if ((await inTabs.getAttribute('aria-checked')) !== 'true') {
+    await inTabs.click();
+    await page.getByRole('button', { name: 'Save' }).click();
+  }
+  await expect(inTabs).toHaveAttribute('aria-checked', 'true');
+
+  const surface = page.locator('[data-active="true"] [data-test="preview-surface"]');
+  try {
+    for (const name of ['quick-one.md', 'quick-two.md', 'quick-one.md', 'quick-two.md']) {
+      await page.goto('/browse/Projects');
+      await page.locator(`[title="${name}"]:not([role="tab"])`).first().dblclick();
+      await expect(surface).toBeVisible();
+      // Shut immediately, without waiting for anything to settle.
+      await page.locator('[data-active="true"] [data-test="preview-close"]').click();
+    }
+  } finally {
+    await page.goto('/settings/user-preferences');
+    await inTabs.click();
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(inTabs).toHaveAttribute('aria-checked', 'false');
+  }
+});
+
+/**
+ * Nothing the page threw, in any of it.
+ *
+ * Last on purpose: a render that dies leaves the screen half built and takes
+ * every later one with it, and no single step fails on that — what was being
+ * clicked is usually still there. The whole journey is the assertion.
+ */
+test('the page threw nothing along the way', () => {
+  expect(thrown, `the page threw:\n${thrown.join('\n')}`).toEqual([]);
 });

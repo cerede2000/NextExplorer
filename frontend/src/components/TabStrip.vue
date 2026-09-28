@@ -150,6 +150,7 @@ const nudge = (id, step) => {
       <button
         type="button"
         role="tab"
+        draggable="true"
         :aria-selected="tab.id === tabs.activeId"
         :title="titleFor(tab)"
         class="flex min-w-0 max-w-56 items-center gap-1.5 px-2 py-1.5"
