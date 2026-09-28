@@ -40,9 +40,7 @@
     },
     {
       "file": "^frontend/e2e/media-preview\\.spec\\.js$",
-      "cases": [
-        "^swipes through mixed media and swipes down to close$"
-      ],
+      "cases": ["^swipes through mixed media and swipes down to close$"],
       "note": "brought home, in the case named `swipes through mixed media, and a swipe down closes rather than navigating` — which keeps what ours already said about a vertical gesture not turning the page."
     },
     {
@@ -63,9 +61,7 @@
     },
     {
       "file": "^frontend/src/components/FileObject\\.spec\\.js$",
-      "cases": [
-        "^says who is editing it$"
-      ],
+      "cases": ["^says who is editing it$"],
       "note": "the same case, renamed when the sentence it asserts stopped being written into the component in French: `says who is editing it, in the reader's language`, which asserts the catalogue key rather than one language's words."
     },
     {

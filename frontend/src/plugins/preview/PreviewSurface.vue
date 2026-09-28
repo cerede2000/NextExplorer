@@ -97,24 +97,45 @@
             dark in the other — the previous translucent grey disappeared into
             both.
           -->
-          <button
-            v-if="isMinimal && !hasNativeClose"
-            type="button"
-            :title="$t('common.close')"
-            :aria-label="$t('common.close')"
-            data-test="preview-close"
-            class="absolute left-1.75 top-0.5 z-2100 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white shadow-md ring-1 ring-white/80 transition hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:ring-zinc-900/80"
-            @click="handleClose"
-          >
-            <XMarkSolidIcon class="h-4 w-4" />
-          </button>
+          <!--
+            In a box of its own, and that is not styling.
 
-          <component v-if="component" :is="component" v-bind="item" class="h-full" />
-          <div
-            v-else
-            class="flex h-full items-center justify-center text-sm text-neutral-500 dark:text-neutral-400"
-          >
-            Loading preview…
+            This button comes and goes, and Vue leaves a comment where something
+            it has taken away used to be — anchored on whatever comes next. What
+            comes next is the viewer's own element, and ONLYOFFICE takes that
+            element out of the page and puts an `iframe` in its place, so the
+            anchor is a node the page no longer holds: `insertBefore` throws, the
+            patch stops half done, and everything after it fails on elements that
+            are suddenly null. Inside a wrapper of its own it can appear and
+            disappear against its own edges, and never against the viewer's.
+          -->
+          <div>
+            <button
+              v-if="isMinimal && !hasNativeClose"
+              type="button"
+              :title="$t('common.close')"
+              :aria-label="$t('common.close')"
+              data-test="preview-close"
+              class="absolute left-1.75 top-0.5 z-2100 inline-flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white shadow-md ring-1 ring-white/80 transition hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:ring-zinc-900/80"
+              @click="handleClose"
+            >
+              <XMarkSolidIcon class="h-4 w-4" />
+            </button>
+          </div>
+
+          <!--
+            And the viewer in a box of its own for the same reason: whatever it
+            does to the element it is given, it does inside here, where nothing
+            above it needs to find that element again.
+          -->
+          <div class="h-full">
+            <component v-if="component" :is="component" v-bind="item" class="h-full" />
+            <div
+              v-else
+              class="flex h-full items-center justify-center text-sm text-neutral-500 dark:text-neutral-400"
+            >
+              Loading preview…
+            </div>
           </div>
         </main>
       </div>
