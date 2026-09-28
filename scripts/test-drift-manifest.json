@@ -80,6 +80,11 @@
         "^closes the ordinary way when the page is left from inside the application$"
       ],
       "note": "all three moved with what they assert, because a document stopped belonging to this page: it belongs to the tab, and its session lives in the preview manager. The first two are `tells the manager, once` and `stops listening once it is gone` in frontend/src/plugins/preview/PreviewHost.spec.js, where the unload hook now sits — and they assert more than they did, since the host speaks for every open document rather than the one page that happened to be on screen. The third is `lets go of the document when its tab is taken somewhere else` here, beside the two cases that say when it does not: another tab coming forward is not leaving the document."
+    },
+    {
+      "file": "^frontend/src/components/TerminalPanel\\.lazy\\.spec\\.js$",
+      "cases": ["^is where xterm lives, so it travels with the panel$"],
+      "note": "renamed when xterm moved house: a terminal became a place, so what a terminal *is* came out of the drawer into `components/TerminalSurface.vue` and a page behind a terminal tab shows one too. The case is `is where xterm lives, so it travels with whatever shows a terminal`, and it is now three of them rather than one — the surface holds xterm, the drawer reaches it and is loaded on demand, and so is the page. What it guards is unchanged: nothing a page loads eagerly may reach 289 kB of terminal"
     }
   ]
 }

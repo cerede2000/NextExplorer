@@ -154,10 +154,10 @@
     },
     {
       "axis": "*",
-      "match": "^(frontend/src/plugins/preview/(session\\.js|PreviewSurface\\.vue)|frontend/src/stores/editorDrafts\\.js|frontend/src/composables/openPlaceInTab\\.js|frontend/src/views/settings/SettingsTabs\\.vue)$",
+      "match": "^(frontend/src/plugins/preview/(session\\.js|PreviewSurface\\.vue)|frontend/src/stores/editorDrafts\\.js|frontend/src/composables/openPlaceInTab\\.js|frontend/src/views/settings/SettingsTabs\\.vue|frontend/src/components/TerminalSurface\\.vue|frontend/src/views/TerminalView\\.vue|frontend/src/utils/terminalRoute\\.js)$",
       "verdict": "PORT",
       "batch": "P3-59",
-      "note": "tabs, lot 2: what a tab is holding stays alive while another tab is in front — a preview session per tab, one surface per tab drawn all at once, and the text an editor was given and never saved, and a place opened in a tab from wherever a place is offered — P3-59 when it goes. Declared before the rule that owns the preview plugins, which was written when every file under them had already been sent and cannot speak for files that did not exist. `SettingsTabs.vue` is where an administrator says how many tabs a row may hold, since the strip never scrolls and the row has to stop somewhere"
+      "note": "tabs, lot 2: what a tab is holding stays alive while another tab is in front — a preview session per tab, one surface per tab drawn all at once, and the text an editor was given and never saved, and a place opened in a tab from wherever a place is offered — P3-59 when it goes. Declared before the rule that owns the preview plugins, which was written when every file under them had already been sent and cannot speak for files that did not exist. `SettingsTabs.vue` is where an administrator says how many tabs a row may hold, since the strip never scrolls and the row has to stop somewhere. A terminal is a place now: what a terminal *is* came out of the drawer that showed it (`TerminalSurface.vue`) so that a page at an address of its own can show one too, and there can be as many shells as there are tabs"
     },
     {
       "axis": "*",
@@ -1615,12 +1615,22 @@
     {
       "match": "^(frontend/src/components/TabStrip\\.vue|frontend/src/stores/features\\.js|frontend/src/router/index\\.js|frontend/src/views/settings/SettingsView\\.vue|backend/src/(routes/features|services/settingsService)\\.js)$",
       "note": "tabs, lot 3 — P3-59 when it goes, and no branch carries it yet: a row that shares its room instead of scrolling has to stop somewhere, so an administrator says where (settingsService, the features payload, the features store) and the strip reads it — along with a button that closes every tab and a double click that closes one, for an account that asks. The router and the settings index are where that page is reached from"
+    },
+    {
+      "match": "^frontend/src/components/(TerminalPanel|TerminalMenu|InfoPanel|VersionsPanel)\\.vue$",
+      "note": "tabs, lot 3 — P3-59 when it goes, and no branch carries it yet. `TerminalPanel.vue` is a drawer around a terminal rather than a terminal, since what a terminal is had to come out of it for a tab to hold one; `TerminalMenu.vue` opens a tab instead of the drawer when tabs are on. The other two are one line each and the same one: a panel beside what a tab holds stops where the strip starts, because covering the strip swallowed every click on a tab — opening the terminal meant being unable to leave it"
     }
   ],
   "controls": [
     {
       "match": "^(tabs\\.(newTab|closeTab|closeOthers|closeAll|openInNewTab|moveLeft|moveRight|full)|settings\\.tabs\\.maxOpen|\\\"titleFor\\(tab\\)\\\")$",
       "note": "tabs, lot 1: a folder per tab, the kinds a tab can hold, the strip, and the switch that offers any of it — P3-59 when it goes — the strip's own buttons, the name it writes on a tab, the two entries that move a tab along the row, the one that closes every tab, what a full row says, and the number an administrator chooses"
+    }
+  ],
+  "literals": [
+    {
+      "match": "^frontend/src/components/Terminal(Surface|Panel)\\.vue: ",
+      "note": "the same sentences, in the file they moved to: what a terminal is — the session, the socket, the console lines it writes while connecting — came out of the drawer that showed it into `TerminalSurface.vue`, so that a page behind a terminal tab can show one too. Nothing here is new on either side; the batches still have them in `TerminalPanel.vue`, which is where they were"
     }
   ]
 }
