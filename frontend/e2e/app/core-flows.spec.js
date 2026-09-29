@@ -928,6 +928,64 @@ test('two files are compared, and one side is taken over the other', async () =>
   await page.locator('[data-test="compare-search-toggle"]').click();
 
   /**
+   * The lines can be selected and copied.
+   *
+   * Which is the first thing anybody does with two files side by side, and it did
+   * nothing at all: the window turns `user-select` off on the body so a file list
+   * behaves like a file list, and hands it back only to fields, the editor, a terminal
+   * and prose — none of which these panes are. Nothing but a browser can see it, and
+   * nothing but the selection itself can prove it.
+   */
+  const lineOf = (side, text) =>
+    page
+      .locator('[data-test="compare-row"]')
+      .filter({ hasText: text })
+      .first()
+      .locator(`[data-cell="${side}"] span`)
+      .nth(1);
+
+  const dragged = lineOf(0, 'first line');
+  // Dragged across, which is the gesture: a triple-click is no proof at all, because
+  // Chrome fills the selection object from one even where `user-select` says none.
+  const box = await dragged.boundingBox();
+  await page.mouse.move(box.x + 1, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 1, box.y + box.height / 2, { steps: 8 });
+  await page.mouse.up();
+  const picked = await page.evaluate(() => window.getSelection().toString());
+  expect(picked).toContain('first line');
+  // And the gutter still says no, so a block copied out of a pane carries the lines
+  // without the numbers in front of them.
+  expect(
+    await dragged.evaluate((node) => ({
+      text: getComputedStyle(node).userSelect,
+      gutter: getComputedStyle(node.parentElement.firstElementChild).userSelect,
+    }))
+  ).toEqual({ text: 'text', gutter: 'none' });
+
+  /**
+   * A line added by hand, with the key that adds it.
+   *
+   * The field used to arrive unfocused — the click that opened it landed on the text it
+   * replaced — so what this proves is the whole chain: a double-click hands over the
+   * keyboard, Enter breaks the line, what is typed into the line that break made goes
+   * to disk.
+   */
+  await lineOf(1, 'fifth line').dblclick();
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('sixth line');
+  await page.locator('[data-test="compare-save-1"]').click();
+  await expect
+    .poll(() => onDisk('right.conf'), { timeout: 15_000 })
+    .toContain('fifth line\nsixth line');
+
+  // And removed again from the button beside the line being edited.
+  await lineOf(1, 'sixth line').dblclick();
+  await page.locator('[data-test="compare-delete-1"]').click();
+  await page.locator('[data-test="compare-save-1"]').click();
+  await expect.poll(() => onDisk('right.conf'), { timeout: 15_000 }).not.toContain('sixth line');
+
+  /**
    * Three files, aligned on the middle one — the only arrangement that answers "who
    * changed what", which is what a comparison is for when two people have both
    * edited a common version.
@@ -1001,6 +1059,47 @@ test('a comparison tab keeps what it was in the middle of, and says what it is',
     await expect(page.locator('[data-test="compare-loading"]')).toHaveCount(0);
     await expect(page.locator('[data-test="compare-save-1"]')).toBeEnabled();
     await page.unroute('**/api/editor?**');
+
+    /**
+     * And all of that again once the sides have been swapped over.
+     *
+     * A swap rewrites the screen's own address, and the address was spelled two ways:
+     * `URLSearchParams` writes the slash in `Projects/left.conf` as `%2F` and the router
+     * does not. So every piece of the window that matches an address by name missed
+     * after a swap — the tab was held under a name nothing kept it under, and the
+     * landing dropped the flag a screen's own cross closes a tab by, which is how the
+     * cross came to push the volumes over the comparison instead of closing it. Nothing
+     * but a browser has a real router to spell it.
+     */
+    await page.locator('[data-test="compare-swap-0"]').click();
+    await expect(strip.locator('[role="tab"][title="right.conf ↔ left.conf"]')).toHaveCount(1);
+
+    // Still held, under the swapped address, with both files refused again.
+    await page.route('**/api/editor?**', (request) => request.abort());
+    await strip.locator('[data-test="tab"]').first().getByRole('tab').click();
+    await expect(page).not.toHaveURL(/\/compare/);
+    await strip.locator('[role="tab"][title="right.conf ↔ left.conf"]').click();
+    await expect(page.locator('[data-test="compare-rows"]')).toBeVisible();
+    await expect(page.locator('[data-test="compare-loading"]')).toHaveCount(0);
+    // right.conf is on the left now, and it is still the side that was changed.
+    await expect(page.locator('[data-test="compare-save-0"]')).toBeEnabled();
+    await page.unroute('**/api/editor?**');
+
+    /**
+     * And the cross closes the tab — after asking, because a line was taken across and
+     * not saved. Closing is the one gesture that really loses those lines, so the tab
+     * has a question to put first; two tabs before, one after, and not a third.
+     */
+    const asked = [];
+    page.once('dialog', (dialog) => {
+      asked.push(dialog.message());
+      return dialog.accept();
+    });
+    const before = await strip.locator('[data-test="tab"]').count();
+    await page.locator('[data-test="compare-close"]').click();
+    await expect(strip.locator('[data-test="tab"]')).toHaveCount(before - 1);
+    expect(asked).toHaveLength(1);
+    await expect(strip.locator('[role="tab"][title="right.conf ↔ left.conf"]')).toHaveCount(0);
   } finally {
     await page.goto('/settings/user-preferences');
     await preference.click();

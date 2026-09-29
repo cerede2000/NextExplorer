@@ -24,7 +24,7 @@ import { useFavoriteEditor } from '@/composables/useFavoriteEditor';
 import { useTerminalStore } from '@/stores/terminal';
 import { useTabsStore } from '@/stores/tabs';
 import { canCompare } from '@/config/compare';
-import { compareRoute } from '@/utils/compareRoute';
+import { compareAddress, compareRoute } from '@/utils/compareRoute';
 import { useNotificationsStore } from '@/stores/notifications';
 import { useFeaturesStore } from '@/stores/features';
 import { isTerminalExtension } from '@/config/terminal';
@@ -287,20 +287,17 @@ const comparable = computed(() => canCompare(actions.selectedItems.value || []))
 
 const runCompare = () => {
   const chosen = actions.selectedItems.value || [];
-  const target = compareRoute(chosen.map((item) => resolveItemPath(item)));
-  if (!target) return;
+  const sides = chosen.map((item) => resolveItemPath(item));
   // In a tab of its own where there are tabs, so the folder the files came from is
-  // still there to go back to — and at its own address either way.
+  // still there to go back to — and at its own address either way. Spelled by the
+  // router, because that is the spelling the screen will be handed back.
   if (tabNavigation.tabs.enabled) {
-    tabNavigation.open(
-      `${target.path}?${new URLSearchParams(
-        target.query.paths.map((one) => ['paths', one])
-      ).toString()}`,
-      { own: true }
-    );
+    const address = compareAddress(router, sides);
+    if (address) tabNavigation.open(address, { own: true });
     return;
   }
-  void router.push(target);
+  const target = compareRoute(sides);
+  if (target) void router.push(target);
 };
 
 const runDownload = () => actions.runDownload();

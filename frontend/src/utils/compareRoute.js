@@ -88,3 +88,23 @@ export const comparedSides = (query) => {
     })
     .slice(0, MAX_COMPARED);
 };
+
+/**
+ * The same address as a string, spelled the way the router spells it.
+ *
+ * A tab holds an address as a string and a screen is handed `route.fullPath`, so the
+ * two have to be the same string — and the obvious hand-rolled spelling is not it.
+ * `URLSearchParams` writes a slash in a query value as `%2F`; the router leaves it
+ * alone. So a comparison of two files in a folder was stored under one spelling and
+ * arrived under another, and everything that matches an address by name then missed:
+ * the landing dropped the flag a screen's own cross closes a tab by, as if the reader
+ * had walked somewhere, and what the tab was holding was looked for under a name
+ * nothing had kept it under.
+ *
+ * Asked of the router rather than spelled out again here, because the only spelling
+ * that can be relied on to match `route.fullPath` is the router's own.
+ */
+export const compareAddress = (router, sides) => {
+  const target = compareRoute(sides);
+  return target ? router.resolve(target).fullPath : '';
+};

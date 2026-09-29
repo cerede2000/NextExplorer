@@ -11,6 +11,8 @@ import {
   ArrowUpIcon,
   Bars3BottomLeftIcon,
   MagnifyingGlassIcon,
+  PlusIcon,
+  TrashIcon,
   XMarkIcon,
 } from '@heroicons/vue/24/outline';
 import { fetchFileContent, getVersionText, saveFileContent } from '@/api';
@@ -22,7 +24,7 @@ import {
   readLines,
   writeLines,
 } from '@/utils/textDiff';
-import { comparedSides, compareRoute } from '@/utils/compareRoute';
+import { compareAddress, comparedSides } from '@/utils/compareRoute';
 import { usePageTitle } from '@/composables/usePageTitle';
 import { useTabNavigation } from '@/composables/tabNavigation';
 import { useTabsStore } from '@/stores/tabs';
@@ -345,18 +347,16 @@ const copyBlock = (fromIndex, toIndex, blockIndex = at.value) => {
 /**
  * The address this comparison is at, built from the sides as they now stand.
  *
- * Written out by hand rather than handed to the router as an object, because a tab
- * holds an address as a string: the two have to be the same string or a tab comes
- * back to a comparison it thinks it has never seen.
+ * A string rather than an object for the router, because a tab holds an address as a
+ * string and this screen is handed `route.fullPath`: the two have to be the same
+ * string or a tab comes back to a comparison it thinks it has never seen. Which is
+ * why the router spells it — see `compareAddress`.
  */
-const addressFor = (list) => {
-  const target = compareRoute(list.map((side) => ({ path: side.path, versionId: side.versionId })));
-  if (!target) return '';
-  return `${target.path}?${new URLSearchParams([
-    ...target.query.paths.map((one) => ['paths', one]),
-    ...(target.query.versions || []).map((one) => ['versions', one]),
-  ]).toString()}`;
-};
+const addressFor = (list) =>
+  compareAddress(
+    router,
+    list.map((side) => ({ path: side.path, versionId: side.versionId }))
+  );
 
 /**
  * Two sides swapped over.
@@ -390,6 +390,10 @@ const swapSides = (index) => {
   });
   shownAddress.value = address;
   weMovedTheAddress = true;
+  // The same tab at a new address, said before the address becomes it: without this
+  // the landing takes a swap for the reader walking somewhere, and the cross in this
+  // screen's own bar stops closing the tab.
+  tabsStore.retarget(ownTabId.value, address);
   void router.replace(address);
 };
 
@@ -637,40 +641,114 @@ const cellClass = (row, index) => {
 };
 
 /**
- * A line changed by hand.
+ * Editing a side, not just correcting a word in it.
  *
  * Taking a whole difference across is the common gesture and the reason this screen
  * exists, but not every fix is one side or the other: sometimes the answer is neither,
- * and walking to the editor and back to type one word is a walk nobody should have to
- * make. Double-click a line, type, press Enter.
+ * and walking to the text editor and back is a walk nobody should have to make. So a
+ * side that can be written to is edited here — and edited the way an editor is, which
+ * means lines can be added and removed and not merely retyped. A screen where a line
+ * could be changed but not split was a screen that looked broken, and was.
  *
- * A line at a time rather than a text area over the whole file, because the alignment
- * is the screen: an edit that changed the number of lines under the reader would move
- * everything they were looking at.
+ * One line under the caret at a time rather than a text area over the whole file,
+ * because the alignment *is* the screen: the rows are worked out from the lines, so
+ * they are redrawn as soon as a line is added or removed, and a text area would be
+ * pulling its own ground out from under itself on every keystroke. The line is the
+ * unit the alignment is made of, so it is the unit the editing is made of too.
+ *
+ * Everything an editor does to the number of lines has its usual key, because these
+ * are the keys hands already know: Enter breaks the line at the caret, backspace at
+ * the start of a line joins it to the one above, delete at the end pulls the next one
+ * up, the arrows walk from line to line without letting go, and a paste of several
+ * lines becomes several lines.
  */
 const editing = ref(null);
 const draft = ref('');
+/** Where the caret goes once the field for the line being edited is on screen. */
+let wantedCaret = null;
 
-const startEditing = (sideIndex, lineIndex) => {
+/**
+ * Hands the field to the reader.
+ *
+ * A double-click used to leave a field nobody was typing in: the click that opened it
+ * landed on the text it replaced, so the field arrived unfocused and the next keystroke
+ * went nowhere. It is also where the caret is placed, which is what makes the line
+ * operations feel like an editor rather than a form — a break leaves the caret at the
+ * start of the new line, a join leaves it where the two lines met.
+ *
+ * Deliberately not an inline arrow in the template: Vue calls a fresh ref function on
+ * every patch, so an inline one would refocus and pull the caret back to the same spot
+ * on every keystroke.
+ */
+const bindEditor = (element) => {
+  if (!element) return;
+  element.focus();
+  const where =
+    wantedCaret === null
+      ? element.value.length
+      : Math.max(0, Math.min(element.value.length, wantedCaret));
+  element.setSelectionRange(where, where);
+  wantedCaret = null;
+};
+
+/** The lines of a side, replaced — and the side is then worth saving. */
+const putLines = (sideIndex, lines) => {
+  const side = sides.value[sideIndex];
+  if (!side || side.readOnly) return false;
+  side.lines = lines;
+  side.dirty = true;
+  return true;
+};
+
+const startEditing = (sideIndex, lineIndex, caret = null) => {
   const side = sides.value[sideIndex];
   if (!side || side.readOnly || lineIndex === null || lineIndex === undefined) return;
+  if (lineIndex < 0 || lineIndex >= side.lines.length) return;
   editing.value = { sideIndex, lineIndex };
   draft.value = side.lines[lineIndex] ?? '';
+  wantedCaret = caret;
+};
+
+/**
+ * What the field holds, written to the line it belongs to.
+ *
+ * Told which line rather than reading it from `editing`, because a field is blurred by
+ * the field that replaces it: every operation that moves the caret to another line has
+ * already pointed `editing` there by the time the old field's blur arrives, and a
+ * commit that trusted `editing` would write one line's text into another.
+ */
+const writeDraft = (sideIndex, lineIndex) => {
+  const side = sides.value[sideIndex];
+  if (!side || side.readOnly) return;
+  if ((side.lines[lineIndex] ?? '') === draft.value) return;
+  putLines(sideIndex, [
+    ...side.lines.slice(0, lineIndex),
+    draft.value,
+    ...side.lines.slice(lineIndex + 1),
+  ]);
 };
 
 const commitEdit = () => {
   const where = editing.value;
   editing.value = null;
   if (!where) return;
-  const side = sides.value[where.sideIndex];
-  if (!side || side.readOnly) return;
-  if ((side.lines[where.lineIndex] ?? '') === draft.value) return;
-  side.lines = [
-    ...side.lines.slice(0, where.lineIndex),
-    draft.value,
-    ...side.lines.slice(where.lineIndex + 1),
-  ];
-  side.dirty = true;
+  writeDraft(where.sideIndex, where.lineIndex);
+};
+
+/**
+ * Clicked away from — as opposed to replaced by the field on another line.
+ *
+ * The field carries which line it is for, so a blur from a field the editing has
+ * already left is the tail of an operation that wrote that line itself, and there is
+ * nothing here to do but let it go.
+ */
+const onEditorBlur = (event) => {
+  const where = editing.value;
+  const field = event?.target;
+  if (!where || !field) return;
+  if (Number(field.dataset?.side) !== where.sideIndex) return;
+  if (Number(field.dataset?.line) !== where.lineIndex) return;
+  commitEdit();
 };
 
 const cancelEdit = () => {
@@ -679,6 +757,196 @@ const cancelEdit = () => {
 
 const isEditing = (sideIndex, lineIndex) =>
   editing.value?.sideIndex === sideIndex && editing.value?.lineIndex === lineIndex;
+
+/** Where the caret sits in the field, and whether it is sitting rather than selecting. */
+const caretIn = (field) => {
+  const start = field?.selectionStart;
+  const end = field?.selectionEnd;
+  if (typeof start !== 'number' || start !== end) return null;
+  return start;
+};
+
+/**
+ * Enter: the line broken in two at the caret.
+ *
+ * Which is also how a line is added — at the end of a line it leaves an empty one
+ * below, at the start an empty one above — so there is one gesture to learn instead of
+ * a button for each direction.
+ */
+const splitLine = (event) => {
+  const where = editing.value;
+  if (!where) return;
+  const side = sides.value[where.sideIndex];
+  if (!side || side.readOnly) return;
+  const caret = caretIn(event?.target) ?? draft.value.length;
+  const head = draft.value.slice(0, caret);
+  const tail = draft.value.slice(caret);
+  if (
+    !putLines(where.sideIndex, [
+      ...side.lines.slice(0, where.lineIndex),
+      head,
+      tail,
+      ...side.lines.slice(where.lineIndex + 1),
+    ])
+  )
+    return;
+  startEditing(where.sideIndex, where.lineIndex + 1, 0);
+};
+
+/** Backspace at the start of a line: joined to the one above, which removes a line. */
+const joinWithPrevious = (event) => {
+  const where = editing.value;
+  if (!where || where.lineIndex === 0) return false;
+  if (caretIn(event?.target) !== 0) return false;
+  const side = sides.value[where.sideIndex];
+  if (!side || side.readOnly) return false;
+  const above = side.lines[where.lineIndex - 1] ?? '';
+  if (
+    !putLines(where.sideIndex, [
+      ...side.lines.slice(0, where.lineIndex - 1),
+      above + draft.value,
+      ...side.lines.slice(where.lineIndex + 1),
+    ])
+  )
+    return false;
+  startEditing(where.sideIndex, where.lineIndex - 1, above.length);
+  return true;
+};
+
+/** Delete at the end of a line: the next one pulled up into it. */
+const joinWithNext = (event) => {
+  const where = editing.value;
+  if (!where) return false;
+  if (caretIn(event?.target) !== draft.value.length) return false;
+  const side = sides.value[where.sideIndex];
+  if (!side || side.readOnly || where.lineIndex >= side.lines.length - 1) return false;
+  const below = side.lines[where.lineIndex + 1] ?? '';
+  const caret = draft.value.length;
+  if (
+    !putLines(where.sideIndex, [
+      ...side.lines.slice(0, where.lineIndex),
+      draft.value + below,
+      ...side.lines.slice(where.lineIndex + 2),
+    ])
+  )
+    return false;
+  startEditing(where.sideIndex, where.lineIndex, caret);
+  return true;
+};
+
+/**
+ * The arrows: on to the next line without letting go of the keyboard.
+ *
+ * Without this, editing a run of lines means a double-click for each of them, which
+ * is the difference between an editor and a form with one field in it. What was typed
+ * is written on the way past — leaving it for the blur would be leaving it to arrive
+ * after the editing had already moved.
+ */
+const stepLine = (event, by) => {
+  const where = editing.value;
+  if (!where) return;
+  const side = sides.value[where.sideIndex];
+  if (!side) return;
+  const wanted = where.lineIndex + by;
+  if (wanted < 0 || wanted >= side.lines.length) return;
+  const column = event?.target?.selectionStart ?? draft.value.length;
+  writeDraft(where.sideIndex, where.lineIndex);
+  startEditing(where.sideIndex, wanted, column);
+};
+
+/** A line put in below this one, ready to be typed into. */
+const insertLine = (sideIndex, lineIndex) => {
+  const side = sides.value[sideIndex];
+  if (!side || side.readOnly || lineIndex === null || lineIndex === undefined) return;
+  const where = Math.max(0, Math.min(side.lines.length, lineIndex + 1));
+  if (!putLines(sideIndex, [...side.lines.slice(0, where), '', ...side.lines.slice(where)])) return;
+  startEditing(sideIndex, where, 0);
+};
+
+/**
+ * This line, gone.
+ *
+ * The last line of a file is emptied rather than removed: a file of no lines at all is
+ * not a thing the rest of this screen — or `writeLines` — has any meaning for.
+ */
+const deleteLine = (sideIndex, lineIndex) => {
+  const side = sides.value[sideIndex];
+  if (!side || side.readOnly || lineIndex === null || lineIndex === undefined) return;
+  editing.value = null;
+  if (side.lines.length <= 1) {
+    putLines(sideIndex, ['']);
+    return;
+  }
+  putLines(sideIndex, [...side.lines.slice(0, lineIndex), ...side.lines.slice(lineIndex + 1)]);
+};
+
+/**
+ * One keystroke, read by name.
+ *
+ * Written out rather than as a modifier on each handler because Vue's `.delete`
+ * answers to Backspace as well as Delete: the two joins would both have run on one
+ * backspace, and a line would have gone in each direction.
+ */
+const onEditorKey = (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    splitLine(event);
+    return;
+  }
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    cancelEdit();
+    return;
+  }
+  if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    stepLine(event, -1);
+    return;
+  }
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    stepLine(event, 1);
+    return;
+  }
+  // These two only when there is nothing left of the caret to delete, so the key does
+  // what it always does first and joins lines only at the edges of one.
+  if (event.key === 'Backspace' && joinWithPrevious(event)) event.preventDefault();
+  else if (event.key === 'Delete' && joinWithNext(event)) event.preventDefault();
+};
+
+/**
+ * Several lines pasted in become several lines.
+ *
+ * A field holds one line, so the newlines would be dropped in silence — the one way a
+ * paste can go wrong that nobody notices until they look at the file afterwards. A
+ * paste with no newline in it is left to the field, which already does it right.
+ */
+const onEditorPaste = (event) => {
+  const where = editing.value;
+  if (!where) return;
+  const text = event?.clipboardData?.getData?.('text') ?? '';
+  if (!/[\r\n]/.test(text)) return;
+  event.preventDefault();
+  const side = sides.value[where.sideIndex];
+  if (!side || side.readOnly) return;
+  const field = event.target;
+  const from = field?.selectionStart ?? draft.value.length;
+  const to = field?.selectionEnd ?? from;
+  const pasted = text.split(/\r\n|\r|\n/);
+  const last = pasted.length - 1;
+  pasted[0] = draft.value.slice(0, from) + pasted[0];
+  const caret = pasted[last].length;
+  pasted[last] += draft.value.slice(to);
+  if (
+    !putLines(where.sideIndex, [
+      ...side.lines.slice(0, where.lineIndex),
+      ...pasted,
+      ...side.lines.slice(where.lineIndex + 1),
+    ])
+  )
+    return;
+  startEditing(where.sideIndex, where.lineIndex + last, caret);
+};
 
 /**
  * Looking for something, and putting something else in its place.
@@ -1218,7 +1486,20 @@ const close = () => {
           ></button>
         </div>
 
-        <div class="absolute inset-0 overflow-auto pr-3 font-mono text-xs" data-test="compare-rows">
+        <!--
+          Selectable, which it was not.
+
+          The window sets `user-select: none` on the body so a file list behaves like a
+          file list rather than a page of prose, and gives it back to the few surfaces
+          that are text — fields, the editor, a terminal, prose, `pre`. These panes are
+          none of those, so the one thing everybody does with two files side by side,
+          take a line out of one of them, silently did nothing. The gutter keeps saying
+          no, so a selection dragged down the pane copies the lines without the numbers.
+        -->
+        <div
+          class="absolute inset-0 select-text overflow-auto pr-3 font-mono text-xs"
+          data-test="compare-rows"
+        >
           <div
             v-for="entry in shown"
             :key="entry.index"
@@ -1250,21 +1531,61 @@ const close = () => {
                 :key="`${entry.index}-${index}`"
                 class="flex min-w-0 border-l border-neutral-200/70 dark:border-neutral-800 first:border-l-0"
                 :class="cellClass(entry.row, index)"
+                :data-cell="index"
               >
                 <span
                   class="w-12 shrink-0 select-none border-r border-neutral-200/70 px-1 text-right text-neutral-400 dark:border-neutral-800 dark:text-neutral-500"
                 >
                   {{ cellFor(entry.row, index)?.number ?? '' }}
                 </span>
-                <input
-                  v-if="isEditing(index, entry.row[keyAt(index)])"
-                  v-model="draft"
-                  class="min-w-0 flex-1 bg-white px-2 font-mono text-xs outline-none ring-1 ring-accent dark:bg-zinc-900"
-                  :data-test="`compare-edit-${index}`"
-                  @keydown.enter.prevent="commitEdit"
-                  @keydown.esc.prevent="cancelEdit"
-                  @blur="commitEdit"
-                />
+                <template v-if="isEditing(index, entry.row[keyAt(index)])">
+                  <input
+                    :ref="bindEditor"
+                    v-model="draft"
+                    class="min-w-0 flex-1 bg-white px-2 font-mono text-xs outline-none ring-1 ring-accent dark:bg-zinc-900"
+                    :data-test="`compare-edit-${index}`"
+                    :data-side="index"
+                    :data-line="entry.row[keyAt(index)]"
+                    :title="t('compare.editKeys')"
+                    @keydown="onEditorKey"
+                    @paste="onEditorPaste"
+                    @blur="onEditorBlur"
+                  />
+                  <!--
+                    A line added and a line removed, said out loud on the line being
+                    edited.
+
+                    Only there, and not on every line of the file: the keys do it
+                    anywhere, and a pair of buttons on all five thousand rows would be
+                    ten thousand buttons to lay out for the two that get used. Here
+                    they are what tells a reader who has just double-clicked a line
+                    that adding and removing lines is something this screen does.
+                  -->
+                  <span class="flex shrink-0 items-center gap-px pr-1">
+                    <button
+                      type="button"
+                      class="rounded p-0.5 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-800 dark:text-neutral-400 dark:hover:bg-white/10 dark:hover:text-white"
+                      :title="t('compare.insertLine')"
+                      :aria-label="t('compare.insertLine')"
+                      :data-test="`compare-insert-${index}`"
+                      @mousedown.prevent
+                      @click="insertLine(index, entry.row[keyAt(index)])"
+                    >
+                      <PlusIcon class="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      class="rounded p-0.5 text-neutral-500 hover:bg-neutral-200 hover:text-red-600 dark:text-neutral-400 dark:hover:bg-white/10 dark:hover:text-red-400"
+                      :title="t('compare.deleteLine')"
+                      :aria-label="t('compare.deleteLine')"
+                      :data-test="`compare-delete-${index}`"
+                      @mousedown.prevent
+                      @click="deleteLine(index, entry.row[keyAt(index)])"
+                    >
+                      <TrashIcon class="h-3.5 w-3.5" />
+                    </button>
+                  </span>
+                </template>
                 <span
                   v-else
                   class="min-w-0 flex-1 px-2"

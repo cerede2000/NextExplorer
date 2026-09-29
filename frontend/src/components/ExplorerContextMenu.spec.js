@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resolveAddress } from '@/utils/testing/routerAddress';
 import { mount, flushPromises } from '@vue/test-utils';
 import { defineComponent, h, inject, ref } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
@@ -41,7 +42,9 @@ vi.mock('@floating-ui/vue', () => ({
   autoUpdate: vi.fn(),
   size: vi.fn(),
 }));
-vi.mock('vue-router', () => ({ useRouter: () => ({ push: routerPush }) }));
+vi.mock('vue-router', () => ({
+  useRouter: () => ({ push: routerPush, resolve: resolveAddress }),
+}));
 /**
  * `t` gives back the key, and the values interpolated into it when there are
  * any — so a message naming a file, or counting several, can be told apart from
@@ -1402,15 +1405,21 @@ describe('comparing what was chosen', () => {
     expect(labels().some((label) => label.startsWith('compare.compareCount'))).toBe(false);
   });
 
+  /**
+   * Spelled the way the router spells it, which is the way the screen is handed it back.
+   *
+   * `URLSearchParams` writes a slash in a query value as `%2F`, so a tab was opened
+   * under one spelling of the address and landed under another. Everything downstream
+   * that matches an address by name then missed it.
+   */
   it('opens the comparison in a tab of its own, carrying both paths', async () => {
     await openOn([first, second]);
 
     await clickLabel('compare.compareCount {"count":2}');
 
-    expect(address.open).toHaveBeenCalledWith(
-      '/compare?paths=Docs%2Fnotes.txt&paths=Docs%2Fplan.md',
-      { own: true }
-    );
+    expect(address.open).toHaveBeenCalledWith('/compare?paths=Docs/notes.txt&paths=Docs/plan.md', {
+      own: true,
+    });
   });
 
   /** Without tabs there is nowhere else to put it, so the window goes there. */

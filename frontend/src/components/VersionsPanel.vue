@@ -16,7 +16,7 @@ import { useFileStore } from '@/stores/fileStore';
 import { useDestinationPicker } from '@/composables/useDestinationPicker';
 import { isEditableExtension } from '@/config/editor';
 import { isComparableExtension } from '@/config/compare';
-import { compareRoute } from '@/utils/compareRoute';
+import { compareAddress, compareRoute } from '@/utils/compareRoute';
 import { useTabsStore } from '@/stores/tabs';
 import { usePreviewManager } from '@/plugins/preview/manager';
 import { formatBytes, formatLocalDateTime } from '@/utils';
@@ -289,15 +289,12 @@ const preview = (version) => {
  * tabs, so the panel and the folder behind it are still there to come back to.
  */
 const compareWithNow = (version) => {
-  const target = compareRoute([
-    { path: filePath.value, versionId: version.id },
-    { path: filePath.value },
-  ]);
+  const sides = [{ path: filePath.value, versionId: version.id }, { path: filePath.value }];
+  const target = compareRoute(sides);
   if (!target) return;
-  const address = `${target.path}?${new URLSearchParams([
-    ...target.query.paths.map((one) => ['paths', one]),
-    ...(target.query.versions || []).map((one) => ['versions', one]),
-  ]).toString()}`;
+  // The router's spelling, which is the one the comparison will be handed back.
+  const address = compareAddress(router, sides);
+  if (!address) return;
   // The store rather than `tabNavigation`, and asked for when the gesture happens:
   // that composable reaches for the router's own `useRoute`, and this panel is on
   // every page that can show a version — which is how a suite that had mocked its own

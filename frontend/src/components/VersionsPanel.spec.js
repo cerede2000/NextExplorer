@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resolveAddress } from '@/utils/testing/routerAddress';
 import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 
@@ -47,8 +48,9 @@ const previewManager = vi.hoisted(() => ({
 }));
 vi.mock('@/plugins/preview/manager', () => ({ usePreviewManager: () => previewManager }));
 
-const router = vi.hoisted(() => ({ push: vi.fn() }));
+const router = vi.hoisted(() => ({ push: vi.fn(), resolve: vi.fn() }));
 vi.mock('vue-router', () => ({ useRouter: () => router }));
+router.resolve = resolveAddress;
 /**
  * Where a comparison goes. Asked for when the gesture happens rather than at setup,
  * so this panel — which is on every page that can show a version — does not pull the
@@ -293,7 +295,7 @@ describe('what it offers', () => {
     await act(0, 'compare');
 
     expect(tabs.open).toHaveBeenCalledWith(
-      '/compare?paths=Docs%2Fnotes.md&paths=Docs%2Fnotes.md&versions=v2&versions=',
+      '/compare?paths=Docs/notes.md&paths=Docs/notes.md&versions=v2&versions=',
       { own: true }
     );
   });

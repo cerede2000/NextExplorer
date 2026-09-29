@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
+import { resolveAddress } from '@/utils/testing/routerAddress';
 import { reactive } from 'vue';
 
 /**
@@ -22,7 +23,7 @@ const replace = vi.fn();
 const leaveGuards = [];
 vi.mock('vue-router', () => ({
   useRoute: () => route,
-  useRouter: () => ({ push, replace }),
+  useRouter: () => ({ push, replace, resolve: resolveAddress }),
   onBeforeRouteLeave: (guard) => leaveGuards.push(guard),
 }));
 
@@ -48,7 +49,13 @@ vi.mock('@/composables/usePageTitle', () => ({ usePageTitle: () => {} }));
 vi.mock('@/composables/tabNavigation', () => ({
   useTabNavigation: () => ({ tabs: { enabled: true }, closeOwn: () => false }),
 }));
-const appTabs = vi.hoisted(() => ({ activeId: 'tab-1', tabs: [{ id: 'tab-1' }, { id: 'tab-9' }] }));
+const appTabs = vi.hoisted(() => ({
+  activeId: 'tab-1',
+  tabs: [{ id: 'tab-1' }, { id: 'tab-9' }],
+  // Real, and on the real store too: a screen that rewrites its own address has to say
+  // so, or the landing takes it for the reader walking somewhere.
+  retarget: vi.fn(),
+}));
 vi.mock('@/stores/tabs', () => ({ useTabsStore: () => appTabs }));
 vi.mock('@/stores/tabLoading', () => ({
   useTabLoadingStore: () => ({ begin: () => () => {} }),
@@ -110,6 +117,7 @@ beforeEach(() => {
   guards.guard.mockClear();
   appTabs.activeId = 'tab-1';
   appTabs.tabs = [{ id: 'tab-1' }, { id: 'tab-9' }];
+  appTabs.retarget.mockClear();
   push.mockClear();
   replace.mockClear();
   leaveGuards.length = 0;
@@ -688,31 +696,261 @@ describe('searching and replacing', () => {
  * side or the other: sometimes the answer is neither, and walking to the editor and
  * back to type one word is a walk nobody should have to make.
  */
-describe('editing a line in place', () => {
+describe('editing a side', () => {
+  /** The field, and the caret in it, for the line the reader asked to edit. */
+  const editLine = async (wrapper, row, sideIndex = 0, caret = null) => {
+    const cell = rows(wrapper)[row].findAll('[data-cell]')[sideIndex];
+    await cell.findAll('span')[1].trigger('dblclick');
+    const field = wrapper.get(`[data-test="compare-edit-${sideIndex}"]`);
+    if (caret !== null) field.element.setSelectionRange(caret, caret);
+    return field;
+  };
+
+  const savedLeft = async (wrapper) => {
+    await wrapper.get('[data-test="compare-save-0"]').trigger('click');
+    await flushPromises();
+    return api.saveFileContent.mock.calls.at(-1)?.[1];
+  };
+
   it('takes what was typed, and the side is then worth saving', async () => {
     const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
 
-    await wrapper.findAll('[data-test="compare-row"]')[1].findAll('span')[1].trigger('dblclick');
-    const field = wrapper.get('[data-test="compare-edit-0"]');
+    const field = await editLine(wrapper, 1);
     await field.setValue('typed by hand');
-    await field.trigger('keydown.enter');
+    // Clicked away from, which is what ends an edit now that Enter breaks the line.
+    await field.trigger('blur');
     await flushPromises();
 
-    await wrapper.get('[data-test="compare-save-0"]').trigger('click');
+    expect(await savedLeft(wrapper)).toBe('one\ntyped by hand');
+  });
+
+  /**
+   * The field arrives ready to be typed in.
+   *
+   * It did not: the click that opened it landed on the text it replaced, so the field
+   * came up unfocused and the next keystroke went nowhere. Attached to the document,
+   * because focus is not a thing a detached element has.
+   */
+  it('hands the field to the reader', async () => {
+    api.fetchFileContent.mockImplementation(async (path) =>
+      path === 'a.txt' ? { content: 'one\ntwo' } : { content: 'one\nTWO' }
+    );
+    route.query = { paths: ['a.txt', 'b.txt'] };
+    route.fullPath = '/compare?paths=a.txt&paths=b.txt';
+    const wrapper = mount(CompareView, {
+      attachTo: document.body,
+      global: { mocks: { $t: (key) => key } },
+    });
     await flushPromises();
-    expect(api.saveFileContent).toHaveBeenCalledWith('a.txt', 'one\ntyped by hand');
+    await flushPromises();
+
+    const field = await editLine(wrapper, 1);
+
+    expect(document.activeElement).toBe(field.element);
+    // And the caret is at the end of the line, not in front of it.
+    expect(field.element.selectionStart).toBe('two'.length);
+    wrapper.unmount();
+  });
+
+  /**
+   * Enter breaks the line, which is also the only way a line is added.
+   *
+   * A screen where a line could be retyped but not split was a screen that looked
+   * broken and was: two files differing by a line that one of them simply does not
+   * have could not be made to agree by hand at all.
+   */
+  it('breaks the line in two where the caret is', async () => {
+    const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
+
+    const field = await editLine(wrapper, 1, 0, 1);
+    await field.trigger('keydown', { key: 'Enter' });
+    await flushPromises();
+
+    expect(await savedLeft(wrapper)).toBe('one\nt\nwo');
+  });
+
+  /** At the end of a line, that same break is an empty line below it. */
+  it('leaves an empty line below when the caret is at the end', async () => {
+    const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
+
+    const field = await editLine(wrapper, 1, 0, 3);
+    await field.trigger('keydown', { key: 'Enter' });
+    await flushPromises();
+
+    expect(await savedLeft(wrapper)).toBe('one\ntwo\n');
+  });
+
+  /** And the new line is the one being typed in, without a second double-click. */
+  it('carries on in the line it just made', async () => {
+    const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
+
+    const field = await editLine(wrapper, 1, 0, 3);
+    await field.trigger('keydown', { key: 'Enter' });
+    await flushPromises();
+    const next = wrapper.get('[data-test="compare-edit-0"]');
+    await next.setValue('and three');
+    await next.trigger('blur');
+    await flushPromises();
+
+    expect(await savedLeft(wrapper)).toBe('one\ntwo\nand three');
+  });
+
+  it('joins a line to the one above it on backspace at the start', async () => {
+    const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
+
+    const field = await editLine(wrapper, 1, 0, 0);
+    await field.trigger('keydown', { key: 'Backspace' });
+    await flushPromises();
+
+    expect(await savedLeft(wrapper)).toBe('onetwo');
+  });
+
+  /** Anywhere else, backspace is backspace: the field deletes a character. */
+  it('leaves backspace alone in the middle of a line', async () => {
+    const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
+
+    const field = await editLine(wrapper, 1, 0, 2);
+    await field.trigger('keydown', { key: 'Backspace' });
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="compare-save-0"]').exists()).toBe(false);
+    expect(wrapper.get('[data-test="compare-edit-0"]').element.value).toBe('two');
+  });
+
+  it('pulls the next line up on delete at the end', async () => {
+    const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
+
+    const field = await editLine(wrapper, 0, 0, 3);
+    await field.trigger('keydown', { key: 'Delete' });
+    await flushPromises();
+
+    expect(await savedLeft(wrapper)).toBe('onetwo');
+  });
+
+  /**
+   * The arrows walk the lines, which is the difference between an editor and a form
+   * with one field in it — and what was typed goes in on the way past.
+   */
+  it('walks to the next line with the arrows, keeping what was typed', async () => {
+    const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'ONE\nTWO' });
+
+    const field = await editLine(wrapper, 0);
+    await field.setValue('first');
+    await field.trigger('keydown', { key: 'ArrowDown' });
+    await flushPromises();
+
+    expect(wrapper.get('[data-test="compare-edit-0"]').element.value).toBe('two');
+    expect(await savedLeft(wrapper)).toBe('first\ntwo');
+  });
+
+  it('stops at the last line rather than falling off it', async () => {
+    const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
+
+    const field = await editLine(wrapper, 1);
+    await field.trigger('keydown', { key: 'ArrowDown' });
+    await flushPromises();
+
+    expect(wrapper.get('[data-test="compare-edit-0"]').element.value).toBe('two');
+  });
+
+  /**
+   * A paste of several lines becomes several lines.
+   *
+   * A field holds one line, so the newlines would go in silence — the one way a paste
+   * can go wrong that nobody notices until they look at the file afterwards.
+   */
+  it('turns a pasted block into lines', async () => {
+    const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
+
+    const field = await editLine(wrapper, 1, 0, 0);
+    await field.trigger('paste', {
+      clipboardData: { getData: () => 'alpha\r\nbeta\n' },
+    });
+    await flushPromises();
+
+    expect(await savedLeft(wrapper)).toBe('one\nalpha\nbeta\ntwo');
+  });
+
+  it('leaves a paste of one line to the field', async () => {
+    const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
+
+    const field = await editLine(wrapper, 1, 0, 0);
+    await field.trigger('paste', { clipboardData: { getData: () => 'alpha' } });
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="compare-save-0"]').exists()).toBe(false);
+  });
+
+  /**
+   * Said out loud on the line being edited, because the keys are not discoverable and
+   * a reader who has just double-clicked a line is the one asking the question.
+   */
+  it('adds a line below from the button, ready to type into', async () => {
+    const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
+
+    await editLine(wrapper, 0);
+    await wrapper.get('[data-test="compare-insert-0"]').trigger('click');
+    await flushPromises();
+    const field = wrapper.get('[data-test="compare-edit-0"]');
+    await field.setValue('put here');
+    await field.trigger('blur');
+    await flushPromises();
+
+    expect(await savedLeft(wrapper)).toBe('one\nput here\ntwo');
+  });
+
+  it('removes the line from the button', async () => {
+    const wrapper = await open({ 'a.txt': 'one\ntwo\nthree', 'b.txt': 'one\nTWO\nthree' });
+
+    await editLine(wrapper, 1);
+    await wrapper.get('[data-test="compare-delete-0"]').trigger('click');
+    await flushPromises();
+
+    expect(await savedLeft(wrapper)).toBe('one\nthree');
+  });
+
+  /** A file of no lines at all is not a thing the rest of this screen means anything for. */
+  it('empties the last line rather than removing it', async () => {
+    const wrapper = await open({ 'a.txt': 'only', 'b.txt': 'ONLY' });
+
+    await editLine(wrapper, 0);
+    await wrapper.get('[data-test="compare-delete-0"]').trigger('click');
+    await flushPromises();
+
+    expect(await savedLeft(wrapper)).toBe('');
   });
 
   it('leaves the line alone when the edit is called off', async () => {
     const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
 
-    await wrapper.findAll('[data-test="compare-row"]')[1].findAll('span')[1].trigger('dblclick');
-    const field = wrapper.get('[data-test="compare-edit-0"]');
+    const field = await editLine(wrapper, 1);
     await field.setValue('never mind');
-    await field.trigger('keydown.esc');
+    await field.trigger('keydown', { key: 'Escape' });
     await flushPromises();
 
     expect(wrapper.find('[data-test="compare-save-0"]').exists()).toBe(false);
+  });
+
+  /**
+   * A field is blurred by the field that replaces it.
+   *
+   * Which is the thing that breaks walking the lines: the browser blurs the field being
+   * removed while the editing has already moved on, and a commit that took that blur at
+   * face value closed the field the reader had just been handed — one arrow press and
+   * the editor was gone. The field says which line it is for, so a blur from a line the
+   * editing has left is the tail of an operation that wrote that line itself.
+   */
+  it('is not ended by the blur of the field it just left', async () => {
+    const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'ONE\nTWO' });
+
+    const field = await editLine(wrapper, 0);
+    await field.trigger('keydown', { key: 'ArrowDown' });
+    // The field that was left blurs only now, with the editing already a line further.
+    await field.trigger('blur');
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="compare-edit-0"]').exists()).toBe(true);
+    expect(wrapper.get('[data-test="compare-edit-0"]').element.value).toBe('two');
   });
 
   /** There is nothing to write a version back to. */
@@ -725,7 +963,7 @@ describe('editing a line in place', () => {
     await flushPromises();
     await flushPromises();
 
-    await wrapper.findAll('[data-test="compare-row"]')[1].findAll('span')[1].trigger('dblclick');
+    await rows(wrapper)[1].findAll('span')[1].trigger('dblclick');
 
     expect(wrapper.find('[data-test="compare-edit-0"]').exists()).toBe(false);
   });
@@ -770,6 +1008,26 @@ describe('putting the two sides the other way round', () => {
     expect(wrapper.get('[data-test="compare-names"]').text()).toBe('b.txt ↔ a.txt');
     expect(push).not.toHaveBeenCalled();
     expect(replace).toHaveBeenCalledWith('/compare?paths=b.txt&paths=a.txt');
+  });
+
+  /**
+   * The tab is still the tab that was opened for this comparison.
+   *
+   * It is `own` that a screen's own cross closes a tab by, and the ordinary landing
+   * drops it for any address it has not seen — so a swap left the cross unable to close
+   * anything, and it pushed a folder over the comparison instead. Told before the
+   * address changes, the landing sees an address the tab is already on.
+   */
+  it('tells the tab, so the cross still closes it', async () => {
+    const wrapper = await open({ 'a.txt': 'one', 'b.txt': 'ONE' });
+
+    await wrapper.get('[data-test="compare-swap-0"]').trigger('click');
+
+    expect(appTabs.retarget).toHaveBeenCalledWith('tab-1', '/compare?paths=b.txt&paths=a.txt');
+    // And before the router, which is the whole point of it.
+    expect(appTabs.retarget.mock.invocationCallOrder[0]).toBeLessThan(
+      replace.mock.invocationCallOrder[0]
+    );
   });
 
   /** What the tab is holding must not be lost because the sides moved. */
