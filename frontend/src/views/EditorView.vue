@@ -166,12 +166,23 @@
         >
           {{ t('editor.highlightingOffTooLarge') }}
         </p>
+        <!--
+          Held back for the frame or two it takes to put the reader back where they
+          were. The place is applied after the file has reached the editor — it has
+          to be, there is nothing to apply it to before that — so the file appears
+          at the top and then jumps to the line somebody was reading. Nothing is
+          slower for being invisible while it settles, and `opacity` rather than
+          `visibility` because the editor measures itself and needs its box.
+        -->
         <CodeSurface
           ref="surface"
           :content="loadedContent"
           :autofocus="true"
           :extensions="extensions"
-          class="min-h-0 flex-1"
+          class="min-h-0 flex-1 transition-opacity duration-100"
+          :class="settling ? 'opacity-0' : 'opacity-100'"
+          data-test="editor-surface"
+          :data-settling="settling ? 'true' : 'false'"
           @ready="handleReady"
           @edit="handleEdit"
           @dirty-change="(value) => (hasUnsavedChanges = value)"
@@ -215,6 +226,7 @@ import { usePageTitle } from '@/composables/usePageTitle';
 import { fileTitleFor } from '@/utils/pageTitle';
 import { useTabNavigation } from '@/composables/tabNavigation';
 import { useEditorDraftsStore } from '@/stores/editorDrafts';
+import { useTabLoadingStore } from '@/stores/tabLoading';
 
 const route = useRoute();
 const router = useRouter();
@@ -236,6 +248,7 @@ const drafts = useEditorDraftsStore();
  * would already name whichever tab had come forward.
  */
 const tabKey = ref(tabs.activeId);
+const tabLoading = useTabLoadingStore();
 
 /**
  * The address this page is showing, which is not what the router says by the time
@@ -255,6 +268,14 @@ const surface = ref(null);
 const hasUnsavedChanges = ref(false);
 const highlightingOff = ref(false);
 const isLoading = ref(false);
+/**
+ * Whether the reader is still being put back where they were.
+ *
+ * The place can only be applied once the file has reached the editor, so the file
+ * appears at the top and then jumps to the line somebody was reading. A frame or
+ * two of nothing is better than a jump, and it is the same frames either way.
+ */
+const settling = ref(false);
 const isSaving = ref(false);
 const loadError = ref('');
 const saveError = ref('');
@@ -506,6 +527,9 @@ const loadFile = async () => {
   sharedCanWrite.value = false;
   sharedDirectPath.value = '';
 
+  // Said on the tab too, where it can be seen from anywhere — including from
+  // another tab, which is where the reader is when this one was opened behind.
+  const doneLoading = tabLoading.begin(tabKey.value);
   try {
     let response;
     if (isTrashViewer.value) {
@@ -534,11 +558,18 @@ const loadFile = async () => {
     loadError.value = err.message;
   } finally {
     if (requestPath === route.fullPath) isLoading.value = false;
+    doneLoading();
   }
 
   // After the editor exists. While the file is being read there is no editor on
   // screen at all, so a draft put back any earlier would have nowhere to go.
-  await restoreKeptPlace(requestPath);
+  try {
+    await restoreKeptPlace(requestPath);
+  } finally {
+    // Whatever happened — nothing kept, an editor that never arrived, a throw —
+    // the editor is shown. An invisible one is worse than a visible jump.
+    settling.value = false;
+  }
 };
 
 /**
@@ -557,6 +588,7 @@ const loadFile = async () => {
 const restoreKeptPlace = async (address) => {
   const kept = drafts.placeFor(tabKey.value, address);
   if (!kept) return;
+  settling.value = true;
 
   // After the file's own text has reached the editor.
   await nextTick();

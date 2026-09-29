@@ -658,6 +658,10 @@ const load = async ({ inPlace = false } = {}) => {
         // can step aside. It stays until this point on purpose: a document that
         // never opens leaves no editor chrome, and with it no way out.
         previewState.hasNativeClose = true;
+        // And the tab can stop saying it is working. This is the moment worth
+        // waiting for — not the component loading, which is instant, but a document
+        // server answering and the file arriving in it.
+        previewState.isReady = true;
       },
 
       // The editor's own close button. Route it through the session this

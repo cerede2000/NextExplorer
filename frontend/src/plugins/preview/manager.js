@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed, watch } from 'vue';
+import { ref, computed, reactive, watch } from 'vue';
 import {
   getPreviewUrl,
   normalizePath,
@@ -10,6 +10,7 @@ import {
 } from '@/api';
 import { useFileStore } from '@/stores/fileStore';
 import { useTabsStore } from '@/stores/tabs';
+import { useTabLoadingStore } from '@/stores/tabLoading';
 import { createPreviewSession } from './session';
 import router from '@/router';
 
@@ -195,8 +196,10 @@ export const usePreviewManager = defineStore('preview-manager', () => {
       filePath: fullPath,
       previewUrl,
       // Preview components can keep small, ephemeral state which their
-      // lifecycle hooks need when the preview is about to close.
-      previewState: {},
+      // lifecycle hooks need when the preview is about to close — and, for a
+      // viewer that takes real time to arrive, `isReady`, which is how it says
+      // the wait is over. See `waitForViewer` below.
+      previewState: reactive({}),
       api,
     };
 
@@ -236,6 +239,60 @@ export const usePreviewManager = defineStore('preview-manager', () => {
    */
   const isOpenIn = (key) => sessions.get(key)?.isOpen.value ?? false;
 
+  /**
+   * What a given tab is showing, as the plugin was handed it.
+   *
+   * Asked about a tab that is not in front, which `activeItem` cannot answer — and
+   * the way to reach `previewState`, which is how a viewer says it has really
+   * arrived. Makes no session: asking is not opening.
+   */
+  const itemIn = (key) => sessions.get(key)?.item.value ?? null;
+
+  /**
+   * How long a viewer that reports its own readiness is given to say so.
+   *
+   * A tab that says it is working for ever is worse than one that never said it:
+   * the reader is told to wait for something that is not coming. A document server
+   * that has to be woken up can take a while, so the wait is generous — but it
+   * ends.
+   */
+  const VIEWER_PATIENCE_MS = 45_000;
+
+  /**
+   * The tab is working until its viewer is really there.
+   *
+   * Which is not the same as "the component has loaded". An image is on screen the
+   * moment its component is; an ONLYOFFICE document then has to reach a document
+   * server, be given a session on it and load the file into an iframe, which is
+   * seconds — and it is exactly the wait worth showing. Only the viewer knows when
+   * that is over, so a plugin that has a real wait declares `reportsReady` and says
+   * so through `previewState.isReady`; everything else is done as soon as it is
+   * shown.
+   */
+  const waitForViewer = (key, match) => {
+    const busy = useTabLoadingStore();
+    const done = busy.begin(key);
+    if (!match.plugin.reportsReady) {
+      done();
+      return;
+    }
+
+    const patience = setTimeout(() => {
+      stop();
+      done();
+    }, VIEWER_PATIENCE_MS);
+    const stop = watch(
+      () => match.context.previewState.isReady === true,
+      (ready) => {
+        if (!ready) return;
+        clearTimeout(patience);
+        stop();
+        done();
+      },
+      { immediate: true }
+    );
+  };
+
   /** Open a document in a given tab, and say whether anything opens it at all. */
   const openIn = (key, item) => {
     const match = findPlugin(item, key);
@@ -248,6 +305,7 @@ export const usePreviewManager = defineStore('preview-manager', () => {
     if (session.shows(match.context)) return true;
 
     session.show(match.plugin, match.context);
+    waitForViewer(key, match);
     return true;
   };
 
@@ -284,6 +342,7 @@ export const usePreviewManager = defineStore('preview-manager', () => {
     openIn,
     shows,
     isOpenIn,
+    itemIn,
     close,
     closeIn,
     endForUnload,

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
+import { nextTick } from 'vue';
 
 /**
  * Closing the tab a document was opened for.
@@ -38,16 +39,26 @@ vi.mock('vue-router', () => ({
 const warmInBackground = vi.hoisted(() => vi.fn(async () => []));
 vi.mock('@/composables/tabWarmup', () => ({ warmInBackground, WARM_TAB_LIMIT: 3 }));
 
+/**
+ * Work can outlive the tab it was for, so what a tab was waiting for is forgotten
+ * when the tab goes — otherwise the count is a spinner on whatever tab is given
+ * that id next.
+ */
+const tabLoading = vi.hoisted(() => ({ keepOnly: vi.fn(), begin: () => () => {} }));
+vi.mock('@/stores/tabLoading', () => ({ useTabLoadingStore: () => tabLoading }));
+
 const settings = vi.hoisted(() => ({ loaded: true, userSettings: {} }));
 vi.mock('@/stores/appSettings', () => ({ useAppSettings: () => settings }));
+vi.mock('@/stores/features', () => ({ useFeaturesStore: () => ({ maxTabs: 10 }) }));
 
-import { useTabNavigation } from './tabNavigation';
+import { useTabNavigation, useTabRouteSync } from './tabNavigation';
 import { useTabsStore } from '@/stores/tabs';
 
 beforeEach(() => {
   setActivePinia(createPinia());
   push.mockClear();
   warmInBackground.mockClear();
+  tabLoading.keepOnly.mockClear();
   settings.loaded = true;
   settings.userSettings = {};
   route.fullPath = '/browse/';
@@ -169,5 +180,30 @@ describe('a tab opened behind', () => {
     await loaded();
 
     expect(warmInBackground).not.toHaveBeenCalled();
+  });
+});
+
+describe('a tab that has gone', () => {
+  /**
+   * Work can outlive the tab it was for — a listing already asked for, a viewer
+   * halfway through arriving — and a count left standing would be a spinner on
+   * whatever tab is given that id next.
+   */
+  it('is no longer waiting for anything', async () => {
+    // Told through the settings, as the application tells it: `useTabRouteSync`
+    // answers the store from there, and would otherwise turn tabs off underneath
+    // this test.
+    settings.userSettings = { browseInTabs: true };
+    const tabs = useTabsStore();
+    useTabRouteSync();
+    const opened = tabs.open('/browse/Docs');
+    await nextTick();
+    tabLoading.keepOnly.mockClear();
+
+    tabs.close(opened.id);
+    await nextTick();
+
+    expect(tabLoading.keepOnly).toHaveBeenCalledWith(tabs.tabs.map((tab) => tab.id));
+    expect(tabLoading.keepOnly.mock.calls.at(-1)[0]).not.toContain(opened.id);
   });
 });

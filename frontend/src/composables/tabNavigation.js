@@ -3,6 +3,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { HOME, useTabsStore } from '@/stores/tabs';
 import { useAppSettings } from '@/stores/appSettings';
 import { useFeaturesStore } from '@/stores/features';
+import { useTabLoadingStore } from '@/stores/tabLoading';
 import { tabKindForPath } from '@/config/tabKinds';
 
 /**
@@ -71,6 +72,19 @@ export function useTabRouteSync() {
     () => features.maxTabs,
     (many) => tabs.setLimit(many),
     { immediate: true }
+  );
+
+  /**
+   * A tab that has gone was not still working, whatever it was waiting for.
+   *
+   * Work can outlive the tab it was for — a listing already asked for, a viewer
+   * halfway through arriving — and a count left standing would be a spinner on
+   * whatever tab is given that id next.
+   */
+  const tabLoading = useTabLoadingStore();
+  watch(
+    () => tabs.tabs.map((tab) => tab.id).join('\u0000'),
+    (ids) => tabLoading.keepOnly(ids.split('\u0000').filter(Boolean))
   );
 
   /**

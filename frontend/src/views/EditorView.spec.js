@@ -80,6 +80,11 @@ vi.mock('@/composables/tabNavigation', () => ({
 // store itself: the rule about *which* address a draft belongs to is the store's,
 // and `stores/editorDrafts.spec.js` holds it to that.
 const drafts = vi.hoisted(() => new Map());
+// Which tabs are still working, so the strip can say so. A stand-in: whether the
+// work is a listing or a file is this screen's business, drawing it is the strip's.
+vi.mock('@/stores/tabLoading', () => ({
+  useTabLoadingStore: () => ({ begin: () => () => {}, isLoading: () => false }),
+}));
 vi.mock('@/stores/editorDrafts', () => ({
   useEditorDraftsStore: () => ({
     keep: (key, address, where) => drafts.set(key, { address, ...where }),
@@ -108,16 +113,30 @@ vi.mock('@/stores/versionsPanel', () => ({ useVersionsPanelStore: () => versions
  * the same promise: a document, a way to type into it, and whether it differs
  * from what was last read or saved.
  */
-const surface = vi.hoisted(() => ({ view: null, current: null, restored: [] }));
+const surface = vi.hoisted(() => ({
+  view: null,
+  current: null,
+  restored: [],
+  settlingWhenRestored: null,
+}));
 
 vi.mock('@/components/editor/CodeSurface.vue', async () => {
-  const { defineComponent: define, onMounted, onBeforeUnmount } = await import('vue');
+  const {
+    defineComponent: define,
+    onMounted,
+    onBeforeUnmount,
+    getCurrentInstance,
+    h,
+  } = await import('vue');
   return {
     default: define({
       name: 'CodeSurfaceStub',
       props: ['content', 'extensions', 'autofocus'],
       emits: ['ready', 'edit', 'dirty-change'],
       setup(props, { emit, expose }) {
+        // This stand-in's own element, so what the page puts on the editor can be
+        // read without attaching the whole wrapper to the document.
+        const instance = getCurrentInstance();
         let text = props.content;
         let saved = props.content;
         // Where the cursor is and how far down the editor was, which is the rest
@@ -150,6 +169,10 @@ vi.mock('@/components/editor/CodeSurface.vue', async () => {
           }),
           restorePlace: (kept) => {
             if (!kept) return;
+            // What the page was showing at the instant the place went back in: the
+            // editor is meant to be out of sight until then, so that the file does
+            // not appear at the top and jump to the line somebody was reading.
+            surface.settlingWhenRestored = instance?.vnode?.el?.getAttribute?.('data-settling');
             surface.restored.push(kept);
             if (kept.selection) selection = { ...kept.selection };
             if (kept.scrollTop > 0) scrollDOM.scrollTop = kept.scrollTop;
@@ -186,7 +209,10 @@ vi.mock('@/components/editor/CodeSurface.vue', async () => {
         onBeforeUnmount(() => {
           if (surface.current === handle) surface.current = null;
         });
-        return () => null;
+        // A real element, so what the page puts on the editor — the class that
+        // holds it back while the reader is being put back where they were — lands
+        // somewhere a test can read it.
+        return () => h('div');
       },
     }),
   };
@@ -255,6 +281,7 @@ beforeEach(() => {
   surface.view = { dispatch: vi.fn() };
   surface.current = null;
   surface.restored.length = 0;
+  surface.settlingWhenRestored = null;
   languageData.markdown.load.mockClear();
   languageData.json.load.mockClear();
   shared.guards.length = 0;
@@ -1181,6 +1208,7 @@ describe('what a tab holds on to', () => {
       topLine: 1840,
     });
     surface.restored.length = 0;
+    surface.settlingWhenRestored = null;
 
     // Another tab in front, and back again.
     await anotherTabComesForward();
@@ -1189,6 +1217,39 @@ describe('what a tab holds on to', () => {
     await flushPromises();
 
     expect(surface.restored.at(-1)).toMatchObject({ scrollTop: 640, topLine: 1840 });
+  });
+
+  /**
+   * Shown once the reader is back where they were, not before.
+   *
+   * The place can only be applied after the file has reached the editor, so the
+   * file appeared at the top and then jumped to the line somebody was reading.
+   * A frame or two of nothing costs nothing — they are the same frames — and it is
+   * cleared whatever happens, because an editor that never appears is worse than
+   * a jump.
+   */
+  it('keeps the editor out of sight until the place is back', async () => {
+    drafts.set('tab-1', {
+      address: '/editor/Docs/notes.md',
+      text: null,
+      selection: { anchor: 3, head: 5 },
+      scrollTop: 480,
+      topLine: 1840,
+    });
+
+    await mountEditor();
+    await flushPromises();
+
+    // Out of sight while it was put back, and shown once it was.
+    expect(surface.settlingWhenRestored).toBe('true');
+    expect(wrapper.get('[data-test="editor-surface"]').attributes('data-settling')).toBe('false');
+  });
+
+  it('shows the editor even when there was no place to put back', async () => {
+    await mountEditor();
+    await flushPromises();
+
+    expect(wrapper.get('[data-test="editor-surface"]').attributes('data-settling')).toBe('false');
   });
 
   it('hands it back, still unsaved, when its tab comes back', async () => {

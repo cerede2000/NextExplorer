@@ -58,6 +58,11 @@ vi.mock('@/api', () => ({
   normalizePath: (value) => String(value || '').replace(/^\/+|\/+$/g, ''),
 }));
 
+// Which tabs are still working, so the strip can say so. A stand-in: whether the
+// work is a listing or a file is this screen's business, drawing it is the strip's.
+vi.mock('@/stores/tabLoading', () => ({
+  useTabLoadingStore: () => ({ begin: () => () => {}, isLoading: () => false }),
+}));
 vi.mock('@/stores/settings', async () => {
   const store = await shared.make('settings');
   return { useSettingsStore: () => store };

@@ -35,6 +35,7 @@ vi.mock('@/router', () => ({ default: { push: vi.fn() } }));
 
 import { usePreviewManager } from './manager';
 import { useTabsStore } from '@/stores/tabs';
+import { useTabLoadingStore } from '@/stores/tabLoading';
 
 const REPORT = { name: 'report.docx', path: 'Docs', kind: 'docx' };
 const SHEET = { name: 'budget.xlsx', path: 'Docs', kind: 'xlsx' };
@@ -232,5 +233,107 @@ describe('what the host is given to draw', () => {
 
     tabs.close(second);
     expect(manager.surfaces.map((surface) => surface.key)).toEqual([first]);
+  });
+});
+
+/**
+ * A tab says it is working while its viewer is being built.
+ *
+ * What a browser does, and it matters more here: a document opened in a tab
+ * behind is built while the reader is looking at something else, so without a
+ * word from it there is nothing to tell "not there yet" from "there, and empty".
+ *
+ * The moment worth reporting is not the component loading — that is instant — but
+ * what comes after it for a viewer that has a real wait: a document server to
+ * reach, a session to be given, a file to load into an iframe. Only the viewer
+ * knows when that is over, so one that has such a wait says so, and the rest are
+ * done as soon as they are shown.
+ */
+describe('a tab whose viewer is still being built', () => {
+  const reporting = () => ({ ...office(), reportsReady: true });
+
+  it('says it is working, and stops when the viewer says it is there', async () => {
+    const { first } = twoTabs();
+    const manager = usePreviewManager();
+    const busy = useTabLoadingStore();
+    manager.register(reporting());
+
+    manager.openIn(first, REPORT);
+    await nextTick();
+    expect(busy.isLoading(first)).toBe(true);
+
+    // What the viewer sets once a document server has answered and the file is in.
+    manager.itemIn(first).previewState.isReady = true;
+    await nextTick();
+
+    expect(busy.isLoading(first)).toBe(false);
+  });
+
+  /** An image is on screen the moment its component is: nothing to wait for. */
+  it('says nothing for a viewer with no wait of its own', async () => {
+    const { first } = twoTabs();
+    const manager = usePreviewManager();
+    const busy = useTabLoadingStore();
+    manager.register(office());
+
+    manager.openIn(first, REPORT);
+    await nextTick();
+
+    expect(busy.isLoading(first)).toBe(false);
+  });
+
+  it('says it of the tab it was opened in, and of no other', async () => {
+    const { first, second } = twoTabs();
+    const manager = usePreviewManager();
+    const busy = useTabLoadingStore();
+    manager.register(reporting());
+
+    manager.openIn(second, REPORT);
+    await nextTick();
+
+    expect(busy.isLoading(second)).toBe(true);
+    expect(busy.isLoading(first)).toBe(false);
+  });
+
+  /**
+   * A tab that says it is working for ever is worse than one that never said it:
+   * the reader is told to wait for something that is not coming.
+   */
+  it('stops saying it after waiting long enough', async () => {
+    vi.useFakeTimers();
+    try {
+      const { first } = twoTabs();
+      const manager = usePreviewManager();
+      const busy = useTabLoadingStore();
+      manager.register(reporting());
+
+      manager.openIn(first, REPORT);
+      await nextTick();
+      expect(busy.isLoading(first)).toBe(true);
+
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      expect(busy.isLoading(first)).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  /** Asked for what is already there: nothing was built, so nothing is waited for. */
+  it('says nothing again for a document that tab already shows', async () => {
+    const { first } = twoTabs();
+    const manager = usePreviewManager();
+    const busy = useTabLoadingStore();
+    manager.register(reporting());
+
+    manager.openIn(first, REPORT);
+    await nextTick();
+    manager.itemIn(first).previewState.isReady = true;
+    await nextTick();
+
+    manager.openIn(first, REPORT);
+    await nextTick();
+
+    expect(busy.isLoading(first)).toBe(false);
   });
 });

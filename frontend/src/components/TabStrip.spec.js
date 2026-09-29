@@ -99,6 +99,14 @@ const fileDrag = vi.hoisted(() => ({
 }));
 vi.mock('@/composables/useFileDragDrop', () => ({ useFileDragDrop: () => fileDrag }));
 
+/**
+ * Which tabs are still working, so the strip can say so where their icon goes.
+ * Standing in for the store keeps this suite about a row of buttons — whether the
+ * work is a listing, a file or a document server is the warming's business.
+ */
+const loading = vi.hoisted(() => ({ isLoading: vi.fn(() => false) }));
+vi.mock('@/stores/tabLoading', () => ({ useTabLoadingStore: () => loading }));
+
 import TabStrip from './TabStrip.vue';
 
 const tab = (id, kind, path, extra = {}) => ({ id, kind, path, pinned: false, ...extra });
@@ -126,6 +134,7 @@ beforeEach(() => {
   fileDrag.handleDrop.mockClear();
   fileDrag.isDragTarget.mockReturnValue(false);
   fileDrag.isCopyDragTarget.mockReturnValue(false);
+  loading.isLoading.mockReturnValue(false);
 });
 
 describe('when the strip is drawn at all', () => {
@@ -581,5 +590,39 @@ describe('files dropped on a tab', () => {
     const wrapper = withTabs([tab('a', 'folder', '/browse/Docs')]);
 
     expect(wrapper.get('[data-test="tab"]').attributes('data-drop')).toBe('copy');
+  });
+});
+
+/**
+ * A tab still working says so, where its icon goes.
+ *
+ * What a browser does, and it matters more here than there: a tab got ready in the
+ * background is working while the reader is looking at something else, so without a
+ * word from it there is nothing to tell "not there yet" from "there, and empty".
+ */
+describe('a tab that is still working', () => {
+  it('shows a spinner in place of its icon', () => {
+    loading.isLoading.mockImplementation((id) => id === 'b');
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')]);
+
+    const [quiet, busy] = wrapper.findAll('[data-test="tab"]');
+    expect(busy.attributes('data-loading')).toBe('true');
+    expect(busy.find('[data-test="tab-loading"]').exists()).toBe(true);
+    expect(quiet.find('[data-test="tab-loading"]').exists()).toBe(false);
+  });
+
+  /** In its place, so the name does not move sideways when the work ends. */
+  it('still names the tab while it works', () => {
+    loading.isLoading.mockReturnValue(true);
+    const wrapper = withTabs([tab('a', 'folder', '/browse/Docs/2026')]);
+
+    expect(wrapper.get('[data-test="tab"]').text()).toContain('2026');
+  });
+
+  it('shows its own icon again once the work is over', async () => {
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A')]);
+
+    expect(wrapper.get('[data-test="tab"]').attributes('data-loading')).toBe('false');
+    expect(wrapper.find('[data-test="tab-loading"]').exists()).toBe(false);
   });
 });

@@ -17,11 +17,14 @@ import { warmInBackground, warmTab, warmTabs, WARM_TAB_LIMIT } from './tabWarmup
  * of this possible without drawing a second page.
  */
 
+const ended = [];
 const tools = () => ({
-  fileStore: { fetchIn: vi.fn(() => Promise.resolve()) },
+  fileStore: { fetchIn: vi.fn(() => Promise.resolve()), holdsFolder: vi.fn(() => false) },
   previewManager: { openIn: vi.fn(() => true) },
   terminalStore: { openIn: vi.fn(() => ({ open: true })) },
   readFile: vi.fn(() => Promise.resolve({ content: '' })),
+  // Says the tab is busy, and answers with the way to say it is not.
+  beginLoading: vi.fn((id) => () => ended.push(id)),
 });
 
 const tab = (kind, path, id = `tab-${kind}`) => ({ id, kind, path });
@@ -29,6 +32,7 @@ const tab = (kind, path, id = `tab-${kind}`) => ({ id, kind, path });
 let kit;
 
 beforeEach(() => {
+  ended.length = 0;
   kit = tools();
 });
 
@@ -215,6 +219,9 @@ describe('asking for a tab to be got ready', () => {
     }));
     vi.doMock('@/stores/terminal', () => ({ useTerminalStore: () => stores.terminalStore }));
     vi.doMock('@/api', () => ({ fetchFileContent: vi.fn(() => Promise.resolve({})) }));
+    vi.doMock('@/stores/tabLoading', () => ({
+      useTabLoadingStore: () => ({ begin: () => () => {} }),
+    }));
   });
 
   it('gets it ready', async () => {
@@ -251,5 +258,80 @@ describe('asking for a tab to be got ready', () => {
   it('does nothing when there is nothing to get ready', async () => {
     expect(await warmInBackground([])).toEqual([]);
     expect(await warmInBackground(null)).toEqual([]);
+  });
+});
+
+/**
+ * A tab prepared in the background says it is working.
+ *
+ * Without a word from it there is nothing to tell "not there yet" from "there, and
+ * empty" — which is the whole point of the spinner the strip draws in place of the
+ * icon. Who ends it is the question worth holding: whoever finishes the work, and
+ * for a document that is the viewer, once it has really loaded.
+ */
+describe('saying that a tab is working', () => {
+  it('is said for a folder, and unsaid once the listing is in', async () => {
+    warmTab(tab('folder', '/browse/Docs'), kit);
+
+    expect(kit.beginLoading).toHaveBeenCalledWith('tab-folder');
+    expect(ended).toEqual([]);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(ended).toEqual(['tab-folder']);
+  });
+
+  it('is unsaid when the listing cannot be read', async () => {
+    kit.fileStore.fetchIn = vi.fn(() => Promise.reject(new Error('offline')));
+
+    warmTab(tab('folder', '/browse/Docs'), kit);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(ended).toEqual(['tab-folder']);
+  });
+
+  it('is said for an editor, and unsaid once the file is read', async () => {
+    warmTab(tab('editor', '/editor/Docs/notes.md'), kit);
+
+    expect(ended).toEqual([]);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(ended).toEqual(['tab-editor']);
+  });
+
+  /**
+   * Said by the manager rather than here, and unsaid by it when the viewer is
+   * really there: building the viewer — reaching a document server, loading a
+   * document into it — is the part worth waiting for, and only the viewer knows
+   * when it is over. Opening a document normally goes the same way, so the tab
+   * says the same thing either way; see `plugins/preview/manager.js`.
+   */
+  it('is left to the manager for a document', () => {
+    warmTab(tab('document', '/open/Docs/report.docx'), kit);
+
+    expect(kit.previewManager.openIn).toHaveBeenCalled();
+    expect(ended).toEqual(['tab-document']);
+  });
+
+  /** Nothing to wait for: the shell starts as soon as its session exists. */
+  it('is unsaid at once for a terminal', () => {
+    warmTab(tab('terminal', '/terminal/Docs'), kit);
+
+    expect(ended).toEqual(['tab-terminal']);
+  });
+
+  it('is unsaid for a tab there was nothing to do for', () => {
+    warmTab(tab('trash', '/trash'), kit);
+
+    expect(ended).toEqual(['tab-trash']);
+  });
+
+  /** A tab that already holds its folder was never made to wait for anything. */
+  it('is unsaid for a folder the tab already holds', () => {
+    kit.fileStore.holdsFolder = vi.fn(() => true);
+
+    warmTab(tab('folder', '/browse/Docs'), kit);
+
+    expect(ended).toEqual(['tab-folder']);
   });
 });

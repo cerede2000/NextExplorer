@@ -9,6 +9,8 @@ import { resolveFavoriteIcon } from '@/utils/favoriteIcons';
 import { useTabNavigation } from '@/composables/tabNavigation';
 import { useAppSettings } from '@/stores/appSettings';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
+import { useTabLoadingStore } from '@/stores/tabLoading';
+import LoadingIcon from '@/icons/LoadingIcon.vue';
 import { normalizePath } from '@/api';
 
 /**
@@ -93,6 +95,19 @@ const iconFor = (tab) => {
   if (favorite) return resolveFavoriteIcon(favorite.icon);
   return TAB_KINDS_BY_ID[tab.kind]?.icon;
 };
+
+/**
+ * A tab still working says so, in the place its icon will be.
+ *
+ * What a browser does, and it matters more here: a tab got ready in the background
+ * is working while the reader is looking at something else, so without a word from
+ * it there is nothing to tell "not there yet" from "there, and empty". The spinner
+ * takes the icon's place rather than sitting beside it, so nothing moves when the
+ * work ends — a tab that shifted its name sideways for a second would be worse than
+ * saying nothing.
+ */
+const loading = useTabLoadingStore();
+const isLoading = (tab) => loading.isLoading(tab.id);
 
 /** And its colour, since an icon and its colour are one choice, not two. */
 const iconColourFor = (tab) => favouriteFor(tab)?.color || undefined;
@@ -272,6 +287,7 @@ const duplicate = (id) => {
       :data-kind="tab.kind"
       :data-active="tab.id === tabs.activeId ? 'true' : 'false'"
       :data-pinned="tab.pinned ? 'true' : 'false'"
+      :data-loading="isLoading(tab) ? 'true' : 'false'"
       :data-over="over === tab.id ? 'true' : 'false'"
       :data-drop="isCopyTarget(tab) ? 'copy' : isFileTarget(tab) ? 'move' : 'none'"
       draggable="true"
@@ -301,9 +317,14 @@ const duplicate = (id) => {
         @auxclick.middle.prevent="close(tab.id)"
         @contextmenu.prevent="openMenu(tab.id)"
       >
+        <LoadingIcon
+          v-if="isLoading(tab)"
+          class="h-4 w-4 shrink-0 animate-spin text-neutral-500 dark:text-neutral-400"
+          data-test="tab-loading"
+        />
         <component
           :is="iconFor(tab)"
-          v-if="iconFor(tab)"
+          v-else-if="iconFor(tab)"
           class="h-4 w-4 shrink-0"
           :style="iconColourFor(tab) ? { color: iconColourFor(tab) } : undefined"
         />

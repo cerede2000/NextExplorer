@@ -60,29 +60,55 @@ const holdsASession = (kind) => kind === 'document' || kind === 'terminal';
  * @param {object} tools.previewManager
  * @param {object} tools.terminalStore
  * @param {(path: string) => Promise<unknown>} tools.readFile
+ * @param {(id: string) => () => void} [tools.beginLoading]  says the tab is busy,
+ *   and answers with the way to say it is not
  */
-export const warmTab = (tab, { fileStore, previewManager, terminalStore, readFile } = {}) => {
+export const warmTab = (
+  tab,
+  { fileStore, previewManager, terminalStore, readFile, beginLoading } = {}
+) => {
   if (!tab?.id || !TAB_KINDS_BY_ID[tab.kind]) return false;
+  // A tab prepared in the background is working while the reader is looking at
+  // something else, so it has to be able to say so — otherwise there is nothing to
+  // tell "not there yet" from "there, and empty". Ended by whoever finishes the
+  // work, which for a document is the viewer once it has really loaded.
+  const done = beginLoading?.(tab.id) ?? (() => {});
 
   if (tab.kind === 'folder') {
     const folder = tabFolderPath(tab);
     // A tab that has already been there holds its listing, its selection and
     // possibly a rename half typed. Reading the folder again would be a head start
     // on nothing, at the cost of disturbing all of it.
-    if (fileStore?.holdsFolder?.(tab.id, folder)) return false;
+    if (fileStore?.holdsFolder?.(tab.id, folder)) {
+      done();
+      return false;
+    }
     // Quietly, and without touching what is on screen: this is a tab nobody is
     // looking at, and a failure here costs the head start, not the tab.
-    void fileStore?.fetchIn?.(tab.id, folder)?.catch?.(() => {});
+    const reading = fileStore?.fetchIn?.(tab.id, folder);
+    if (reading?.then) reading.then(done, done);
+    else done();
     return true;
   }
 
   if (tab.kind === 'document') {
     const item = documentItemFromAddress(tab.path);
-    if (!item) return false;
+    if (!item) {
+      done();
+      return false;
+    }
+    // The manager says this tab is working, and stops saying it when the viewer is
+    // really there — which is its business, not this one's: only the viewer knows
+    // when a document server has answered. Opening a document normally goes the
+    // same way, so the tab says the same thing either way.
+    done();
     return Boolean(previewManager?.openIn?.(tab.id, item));
   }
 
   if (tab.kind === 'terminal') {
+    // The shell starts as soon as the session exists, so there is nothing to wait
+    // for that this could report.
+    done();
     const folder = String(tab.path || '').replace(/^\/terminal\/?/, '');
     let decoded = folder;
     try {
@@ -98,7 +124,10 @@ export const warmTab = (tab, { fileStore, previewManager, terminalStore, readFil
 
   if (tab.kind === 'editor') {
     const path = String(tab.path || '').replace(/^\/editor\/?/, '');
-    if (!path) return false;
+    if (!path) {
+      done();
+      return false;
+    }
     let decoded = path;
     try {
       decoded = path
@@ -108,10 +137,13 @@ export const warmTab = (tab, { fileStore, previewManager, terminalStore, readFil
     } catch {
       // As above.
     }
-    void readFile?.(decoded)?.catch?.(() => {});
+    const reading = readFile?.(decoded);
+    if (reading?.then) reading.then(done, done);
+    else done();
     return true;
   }
 
+  done();
   return false;
 };
 
@@ -170,10 +202,14 @@ export const warmInBackground = async (toWarm) => {
   const settings = useAppSettings();
   if (!settings.loaded || settings.userSettings?.preloadBackgroundTabs === false) return [];
 
+  const { useTabLoadingStore } = await import('@/stores/tabLoading');
+  const busy = useTabLoadingStore();
+
   return warmTabs(candidates, {
     fileStore: useFileStore(),
     previewManager: usePreviewManager(),
     terminalStore: useTerminalStore(),
     readFile: api.fetchFileContent,
+    beginLoading: busy.begin,
   });
 };

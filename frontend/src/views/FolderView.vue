@@ -10,6 +10,7 @@ import { useVolumeUsageStore } from '@/stores/volumeUsage';
 import { useFeaturesStore } from '@/stores/features';
 import { useFolderScrollStore } from '@/stores/folderScroll';
 import { useTabsStore } from '@/stores/tabs';
+import { useTabLoadingStore } from '@/stores/tabLoading';
 import { revealOffset } from '@/utils/revealOffset';
 import LoadingIcon from '@/icons/LoadingIcon.vue';
 import { useSelection } from '@/composables/itemSelection';
@@ -143,6 +144,7 @@ const scrollKey = () => `${ownFolderPath}::${settings.view}`;
  */
 const tabsStore = useTabsStore();
 const ownTabId = tabsStore.activeId;
+const tabLoading = useTabLoadingStore();
 const placeKey = () => `${ownTabId}::${scrollKey()}`;
 
 /**
@@ -885,6 +887,10 @@ const loadFiles = async () => {
   loading.value = true;
   canRememberScroll.value = false;
   resetVisibleItems();
+  // And said on the tab as well, where the reader can see it from anywhere: this is
+  // the same wait, and a tab that was opened in the background is having it while
+  // somebody is looking at something else.
+  const doneLoading = tabLoading.begin(ownTabId);
   const path = route.params.path || '';
   try {
     await fileStore.fetchPathItems(path);
@@ -893,6 +899,7 @@ const loadFiles = async () => {
     console.error('Failed to load directory contents', error);
   } finally {
     loading.value = false;
+    doneLoading();
     await setupLoadMoreObserver();
     await nextTick();
     await restoreScrollPosition();
