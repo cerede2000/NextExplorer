@@ -1115,7 +1115,8 @@
     "closeUnsaved": "Deze vergelijking heeft overgenomen, niet-opgeslagen regels. Toch sluiten?",
     "matchCount": "{count} resultaten",
     "unsavedTitle": "Niet-opgeslagen regels",
-    "mapHint": "Waar u in het bestand bent — klik om ernaartoe te gaan"
+    "mapHint": "Waar u in het bestand bent — klik om ernaartoe te gaan",
+    "pinMap": "De kaart met verschillen open houden"
   },
   "share": {
     "sharedWithMe": "Gedeeld met mij",

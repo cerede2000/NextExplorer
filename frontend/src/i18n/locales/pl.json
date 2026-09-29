@@ -1115,7 +1115,8 @@
     "closeUnsaved": "To porównanie zawiera skopiowane, niezapisane wiersze. Zamknąć mimo to?",
     "matchCount": "Wyniki: {count}",
     "unsavedTitle": "Niezapisane wiersze",
-    "mapHint": "Gdzie jesteś w pliku — kliknij, aby tam przejść"
+    "mapHint": "Gdzie jesteś w pliku — kliknij, aby tam przejść",
+    "pinMap": "Zostaw mapę różnic otwartą"
   },
   "mediaPreview": {
     "audioTrack": "Ścieżka dźwiękowa",

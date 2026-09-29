@@ -1115,7 +1115,8 @@
     "closeUnsaved": "이 비교에 복사했지만 저장하지 않은 줄이 있습니다. 그래도 닫으시겠습니까?",
     "matchCount": "{count}개 결과",
     "unsavedTitle": "저장하지 않은 줄",
-    "mapHint": "파일에서의 현재 위치 — 눌러서 이동"
+    "mapHint": "파일에서의 현재 위치 — 눌러서 이동",
+    "pinMap": "차이 지도를 계속 열어 두기"
   },
   "mediaPreview": {
     "audioTrack": "오디오 트랙",

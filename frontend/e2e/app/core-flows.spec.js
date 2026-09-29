@@ -874,10 +874,29 @@ test('two files are compared, and one side is taken over the other', async () =>
   const header = page.locator('[data-test="compare"] > header');
   expect((await header.boundingBox()).height).toBeLessThan(48);
 
-  // Where the differences are, down the whole file, and one click from here to there.
+  /**
+   * Where the differences are, down the whole file, and one press from here to there.
+   *
+   * Out of the way until it is wanted — it comes out when the pointer nears the
+   * right-hand edge — so it is pinned here, which is what a reader who wants it there
+   * does, and is the only way a journey can rely on it being there.
+   */
+  await expect(page.locator('[data-test="compare-map"]')).toHaveCount(0);
+  await page.locator('[data-test="compare-map-pin"]').click();
   await expect(page.locator('[data-test="compare-map-mark-1"]')).toBeVisible();
   await page.locator('[data-test="compare-map-mark-1"]').click();
   await expect(page.locator('[data-current="true"]').first()).toContainText('fourth');
+
+  // In the colours the panes use, one band per side. Both of these differences are lines
+  // the two files each have and wrote differently, so all four bands are amber; a
+  // difference only one side has is a colour and a gap, which the long comparison below
+  // is built to show.
+  const tintsOf = (mark) =>
+    page
+      .locator(`[data-test="compare-map-mark-${mark}"] span`)
+      .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-tint')));
+  expect(await tintsOf(0)).toEqual(['both', 'both']);
+  expect(await tintsOf(1)).toEqual(['both', 'both']);
 
   // And the two sides the other way round, address and all.
   await page.locator('[data-test="compare-swap-0"]').click();
@@ -1031,10 +1050,15 @@ test('a long comparison shows where the reader is, and the scrollbar is not cove
       index === 4 && changed ? 'CHANGED near the top' : `line ${index}`
     ).join('\n');
   fs.writeFileSync(path.join(volume, 'long-a.conf'), `${lines(false)}\n`);
-  fs.writeFileSync(path.join(volume, 'long-b.conf'), `${lines(true)}\n`);
+  // One line the other file simply does not have, so the map has a one-sided difference
+  // to colour as well as a rewritten one.
+  fs.writeFileSync(path.join(volume, 'long-b.conf'), `${lines(true)}\nonly here\n`);
 
   await page.goto('/compare?paths=Projects%2Flong-a.conf&paths=Projects%2Flong-b.conf');
   await expect(page.locator('[data-test="compare-rows"]')).toBeVisible();
+  // Out of the way until it is wanted, so it is pinned for the length of this journey —
+  // which is what a reader who wants it there does.
+  await page.locator('[data-test="compare-map-pin"]').click();
   await expect(page.locator('[data-test="compare-map"]')).toBeVisible();
 
   const box = page.locator('[data-test="compare-rows"]');
@@ -1085,6 +1109,22 @@ test('a long comparison shows where the reader is, and the scrollbar is not cove
       return where > 0.15 && where < 0.3;
     })
     .toBe(true);
+
+  /**
+   * And the colours say which side has what, which a map of identical amber marks could
+   * not: the rewritten line is amber on both sides, the line only one file has is a
+   * colour and a gap.
+   */
+  const bands = (mark) =>
+    page
+      .locator(`[data-test="compare-map-mark-${mark}"] span`)
+      .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-tint')));
+  expect(await bands(0)).toEqual(['both', 'both']);
+  expect(await bands(1)).toEqual(['none', 'new']);
+
+  // Left where it was found: these journeys share one window, and a tab still pointing
+  // at a comparison is the state the next one would start from.
+  await page.goto('/browse/Projects');
 });
 
 /**
@@ -1173,10 +1213,11 @@ test('a comparison tab keeps what it was in the middle of, and says what it is',
      * and the assertion is that none did.
      */
     const browserBoxes = [];
-    page.on('dialog', (dialog) => {
+    const watchForBoxes = (dialog) => {
       browserBoxes.push(dialog.message());
       return dialog.dismiss();
-    });
+    };
+    page.on('dialog', watchForBoxes);
     const before = await strip.locator('[data-test="tab"]').count();
     await page.locator('[data-test="compare-close"]').click();
     await expect(page.locator('[data-test="ask-confirm"]')).toBeVisible();
@@ -1192,6 +1233,9 @@ test('a comparison tab keeps what it was in the middle of, and says what it is',
     await page.locator('[data-test="ask-confirm"]').click();
     await expect(strip.locator('[data-test="tab"]')).toHaveCount(before - 1);
     expect(browserBoxes).toEqual([]);
+    // Let go of, for the reason given where the editor's cross is pressed: a listener
+    // left attached answers `beforeunload` for every navigation that follows.
+    page.off('dialog', watchForBoxes);
     await expect(strip.locator('[role="tab"][title="right.conf ↔ left.conf"]')).toHaveCount(0);
   } finally {
     await page.goto('/settings/user-preferences');
@@ -1676,10 +1720,11 @@ test('tabs keep two folders open, and the middle button opens one behind', async
    * opens, and the assertion is that none did.
    */
   const editorBoxes = [];
-  page.on('dialog', (dialog) => {
+  const watchForEditorBoxes = (dialog) => {
     editorBoxes.push(dialog.message());
     return dialog.dismiss();
-  });
+  };
+  page.on('dialog', watchForEditorBoxes);
   await page.locator('[data-test="editor-close"]').click();
   await expect(page.locator('[data-test="ask-confirm"]')).toBeVisible();
 
@@ -1694,6 +1739,17 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   await expect(tabs).toHaveCount(4);
   await expect(page).not.toHaveURL(/\/editor\//);
   expect(editorBoxes).toEqual([]);
+  /**
+   * And the watcher goes with the assertion it was for.
+   *
+   * A dialog listener is not a bystander: while one is attached the browser stops
+   * dismissing dialogs by itself and waits to be answered. `beforeunload` is a dialog —
+   * the one dialog no page can replace — so a listener left over from an earlier
+   * assertion answers it for every navigation that follows, and answers it "stay
+   * here": the navigation is cancelled and the journey carries on somewhere it did not
+   * mean to be.
+   */
+  page.off('dialog', watchForEditorBoxes);
 
   /**
    * And where the reader was, with nothing typed at all.

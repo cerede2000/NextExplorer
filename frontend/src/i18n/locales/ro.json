@@ -1115,7 +1115,8 @@
     "closeUnsaved": "Această comparație are linii copiate și nesalvate. Închizi oricum?",
     "matchCount": "{count} rezultate",
     "unsavedTitle": "Linii nesalvate",
-    "mapHint": "Unde vă aflați în fișier — apăsați pentru a merge acolo"
+    "mapHint": "Unde vă aflați în fișier — apăsați pentru a merge acolo",
+    "pinMap": "Menține harta diferențelor deschisă"
   },
   "mediaPreview": {
     "audioTrack": "Pistă audio",

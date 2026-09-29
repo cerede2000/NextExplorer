@@ -11,6 +11,7 @@ import {
   ArrowUpIcon,
   Bars3BottomLeftIcon,
   MagnifyingGlassIcon,
+  MapPinIcon,
   PlusIcon,
   TrashIcon,
   XMarkIcon,
@@ -120,6 +121,15 @@ const CONTEXT_LINES = 3;
 const LONG_ENOUGH_TO_FOLD = 400;
 const onlyDifferences = ref(false);
 const wrap = ref(false);
+/**
+ * Whether the map of the differences stays out.
+ *
+ * Up here with the other two switches because `load` reads it, and `load` runs while
+ * this file is still being evaluated: a `const` declared further down is in its dead
+ * zone, the throw goes into `void load()`, and the screen silently keeps whatever it
+ * started with. This file has had that bug once already.
+ */
+const mapPinned = ref(false);
 
 /**
  * Letting go of the tab this screen was speaking for.
@@ -142,6 +152,7 @@ const handOver = (key, address) => {
     at: at.value,
     onlyDifferences: onlyDifferences.value,
     wrap: wrap.value,
+    mapPinned: mapPinned.value,
     sides: sides.value.map((side) => ({ ...side, lines: [...side.lines] })),
   });
 };
@@ -169,6 +180,7 @@ const load = async () => {
     at.value = Number.isInteger(kept.at) ? kept.at : -1;
     onlyDifferences.value = kept.onlyDifferences === true;
     wrap.value = kept.wrap === true;
+    mapPinned.value = kept.mapPinned === true;
     shownAddress.value = address;
     loading.value = false;
     failed.value = '';
@@ -388,6 +400,7 @@ const swapSides = (index) => {
     at: -1,
     onlyDifferences: onlyDifferences.value,
     wrap: wrap.value,
+    mapPinned: mapPinned.value,
     sides: next.map((side) => ({ ...side, lines: [...side.lines] })),
   });
   shownAddress.value = address;
@@ -655,36 +668,41 @@ const cellClass = (row, index) => {
 };
 
 /**
- * Where the reader is in the file, said twice over.
+ * Where the reader is in the file, and where the differences are.
  *
- * The comparison had a scrollbar all along and nobody could see it: the map of the
- * differences is laid over the right-hand edge of the scrolling box, which is exactly
- * where a scrollbar is drawn, so the one control that says how far down a two thousand
- * line file somebody has come was underneath it. The map has a lane of its own now,
- * beside the scrollbar rather than on top of it — measured rather than assumed, because
- * how wide a scrollbar is belongs to the platform and not to us.
+ * Two questions, and they were both being answered by one thin lane laid over the
+ * right-hand edge of the scrolling box — which is where a scrollbar is drawn, so it
+ * covered it. Uncovering it was not enough: this platform draws scrollbars *over* the
+ * content and fades them out when nothing is moving, measured and not guessed, so there
+ * was still nothing to see while reading. A scrollbar nobody can see is not a scrollbar.
  *
- * And the map says it too, which is the thing a scrollbar cannot: it shows the whole
- * file at once, so a box drawn over the part that is on screen puts the reader's
- * position in the same picture as the differences they are looking for. That box is
- * also how they move — pressed or dragged anywhere down the lane, the file goes there.
+ * So the comparison draws its own, and the platform's is hidden — one bar, on every
+ * platform, there the whole time. It is a real one: the thumb is grabbed where it is
+ * grabbed and follows the pointer from that point, and the track jumps.
+ *
+ * The map of the differences is the other question and gets its own lane beside it,
+ * out of the way until it is wanted: it appears when the pointer comes near the right
+ * edge, and stays for good when it is pinned. Over the text rather than beside it, so
+ * nothing reflows when it arrives.
  */
 const scroller = ref(null);
 const mapLane = ref(null);
-/** Both as fractions of the whole file, so the lane can be any height. */
-const view = ref({ top: 0, height: 1 });
-const scrollbarWidth = ref(0);
+const barTrack = ref(null);
+/** Both as fractions of the whole file, so a lane can be any height. */
+const view = ref({ top: 0, height: 1, progress: 0 });
 
 const measureView = () => {
   const box = scroller.value;
   if (!box) return;
   const whole = box.scrollHeight || 1;
+  const runway = box.scrollHeight - box.clientHeight;
   view.value = {
+    // Where in the file, for the map, which draws the whole file.
     top: box.scrollTop / whole,
     height: Math.min(1, box.clientHeight / whole),
+    // How far along, for the bar, whose thumb runs the track rather than the file.
+    progress: runway > 0 ? box.scrollTop / runway : 0,
   };
-  // What the platform gave the scrollbar, which is what the map must stay clear of.
-  scrollbarWidth.value = Math.max(0, box.offsetWidth - box.clientWidth);
 };
 
 /** Redrawn when what is in the box changes, not only when it is scrolled. */
@@ -699,10 +717,67 @@ onMounted(() => {
 });
 onBeforeUnmount(() => watchingSize?.disconnect());
 
-/** The file put where the lane was pressed, with that point in the middle of the view. */
-const scrollToPointer = (event) => {
+/** How close to the right edge the pointer has to come for the map to appear. */
+const REVEAL_WITHIN = 40;
+const mapNear = ref(false);
+const mapShown = computed(() => blocks.value.length > 0 && (mapPinned.value || mapNear.value));
+
+/**
+ * Read from where the pointer is rather than from a strip laid over the text: a
+ * transparent strip would be the thing under the pointer at the right-hand edge, and a
+ * selection dragged down that edge would end on it instead of on the line.
+ */
+const onRowsPointerMove = (event) => {
   const box = scroller.value;
-  const lane = mapLane.value;
+  if (!box) return;
+  mapNear.value = box.getBoundingClientRect().right - event.clientX <= REVEAL_WITHIN;
+};
+
+/**
+ * What each side has in a block, as a colour.
+ *
+ * The panes already say it in colour — a line only the left has is red, only the right
+ * green, a line both changed amber — and the map said none of it: every difference was
+ * the same amber mark, so the one thing worth seeing at a glance, whether something was
+ * taken away or added or merely rewritten, was the one thing the map could not show.
+ *
+ * One band per side, side by side, so a block that is on one side only reads as a
+ * colour and a gap rather than as a mark that has to be gone to before it means
+ * anything.
+ */
+const blockTints = computed(() =>
+  blocks.value.map((block) => {
+    const within = rows.value.slice(block.from, block.to + 1);
+    const present = keys.value.map((key) =>
+      within.some((row) => row[key] !== null && row[key] !== undefined)
+    );
+    const only = present.filter(Boolean).length === 1;
+    return present.map((has, index) => {
+      if (!has) return 'none';
+      if (!only) return 'both';
+      if (index === 0) return 'gone';
+      if (index === keys.value.length - 1) return 'new';
+      return 'both';
+    });
+  })
+);
+
+const tintClass = (tint) => {
+  if (tint === 'gone') return 'bg-rose-500 dark:bg-rose-500';
+  if (tint === 'new') return 'bg-emerald-500 dark:bg-emerald-500';
+  if (tint === 'both') return 'bg-amber-400 dark:bg-amber-400';
+  return 'bg-neutral-300/70 dark:bg-neutral-700/70';
+};
+
+/** Where a block sits down the whole file, and how much of it there is to see. */
+const bandStyle = (block) => ({
+  top: `${(block.from / Math.max(1, rows.value.length)) * 100}%`,
+  height: `${Math.max(0.8, ((block.to - block.from + 1) / Math.max(1, rows.value.length)) * 100)}%`,
+});
+
+/** The file put where a lane was pressed, with that point in the middle of the view. */
+const scrollToPointer = (event, lane) => {
+  const box = scroller.value;
   if (!box || !lane) return;
   const rect = lane.getBoundingClientRect();
   const fraction = (event.clientY - rect.top) / Math.max(1, rect.height);
@@ -718,16 +793,74 @@ const onMapDown = (event) => {
   if (event.target?.closest?.('[data-test^="compare-map-mark"]')) return;
   draggingMap = true;
   mapLane.value?.setPointerCapture?.(event.pointerId);
-  scrollToPointer(event);
+  scrollToPointer(event, mapLane.value);
 };
 
 const onMapMove = (event) => {
-  if (draggingMap) scrollToPointer(event);
+  if (draggingMap) scrollToPointer(event, mapLane.value);
 };
 
 const onMapUp = (event) => {
   draggingMap = false;
   mapLane.value?.releasePointerCapture?.(event.pointerId);
+};
+
+/**
+ * The bar the application draws for itself.
+ *
+ * Grabbed where it is grabbed: a thumb that jumped its middle under the pointer on
+ * every press is the thing that makes a scrollbar feel like somebody else's. Pressing
+ * the track away from the thumb does jump, because that is what a track is for.
+ */
+const MIN_THUMB = 0.06;
+/**
+ * The thumb runs the track, not the file: at the end of a long file it has to sit
+ * against the bottom of the track, and a thumb placed by where the *file* is would stop
+ * short of it by its own height. A floor under the height, so it stays grabbable on a
+ * file of five thousand lines.
+ */
+const thumbStyle = computed(() => {
+  const height = Math.max(MIN_THUMB, view.value.height);
+  return {
+    top: `${view.value.progress * (1 - height) * 100}%`,
+    height: `${height * 100}%`,
+  };
+});
+
+let draggingBar = null;
+
+const scrollByThumb = (event) => {
+  const box = scroller.value;
+  const track = barTrack.value;
+  if (!box || !track || !draggingBar) return;
+  const rect = track.getBoundingClientRect();
+  const runway = Math.max(1, rect.height * (1 - Math.max(MIN_THUMB, view.value.height)));
+  const at = event.clientY - rect.top - draggingBar.grab;
+  const fraction = Math.max(0, Math.min(1, at / runway));
+  box.scrollTop = fraction * Math.max(0, box.scrollHeight - box.clientHeight);
+  measureView();
+};
+
+const onBarDown = (event) => {
+  const track = barTrack.value;
+  if (!track) return;
+  const rect = track.getBoundingClientRect();
+  const height = Math.max(MIN_THUMB, view.value.height) * rect.height;
+  const thumbTop = rect.top + (parseFloat(thumbStyle.value.top) / 100) * rect.height;
+  const within = event.clientY - thumbTop;
+  // On the track rather than the thumb: go there, then carry on from its middle.
+  draggingBar = { grab: within >= 0 && within <= height ? within : height / 2 };
+  if (within < 0 || within > height) scrollByThumb(event);
+  track.setPointerCapture?.(event.pointerId);
+};
+
+const onBarMove = (event) => {
+  if (draggingBar) scrollByThumb(event);
+};
+
+const onBarUp = (event) => {
+  draggingBar = null;
+  barTrack.value?.releasePointerCapture?.(event.pointerId);
 };
 
 /**
@@ -1381,6 +1514,28 @@ const close = async () => {
         >
           <Bars3BottomLeftIcon class="h-4 w-4" />
         </button>
+        <!-- The map of the differences comes out when the pointer nears the right-hand
+             edge; this is how it stays. Here rather than on the lane itself, where it
+             would sit on top of whatever difference is at the top of the file — and
+             where nobody would find it, since the lane is not on screen to be looked
+             at until it is already out. -->
+        <button
+          v-if="blocks.length"
+          type="button"
+          class="rounded-md p-1.5 transition hover:bg-neutral-100 dark:hover:bg-white/10"
+          :class="
+            mapPinned
+              ? 'bg-neutral-100 text-accent dark:bg-white/10'
+              : 'text-neutral-600 dark:text-neutral-300'
+          "
+          :aria-pressed="mapPinned"
+          :title="t('compare.pinMap')"
+          :aria-label="t('compare.pinMap')"
+          data-test="compare-map-pin"
+          @click="mapPinned = !mapPinned"
+        >
+          <MapPinIcon class="h-4 w-4" />
+        </button>
 
         <!-- Only when there is something to save: a row of greyed buttons naming
              files is what made this bar wrap in the first place. -->
@@ -1549,24 +1704,45 @@ const close = async () => {
 
       <div class="relative min-h-0 flex-1">
         <!--
-          Where the differences are, down the whole file, and where the reader is in it.
+          The bar the application draws for itself, there the whole time.
 
-          A scrollbar says how far down somebody has come; this says where they are
-          going, and it is one press from here to there — which on a file of two
-          thousand lines is the difference between reading a comparison and hunting
-          through one. The two say different things, so they both belong on screen:
-          this lane used to be laid over the scrollbar and hid it completely.
-
-          Set beside the scrollbar by what the scrollbar actually measures, because how
-          wide one is belongs to the platform. Where there is none — a file short enough
-          to fit, a phone drawing them over the content — the lane simply sits at the
-          edge.
+          The platform's is hidden below: it is drawn over the content and fades out
+          when nothing is moving, so on this screen there was nothing to see while
+          reading — measured, not guessed. One bar, on every platform, and a real one:
+          the thumb is grabbed where it is grabbed and the track jumps.
         -->
         <div
-          v-if="blocks.length"
+          ref="barTrack"
+          class="absolute inset-y-0 right-0 z-20 w-2.5 bg-neutral-200/70 dark:bg-zinc-800/80"
+          data-test="compare-bar"
+          @pointerdown="onBarDown"
+          @pointermove="onBarMove"
+          @pointerup="onBarUp"
+          @pointercancel="onBarUp"
+        >
+          <div
+            class="absolute inset-x-0.5 rounded-full bg-neutral-400 transition-colors hover:bg-neutral-500 dark:bg-neutral-500 dark:hover:bg-neutral-400"
+            :style="thumbStyle"
+            data-test="compare-bar-thumb"
+          ></div>
+        </div>
+
+        <!--
+          Where the differences are, down the whole file, in the colours the panes use.
+
+          Out of the way until it is wanted: it comes out when the pointer nears the
+          right-hand edge, and stays when it is pinned. Over the text rather than beside
+          it, so nothing reflows when it arrives.
+
+          One band per side, side by side, because that is the thing worth seeing at a
+          glance and the map could not show it: red where a line is only on the left,
+          green where it is only on the right, amber where both have one and they
+          differ. A block on one side only reads as a colour and a gap.
+        -->
+        <div
+          v-if="mapShown"
           ref="mapLane"
-          class="group absolute inset-y-0 z-10 w-3 cursor-pointer border-l border-neutral-200/70 bg-neutral-50/80 dark:border-neutral-800 dark:bg-zinc-900/70"
-          :style="{ right: `${scrollbarWidth}px` }"
+          class="absolute inset-y-0 right-2.5 z-10 w-4 cursor-pointer border-x border-neutral-200/70 bg-neutral-50/95 dark:border-neutral-800 dark:bg-zinc-900/95"
           :title="t('compare.mapHint')"
           data-test="compare-map"
           @pointerdown="onMapDown"
@@ -1577,10 +1753,10 @@ const close = async () => {
           <!--
             What is on screen, drawn over the whole file: the reader's place and the
             differences they are looking for in one picture. Behind the marks, so a
-            difference under the view is still the thing the press lands on.
+            difference under the view is still the thing a press lands on.
           -->
           <div
-            class="pointer-events-none absolute inset-x-0 rounded-sm border border-neutral-500/60 bg-neutral-500/30 group-hover:bg-neutral-500/45 dark:border-neutral-400/60 dark:bg-neutral-400/30 dark:group-hover:bg-neutral-400/45"
+            class="pointer-events-none absolute inset-x-0 rounded-sm border border-neutral-500/60 bg-neutral-500/20 dark:border-neutral-400/60 dark:bg-neutral-400/20"
             :style="{
               top: `${view.top * 100}%`,
               height: `${Math.max(2, view.height * 100)}%`,
@@ -1591,17 +1767,22 @@ const close = async () => {
             v-for="(block, index) in blocks"
             :key="`map-${index}`"
             type="button"
-            class="absolute right-0 w-3 transition-colors"
-            :class="index === at ? 'bg-accent' : 'bg-amber-400/70 hover:bg-amber-500'"
-            :style="{
-              top: `${(block.from / Math.max(1, rows.length)) * 100}%`,
-              height: `${Math.max(0.6, ((block.to - block.from + 1) / Math.max(1, rows.length)) * 100)}%`,
-            }"
+            class="absolute inset-x-0 flex overflow-hidden rounded-[1px]"
+            :class="index === at ? 'ring-1 ring-accent ring-offset-0' : ''"
+            :style="bandStyle(block)"
             :title="t('compare.position', { index: index + 1, count: blocks.length })"
             :aria-label="t('compare.position', { index: index + 1, count: blocks.length })"
             :data-test="`compare-map-mark-${index}`"
             @click="goToBlock(index)"
-          ></button>
+          >
+            <span
+              v-for="(tint, side) in blockTints[index]"
+              :key="side"
+              class="h-full flex-1"
+              :class="tintClass(tint)"
+              :data-tint="tint"
+            ></span>
+          </button>
         </div>
 
         <!--
@@ -1616,9 +1797,11 @@ const close = async () => {
         -->
         <div
           ref="scroller"
-          class="absolute inset-0 select-text overflow-auto pr-3 font-mono text-xs"
+          class="compare-scroller absolute inset-0 select-text overflow-auto pr-4 font-mono text-xs"
           data-test="compare-rows"
           @scroll="measureView"
+          @pointermove="onRowsPointerMove"
+          @pointerleave="mapNear = false"
         >
           <div
             v-for="entry in shown"
@@ -1730,3 +1913,20 @@ const close = async () => {
     </template>
   </div>
 </template>
+
+<style scoped>
+/*
+ * The platform's own bar, hidden on this one surface.
+ *
+ * Not everywhere: every other scrolling surface in the window keeps whatever the
+ * platform gives it. Here the comparison draws its own, and two bars side by side —
+ * one of them fading in and out — would be worse than the none there was.
+ */
+.compare-scroller {
+  scrollbar-width: none;
+}
+
+.compare-scroller::-webkit-scrollbar {
+  display: none;
+}
+</style>

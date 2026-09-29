@@ -1115,7 +1115,8 @@
     "closeUnsaved": "Cette comparaison contient des lignes copiées et non enregistrées. Fermer quand même ?",
     "matchCount": "{count} résultats",
     "unsavedTitle": "Lignes non enregistrées",
-    "mapHint": "Où vous êtes dans le fichier — cliquer pour y aller"
+    "mapHint": "Où vous êtes dans le fichier — cliquer pour y aller",
+    "pinMap": "Garder la carte des différences ouverte"
   },
   "mediaPreview": {
     "audioTrack": "Piste audio",

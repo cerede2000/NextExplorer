@@ -1115,7 +1115,8 @@
     "closeUnsaved": "Questo confronto ha righe copiate e non salvate. Chiudere comunque?",
     "matchCount": "{count} risultati",
     "unsavedTitle": "Righe non salvate",
-    "mapHint": "Dove si trova nel file — premere per andarci"
+    "mapHint": "Dove si trova nel file — premere per andarci",
+    "pinMap": "Tieni aperta la mappa delle differenze"
   },
   "mediaPreview": {
     "audioTrack": "Traccia audio",

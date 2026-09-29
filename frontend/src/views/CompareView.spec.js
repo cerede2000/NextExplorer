@@ -1003,17 +1003,205 @@ describe('editing a side', () => {
  * from here to there, which on a file of two thousand lines is the difference between
  * reading a comparison and hunting through one.
  */
+describe('the bar the comparison draws for itself', () => {
+  /**
+   * A box of a given height that scrolls, which is not something jsdom has: it lays
+   * nothing out, so every one of these is zero until it is said what they are.
+   */
+  const scrolling = (wrapper, { scrollHeight, clientHeight }) => {
+    const box = wrapper.get('[data-test="compare-rows"]').element;
+    for (const [name, value] of Object.entries({ scrollHeight, clientHeight })) {
+      Object.defineProperty(box, name, { value, configurable: true, writable: true });
+    }
+    return box;
+  };
+
+  /** A track, placed, since jsdom gives everything a box of nothing. */
+  const placed = (wrapper, mark) => {
+    const el = wrapper.get(mark).element;
+    el.getBoundingClientRect = () => ({ top: 0, height: 100, bottom: 100, left: 0, right: 12 });
+    return el;
+  };
+
+  /**
+   * There the whole time, whatever the file.
+   *
+   * The platform's own bar is drawn over the content here and fades out when nothing is
+   * moving, so on this screen there was nothing to see while reading. This one is the
+   * comparison's, so it is on screen even where there is no difference to mark.
+   */
+  it('is on screen even when the two files are the same', async () => {
+    const wrapper = await open({ 'a.txt': 'a\nb', 'b.txt': 'a\nb' });
+
+    expect(wrapper.find('[data-test="compare-bar-thumb"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="compare-map"]').exists()).toBe(false);
+  });
+
+  it('shows how much of the file is on screen, and how far down it is', async () => {
+    const wrapper = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+    const box = scrolling(wrapper, { scrollHeight: 1000, clientHeight: 200 });
+    box.scrollTop = 400;
+
+    box.dispatchEvent(new Event('scroll'));
+    await nextTick();
+
+    const style = wrapper.get('[data-test="compare-bar-thumb"]').attributes('style');
+    // A fifth of the file, halfway down the eight hundred there is to scroll — and the
+    // thumb runs the track, so halfway down it is four fifths of the way along.
+    expect(style).toContain('height: 20%');
+    expect(style).toContain('top: 40%');
+  });
+
+  /**
+   * Grabbed where it is grabbed. A thumb that jumps its middle under the pointer on
+   * every press is the thing that makes a scrollbar feel like somebody else's.
+   */
+  it('follows the pointer from the point it was taken hold of', async () => {
+    const wrapper = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+    const box = scrolling(wrapper, { scrollHeight: 1000, clientHeight: 200 });
+    box.dispatchEvent(new Event('scroll'));
+    await nextTick();
+    const track = placed(wrapper, '[data-test="compare-bar"]');
+
+    // Taken hold of four pixels down a twenty-pixel thumb — deliberately not its
+    // middle, which is the whole point — and moved to fifty.
+    await wrapper.get('[data-test="compare-bar"]').trigger('pointerdown', { clientY: 4 });
+    await wrapper.get('[data-test="compare-bar"]').trigger('pointermove', { clientY: 50 });
+
+    // The thumb's top is now at 46 of an 80-pixel runway, so 57.5% of the 800 there is
+    // to scroll. Taken by its middle it would be 400, which is why the number matters.
+    expect(box.scrollTop).toBeCloseTo(460);
+    expect(track).toBeTruthy();
+  });
+
+  /** Pressed on the track away from the thumb, it goes there. That is what a track is. */
+  it('jumps when the track is pressed', async () => {
+    const wrapper = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+    const box = scrolling(wrapper, { scrollHeight: 1000, clientHeight: 200 });
+    box.dispatchEvent(new Event('scroll'));
+    await nextTick();
+    placed(wrapper, '[data-test="compare-bar"]');
+
+    await wrapper.get('[data-test="compare-bar"]').trigger('pointerdown', { clientY: 90 });
+
+    // Eighty of the eighty-pixel runway, once the thumb's own middle is taken off.
+    expect(box.scrollTop).toBe(800);
+  });
+});
+
+/**
+ * Where the differences are, down the whole file, whatever is on screen.
+ *
+ * A scrollbar says how far down somebody has come; this says where they are going — and
+ * it is one press from here to there, which on a file of two thousand lines is the
+ * difference between reading a comparison and hunting through one. Out of the way until
+ * it is wanted, because most of the time what is wanted is the two files.
+ */
 describe('the map of the differences', () => {
-  it('has a mark for each of them, and none when there are none', async () => {
-    const two = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+  const scrolling = (wrapper, { scrollHeight, clientHeight }) => {
+    const box = wrapper.get('[data-test="compare-rows"]').element;
+    for (const [name, value] of Object.entries({ scrollHeight, clientHeight })) {
+      Object.defineProperty(box, name, { value, configurable: true, writable: true });
+    }
+    return box;
+  };
+
+  const laneOf = (wrapper) => {
+    const lane = wrapper.get('[data-test="compare-map"]').element;
+    lane.getBoundingClientRect = () => ({ top: 0, height: 100, bottom: 100, left: 0, right: 12 });
+    return lane;
+  };
+
+  /** Pinned, which is how it stays out while something else is being asserted. */
+  const withMap = async (files) => {
+    const wrapper = await open(files);
+    await wrapper.get('[data-test="compare-map-pin"]').trigger('click');
+    return wrapper;
+  };
+
+  it('stays out of the way until the pointer comes near the right-hand edge', async () => {
+    const wrapper = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+    const rows = wrapper.get('[data-test="compare-rows"]');
+    rows.element.getBoundingClientRect = () => ({ top: 0, height: 100, left: 0, right: 500 });
+
+    expect(wrapper.find('[data-test="compare-map"]').exists()).toBe(false);
+
+    // Well inside the text: still nothing.
+    await rows.trigger('pointermove', { clientX: 200 });
+    expect(wrapper.find('[data-test="compare-map"]').exists()).toBe(false);
+
+    await rows.trigger('pointermove', { clientX: 480 });
+    expect(wrapper.find('[data-test="compare-map"]').exists()).toBe(true);
+
+    await rows.trigger('pointerleave');
+    expect(wrapper.find('[data-test="compare-map"]').exists()).toBe(false);
+  });
+
+  /** And stays for good when it is pinned, pointer or no pointer. */
+  it('stays out when it is pinned', async () => {
+    const wrapper = await withMap({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+
+    expect(wrapper.find('[data-test="compare-map"]').exists()).toBe(true);
+
+    await wrapper.get('[data-test="compare-map-pin"]').trigger('click');
+    expect(wrapper.find('[data-test="compare-map"]').exists()).toBe(false);
+  });
+
+  /** A reader who pinned it did not pin it for one glance. */
+  it('is still pinned when the tab comes back', async () => {
+    const wrapper = await withMap({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+    appTabs.activeId = 'tab-9';
+    wrapper.unmount();
+    appTabs.activeId = 'tab-1';
+
+    const again = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+
+    expect(again.find('[data-test="compare-map"]').exists()).toBe(true);
+  });
+
+  it('has a mark for each of them, and none at all when there are none', async () => {
+    const two = await withMap({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
     expect(two.findAll('[data-test^="compare-map-mark-"]')).toHaveLength(2);
 
     const same = await open({ 'a.txt': 'a\nb', 'b.txt': 'a\nb' });
-    expect(same.find('[data-test="compare-map"]').exists()).toBe(false);
+    expect(same.find('[data-test="compare-map-pin"]').exists()).toBe(false);
+  });
+
+  /**
+   * In the colours the panes use, one band per side.
+   *
+   * Every difference used to be the same amber mark, so the one thing worth seeing at a
+   * glance — whether something was taken away, added, or merely rewritten — was the one
+   * thing the map could not show.
+   */
+  it('says in colour what each side has', async () => {
+    const changed = await withMap({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
+    expect(
+      changed
+        .get('[data-test="compare-map-mark-0"]')
+        .findAll('span')
+        .map((one) => one.attributes('data-tint'))
+    ).toEqual(['both', 'both']);
+
+    const gone = await withMap({ 'a.txt': 'one\ntwo', 'b.txt': 'one' });
+    expect(
+      gone
+        .get('[data-test="compare-map-mark-0"]')
+        .findAll('span')
+        .map((one) => one.attributes('data-tint'))
+    ).toEqual(['gone', 'none']);
+
+    const added = await withMap({ 'a.txt': 'one', 'b.txt': 'one\ntwo' });
+    expect(
+      added
+        .get('[data-test="compare-map-mark-0"]')
+        .findAll('span')
+        .map((one) => one.attributes('data-tint'))
+    ).toEqual(['none', 'new']);
   });
 
   it('goes to the difference the mark stands for', async () => {
-    const wrapper = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+    const wrapper = await withMap({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
 
     await wrapper.get('[data-test="compare-map-mark-1"]').trigger('click');
 
@@ -1021,76 +1209,12 @@ describe('the map of the differences', () => {
   });
 
   /**
-   * A box of a given height that scrolls, which is not something jsdom has: it lays
-   * nothing out, so every one of these is zero until it is said what they are.
-   */
-  const scrolling = (wrapper, { scrollHeight, clientHeight, offsetWidth, clientWidth }) => {
-    const box = wrapper.get('[data-test="compare-rows"]').element;
-    const sizes = { scrollHeight, clientHeight, offsetWidth, clientWidth };
-    for (const [name, value] of Object.entries(sizes)) {
-      Object.defineProperty(box, name, { value, configurable: true, writable: true });
-    }
-    return box;
-  };
-
-  /** The lane, placed, since jsdom gives everything a box of nothing. */
-  const laneOf = (wrapper) => {
-    const lane = wrapper.get('[data-test="compare-map"]').element;
-    lane.getBoundingClientRect = () => ({ top: 0, height: 100, bottom: 100, left: 0, right: 12 });
-    return lane;
-  };
-
-  /**
-   * The scrollbar was there all along and nobody could see it.
-   *
-   * This lane is laid over the right-hand edge of the scrolling box, which is exactly
-   * where a scrollbar is drawn — so the one control that says how far down a long file
-   * somebody has come was underneath it. Set beside it by what the scrollbar measures,
-   * because how wide one is belongs to the platform.
-   */
-  it('stands beside the scrollbar rather than over it', async () => {
-    const wrapper = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
-    const box = scrolling(wrapper, {
-      scrollHeight: 1000,
-      clientHeight: 200,
-      offsetWidth: 510,
-      clientWidth: 500,
-    });
-
-    box.dispatchEvent(new Event('scroll'));
-    await nextTick();
-
-    expect(wrapper.get('[data-test="compare-map"]').attributes('style')).toContain('right: 10px');
-  });
-
-  /** Nothing to stay clear of where the platform draws no scrollbar. */
-  it('sits at the edge where there is no scrollbar', async () => {
-    const wrapper = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
-    const box = scrolling(wrapper, {
-      scrollHeight: 1000,
-      clientHeight: 200,
-      offsetWidth: 500,
-      clientWidth: 500,
-    });
-
-    box.dispatchEvent(new Event('scroll'));
-    await nextTick();
-
-    expect(wrapper.get('[data-test="compare-map"]').attributes('style')).toContain('right: 0px');
-  });
-
-  /**
    * And the map says the thing a scrollbar cannot: it shows the whole file at once, so
    * the reader's place and the differences they are looking for are one picture.
    */
   it('draws what is on screen over the whole file', async () => {
-    const wrapper = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
-    const box = scrolling(wrapper, {
-      scrollHeight: 1000,
-      clientHeight: 200,
-      offsetWidth: 500,
-      clientWidth: 500,
-    });
+    const wrapper = await withMap({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+    const box = scrolling(wrapper, { scrollHeight: 1000, clientHeight: 200 });
     box.scrollTop = 400;
 
     box.dispatchEvent(new Event('scroll'));
@@ -1103,13 +1227,8 @@ describe('the map of the differences', () => {
 
   /** Pressed anywhere down the lane, the file goes there — that point in the middle. */
   it('takes the file to where the lane was pressed', async () => {
-    const wrapper = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
-    const box = scrolling(wrapper, {
-      scrollHeight: 1000,
-      clientHeight: 200,
-      offsetWidth: 500,
-      clientWidth: 500,
-    });
+    const wrapper = await withMap({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+    const box = scrolling(wrapper, { scrollHeight: 1000, clientHeight: 200 });
     laneOf(wrapper);
 
     await wrapper.get('[data-test="compare-map"]').trigger('pointerdown', { clientY: 50 });
@@ -1120,13 +1239,8 @@ describe('the map of the differences', () => {
 
   /** A mark is a difference to go to, not a place in the file. */
   it('leaves a press on a mark to the mark', async () => {
-    const wrapper = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
-    const box = scrolling(wrapper, {
-      scrollHeight: 1000,
-      clientHeight: 200,
-      offsetWidth: 500,
-      clientWidth: 500,
-    });
+    const wrapper = await withMap({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+    const box = scrolling(wrapper, { scrollHeight: 1000, clientHeight: 200 });
     laneOf(wrapper);
 
     await wrapper.get('[data-test="compare-map-mark-1"]').trigger('pointerdown', { clientY: 50 });
