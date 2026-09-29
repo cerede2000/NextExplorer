@@ -1,6 +1,6 @@
 <script setup>
 import { computed, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { XMarkIcon } from '@heroicons/vue/24/outline';
 import { useI18n } from 'vue-i18n';
 import { HOME, useTabsStore } from '@/stores/tabs';
@@ -48,7 +48,29 @@ watch(
   (ids) => terminalStore.keepOnly(ids.split('\u0000').filter(Boolean))
 );
 
-const isShowing = (id) => id === tabsStore.activeId;
+/**
+ * Whether this terminal is the thing to draw.
+ *
+ * Not simply "its tab is in front". A terminal that *is* the tab covers everything the
+ * tab holds, and it was being drawn for as long as that tab was active — so leaving it
+ * did nothing: a favourite or a volume pressed in the sidebar took the tab to that
+ * folder, the folder was drawn underneath, and the terminal stayed on top of it. The
+ * reader had a sidebar that answered nothing.
+ *
+ * So a terminal that is the tab is drawn while the tab is *at* a terminal, and the tab
+ * is free to go somewhere else. The session is not closed by leaving — it belongs to
+ * the tab, so stepping back into it finds the shell where it was left.
+ *
+ * A drawer is the other case and keeps the old rule: it floats over whatever the tab is
+ * on, which is what a drawer is for.
+ */
+const route = useRoute();
+
+const isShowing = (id) => {
+  if (id !== tabsStore.activeId) return false;
+  if (terminalStore.sessionFor(id)?.mode !== 'page') return true;
+  return route.path.startsWith('/terminal');
+};
 
 const router = useRouter();
 const tabNavigation = useTabNavigation();

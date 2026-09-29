@@ -2031,14 +2031,37 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   const twinTab = strip.locator('[data-test="tab"]').filter({
     has: page.locator('[role="tab"][title="Twin"]'),
   });
+  /**
+   * The tab's own menu, and a check that it can actually be pressed.
+   *
+   * `toBeVisible` is not that check, and said so: the menu used to be drawn inside the
+   * tab, and the strip is `overflow-hidden` — which is what makes tabs share the room
+   * and narrow instead of spilling out of the row — so the menu was clipped away
+   * entirely. An element clipped by an ancestor still has a box and still reports
+   * visible, which is why this journey watched the menu open for weeks while nobody
+   * could pin a tab or duplicate one.
+   *
+   * What discriminates is what the browser says is *under the pointer* there.
+   */
   const openTabMenu = async (tab) => {
     await tab.getByRole('tab').click({ button: 'right' });
-    await expect(tab.locator('[data-test="tab-menu"]')).toBeVisible();
+    const menu = page.locator('[data-test="tab-menu"]');
+    await expect(menu).toBeVisible();
+    const box = await menu.boundingBox();
+    const onTop = await page.evaluate(
+      ([x, y]) => {
+        const at = document.elementFromPoint(x, y);
+        return Boolean(at && at.closest('[data-test="tab-menu"]'));
+      },
+      [box.x + box.width / 2, box.y + 8]
+    );
+    expect(onTop).toBe(true);
+    return menu;
   };
 
   const openTabs = await tabs.count();
   await openTabMenu(twinTab.first());
-  await twinTab.first().locator('[data-test="tab-duplicate"]').click();
+  await page.locator('[data-test="tab-duplicate"]').click();
   await expect(tabs).toHaveCount(openTabs + 1);
   // Beside the one it came from, and in front.
   const titles = await strip
@@ -2056,7 +2079,7 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   await expect(tabs).toHaveCount(openTabs);
 
   await openTabMenu(twinTab.first());
-  await twinTab.first().locator('[data-test="tab-pin"]').click();
+  await page.locator('[data-test="tab-pin"]').click();
 
   const pinned = strip.locator('[data-test="tab"][data-pinned="true"]');
   await expect(pinned).toHaveCount(1);
@@ -2071,7 +2094,7 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   await expect(strip.locator('[data-test="tab"]').first()).toHaveAttribute('data-pinned', 'true');
 
   await openTabMenu(pinned.first());
-  await pinned.first().locator('[data-test="tab-pin"]').click();
+  await page.locator('[data-test="tab-pin"]').click();
   await expect(strip.locator('[data-test="tab"][data-pinned="true"]')).toHaveCount(0);
 
   /**

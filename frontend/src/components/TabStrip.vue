@@ -121,9 +121,39 @@ onClickOutside(menu, () => {
   menuFor.value = '';
 });
 
-const openMenu = (id) => {
-  menuFor.value = menuFor.value === id ? '' : id;
+/**
+ * Where the menu is drawn, in window coordinates.
+ *
+ * Drawn outside the strip, at the pointer, the way this application's other context
+ * menu is. It used to sit inside the tab it belonged to and hang below it — and the
+ * strip is `overflow-hidden`, because that is what makes tabs share the room and narrow
+ * instead of spilling out of the row. So the menu opened and was cut away entirely:
+ * there was no pinning a tab and no duplicating one, because there was nothing on
+ * screen to press. No `z-index` reaches out of an ancestor that clips.
+ */
+const menuAt = ref({ x: 0, y: 0 });
+const MENU_SIZE = { width: 224, height: 240 };
+
+const openMenu = (id, event) => {
+  if (menuFor.value === id) {
+    menuFor.value = '';
+    return;
+  }
+  // Kept inside the window: a tab at the right-hand end would otherwise put its menu
+  // off the edge, which is the same defect in a different direction.
+  const room = {
+    width: window.innerWidth || MENU_SIZE.width,
+    height: window.innerHeight || MENU_SIZE.height,
+  };
+  menuAt.value = {
+    x: Math.max(4, Math.min(event?.clientX ?? 0, room.width - MENU_SIZE.width - 4)),
+    y: Math.max(4, Math.min(event?.clientY ?? 0, room.height - MENU_SIZE.height - 4)),
+  };
+  menuFor.value = id;
 };
+
+/** The tab the menu is open on, or null — the menu is drawn once, not once per tab. */
+const menuTab = computed(() => tabs.tabs.find((tab) => tab.id === menuFor.value) || null);
 
 const runAndShut = (action, id) => {
   menuFor.value = '';
@@ -315,7 +345,7 @@ const duplicate = (id) => {
         @click="activate(tab.id)"
         @dblclick="handleDoubleClick(tab.id)"
         @auxclick.middle.prevent="close(tab.id)"
-        @contextmenu.prevent="openMenu(tab.id)"
+        @contextmenu.prevent="openMenu(tab.id, $event)"
       >
         <SpinnerIcon
           v-if="isLoading(tab)"
@@ -343,67 +373,6 @@ const duplicate = (id) => {
       >
         <XMarkIcon class="h-4 w-4" />
       </button>
-
-      <div
-        v-if="menuFor === tab.id"
-        ref="menu"
-        class="absolute left-0 top-full z-50 mt-1 w-56 rounded-md border border-neutral-200 bg-zinc-100 p-1 shadow-md dark:border-neutral-600 dark:bg-neutral-700"
-        data-test="tab-menu"
-      >
-        <button
-          type="button"
-          class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 disabled:opacity-50 dark:hover:bg-neutral-600"
-          :disabled="!tabs.canMove(tab.id, -1)"
-          data-test="tab-move-left"
-          @click="nudge(tab.id, -1)"
-        >
-          {{ t('tabs.moveLeft') }}
-        </button>
-        <button
-          type="button"
-          class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 disabled:opacity-50 dark:hover:bg-neutral-600"
-          :disabled="!tabs.canMove(tab.id, 1)"
-          data-test="tab-move-right"
-          @click="nudge(tab.id, 1)"
-        >
-          {{ t('tabs.moveRight') }}
-        </button>
-        <button
-          type="button"
-          class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 disabled:opacity-50 dark:hover:bg-neutral-600"
-          :disabled="tabs.atLimit"
-          data-test="tab-duplicate"
-          @click="duplicate(tab.id)"
-        >
-          {{ t('tabs.duplicate') }}
-        </button>
-        <button
-          type="button"
-          class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 dark:hover:bg-neutral-600"
-          data-test="tab-pin"
-          @click="togglePinned(tab.id)"
-        >
-          {{ tab.pinned ? t('tabs.unpin') : t('tabs.pin') }}
-        </button>
-        <button
-          type="button"
-          class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 disabled:opacity-50 dark:hover:bg-neutral-600"
-          :disabled="!tabs.canClose"
-          data-test="tab-close-one"
-          @click="runAndShut(close, tab.id)"
-        >
-          {{ t('tabs.closeTab') }}
-        </button>
-        <button
-          type="button"
-          class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 disabled:opacity-50 dark:hover:bg-neutral-600"
-          :disabled="!tabs.canClose"
-          data-test="tab-close-others"
-          @click="runAndShut(closeOthers, tab.id)"
-        >
-          {{ t('tabs.closeOthers') }}
-        </button>
-      </div>
     </div>
 
     <button
@@ -417,6 +386,78 @@ const duplicate = (id) => {
     >
       <PlusIcon class="h-4 w-4" />
     </button>
+
+    <!--
+      The tab's own menu, drawn on the body rather than inside the tab it belongs to.
+
+      The strip is `overflow-hidden` — that is what makes tabs share the room and narrow
+      instead of spilling out of the row — so a menu hanging below a tab was cut away
+      entirely, and there was no pinning a tab and no duplicating one because there was
+      nothing on screen to press.
+    -->
+    <Teleport to="body">
+      <div
+        v-if="menuTab"
+        ref="menu"
+        class="fixed z-2200 w-56 rounded-md border border-neutral-200 bg-zinc-100 p-1 shadow-md dark:border-neutral-600 dark:bg-neutral-700"
+        :style="{ left: `${menuAt.x}px`, top: `${menuAt.y}px` }"
+        data-test="tab-menu"
+      >
+        <button
+          type="button"
+          class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 disabled:opacity-50 dark:hover:bg-neutral-600"
+          :disabled="!tabs.canMove(menuTab.id, -1)"
+          data-test="tab-move-left"
+          @click="nudge(menuTab.id, -1)"
+        >
+          {{ t('tabs.moveLeft') }}
+        </button>
+        <button
+          type="button"
+          class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 disabled:opacity-50 dark:hover:bg-neutral-600"
+          :disabled="!tabs.canMove(menuTab.id, 1)"
+          data-test="tab-move-right"
+          @click="nudge(menuTab.id, 1)"
+        >
+          {{ t('tabs.moveRight') }}
+        </button>
+        <button
+          type="button"
+          class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 disabled:opacity-50 dark:hover:bg-neutral-600"
+          :disabled="tabs.atLimit"
+          data-test="tab-duplicate"
+          @click="duplicate(menuTab.id)"
+        >
+          {{ t('tabs.duplicate') }}
+        </button>
+        <button
+          type="button"
+          class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 dark:hover:bg-neutral-600"
+          data-test="tab-pin"
+          @click="togglePinned(menuTab.id)"
+        >
+          {{ menuTab.pinned ? t('tabs.unpin') : t('tabs.pin') }}
+        </button>
+        <button
+          type="button"
+          class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 disabled:opacity-50 dark:hover:bg-neutral-600"
+          :disabled="!tabs.canClose"
+          data-test="tab-close-one"
+          @click="runAndShut(close, menuTab.id)"
+        >
+          {{ t('tabs.closeTab') }}
+        </button>
+        <button
+          type="button"
+          class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 disabled:opacity-50 dark:hover:bg-neutral-600"
+          :disabled="!tabs.canClose"
+          data-test="tab-close-others"
+          @click="runAndShut(closeOthers, menuTab.id)"
+        >
+          {{ t('tabs.closeOthers') }}
+        </button>
+      </div>
+    </Teleport>
 
     <!-- Everything closed and one new tab at the volumes: a window with no tabs
          has nowhere to be, so "close them all" means "start again". -->

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
-import { reactive } from 'vue';
+import { nextTick, reactive } from 'vue';
 
 /**
  * Every terminal that is open, drawn where its tab wants it.
@@ -27,7 +27,13 @@ vi.mock('@/components/TerminalSurface.vue', () => ({
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key) => key }) }));
 
 const push = vi.hoisted(() => vi.fn());
-vi.mock('vue-router', () => ({ useRouter: () => ({ push }) }));
+/**
+ * Where the tab is, which a terminal that *is* the tab now asks before drawing itself:
+ * it used to cover whatever the tab held for as long as the tab was in front, so
+ * leaving it did nothing at all.
+ */
+const where = reactive({ path: '/terminal/Projects' });
+vi.mock('vue-router', () => ({ useRouter: () => ({ push }), useRoute: () => where }));
 
 const tabsStore = reactive({
   tabs: [{ id: 'tab-1' }, { id: 'tab-2' }],
@@ -64,6 +70,43 @@ beforeEach(() => {
 });
 
 describe('the terminals on screen', () => {
+  /**
+   * A terminal that *is* the tab is drawn while the tab is at one — and gets out of the
+   * way when the tab goes somewhere else.
+   *
+   * It did not. It covered whatever the tab held for as long as that tab was in front,
+   * so a favourite or a volume pressed in the sidebar took the tab to that folder, the
+   * folder was drawn underneath, and the terminal stayed on top of it. The reader had a
+   * sidebar that answered nothing.
+   */
+  it('gets out of the way when its tab goes somewhere else', async () => {
+    terminals.openIn('tab-1', 'Projects', { mode: 'page' });
+    const wrapper = show();
+
+    const surface = () => wrapper.get('[data-tab="tab-1"]');
+    expect(surface().classes()).not.toContain('invisible');
+
+    where.path = '/browse/Projects';
+    await nextTick();
+    expect(surface().classes()).toContain('invisible');
+
+    // And the session is not ended by leaving: stepping back finds the shell.
+    where.path = '/terminal/Projects';
+    await nextTick();
+    expect(surface().classes()).not.toContain('invisible');
+  });
+
+  /** A drawer is the other case: it floats over whatever the tab is on. */
+  it('leaves a drawer where it is, whatever the tab is showing', async () => {
+    terminals.openIn('tab-1', 'Projects', { mode: 'drawer' });
+    const wrapper = show();
+
+    where.path = '/browse/Projects';
+    await nextTick();
+
+    expect(wrapper.get('[data-tab="tab-1"]').classes()).not.toContain('invisible');
+  });
+
   it('are one per tab that has one, and none for a tab that has not', () => {
     terminals.openIn('tab-2', 'Media');
     const wrapper = show();

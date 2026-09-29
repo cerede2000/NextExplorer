@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { DOMWrapper, mount } from '@vue/test-utils';
 import { ref } from 'vue';
 
 /**
@@ -111,14 +111,37 @@ import TabStrip from './TabStrip.vue';
 
 const tab = (id, kind, path, extra = {}) => ({ id, kind, path, pinned: false, ...extra });
 
+/**
+ * The tab's own menu, looked for on the body.
+ *
+ * It is drawn there rather than inside the tab it belongs to, and that is the whole
+ * point of it: the strip is `overflow-hidden` — which is what makes tabs share the room
+ * and narrow instead of spilling out of the row — so a menu hanging below a tab was cut
+ * away entirely. It opened, and there was nothing on screen to press.
+ */
+const inBody = (selector) => new DOMWrapper(document.body.querySelector(selector));
+
+/**
+ * The strip on screen, and the one before it taken down.
+ *
+ * Taken down rather than left: the menu is teleported to the body, so a strip nobody
+ * unmounted leaves its menu there — and "one menu" would then mean one per test that
+ * ever ran. Unmounted, because wiping the body under a live component leaves Vue
+ * patching nodes that are no longer anybody's.
+ */
+let strip = null;
+
 const withTabs = (list, active = list[0]?.id) => {
   state.tabs.value = list;
   state.activeId.value = active;
   state.canClose.value = list.length > 1;
-  return mount(TabStrip);
+  strip = mount(TabStrip);
+  return strip;
 };
 
 beforeEach(() => {
+  strip?.unmount();
+  strip = null;
   state.visible.value = true;
   state.tabs.value = [];
   state.activeId.value = '';
@@ -206,23 +229,74 @@ describe('what the buttons do', () => {
 });
 
 describe('the menu on a tab', () => {
-  it('is not there until the tab is asked', async () => {
+  /**
+   * Drawn outside the strip, because the strip clips.
+   *
+   * The strip is `overflow-hidden` — that is what makes tabs share the room and narrow
+   * instead of spilling out of the row — and the menu used to hang below the tab it
+   * belonged to, inside it. So it was cut away entirely: it opened, the state said so,
+   * and there was nothing on screen to press. No `z-index` reaches out of an ancestor
+   * that clips.
+   */
+  it('is drawn outside the strip, which clips what is inside it', async () => {
     const wrapper = withTabs([tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')]);
-    expect(wrapper.find('[data-test="tab-menu"]').exists()).toBe(false);
 
     await wrapper.findAll('[role="tab"]')[1].trigger('contextmenu');
 
-    expect(wrapper.findAll('[data-test="tab-menu"]')).toHaveLength(1);
+    // The reason, written down: the strip really does clip.
+    expect(wrapper.get('[data-test="tab-strip"]').classes()).toContain('overflow-hidden');
+    // And the menu is not in it.
+    expect(wrapper.find('[data-test="tab-menu"]').exists()).toBe(false);
+    expect(document.body.querySelector('[data-test="tab-menu"]')).not.toBe(null);
+    expect(
+      wrapper
+        .get('[data-test="tab-strip"]')
+        .element.contains(inBody('[data-test="tab-menu"]').element)
+    ).toBe(false);
+  });
+
+  /** Where the pointer asked for it, and never off the edge of the window. */
+  it('is placed where the tab was right-clicked', async () => {
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')]);
+
+    await wrapper.findAll('[role="tab"]')[1].trigger('contextmenu', { clientX: 240, clientY: 36 });
+
+    const style = inBody('[data-test="tab-menu"]').attributes('style');
+    expect(style).toContain('left: 240px');
+    expect(style).toContain('top: 36px');
+  });
+
+  it('is pulled back inside the window at the right-hand end', async () => {
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')]);
+
+    await wrapper
+      .findAll('[role="tab"]')[1]
+      .trigger('contextmenu', { clientX: window.innerWidth - 2, clientY: 10 });
+
+    const left = Number(
+      /left:\s*(-?\d+)px/.exec(inBody('[data-test="tab-menu"]').attributes('style'))[1]
+    );
+    expect(left).toBeLessThan(window.innerWidth - 224);
+    expect(left).toBeGreaterThanOrEqual(4);
+  });
+
+  it('is not there until the tab is asked', async () => {
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')]);
+    expect(document.body.querySelector('[data-test="tab-menu"]')).toBe(null);
+
+    await wrapper.findAll('[role="tab"]')[1].trigger('contextmenu');
+
+    expect(document.body.querySelectorAll('[data-test="tab-menu"]')).toHaveLength(1);
   });
 
   it('closes the others, and shuts itself', async () => {
     const wrapper = withTabs([tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')]);
     await wrapper.findAll('[role="tab"]')[0].trigger('contextmenu');
 
-    await wrapper.get('[data-test="tab-close-others"]').trigger('click');
+    await inBody('[data-test="tab-close-others"]').trigger('click');
 
     expect(actions.closeOthers).toHaveBeenCalledWith('a');
-    expect(wrapper.find('[data-test="tab-menu"]').exists()).toBe(false);
+    expect(document.body.querySelector('[data-test="tab-menu"]')).toBe(null);
   });
 });
 
@@ -289,18 +363,18 @@ describe('moving a tab along the row', () => {
     const wrapper = three();
     await wrapper.findAll('[role="tab"]')[1].trigger('contextmenu');
 
-    await wrapper.get('[data-test="tab-move-left"]').trigger('click');
+    await inBody('[data-test="tab-move-left"]').trigger('click');
 
     expect(store.nudge).toHaveBeenCalledWith('b', -1);
     // And the menu is gone, as it is after everything else it offers.
-    expect(wrapper.find('[data-test="tab-menu"]').exists()).toBe(false);
+    expect(document.body.querySelector('[data-test="tab-menu"]')).toBe(null);
   });
 
   it('offers the other direction too', async () => {
     const wrapper = three();
     await wrapper.findAll('[role="tab"]')[1].trigger('contextmenu');
 
-    await wrapper.get('[data-test="tab-move-right"]').trigger('click');
+    await inBody('[data-test="tab-move-right"]').trigger('click');
 
     expect(store.nudge).toHaveBeenCalledWith('b', 1);
   });
@@ -309,8 +383,8 @@ describe('moving a tab along the row', () => {
     const wrapper = three();
     await wrapper.findAll('[role="tab"]')[0].trigger('contextmenu');
 
-    expect(wrapper.get('[data-test="tab-move-left"]').attributes('disabled')).toBeDefined();
-    expect(wrapper.get('[data-test="tab-move-right"]').attributes('disabled')).toBeUndefined();
+    expect(inBody('[data-test="tab-move-left"]').attributes('disabled')).toBeDefined();
+    expect(inBody('[data-test="tab-move-right"]').attributes('disabled')).toBeUndefined();
   });
 });
 
@@ -494,10 +568,10 @@ describe('a pinned tab', () => {
     const wrapper = withOnePinned();
     await wrapper.findAll('[role="tab"]')[1].trigger('contextmenu');
 
-    await wrapper.get('[data-test="tab-pin"]').trigger('click');
+    await inBody('[data-test="tab-pin"]').trigger('click');
 
     expect(store.togglePinned).toHaveBeenCalledWith('b');
-    expect(wrapper.find('[data-test="tab-menu"]').exists()).toBe(false);
+    expect(document.body.querySelector('[data-test="tab-menu"]')).toBe(null);
   });
 });
 
@@ -506,7 +580,7 @@ describe('the same place again, beside itself', () => {
     const wrapper = withTabs([tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')]);
     await wrapper.findAll('[role="tab"]')[0].trigger('contextmenu');
 
-    await wrapper.get('[data-test="tab-duplicate"]').trigger('click');
+    await inBody('[data-test="tab-duplicate"]').trigger('click');
 
     expect(store.duplicate).toHaveBeenCalledWith('a');
     expect(actions.activate).toHaveBeenCalledWith('copy');
@@ -517,7 +591,7 @@ describe('the same place again, beside itself', () => {
     const wrapper = withTabs([tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')]);
     await wrapper.findAll('[role="tab"]')[0].trigger('contextmenu');
 
-    expect(wrapper.get('[data-test="tab-duplicate"]').attributes('disabled')).toBeDefined();
+    expect(inBody('[data-test="tab-duplicate"]').attributes('disabled')).toBeDefined();
   });
 });
 
