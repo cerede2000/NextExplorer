@@ -15,7 +15,23 @@ import { useEditorDraftsStore } from './editorDrafts';
 import { useTabsStore } from '@/stores/tabs';
 
 const ADDRESS = '/editor/Docs/notes.md';
-const PLACE = { text: 'half a sentence', selection: { anchor: 4, head: 9 }, scrollTop: 320 };
+/**
+ * A place as the editor answers one, `topLine` included.
+ *
+ * That field is the reason the fixture is worth spelling out: where the reader is
+ * in a long file is the line at the top of the screen rather than a number of
+ * pixels, because a scroll position written into CodeMirror before it has measured
+ * is clamped to whatever fits. The editor started answering with it and this store
+ * dropped it on the way past, so the fix was in the file and the reader still came
+ * back to the top — with their cursor intact beside them, which is what made it
+ * look as though the editor were at fault.
+ */
+const PLACE = {
+  text: 'half a sentence',
+  selection: { anchor: 4, head: 9 },
+  scrollTop: 320,
+  topLine: 1840,
+};
 
 beforeEach(() => {
   setActivePinia(createPinia());
@@ -27,6 +43,21 @@ describe('what is kept belongs to a tab and an address', () => {
     drafts.keep('tab-1', ADDRESS, PLACE);
 
     expect(drafts.placeFor('tab-1', ADDRESS)).toEqual({ address: ADDRESS, ...PLACE });
+  });
+
+  /**
+   * Whole means whole: this store is not the thing that decides which parts of a
+   * place survive. It was written as a list of the fields it knew the names of,
+   * and the one the editor added later never came back.
+   */
+  it('is handed back with a part of it this store has never heard of', () => {
+    const drafts = useEditorDraftsStore();
+    drafts.keep('tab-1', ADDRESS, { ...PLACE, somethingNew: 'from a later editor' });
+
+    expect(drafts.placeFor('tab-1', ADDRESS)).toMatchObject({
+      topLine: 1840,
+      somethingNew: 'from a later editor',
+    });
   });
 
   /** Another file in the same tab: none of this has anything to do with it. */

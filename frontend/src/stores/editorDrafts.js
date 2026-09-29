@@ -51,14 +51,24 @@ export const useEditorDraftsStore = defineStore('editor-drafts', () => {
   /**
    * Hold where the tab was, for the address it belongs to.
    *
+   * Kept whole — everything handed over, not a list of the fields this store
+   * happens to know the names of. It was written the other way round and it threw
+   * one away: where the reader is in a long file is the *line* at the top of the
+   * screen rather than a number of pixels, because a scroll position written into
+   * CodeMirror before it has measured is clamped to whatever fits. The editor
+   * started answering with that line; this store quietly dropped it on the way
+   * past, and the reader came back to the top of the file with their cursor
+   * intact beside them — the very thing the line was added to fix.
+   *
    * @param {string} key  The tab.
    * @param {string} address  The address it is on; a draft belongs to one.
-   * @param {object} where  `{ text, selection, scrollTop }` — `text` null unless
-   *   it differs from the file.
+   * @param {object} where  Whatever the editor says a place is, plus `text` —
+   *   null unless it differs from the file.
    */
   const keep = (key, address, where = {}) => {
     if (!key || !address) return;
     drafts.set(key, {
+      ...where,
       address,
       text: typeof where.text === 'string' ? where.text : null,
       selection: where.selection || null,

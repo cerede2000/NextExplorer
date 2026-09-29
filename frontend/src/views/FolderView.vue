@@ -434,12 +434,20 @@ const applySavedScrollPosition = (savedScrollTop) => {
  * container that is not scrollable yet is the top.
  *
  * So it is asked again on each of the next few frames, until the list is tall
- * enough to hold the answer. It stops early when it holds, it stops when the
- * reader scrolls themselves — their hand beats our memory — and it stops after a
- * few frames whatever happens, because a folder that has genuinely lost its
- * length (files deleted while this tab was away) is never going to be that tall.
+ * enough to hold the answer. It stops as soon as it holds, and after a fixed
+ * number of frames whatever happens, because a folder that has genuinely lost its
+ * length — files deleted while this tab was away — is never going to be that tall.
+ *
+ * It does not try to tell whether the reader has scrolled in the meantime. The
+ * first version did, by watching whether the position moved between two frames,
+ * and it was wrong about the one case that matters: setting the position of a
+ * virtual list makes it draw different rows, which changes its height for a frame,
+ * which makes the browser clamp the position — a move that looks exactly like a
+ * hand on the wheel. It gave up there, in the folders the whole thing exists for.
+ * A third of a second is not long enough for anybody to have scrolled anywhere on
+ * purpose, and if they do, the loop is over before it could fight them for long.
  */
-const FRAMES_TO_SETTLE_SCROLL = 12;
+const FRAMES_TO_SETTLE_SCROLL = 20;
 
 const settleScrollAt = async (savedScrollTop) => {
   if (!(savedScrollTop > 0)) return false;
@@ -456,11 +464,6 @@ const settleScrollAt = async (savedScrollTop) => {
     if (maxScrollTop >= savedScrollTop && Math.abs(placed - savedScrollTop) <= 1) return true;
 
     await waitForScrollLayout();
-
-    // Moved by somebody other than us since the frame before: that is the
-    // reader, and they are more recent than anything we remembered.
-    const now = getScrollTarget()?.scrollTop ?? 0;
-    if (Math.abs(now - placed) > 1 && Math.abs(now - savedScrollTop) > 1) return false;
   }
 
   return false;

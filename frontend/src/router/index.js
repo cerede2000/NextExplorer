@@ -241,13 +241,24 @@ const router = createRouter({
     },
     {
       // One terminal, at an address of its own — see views/TerminalView.vue.
-      // Outside the browser layout on purpose, like a document: a terminal
-      // opened in its own tab is the terminal, and nothing else. Loaded on
-      // demand, because it carries xterm with it.
+      //
+      // Inside the browser layout, unlike a document, because the terminal itself
+      // is drawn there: every open terminal belongs to `TerminalHost.vue`, which
+      // is mounted once beside what a tab holds and outlives every page, since a
+      // page is unmounted the moment another tab comes forward and an unmounted
+      // terminal is a killed shell. Outside the layout there is no host, and the
+      // page — which deliberately draws no terminal of its own — was a black
+      // rectangle. Loaded on demand, because the host carries xterm with it.
       path: '/terminal/:path(.*)*',
-      name: 'TerminalView',
-      component: () => import('@/views/TerminalView.vue'),
+      component: BrowserLayout,
       meta: { requiresAuth: true, requiresAdmin: true },
+      children: [
+        {
+          path: '',
+          name: 'TerminalView',
+          component: () => import('@/views/TerminalView.vue'),
+        },
+      ],
     },
     {
       path: '/auth/setup',

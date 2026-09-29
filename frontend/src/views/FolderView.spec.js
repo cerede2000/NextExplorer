@@ -1370,6 +1370,58 @@ describe('a folder tab coming back', () => {
   });
 
   /**
+   * A folder that is not yet as tall as it will be.
+   *
+   * This is the case the whole thing exists for and the one that is invisible in
+   * a browser test, because there it either happens or it does not depending on
+   * the machine. A long list is drawn a screenful at a time: on the frame the tab
+   * asks to be put back, the container is barely a screen tall, and a position it
+   * cannot hold is a position the browser turns into the top. So the height is
+   * made to grow here, frame by frame, the way it does on a slow render — and
+   * what is asked is that the answer is still reached.
+   *
+   * It also holds the thing that went wrong in the first attempt at this: the fix
+   * watched whether the position moved between two frames and gave up when it
+   * did, reading a virtual list redrawing itself as a hand on the wheel.
+   */
+  it('keeps asking until a list long enough to hold the place has drawn itself', async () => {
+    stores.folderScroll.tabPlace.mockReturnValue(900);
+
+    await mountFolder();
+    const listing = wrapper.find('.upload-drop-target').element;
+
+    // A container that cannot scroll at all to begin with, as a list that has
+    // drawn one screenful of two thousand rows cannot.
+    let height = 500;
+    Object.defineProperty(listing, 'scrollHeight', { get: () => height });
+    Object.defineProperty(listing, 'clientHeight', { get: () => 500 });
+    // And a scrollTop the browser clamps to what the container can hold, which
+    // is what makes the first few attempts land on nothing.
+    let placed = 0;
+    Object.defineProperty(listing, 'scrollTop', {
+      get: () => placed,
+      set: (value) => {
+        placed = Math.min(value, Math.max(0, height - 500));
+      },
+    });
+
+    // Several frames of drawing before it is tall enough, which is longer than
+    // the two the first version of this allowed for — and one frame where it
+    // gets *shorter*, which is what a windowed list does when it swaps the rows
+    // on screen and recomputes the space above and below them. The browser
+    // clamps the position when that happens, and the first attempt at this read
+    // the clamp as a hand on the wheel and gave up.
+    for (const step of [400, 400, -600, 400, 400, 400, 400, 400]) {
+      height = Math.max(500, height + step);
+      placed = Math.min(placed, Math.max(0, height - 500));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      await flushPromises();
+    }
+
+    expect(placed).toBe(900);
+  });
+
+  /**
    * A tab brought forward before it ever listed anything has nothing to come
    * back to, so it reads the folder like any first arrival.
    */

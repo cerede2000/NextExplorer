@@ -108,7 +108,7 @@ vi.mock('@/stores/versionsPanel', () => ({ useVersionsPanelStore: () => versions
  * the same promise: a document, a way to type into it, and whether it differs
  * from what was last read or saved.
  */
-const surface = vi.hoisted(() => ({ view: null, current: null }));
+const surface = vi.hoisted(() => ({ view: null, current: null, restored: [] }));
 
 vi.mock('@/components/editor/CodeSurface.vue', async () => {
   const { defineComponent: define, onMounted, onBeforeUnmount } = await import('vue');
@@ -124,6 +124,10 @@ vi.mock('@/components/editor/CodeSurface.vue', async () => {
         // of what a tab holds on to.
         let selection = { anchor: 0, head: 0 };
         const scrollDOM = { scrollTop: 0 };
+        // The line at the top of the screen, which is what the real surface
+        // answers with and what a pixel cannot stand in for — see `place()` in
+        // `components/editor/CodeSurface.vue`.
+        let topLine = 0;
         const handle = {
           typeText: (value) => {
             text = value;
@@ -142,12 +146,14 @@ vi.mock('@/components/editor/CodeSurface.vue', async () => {
           place: () => ({
             selection: { ...selection },
             scrollTop: scrollDOM.scrollTop,
-            topLine: null,
+            topLine,
           }),
           restorePlace: (kept) => {
             if (!kept) return;
+            surface.restored.push(kept);
             if (kept.selection) selection = { ...kept.selection };
             if (kept.scrollTop > 0) scrollDOM.scrollTop = kept.scrollTop;
+            if (Number.isFinite(kept.topLine)) topLine = kept.topLine;
           },
           // What the screen reaches for when it puts a kept place back: an
           // ordinary edit for the text — which is how "unsaved" stays the
@@ -248,6 +254,7 @@ beforeEach(() => {
   localStorage.clear();
   surface.view = { dispatch: vi.fn() };
   surface.current = null;
+  surface.restored.length = 0;
   languageData.markdown.load.mockClear();
   languageData.json.load.mockClear();
   shared.guards.length = 0;
@@ -1153,6 +1160,36 @@ describe('what a tab holds on to', () => {
 
   // A cursor past the end of a file somebody else shortened is clamped by the
   // editor itself, where the document is — see `CodeSurface.spec.js`.
+
+  /**
+   * Handed back whole, `topLine` and all.
+   *
+   * Where the reader is in a long file is the line at the top of the screen
+   * rather than a number of pixels, because a scroll position written into the
+   * editor before it has measured is clamped to whatever fits. The editor
+   * answered with that line, and it was dropped between here and the store, so
+   * the fix was in the file and the reader still came back to the top — with the
+   * cursor intact beside them, which made it look as though the editor were at
+   * fault. This is the seam it fell through.
+   */
+  it('gives the editor back every part of the place it answered with', async () => {
+    await mountEditor();
+    await flushPromises();
+    surface.current.restorePlace({
+      selection: { anchor: 12, head: 20 },
+      scrollTop: 640,
+      topLine: 1840,
+    });
+    surface.restored.length = 0;
+
+    // Another tab in front, and back again.
+    await anotherTabComesForward();
+    appTabs.activeId = 'tab-1';
+    await mountEditor();
+    await flushPromises();
+
+    expect(surface.restored.at(-1)).toMatchObject({ scrollTop: 640, topLine: 1840 });
+  });
 
   it('hands it back, still unsaved, when its tab comes back', async () => {
     drafts.set('tab-1', { address: '/editor/Docs/notes.md', text: 'half a sentence' });

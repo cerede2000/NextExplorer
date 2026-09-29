@@ -57,4 +57,28 @@ describe('the terminal', () => {
     expect(view).not.toMatch(/TerminalSurface/);
     expect(view).toMatch(/useTerminalStore/);
   });
+
+  /**
+   * And the terminal's address is inside the layout the host is mounted in.
+   *
+   * This is the other half of the page drawing nothing, and the two together were
+   * a black rectangle: the route sat outside `BrowserLayout` — deliberately, as a
+   * document's does — so there was no host on it, and a page whose whole job is to
+   * say "my tab wants a terminal" had nobody to say it to. Nothing else could have
+   * caught it. Every piece was right on its own, and the chain from the page to
+   * the host to the layout was only joined by the route table.
+   *
+   * Asked of the source, like the rest of this file: importing the router pulls in
+   * every screen it names eagerly, which under jsdom reaches for a canvas that is
+   * not there and hangs.
+   */
+  it('is in the layout the terminal address is reached through', async () => {
+    const router = (await import('@/router/index.js?raw')).default;
+    const between = router.slice(
+      router.indexOf("path: '/terminal/"),
+      router.indexOf("import('@/views/TerminalView.vue')")
+    );
+
+    expect(between).toMatch(/component: BrowserLayout/);
+  });
 });
