@@ -51,6 +51,15 @@ const featuresStore = useFeaturesStore();
 
 // Resizable aside state
 const asideWidth = useStorage('browser-aside-width', 230);
+
+/**
+ * A shell at an address of its own takes the whole tab.
+ *
+ * It lives in this layout because the terminals are drawn here — a page is unmounted
+ * the moment another tab comes forward, and an unmounted terminal is a killed shell —
+ * but it has no use for the sidebar beside it.
+ */
+const isTerminalPage = computed(() => route.path.startsWith('/terminal'));
 const isDragging = ref(false);
 const minAsideWidth = 200;
 const maxAsideWidth = 460;
@@ -149,7 +158,18 @@ const handleGuestLogin = () => {
 
 <template>
   <div class="relative flex h-full w-full overflow-hidden">
+    <!--
+      A terminal takes the whole tab.
+
+      The sidebar is for going somewhere, and on a shell its only answer was to leave
+      the shell — which reads as "go to that folder" but means "take this tab away from
+      the terminal", and the two are easy to confuse when there is a `cd` a keystroke
+      away. The strip of tabs and the tab's own Back still lead out, so nothing is
+      trapped; the shell simply gets the room it wants.
+    -->
     <aside
+      v-if="!isTerminalPage"
+      data-test="browser-aside"
       class="flex flex-col bg-default-muted dark:bg-default-muted pt-4 pb-2 px-6 shrink-0 fixed inset-y-0 left-0 transition-transform duration-200 ease-in-out z-50 lg:sticky lg:top-0 lg:h-full lg:translate-x-0"
       :class="isSidebarOpen ? 'translate-x-0' : '-translate-x-full'"
       :style="{ width: asideWidth + 'px' }"
@@ -194,6 +214,7 @@ const handleGuestLogin = () => {
 
     <!-- Resizer handle -->
     <div
+      v-if="!isTerminalPage"
       class="relative w-px cursor-col-resize bg-transparent group select-none hidden lg:block"
       @pointerdown="onPointerDown"
       :aria-label="$t('browser.resizeSidebar')"

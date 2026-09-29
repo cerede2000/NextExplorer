@@ -1319,6 +1319,57 @@ test('several files download one by one, without a zip', async () => {
  * The preference is put back at the end: the rest of this journey shares one page,
  * and a strip left on screen would be measuring a different application.
  */
+/**
+ * A shell in a tab of its own: named for where it is, and given the whole tab.
+ *
+ * Three of them open were three tabs all reading "Terminal", which is no more useful
+ * than three reading "Compare" — and the sidebar beside a shell answered nothing but
+ * "leave the shell", which reads as "go to that folder" and is easy to confuse with a
+ * `cd` a keystroke away. Both are about what is drawn, so both need a browser.
+ */
+test('a terminal in its own tab is named for its folder and takes the whole tab', async () => {
+  await page.goto('/settings/user-preferences');
+  const preference = page.locator('[data-test="browse-in-tabs"]');
+  await preference.click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(preference).toHaveAttribute('aria-checked', 'true');
+
+  const strip = page.locator('[data-test="tab-strip"]');
+  try {
+    await page.goto('/browse/Projects');
+    await expect(page.locator('[data-test="browser-aside"]')).toBeVisible();
+
+    // The gesture that asks for a shell in a tab rather than in the drawer. It opens
+    // behind, as every tab opened this way does, so the folder stays in front.
+    const before = await strip.locator('[data-test="tab"]').count();
+    await page.getByRole('button', { name: 'Terminal', exact: true }).click({ button: 'middle' });
+    await expect(strip.locator('[data-test="tab"]')).toHaveCount(before + 1);
+    await expect(page).toHaveURL(/\/browse\/Projects$/);
+
+    // Named for the folder its shell is in, not for what it is. Told apart from the
+    // folder tab of the same name by what it is, which is what the icon is for.
+    const shell = strip.locator('[data-test="tab"][data-kind="terminal"]');
+    await expect(shell.getByRole('tab')).toHaveAttribute('title', 'Projects');
+    await expect(strip.locator('[role="tab"][title="Terminal"]')).toHaveCount(0);
+
+    await shell.getByRole('tab').click();
+    await expect(page).toHaveURL(/\/terminal\/Projects$/);
+
+    // And it has the tab to itself: no sidebar beside it.
+    await expect(page.locator('[data-test="browser-aside"]')).toHaveCount(0);
+
+    // The strip still leads out, and the sidebar is back where it belongs.
+    await strip.locator('[data-test="tab"]').first().getByRole('tab').click();
+    await expect(page).toHaveURL(/\/browse\/Projects$/);
+    await expect(page.locator('[data-test="browser-aside"]')).toBeVisible();
+  } finally {
+    await page.goto('/settings/user-preferences');
+    await preference.click();
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(preference).toHaveAttribute('aria-checked', 'false');
+  }
+});
+
 test('tabs keep two folders open, and the middle button opens one behind', async () => {
   fs.mkdirSync(path.join(volume, 'Alpha'), { recursive: true });
   fs.mkdirSync(path.join(volume, 'Beta'), { recursive: true });

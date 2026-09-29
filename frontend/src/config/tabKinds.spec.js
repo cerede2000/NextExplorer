@@ -109,8 +109,32 @@ describe('a terminal', () => {
     expect(TAB_KINDS_BY_ID.terminal.restores).toBe(false);
   });
 
-  it('is named for what it is, not for the folder it is in', () => {
-    expect(tabTitle({ kind: 'terminal', path: '/terminal/Docs' }, (key) => key)).toBe(
+  /**
+   * Named for the folder its shell is in.
+   *
+   * It used to be named for what it is, on the grounds that a terminal is a terminal.
+   * That was wrong for the same reason it was wrong for a comparison: three shells open
+   * were three tabs all reading "Terminal", and there was no telling which was which. A
+   * shell is always somewhere, so there is always something better to say.
+   */
+  it('is named for the folder its shell is in', () => {
+    expect(tabTitle({ kind: 'terminal', path: '/terminal/Docs/Reports' }, (key) => key)).toBe(
+      'Reports'
+    );
+    expect(tabTitle({ kind: 'terminal', path: '/terminal/Docs' }, (key) => key)).toBe('Docs');
+  });
+
+  /** A name a folder cannot give: the address is written the way an address is. */
+  it('reads a folder whose name was escaped in the address', () => {
+    expect(tabTitle({ kind: 'terminal', path: '/terminal/Docs/Mes%20notes' }, (key) => key)).toBe(
+      'Mes notes'
+    );
+  });
+
+  /** And the word for it where the address names no folder at all. */
+  it('falls back to the word for it at the top', () => {
+    expect(tabTitle({ kind: 'terminal', path: '/terminal' }, (key) => key)).toBe('titles.terminal');
+    expect(tabTitle({ kind: 'terminal', path: '/terminal/' }, (key) => key)).toBe(
       'titles.terminal'
     );
   });

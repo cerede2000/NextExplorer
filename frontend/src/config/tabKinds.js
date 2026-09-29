@@ -62,6 +62,10 @@ const TAB_KINDS = [
     match: /^\/terminal([/?#]|$)/,
     icon: CommandLineIcon,
     titleKey: 'titles.terminal',
+    // Named after the folder the shell is in. Three shells open were three tabs all
+    // reading "Terminal", which is no more useful than three reading "Compare" — and a
+    // shell is always somewhere, so there is always something better to say.
+    nameFor: (tab) => folderOfTerminal(tab?.path),
     singleton: false,
     // Not brought back: a shell that was running is not running any more, and a
     // tab that comes back to a dead one is worse than a tab that comes back to
@@ -145,6 +149,20 @@ const comparedNames = (address) => {
     .getAll('paths')
     .map((path) => path.split('/').filter(Boolean).pop() || '')
     .filter(Boolean);
+};
+
+/**
+ * The folder a terminal address names, as a name.
+ *
+ * Read from the address rather than from the shell, because the strip names tabs that
+ * are not on screen — and the page that knows where its shell is has not been built,
+ * and may never be if the reader never goes back to it.
+ */
+const folderOfTerminal = (address) => {
+  const path = String(address || '')
+    .replace(/^\/terminal\/?/, '')
+    .split(/[?#]/)[0];
+  return decodeURIComponent(path).split('/').filter(Boolean).pop() || '';
 };
 
 export const TAB_KIND_IDS = TAB_KINDS.map((kind) => kind.id);
