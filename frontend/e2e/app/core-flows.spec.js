@@ -1185,6 +1185,53 @@ test('tabs keep two folders open, and the middle button opens one behind', async
     .click();
   await expect(tabs).toHaveCount(4);
 
+  /**
+   * And a text file is ready on the *first* arrival, not merely quicker.
+   *
+   * Warming it used to mean reading the file into the browser's cache, which left
+   * the page still having to mount and ask — so the first time the reader went to
+   * the tab they saw a spinner and then the text. A document in ONLYOFFICE does not
+   * do that, because what was prepared is the viewer itself; the text editor now
+   * keeps the file for its tab, which is where the page looks before it asks
+   * anything.
+   *
+   * Held with the file held back again: the request is refused, so the only way the
+   * text can be on screen is that the tab had it before it was ever visited.
+   */
+  fs.writeFileSync(
+    path.join(volume, 'warm.txt'),
+    Array.from({ length: 40 }, (_, line) => `line ${line + 1} of a warmed file`).join('\n')
+  );
+  await page.goto('/browse/Projects');
+  // This file's own read, not merely some read of the editor endpoint: the document
+  // tabs beside it are being prepared at the same moment and their markdown preview
+  // reads through the same door.
+  const readWhileWarming = page.waitForResponse(
+    (response) =>
+      response.url().includes('/api/editor') &&
+      decodeURIComponent(response.url()).includes('warm.txt')
+  );
+  await page.locator('[title="warm.txt"]:not([role="tab"])').first().click({ button: 'middle' });
+  await expect(tabs).toHaveCount(5);
+  // The warming has read it: what follows cannot be the page reading it again.
+  await readWhileWarming;
+
+  await page.route('**/api/editor?**', (request) => request.abort());
+  await strip.locator('[role="tab"][title="warm.txt"]').click();
+  await expect(page).toHaveURL(/\/editor\/Projects\/warm\.txt$/);
+  await expect(page.locator('.cm-content')).toContainText('of a warmed file');
+  await expect(page.getByText('Loading file…')).toHaveCount(0);
+  await page.unroute('**/api/editor?**');
+
+  await strip
+    .locator('[data-test="tab"]')
+    .filter({ has: page.locator('[role="tab"][title="warm.txt"]') })
+    .first()
+    .locator('[data-test="tab-close"]')
+    .click();
+  await expect(tabs).toHaveCount(4);
+  await page.goto('/browse/Projects');
+
   // The menu says so too, for whoever has no middle button.
   await document().click({ button: 'right' });
   await page.getByRole('button', { name: 'Open in a new tab' }).click();

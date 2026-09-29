@@ -22,9 +22,13 @@ const tools = () => ({
   fileStore: { fetchIn: vi.fn(() => Promise.resolve()), holdsFolder: vi.fn(() => false) },
   previewManager: { openIn: vi.fn(() => true) },
   terminalStore: { openIn: vi.fn(() => ({ open: true })) },
-  readFile: vi.fn(() => Promise.resolve({ content: '' })),
+  readFile: vi.fn(() => Promise.resolve({ content: 'a line, and another' })),
   // Says the tab is busy, and answers with the way to say it is not.
   beginLoading: vi.fn((id) => () => ended.push(id)),
+  // Where a warmed file is kept, which is where the editor page reads it on the way
+  // in — warming the network alone left the first arrival showing a spinner.
+  keepSource: vi.fn(),
+  alreadyKept: vi.fn(() => false),
 });
 
 const tab = (kind, path, id = `tab-${kind}`) => ({ id, kind, path });
@@ -119,6 +123,43 @@ describe('an editor got ready', () => {
     kit.readFile = vi.fn(() => Promise.reject(new Error('gone')));
 
     expect(() => warmTab(tab('editor', '/editor/Docs/notes.md'), kit)).not.toThrow();
+  });
+
+  /**
+   * And the file is kept for the tab, which is what makes it *ready* rather than
+   * merely quicker. Warming the browser's cache left the page still having to mount
+   * and ask, so the first arrival showed a spinner and then the text — which is not
+   * what a document in ONLYOFFICE does, and was the difference that was reported.
+   */
+  it('keeps the file for the tab, where the page reads it on the way in', async () => {
+    warmTab(tab('editor', '/editor/Docs/notes%20de%20suivi.md'), kit);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(kit.keepSource).toHaveBeenCalledWith(
+      'tab-editor',
+      '/editor/Docs/notes%20de%20suivi.md',
+      'a line, and another'
+    );
+  });
+
+  it('keeps nothing when the file cannot be read', async () => {
+    kit.readFile = vi.fn(() => Promise.reject(new Error('gone')));
+
+    warmTab(tab('editor', '/editor/Docs/notes.md'), kit);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(kit.keepSource).not.toHaveBeenCalled();
+  });
+
+  /** Unsaved work outranks a head start: a tab already holding something is left. */
+  it('reads nothing over a tab that is already holding something', () => {
+    kit.alreadyKept = vi.fn(() => true);
+
+    expect(warmTab(tab('editor', '/editor/Docs/notes.md'), kit)).toBe(false);
+    expect(kit.readFile).not.toHaveBeenCalled();
+    expect(ended).toEqual(['tab-editor']);
   });
 });
 
@@ -221,6 +262,11 @@ describe('asking for a tab to be got ready', () => {
     vi.doMock('@/api', () => ({ fetchFileContent: vi.fn(() => Promise.resolve({})) }));
     vi.doMock('@/stores/tabLoading', () => ({
       useTabLoadingStore: () => ({ begin: () => () => {} }),
+    }));
+    // Where a warmed file is kept, which is where the editor page reads it on the
+    // way in: warming the network alone left the first arrival showing a spinner.
+    vi.doMock('@/stores/editorDrafts', () => ({
+      useEditorDraftsStore: () => ({ keep: vi.fn(), placeFor: () => null }),
     }));
   });
 

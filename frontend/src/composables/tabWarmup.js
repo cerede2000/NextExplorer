@@ -22,8 +22,11 @@ import { documentItemFromAddress } from '@/utils/documentRoute';
  * - a **folder** gets its listing read into its own tab's folder, which every tab
  *   has had since tabs existed.
  * - a **terminal** gets its session, and the terminal host starts the shell.
- * - an **editor** gets the file read once, so the page's own read is a
- *   revalidation of something the browser already holds rather than a transfer.
+ * - an **editor** gets the file read and *kept for its tab*, which is what makes it
+ *   ready rather than merely quicker. Warming the browser's cache was not enough:
+ *   the page still had to mount and ask, so the first arrival still showed a
+ *   spinner and then the text. What a tab keeps is what the page reads before it
+ *   asks anything, so the file is put there.
  *
  * The screens there is only one of — the trash, the settings, a search — are left
  * alone: they are cheap, and a second copy of one is not a thing.
@@ -62,10 +65,14 @@ const holdsASession = (kind) => kind === 'document' || kind === 'terminal';
  * @param {(path: string) => Promise<unknown>} tools.readFile
  * @param {(id: string) => () => void} [tools.beginLoading]  says the tab is busy,
  *   and answers with the way to say it is not
+ * @param {(id: string, address: string, source: string) => void} [tools.keepSource]
+ *   holds the file for that tab, where the editor page reads it on the way in
+ * @param {(id: string, address: string) => boolean} [tools.alreadyKept]  whether
+ *   that tab is already holding something for that address
  */
 export const warmTab = (
   tab,
-  { fileStore, previewManager, terminalStore, readFile, beginLoading } = {}
+  { fileStore, previewManager, terminalStore, readFile, beginLoading, keepSource, alreadyKept } = {}
 ) => {
   if (!tab?.id || !TAB_KINDS_BY_ID[tab.kind]) return false;
   // A tab prepared in the background is working while the reader is looking at
@@ -137,9 +144,25 @@ export const warmTab = (
     } catch {
       // As above.
     }
+    // Nothing over a tab that is already holding something for this address: that
+    // would be unsaved work, and a head start is not worth it.
+    if (alreadyKept?.(tab.id, tab.path)) {
+      done();
+      return false;
+    }
+
     const reading = readFile?.(decoded);
-    if (reading?.then) reading.then(done, done);
-    else done();
+    if (!reading?.then) {
+      done();
+      return true;
+    }
+    reading.then((response) => {
+      // Kept for the tab, which is where the page looks before it asks anything.
+      // Warming the network alone left the first arrival showing a spinner and then
+      // the text, because a page that has not been built yet has read nothing.
+      keepSource?.(tab.id, tab.path, typeof response?.content === 'string' ? response.content : '');
+      done();
+    }, done);
     return true;
   }
 
@@ -202,8 +225,12 @@ export const warmInBackground = async (toWarm) => {
   const settings = useAppSettings();
   if (!settings.loaded || settings.userSettings?.preloadBackgroundTabs === false) return [];
 
-  const { useTabLoadingStore } = await import('@/stores/tabLoading');
+  const [{ useTabLoadingStore }, { useEditorDraftsStore }] = await Promise.all([
+    import('@/stores/tabLoading'),
+    import('@/stores/editorDrafts'),
+  ]);
   const busy = useTabLoadingStore();
+  const drafts = useEditorDraftsStore();
 
   return warmTabs(candidates, {
     fileStore: useFileStore(),
@@ -211,5 +238,14 @@ export const warmInBackground = async (toWarm) => {
     terminalStore: useTerminalStore(),
     readFile: api.fetchFileContent,
     beginLoading: busy.begin,
+    keepSource: (id, address, source) =>
+      drafts.keep(id, address, {
+        text: null,
+        source,
+        selection: null,
+        scrollTop: 0,
+        topLine: null,
+      }),
+    alreadyKept: (id, address) => Boolean(drafts.placeFor(id, address)),
   });
 };
