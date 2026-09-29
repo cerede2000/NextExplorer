@@ -29,9 +29,12 @@ const api = vi.hoisted(() => ({
   fetchFileContent: vi.fn(),
   saveFileContent: vi.fn(async () => ({ success: true })),
 }));
+// An earlier version is read through its own door.
+const versionText = vi.hoisted(() => vi.fn(async () => ({ content: '' })));
 vi.mock('@/api', () => ({
   fetchFileContent: (...args) => api.fetchFileContent(...args),
   saveFileContent: (...args) => api.saveFileContent(...args),
+  getVersionText: (...args) => versionText(...args),
   normalizePath: (value) => String(value || '').replace(/^\/+|\/+$/g, ''),
 }));
 
@@ -44,12 +47,30 @@ vi.mock('@/composables/usePageTitle', () => ({ usePageTitle: () => {} }));
 vi.mock('@/composables/tabNavigation', () => ({
   useTabNavigation: () => ({ tabs: { enabled: true }, closeOwn: () => false }),
 }));
-vi.mock('@/stores/tabs', () => ({ useTabsStore: () => ({ activeId: 'tab-1' }) }));
+const appTabs = vi.hoisted(() => ({ activeId: 'tab-1', tabs: [{ id: 'tab-1' }, { id: 'tab-9' }] }));
+vi.mock('@/stores/tabs', () => ({ useTabsStore: () => appTabs }));
 vi.mock('@/stores/tabLoading', () => ({
   useTabLoadingStore: () => ({ begin: () => () => {} }),
 }));
 const notifications = vi.hoisted(() => ({ addNotification: vi.fn() }));
 vi.mock('@/stores/notifications', () => ({ useNotificationsStore: () => notifications }));
+
+/**
+ * What a tab is in the middle of comparing, held between two glances. A stand-in:
+ * the rule about *which* address a comparison belongs to is the store's, and
+ * `stores/compareSessions.spec.js` holds it to that.
+ */
+const kept = vi.hoisted(() => new Map());
+vi.mock('@/stores/compareSessions', () => ({
+  useCompareSessionsStore: () => ({
+    keep: (key, address, state) => kept.set(key, { ...state, address }),
+    forget: (key) => kept.delete(key),
+    sessionFor: (key, address) => {
+      const held = kept.get(key);
+      return held && held.address === address ? held : null;
+    },
+  }),
+}));
 
 import CompareView from './CompareView.vue';
 
@@ -66,9 +87,13 @@ const open = async (files, paths = Object.keys(files)) => {
 const rows = (wrapper) => wrapper.findAll('[data-test="compare-row"]');
 
 beforeEach(() => {
+  kept.clear();
+  appTabs.activeId = 'tab-1';
+  appTabs.tabs = [{ id: 'tab-1' }, { id: 'tab-9' }];
   push.mockClear();
   leaveGuards.length = 0;
   api.saveFileContent.mockClear();
+  versionText.mockClear();
   api.saveFileContent.mockResolvedValue({ success: true });
   notifications.addNotification.mockClear();
 });
@@ -312,6 +337,27 @@ describe('saving a side that has been changed', () => {
     }
   });
 
+  /**
+   * Another tab coming forward is not leaving: the comparison is handed to the tab and
+   * comes back with it, lines and place and all. Asking there asked about something
+   * that was not going to happen — and the answer stopped the reader leaving their own
+   * comparison.
+   */
+  it('does not ask when another tab is coming forward', async () => {
+    const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
+    await wrapper.get('[data-test="compare-next"]').trigger('click');
+    await wrapper.get('[data-test="compare-copy-forward-0"]').trigger('click');
+    appTabs.activeId = 'tab-9';
+
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    try {
+      expect(leaveGuards.map((guard) => guard())).toEqual([true]);
+      expect(confirm).not.toHaveBeenCalled();
+    } finally {
+      confirm.mockRestore();
+    }
+  });
+
   it('does not ask when nothing was taken across', async () => {
     await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
 
@@ -322,6 +368,145 @@ describe('saving a side that has been changed', () => {
     } finally {
       confirm.mockRestore();
     }
+  });
+});
+
+/**
+ * What a tab was in the middle of, put straight back.
+ *
+ * The screen is a page, and a page is unmounted the moment another tab comes forward
+ * — so a glance at another tab read both files again, redrew everything and lost the
+ * reader's place. Worse: lines taken across and not yet saved exist nowhere but this
+ * screen, so they went too, silently, for a click that never said discard.
+ */
+describe('a comparison tab coming back', () => {
+  const leaveAndReturn = async (wrapper) => {
+    appTabs.activeId = 'tab-9';
+    wrapper.unmount();
+    appTabs.activeId = 'tab-1';
+  };
+
+  it('reads neither file again', async () => {
+    const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
+    await leaveAndReturn(wrapper);
+    api.fetchFileContent.mockClear();
+
+    const back = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
+
+    expect(api.fetchFileContent).not.toHaveBeenCalled();
+    expect(back.find('[data-test="compare-loading"]').exists()).toBe(false);
+    expect(back.get('[data-test="compare-count"]').text()).toContain('"count":1');
+  });
+
+  /** The lines exist nowhere else: losing them is losing somebody's work. */
+  it('still holds the lines taken across and not saved', async () => {
+    const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
+    await wrapper.get('[data-test="compare-next"]').trigger('click');
+    await wrapper.get('[data-test="compare-copy-forward-0"]').trigger('click');
+    await leaveAndReturn(wrapper);
+
+    const back = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
+
+    expect(back.find('[data-test="compare-identical"]').exists()).toBe(true);
+    expect(back.get('[data-test="compare-save-1"]').attributes('disabled')).toBeUndefined();
+
+    await back.get('[data-test="compare-save-1"]').trigger('click');
+    await flushPromises();
+    expect(api.saveFileContent).toHaveBeenCalledWith('b.txt', 'one\ntwo');
+  });
+
+  it('comes back to the difference the reader was on', async () => {
+    const wrapper = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+    await wrapper.get('[data-test="compare-next"]').trigger('click');
+    await wrapper.get('[data-test="compare-next"]').trigger('click');
+    await leaveAndReturn(wrapper);
+
+    const back = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+
+    expect(back.get('[data-current="true"]').text()).toContain('D');
+  });
+
+  /**
+   * A tab taken to another comparison has nothing to do with the lines of the
+   * previous one, and answering with them would put one pair of files' work into
+   * another pair.
+   */
+  it('reads the files when the tab was taken to another comparison', async () => {
+    const wrapper = await open({ 'a.txt': 'one', 'b.txt': 'ONE' });
+    await leaveAndReturn(wrapper);
+    api.fetchFileContent.mockClear();
+
+    await open({ 'c.txt': 'two', 'd.txt': 'TWO' }, ['c.txt', 'd.txt']);
+
+    expect(api.fetchFileContent).toHaveBeenCalledWith('c.txt');
+  });
+
+  /** Still the tab in front, so the address changed under it: nothing to keep. */
+  it('keeps nothing when the same tab is taken somewhere else', async () => {
+    const wrapper = await open({ 'a.txt': 'one', 'b.txt': 'ONE' });
+    wrapper.unmount();
+    api.fetchFileContent.mockClear();
+
+    await open({ 'a.txt': 'one', 'b.txt': 'ONE' });
+
+    expect(api.fetchFileContent).toHaveBeenCalled();
+  });
+});
+
+/**
+ * A file against one of its own earlier versions.
+ *
+ * Read-only on the version's side: there is nothing to write a version back to, and
+ * offering it would be offering to change something that has already happened. Taking
+ * lines *out* of it is the whole point.
+ */
+describe('a comparison with an earlier version', () => {
+  const withVersion = async () => {
+    api.fetchFileContent.mockImplementation(async () => ({ content: 'one\nNOW' }));
+    versionText.mockImplementation(async () => ({ content: 'one\nTHEN', name: 'notes.txt' }));
+    route.query = { paths: ['Docs/notes.txt', 'Docs/notes.txt'], versions: ['v7', ''] };
+    route.fullPath = '/compare?paths=Docs%2Fnotes.txt&paths=Docs%2Fnotes.txt&versions=v7&versions=';
+    const wrapper = mount(CompareView, { global: { mocks: { $t: (key) => key } } });
+    await flushPromises();
+    await flushPromises();
+    return wrapper;
+  };
+
+  it('reads the version through its own door, and says which side it is', async () => {
+    const wrapper = await withVersion();
+
+    expect(versionText).toHaveBeenCalledWith('Docs/notes.txt', 'v7');
+    expect(wrapper.get('[data-test="compare-names"]').text()).toContain('compare.versionOf');
+  });
+
+  it('offers no way to write into the version', async () => {
+    const wrapper = await withVersion();
+    await wrapper.get('[data-test="compare-next"]').trigger('click');
+
+    // Forward is left-to-right, and the version is the left: that one is refused.
+    expect(wrapper.get('[data-test="compare-copy-back-0"]').attributes('disabled')).toBeDefined();
+    expect(
+      wrapper.get('[data-test="compare-copy-forward-0"]').attributes('disabled')
+    ).toBeUndefined();
+  });
+
+  it('takes the version’s line over what the file says now', async () => {
+    const wrapper = await withVersion();
+    await wrapper.get('[data-test="compare-next"]').trigger('click');
+
+    await wrapper.get('[data-test="compare-copy-forward-0"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-test="compare-save-1"]').trigger('click');
+    await flushPromises();
+
+    expect(api.saveFileContent).toHaveBeenCalledWith('Docs/notes.txt', 'one\nTHEN');
+  });
+
+  it('never writes the version itself back', async () => {
+    const wrapper = await withVersion();
+
+    expect(wrapper.findAll('[data-test="compare-save-0"]')).toHaveLength(1);
+    expect(wrapper.get('[data-test="compare-save-0"]').isVisible()).toBe(false);
   });
 });
 

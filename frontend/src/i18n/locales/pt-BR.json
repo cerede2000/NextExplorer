@@ -1063,6 +1063,7 @@
   },
   "compare": {
     "title": "Comparar",
+    "versionOf": "Versão de {name}",
     "compareCount": "Comparar {count} arquivos",
     "differences": "{count} diferenças",
     "identical": "Estes arquivos são idênticos",
@@ -1319,6 +1320,7 @@
       "deleteSelected": "Excluir seleção ({count})",
       "deleteAll": "Excluir tudo",
       "preview": "Abrir somente leitura",
+      "compare": "Comparar com o arquivo atual",
       "download": "Baixar",
       "restore": "Restaurar",
       "rename": "Nomear…",

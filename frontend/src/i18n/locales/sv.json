@@ -1063,6 +1063,7 @@
   },
   "compare": {
     "title": "Jämför",
+    "versionOf": "Version av {name}",
     "compareCount": "Jämför {count} filer",
     "differences": "{count} skillnader",
     "identical": "Dessa filer är identiska",
@@ -1319,6 +1320,7 @@
       "deleteSelected": "Ta bort markerade ({count})",
       "deleteAll": "Ta bort alla",
       "preview": "Öppna skrivskyddad",
+      "compare": "Jämför med filen nu",
       "download": "Ladda ner",
       "restore": "Återställ",
       "rename": "Namnge…",

@@ -76,6 +76,9 @@ const TAB_KINDS = [
     match: /^\/compare([/?#]|$)/,
     icon: ArrowsRightLeftIcon,
     titleKey: 'compare.title',
+    // Named after what it is comparing, because somebody with three comparisons
+    // open has three tabs that would otherwise all read "Compare".
+    nameFor: (tab) => comparedNames(tab?.path).join(' ↔ '),
     singleton: false,
     restores: true,
   },
@@ -127,6 +130,22 @@ const TAB_KINDS = [
     restores: false,
   },
 ];
+
+/**
+ * The file names a comparison's address is about.
+ *
+ * Read from the address rather than from the screen, because the strip names a tab
+ * that is not on screen — the page that knows what it is comparing has not been
+ * built, and may never be if the reader never goes there.
+ */
+const comparedNames = (address) => {
+  const query = String(address || '').split('?')[1];
+  if (!query) return [];
+  return new URLSearchParams(query)
+    .getAll('paths')
+    .map((path) => path.split('/').filter(Boolean).pop() || '')
+    .filter(Boolean);
+};
 
 export const TAB_KIND_IDS = TAB_KINDS.map((kind) => kind.id);
 
@@ -189,6 +208,13 @@ export const tabFolderPath = (tab) => {
 export const tabTitle = (tab, t) => {
   const kind = TAB_KINDS_BY_ID[tab?.kind];
   if (!kind) return '';
+  // A kind that can name itself from its own address does: four tabs all reading
+  // "Compare" are four tabs nobody can tell apart, which is the whole reason a tab
+  // carries a name at all.
+  if (kind.nameFor) {
+    const own = kind.nameFor(tab);
+    if (own) return own;
+  }
   if (kind.titleKey) return t(kind.titleKey);
 
   const segments = String(tab.path || '')

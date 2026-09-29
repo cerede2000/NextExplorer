@@ -1063,6 +1063,7 @@
   },
   "compare": {
     "title": "비교",
+    "versionOf": "{name}의 버전",
     "compareCount": "{count}개 파일 비교",
     "differences": "차이 {count}개",
     "identical": "이 파일들은 동일합니다",
@@ -1319,6 +1320,7 @@
       "deleteSelected": "선택 항목 삭제 ({count})",
       "deleteAll": "모두 삭제",
       "preview": "읽기 전용으로 열기",
+      "compare": "현재 파일과 비교",
       "download": "다운로드",
       "restore": "복원",
       "rename": "이름 지정…",

@@ -1063,6 +1063,7 @@
   },
   "compare": {
     "title": "Compară",
+    "versionOf": "Versiune a {name}",
     "compareCount": "Compară {count} fișiere",
     "differences": "{count} diferențe",
     "identical": "Aceste fișiere sunt identice",
@@ -1319,6 +1320,7 @@
       "deleteSelected": "Ștergeți selecția ({count})",
       "deleteAll": "Ștergeți tot",
       "preview": "Deschideți doar în citire",
+      "compare": "Compară cu fișierul actual",
       "download": "Descărcați",
       "restore": "Restaurați",
       "rename": "Denumiți…",

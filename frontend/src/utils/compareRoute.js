@@ -14,34 +14,77 @@ import { MAX_COMPARED, MIN_COMPARED } from '@/config/compare';
  * come back to, which is what makes a comparison something the reader leaves and
  * returns to rather than a dialog they must finish.
  */
-export const compareRoute = (paths) => {
-  const wanted = (Array.isArray(paths) ? paths : [paths])
-    .map((one) => normalizePath(one || ''))
-    .filter(Boolean);
+/**
+ * A side, as a path and — for an earlier version of a file — which version.
+ *
+ * Two parallel lists in the query rather than one clever string, because the obvious
+ * clever string needs a separator a file name cannot contain, and there is no such
+ * character. Position is the join: `versions[i]` belongs to `paths[i]`, and an empty
+ * one means the file as it is now.
+ */
+const asSide = (one) =>
+  typeof one === 'string'
+    ? { path: normalizePath(one), versionId: '' }
+    : { path: normalizePath(one?.path || ''), versionId: String(one?.versionId || '') };
 
-  // The same file against itself is not a comparison; nor is one file, nor four.
-  const unique = [...new Set(wanted)];
+export const compareRoute = (sides) => {
+  const wanted = (Array.isArray(sides) ? sides : [sides]).map(asSide).filter((one) => one.path);
+
+  // The same file against itself is not a comparison — but a file against one of its
+  // own earlier versions is, which is why the version is part of what makes a side
+  // distinct rather than the path alone.
+  const seen = new Set();
+  const unique = wanted.filter((one) => {
+    const signature = `${one.path}\u0000${one.versionId}`;
+    if (seen.has(signature)) return false;
+    seen.add(signature);
+    return true;
+  });
   if (unique.length < MIN_COMPARED || unique.length > MAX_COMPARED) return null;
 
-  return { path: '/compare', query: { paths: unique } };
+  return {
+    path: '/compare',
+    query: {
+      paths: unique.map((one) => one.path),
+      // Left off entirely when no side is a version, so the everyday address stays
+      // the short one it was.
+      ...(unique.some((one) => one.versionId)
+        ? { versions: unique.map((one) => one.versionId) }
+        : {}),
+    },
+  };
 };
 
+/** A repeated query parameter, which arrives as one value or as many. */
+const listOf = (raw) => (Array.isArray(raw) ? raw : raw === undefined || raw === null ? [] : [raw]);
+
+/** Just the paths, for anything that has no business with versions — a tab's name. */
+export const comparedPaths = (query) => comparedSides(query).map((side) => side.path);
+
 /**
- * The paths a comparison address names, in the order they were given.
+ * The sides a comparison address names, in the order they were given.
  *
- * One path arrives as a string and several as an array, which is what a router does
- * with a repeated parameter — so both are read the same way here rather than at
- * every caller.
+ * One value arrives as a string and several as an array, which is what a router does
+ * with a repeated parameter — so both are read the same way here rather than at every
+ * caller. A version id with no path beside it is nothing: the position is the join,
+ * and a join with one half missing joins nothing.
  */
-export const comparedPaths = (query) => {
-  const raw = query?.paths;
-  const list = Array.isArray(raw) ? raw : raw === undefined || raw === null ? [] : [raw];
-  return [
-    ...new Set(
-      list
-        .map((one) => normalizePath(typeof one === 'string' ? one : ''))
-        .filter(Boolean)
-        .slice(0, MAX_COMPARED)
-    ),
-  ];
+export const comparedSides = (query) => {
+  const paths = listOf(query?.paths);
+  const versions = listOf(query?.versions);
+  const seen = new Set();
+
+  return paths
+    .map((path, index) => ({
+      path: normalizePath(typeof path === 'string' ? path : ''),
+      versionId: typeof versions[index] === 'string' ? versions[index] : '',
+    }))
+    .filter((side) => {
+      if (!side.path) return false;
+      const signature = `${side.path}\u0000${side.versionId}`;
+      if (seen.has(signature)) return false;
+      seen.add(signature);
+      return true;
+    })
+    .slice(0, MAX_COMPARED);
 };

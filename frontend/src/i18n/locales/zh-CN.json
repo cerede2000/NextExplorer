@@ -1063,6 +1063,7 @@
   },
   "compare": {
     "title": "比较",
+    "versionOf": "{name} 的一个版本",
     "compareCount": "比较 {count} 个文件",
     "differences": "{count} 处差异",
     "identical": "这些文件完全相同",
@@ -1319,6 +1320,7 @@
       "deleteSelected": "删除所选（{count}）",
       "deleteAll": "全部删除",
       "preview": "以只读方式打开",
+      "compare": "与当前文件比较",
       "download": "下载",
       "restore": "恢复",
       "rename": "命名…",

@@ -1063,6 +1063,7 @@
   },
   "compare": {
     "title": "Сравнить",
+    "versionOf": "Версия {name}",
     "compareCount": "Сравнить {count} файлов",
     "differences": "Различий: {count}",
     "identical": "Эти файлы одинаковы",
@@ -1319,6 +1320,7 @@
       "deleteSelected": "Удалить выбранные ({count})",
       "deleteAll": "Удалить все",
       "preview": "Открыть только для чтения",
+      "compare": "Сравнить с текущим файлом",
       "download": "Скачать",
       "restore": "Восстановить",
       "rename": "Назвать…",

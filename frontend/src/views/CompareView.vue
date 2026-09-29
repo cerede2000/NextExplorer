@@ -9,7 +9,7 @@ import {
   ArrowUpIcon,
   XMarkIcon,
 } from '@heroicons/vue/24/outline';
-import { fetchFileContent, saveFileContent } from '@/api';
+import { fetchFileContent, getVersionText, saveFileContent } from '@/api';
 import {
   alignLines,
   alignThree,
@@ -18,12 +18,13 @@ import {
   readLines,
   writeLines,
 } from '@/utils/textDiff';
-import { comparedPaths } from '@/utils/compareRoute';
+import { comparedSides } from '@/utils/compareRoute';
 import { usePageTitle } from '@/composables/usePageTitle';
 import { useTabNavigation } from '@/composables/tabNavigation';
 import { useTabsStore } from '@/stores/tabs';
 import { useTabLoadingStore } from '@/stores/tabLoading';
 import { useNotificationsStore } from '@/stores/notifications';
+import { useCompareSessionsStore } from '@/stores/compareSessions';
 
 /**
  * Two or three files, side by side.
@@ -53,9 +54,19 @@ const tabLoading = useTabLoadingStore();
 const notifications = useNotificationsStore();
 const tabNavigation = useTabNavigation();
 
-/** Taken once: the address is what this comparison is about, and it does not move. */
-const ownTabId = tabsStore.activeId;
-const paths = computed(() => comparedPaths(route.query));
+/**
+ * The tab this screen speaks for, re-read whenever the address changes.
+ *
+ * Taken once would be wrong for the same reason it was wrong in the text editor:
+ * crossing between two comparison tabs never unmounts anything, because both
+ * addresses match the same route, so a tab captured at setup goes stale the moment
+ * the reader crosses from one comparison to another.
+ */
+const held = useCompareSessionsStore();
+const ownTabId = ref(tabsStore.activeId);
+/** The address this screen is showing, which is what a kept comparison belongs to. */
+const shownAddress = ref('');
+const wantedSides = computed(() => comparedSides(route.query));
 
 /**
  * One entry per file: its lines, how it ends them, and whether it has been changed.
@@ -87,34 +98,103 @@ const blocks = computed(() => blocksOf(rows.value));
 const at = ref(-1);
 const identical = computed(() => !loading.value && !failed.value && blocks.value.length === 0);
 
+/**
+ * Only the differences, with a little around them.
+ *
+ * What a reader wants from a long file, and what keeps this screen quick: five
+ * thousand identical lines are five thousand rows to lay out and nothing to read. On
+ * by itself for a file long enough for it to matter, and always the reader's to turn
+ * off — a comparison that hides two thirds of a file without saying so would be a
+ * comparison nobody could trust.
+ */
+const CONTEXT_LINES = 3;
+const LONG_ENOUGH_TO_FOLD = 400;
+const onlyDifferences = ref(false);
+const wrap = ref(false);
+
+/**
+ * Letting go of the tab this screen was speaking for.
+ *
+ * Called on the way out of the page *and* on the way from one comparison to
+ * another's, because crossing between two comparison tabs unmounts nothing: the only
+ * sign that a tab has been left is that the address changed.
+ */
+const handOver = (key, address) => {
+  // Gone with its tab: nothing to hold it for.
+  if (!key || !tabsStore.tabs.some((entry) => entry.id === key)) return;
+  // Still the tab in front, so the address changed underneath it: this comparison is
+  // not what the tab is on any more.
+  if (tabsStore.activeId === key) {
+    held.forget(key);
+    return;
+  }
+  if (!sides.value.length) return;
+  held.keep(key, address, {
+    at: at.value,
+    onlyDifferences: onlyDifferences.value,
+    wrap: wrap.value,
+    sides: sides.value.map((side) => ({ ...side, lines: [...side.lines] })),
+  });
+};
+
+onBeforeUnmount(() => handOver(ownTabId.value, shownAddress.value));
+
 const load = async () => {
-  const wanted = paths.value;
+  const address = route.fullPath;
+  const wanted = wantedSides.value;
   if (wanted.length < 2) {
     failed.value = t('compare.needTwo');
     loading.value = false;
     return;
   }
 
+  /**
+   * What this tab was in the middle of, put straight back.
+   *
+   * No spinner, no second read, and — the part that matters most — the lines taken
+   * across and not yet saved are still there. They exist nowhere else.
+   */
+  const kept = held.sessionFor(ownTabId.value, address);
+  if (kept?.sides?.length) {
+    sides.value = kept.sides.map((side) => ({ ...side, lines: [...side.lines] }));
+    at.value = Number.isInteger(kept.at) ? kept.at : -1;
+    onlyDifferences.value = kept.onlyDifferences === true;
+    wrap.value = kept.wrap === true;
+    shownAddress.value = address;
+    loading.value = false;
+    failed.value = '';
+    return;
+  }
+
   loading.value = true;
   failed.value = '';
-  const done = tabLoading.begin(ownTabId);
+  const done = tabLoading.begin(ownTabId.value);
   try {
     const read = await Promise.all(
-      wanted.map(async (path) => {
-        const response = await fetchFileContent(path);
+      wanted.map(async ({ path, versionId }) => {
+        // An earlier version is read through its own door, and it is read-only: there
+        // is nothing to write back to a version, and the point of having it here is to
+        // take lines *out* of it.
+        const response = versionId
+          ? await getVersionText(path, versionId)
+          : await fetchFileContent(path);
         const { lines, newline } = readLines(response?.content ?? '');
+        const name = path.split('/').filter(Boolean).pop() || path;
         return {
           path,
-          name: path.split('/').filter(Boolean).pop() || path,
+          versionId,
+          name: versionId ? t('compare.versionOf', { name: response?.name || name }) : name,
           lines,
           newline,
           dirty: false,
           saving: false,
+          readOnly: Boolean(versionId),
         };
       })
     );
     sides.value = read;
     at.value = -1;
+    shownAddress.value = address;
   } catch (error) {
     failed.value = error?.message || t('compare.failed');
     sides.value = [];
@@ -124,7 +204,32 @@ const load = async () => {
   }
 };
 
-watch(() => route.fullPath, load, { immediate: true });
+/**
+ * The address changed under this screen: another comparison, or another tab holding
+ * one. Which of the two it was is what `activeId` says, and it is the only moment
+ * this page can change hands — so what the tab it was speaking for should keep is
+ * settled first, and the new tab is adopted before anything is read.
+ */
+watch(
+  () => route.fullPath,
+  () => {
+    handOver(ownTabId.value, shownAddress.value);
+    ownTabId.value = tabsStore.activeId;
+    void load();
+  }
+);
+
+/**
+ * And the first read, once, outside that watcher.
+ *
+ * Not `immediate`, which is the trap: on a fresh mount the watcher would run its
+ * change-of-hands with the tab it is about to adopt, and a change of hands to the tab
+ * in front means "the address changed underneath it, forget what it held" — so the
+ * comparison the previous instance had just handed over was thrown away a moment
+ * before this one asked for it. Every glance at another tab read both files again, and
+ * the two of them looked exactly like a feature that did not work.
+ */
+void load();
 
 usePageTitle(
   computed(() =>
@@ -174,6 +279,9 @@ const copyBlock = (fromIndex, toIndex, blockIndex = at.value) => {
   const source = sides.value[fromIndex];
   const target = sides.value[toIndex];
   if (!block || !source || !target) return;
+  // Never into an earlier version: there is nothing to write it back to, and offering
+  // it would be offering to change something that has already happened.
+  if (target.readOnly) return;
 
   const fromKey = keyAt(fromIndex);
   const toKey = keyAt(toIndex);
@@ -224,7 +332,7 @@ const copyBlock = (fromIndex, toIndex, blockIndex = at.value) => {
 
 const save = async (index) => {
   const side = sides.value[index];
-  if (!side || !side.dirty || side.saving) return;
+  if (!side || side.readOnly || !side.dirty || side.saving) return;
   side.saving = true;
   try {
     await saveFileContent(side.path, writeLines(side.lines, side.newline));
@@ -249,28 +357,19 @@ const anythingUnsaved = computed(() => sides.value.some((side) => side.dirty));
 /**
  * Leaving with a side taken across and not saved.
  *
- * Said out loud, because a comparison is a place somebody leaves by clicking a tab —
- * there is no submit button to forget to press, and lines taken across are lines that
- * exist nowhere but this window until they are saved.
+ * Said out loud, because there is no submit button to forget to press: lines taken
+ * across exist nowhere but this window until they are saved.
+ *
+ * Not for another tab coming forward, though — that is not leaving. The comparison is
+ * handed to the tab and comes back with it, lines and place and all, so asking there
+ * would be asking about something that is not going to happen. It asked, the answer
+ * was no, and the reader could not leave their own comparison.
  */
 onBeforeRouteLeave(() => {
   if (!anythingUnsaved.value) return true;
+  if (tabsStore.activeId !== ownTabId.value) return true;
   return window.confirm(t('compare.leaveUnsaved'));
 });
-
-/**
- * Only the differences, with a little around them.
- *
- * What a reader wants from a long file, and what keeps this screen quick: five
- * thousand identical lines are five thousand rows to lay out and nothing to read. On
- * by itself for a file long enough for it to matter, and always the reader's to turn
- * off — a comparison that hides two thirds of a file without saying so would be a
- * comparison nobody could trust.
- */
-const CONTEXT_LINES = 3;
-const LONG_ENOUGH_TO_FOLD = 400;
-const onlyDifferences = ref(false);
-const wrap = ref(false);
 
 watch(rows, (all) => {
   if (all.length > LONG_ENOUGH_TO_FOLD && blocks.value.length > 0) onlyDifferences.value = true;
@@ -467,7 +566,7 @@ const close = () => {
           <button
             type="button"
             class="flex items-center gap-1 rounded-md px-2 py-1.5 text-sm text-neutral-600 transition hover:bg-neutral-100 disabled:opacity-40 dark:text-neutral-300 dark:hover:bg-white/10"
-            :disabled="at < 0"
+            :disabled="at < 0 || sides[index + 1].readOnly"
             :title="t('compare.copyForward', { from: side.name, to: sides[index + 1].name })"
             :data-test="`compare-copy-forward-${index}`"
             @click="copyBlock(index, index + 1)"
@@ -477,7 +576,7 @@ const close = () => {
           <button
             type="button"
             class="flex items-center gap-1 rounded-md px-2 py-1.5 text-sm text-neutral-600 transition hover:bg-neutral-100 disabled:opacity-40 dark:text-neutral-300 dark:hover:bg-white/10"
-            :disabled="at < 0"
+            :disabled="at < 0 || side.readOnly"
             :title="t('compare.copyBack', { from: sides[index + 1].name, to: side.name })"
             :data-test="`compare-copy-back-${index}`"
             @click="copyBlock(index + 1, index)"
@@ -502,7 +601,8 @@ const close = () => {
 
         <button
           v-for="(side, index) in sides"
-          :key="`save-${side.path}`"
+          v-show="!side.readOnly"
+          :key="`save-${side.path}-${side.versionId || 'now'}`"
           type="button"
           class="rounded-md px-2 py-1.5 text-sm text-accent transition hover:bg-neutral-100 disabled:opacity-40 dark:hover:bg-white/10"
           :disabled="!side.dirty || side.saving"

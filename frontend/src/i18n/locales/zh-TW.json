@@ -1063,6 +1063,7 @@
   },
   "compare": {
     "title": "比較",
+    "versionOf": "{name} 的一個版本",
     "compareCount": "比較 {count} 個檔案",
     "differences": "{count} 處差異",
     "identical": "這些檔案完全相同",
@@ -1319,6 +1320,7 @@
       "deleteSelected": "刪除所選（{count}）",
       "deleteAll": "全部刪除",
       "preview": "以唯讀方式開啟",
+      "compare": "與目前檔案比較",
       "download": "下載",
       "restore": "還原",
       "rename": "命名…",

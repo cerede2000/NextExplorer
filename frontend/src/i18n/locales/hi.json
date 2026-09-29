@@ -1063,6 +1063,7 @@
   },
   "compare": {
     "title": "तुलना करें",
+    "versionOf": "{name} का संस्करण",
     "compareCount": "{count} फ़ाइलों की तुलना करें",
     "differences": "{count} अंतर",
     "identical": "ये फ़ाइलें एक जैसी हैं",
@@ -1319,6 +1320,7 @@
       "deleteSelected": "चुने हुए हटाएँ ({count})",
       "deleteAll": "सभी हटाएँ",
       "preview": "केवल पढ़ने के लिए खोलें",
+      "compare": "वर्तमान फ़ाइल से तुलना करें",
       "download": "डाउनलोड करें",
       "restore": "पुनर्स्थापित करें",
       "rename": "नाम दें…",

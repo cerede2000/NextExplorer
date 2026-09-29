@@ -1063,6 +1063,7 @@
   },
   "compare": {
     "title": "Vergelijken",
+    "versionOf": "Versie van {name}",
     "compareCount": "{count} bestanden vergelijken",
     "differences": "{count} verschillen",
     "identical": "Deze bestanden zijn identiek",
@@ -1319,6 +1320,7 @@
       "deleteSelected": "Selectie verwijderen ({count})",
       "deleteAll": "Alles verwijderen",
       "preview": "Alleen-lezen openen",
+      "compare": "Vergelijken met het huidige bestand",
       "download": "Downloaden",
       "restore": "Terugzetten",
       "rename": "Naam geven…",

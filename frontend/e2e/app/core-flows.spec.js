@@ -908,6 +908,62 @@ test('two files are compared, and one side is taken over the other', async () =>
   await expect(page.locator('[data-test="compare-copy-forward-2"]')).toHaveCount(0);
 });
 
+/**
+ * A comparison in a tab: named after what it compares, and not read again.
+ *
+ * The screen is a page, and a page is unmounted the moment another tab comes forward —
+ * so a glance at another tab read both files again and lost the reader's place. Worse:
+ * lines taken across and not yet saved exist nowhere but that screen. Held with both
+ * files held back, so the only way anything can be on screen is that the tab had it.
+ */
+test('a comparison tab keeps what it was in the middle of, and says what it is', async () => {
+  await page.goto('/settings/user-preferences');
+  const preference = page.locator('[data-test="browse-in-tabs"]');
+  await preference.click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(preference).toHaveAttribute('aria-checked', 'true');
+
+  const strip = page.locator('[data-test="tab-strip"]');
+  try {
+    await page.goto('/browse/Projects');
+    await page.locator('[title="left.conf"]:not([role="tab"])').first().click();
+    await page
+      .locator('[title="right.conf"]:not([role="tab"])')
+      .first()
+      .click({ modifiers: ['Meta'] });
+    await page.locator('[title="right.conf"]:not([role="tab"])').first().click({ button: 'right' });
+    await page.getByText(/Compare 2 files/).click();
+    await expect(page.locator('[data-test="compare"]')).toBeVisible();
+
+    // The tab says what it is comparing: three comparisons open would otherwise be
+    // three tabs all reading "Compare".
+    await expect(strip.locator('[role="tab"][title="left.conf ↔ right.conf"]')).toHaveCount(1);
+
+    // A line taken across, not saved.
+    await page.locator('[data-test="compare-next"]').click();
+    await page.locator('[data-test="compare-copy-forward-0"]').click();
+    await expect(page.locator('[data-test="compare-save-1"]')).toBeEnabled();
+
+    // Another tab in front, and back again — with both files refused.
+    await page.route('**/api/editor?**', (request) => request.abort());
+    await strip.locator('[data-test="tab"]').first().getByRole('tab').click();
+    await expect(page).not.toHaveURL(/\/compare/);
+    await strip.locator('[role="tab"][title="left.conf ↔ right.conf"]').click();
+    await expect(page).toHaveURL(/\/compare/);
+
+    // Read nothing, and still holding the line that was taken across.
+    await expect(page.locator('[data-test="compare-rows"]')).toBeVisible();
+    await expect(page.locator('[data-test="compare-loading"]')).toHaveCount(0);
+    await expect(page.locator('[data-test="compare-save-1"]')).toBeEnabled();
+    await page.unroute('**/api/editor?**');
+  } finally {
+    await page.goto('/settings/user-preferences');
+    await preference.click();
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(preference).toHaveAttribute('aria-checked', 'false');
+  }
+});
+
 test('several files download one by one, without a zip', async () => {
   fs.writeFileSync(path.join(volume, 'premier.txt'), 'un');
   fs.writeFileSync(path.join(volume, 'second.txt'), 'deux');
