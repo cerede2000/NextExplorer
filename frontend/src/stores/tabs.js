@@ -576,6 +576,34 @@ export const useTabsStore = defineStore('tabs', () => {
   const at = (position) => tabs.value[position - 1] || null;
 
   /**
+   * The same tab, at an address it gave itself.
+   *
+   * A screen that rewrites its own address has not been taken anywhere: a comparison
+   * whose two sides were swapped over is the same tab, holding the same thing, saying
+   * it the other way round. The ordinary landing cannot tell that apart from the reader
+   * walking somewhere, so it did what it does for a walk — dropped `own`, which is the
+   * flag a screen's own cross closes the tab by, and left a trail entry for a place the
+   * tab never left. The cross then stopped closing anything and pushed a folder over
+   * the comparison instead, and Back came out at the same comparison mirrored.
+   *
+   * Said before the address changes, so the landing that follows sees an address the
+   * tab is already on and leaves both of those alone.
+   */
+  const retarget = (id, path) => {
+    const tab = tabs.value.find((entry) => entry.id === id);
+    if (!tab || !path || tab.path === path) return null;
+    const kind = tabKindForPath(path);
+    if (!kind) return null;
+    tab.path = path;
+    tab.kind = kind.id;
+    // The mark stays where it is and what it points at is rewritten: a replaced
+    // address is one place, not two.
+    tab.history = tab.history.map((one, index) => (index === tab.at ? path : one));
+    persist();
+    return tab;
+  };
+
+  /**
    * The router landed somewhere: the active tab is now that place.
    *
    * An address that is not a kind — signing in, a share's password — leaves the
@@ -657,6 +685,7 @@ export const useTabsStore = defineStore('tabs', () => {
     neighbour,
     at,
     syncActive,
+    retarget,
     duplicate,
     pin,
     unpin,

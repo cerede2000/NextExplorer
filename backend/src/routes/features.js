@@ -6,6 +6,7 @@ const {
   preview,
   search,
   terminal,
+  compare,
   features,
   hiddenFiles,
   public: publicConfig,
@@ -123,6 +124,9 @@ router.get('/features', async (_req, res) => {
     // What this installation adds to what is always comparable, which is whatever
     // the text editor can open — the client already has that list, and a second copy
     // of it here would be a second list to keep in step.
+    compare: {
+      extensions: Array.isArray(compare?.extensions) ? compare.extensions : [],
+    },
     terminal: {
       enabled: Boolean(features?.terminal) && terminalService.isAvailable(),
       extensions: Array.isArray(terminal?.extensions) ? terminal.extensions : [],

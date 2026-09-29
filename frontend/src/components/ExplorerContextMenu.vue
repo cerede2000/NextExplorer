@@ -23,6 +23,8 @@ import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import { useFavoriteEditor } from '@/composables/useFavoriteEditor';
 import { useTerminalStore } from '@/stores/terminal';
 import { useTabsStore } from '@/stores/tabs';
+import { canCompare } from '@/config/compare';
+import { compareAddress, compareRoute } from '@/utils/compareRoute';
 import { useNotificationsStore } from '@/stores/notifications';
 import { useFeaturesStore } from '@/stores/features';
 import { isTerminalExtension } from '@/config/terminal';
@@ -272,6 +274,32 @@ const runOpenInTab = () => {
   }
 };
 
+/**
+ * Two or three files, compared side by side.
+ *
+ * Offered where it would do something: a selection of two or three files this
+ * application can read as text. Which extensions those are is
+ * `config/compare.js` — whatever the editor opens, plus whatever the installation
+ * adds — because comparing two photographs line by line is an offer that was never
+ * worth making.
+ */
+const comparable = computed(() => canCompare(actions.selectedItems.value || []));
+
+const runCompare = () => {
+  const chosen = actions.selectedItems.value || [];
+  const sides = chosen.map((item) => resolveItemPath(item));
+  // In a tab of its own where there are tabs, so the folder the files came from is
+  // still there to go back to — and at its own address either way. Spelled by the
+  // router, because that is the spelling the screen will be handed back.
+  if (tabNavigation.tabs.enabled) {
+    const address = compareAddress(router, sides);
+    if (address) tabNavigation.open(address, { own: true });
+    return;
+  }
+  const target = compareRoute(sides);
+  if (target) void router.push(target);
+};
+
 const runDownload = () => actions.runDownload();
 const runDownloadAsZip = () => actions.runDownloadAsZip();
 const runDownloadSeparately = () => actions.runDownloadSeparately();
@@ -496,6 +524,8 @@ const menuSections = computed(() => {
       canPaste: actions.canPaste.value,
       canRename: actions.canRename.value,
       canDelete: actions.canDelete.value,
+      canCompare: comparable.value,
+      comparedCount: (actions.selectedItems.value || []).length,
       canOpenInTab: openInTabTargets.value.length > 0,
       openInTabCount: openInTabTargets.value.length,
       canDownloadSeparately: actions.canDownloadSeparately.value,
@@ -515,6 +545,7 @@ const menuSections = computed(() => {
       openWithEditor: runOpenWithEditor,
       openWithTerminal: runOpenWithTerminal,
       openInTab: runOpenInTab,
+      compare: runCompare,
       download: runDownload,
       downloadAsZip: runDownloadAsZip,
       downloadSeparately: runDownloadSeparately,

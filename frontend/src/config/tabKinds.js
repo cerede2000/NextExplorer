@@ -8,6 +8,7 @@ import {
   Cog6ToothIcon,
   ClockIcon,
   CommandLineIcon,
+  ArrowsRightLeftIcon,
 } from '@heroicons/vue/24/outline';
 
 /**
@@ -72,6 +73,20 @@ const TAB_KINDS = [
     restores: false,
   },
   {
+    // Two or three files side by side. Not a singleton: comparing one pair does not
+    // stop somebody comparing another, which is the usual way of reviewing a change
+    // across several files.
+    id: 'compare',
+    match: /^\/compare([/?#]|$)/,
+    icon: ArrowsRightLeftIcon,
+    titleKey: 'compare.title',
+    // Named after what it is comparing, because somebody with three comparisons
+    // open has three tabs that would otherwise all read "Compare".
+    nameFor: (tab) => comparedNames(tab?.path).join(' ↔ '),
+    singleton: false,
+    restores: true,
+  },
+  {
     id: 'editor',
     match: /^\/editor([/?#]|$)/,
     icon: CodeBracketIcon,
@@ -119,6 +134,22 @@ const TAB_KINDS = [
     restores: false,
   },
 ];
+
+/**
+ * The file names a comparison's address is about.
+ *
+ * Read from the address rather than from the screen, because the strip names a tab
+ * that is not on screen — the page that knows what it is comparing has not been
+ * built, and may never be if the reader never goes there.
+ */
+const comparedNames = (address) => {
+  const query = String(address || '').split('?')[1];
+  if (!query) return [];
+  return new URLSearchParams(query)
+    .getAll('paths')
+    .map((path) => path.split('/').filter(Boolean).pop() || '')
+    .filter(Boolean);
+};
 
 /**
  * The folder a terminal address names, as a name.

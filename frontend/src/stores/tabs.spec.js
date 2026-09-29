@@ -952,3 +952,74 @@ describe('where a tab has been', () => {
     expect(returning.back(returning.tabs[1].id).path).toBe('/browse/A');
   });
 });
+
+/**
+ * A screen that rewrites its own address.
+ *
+ * The comparison does: swapping its two sides over changes which paths the address
+ * names, and the tab has to follow or its name and a reload would disagree with what
+ * is on screen. What it must *not* do is look like the reader walking somewhere — the
+ * tab is still the tab that was opened for that comparison, and it is still on one
+ * place, not two.
+ */
+describe('the same tab at an address it gave itself', () => {
+  const left = '/compare?paths=Docs%2Fa.txt&paths=Docs%2Fb.txt';
+  const right = '/compare?paths=Docs%2Fb.txt&paths=Docs%2Fa.txt';
+
+  it('follows the address', () => {
+    const store = withTabsOn();
+    const tab = store.open(left, { own: true });
+
+    store.retarget(tab.id, right);
+
+    expect(tab.path).toBe(right);
+  });
+
+  /**
+   * The defect this exists for: the cross in a screen's own bar closes the tab by
+   * `own`, so a swap that dropped it left the cross pushing a folder over the
+   * comparison instead of closing anything.
+   */
+  it('is still the tab that was opened for it', () => {
+    const store = withTabsOn();
+    const tab = store.open(left, { own: true });
+
+    store.retarget(tab.id, right);
+    // And the landing that follows the address change agrees, because the tab is
+    // already there.
+    store.syncActive(right);
+
+    expect(tab.own).toBe(true);
+  });
+
+  it('is one place in the tab’s trail, not two', () => {
+    const store = withTabsOn();
+    const tab = store.open(left, { own: true });
+
+    store.retarget(tab.id, right);
+    store.syncActive(right);
+
+    expect(tab.history).toEqual([right]);
+    expect(store.canGoBack(tab.id)).toBe(false);
+  });
+
+  /** Only the entry under the mark: a swap does not rewrite where the tab has been. */
+  it('leaves the rest of the trail alone', () => {
+    const store = withTabsOn();
+    const tab = store.open('/browse/Docs', { own: true });
+    store.syncActive(left);
+
+    store.retarget(tab.id, right);
+
+    expect(tab.history).toEqual(['/browse/Docs', right]);
+  });
+
+  it('answers with nothing for an address that is nowhere, or a tab that is gone', () => {
+    const store = withTabsOn();
+    const tab = store.open(left, { own: true });
+
+    expect(store.retarget(tab.id, '/not-a-place')).toBe(null);
+    expect(store.retarget('no-such-tab', right)).toBe(null);
+    expect(tab.path).toBe(left);
+  });
+});

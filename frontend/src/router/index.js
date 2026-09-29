@@ -223,6 +223,21 @@ const router = createRouter({
       children: [{ path: '', component: SearchResultsView }],
     },
     {
+      // Two or three files side by side — see views/CompareView.vue. In the editor's
+      // layout, because that is what it is: a working surface on files, not a place
+      // in the tree. Loaded on demand; nothing else needs the alignment.
+      path: '/compare',
+      component: EditorLayout,
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: '',
+          name: 'CompareView',
+          component: () => import('@/views/CompareView.vue'),
+        },
+      ],
+    },
+    {
       path: '/editor',
       component: EditorLayout,
       meta: { requiresAuth: true, allowGuest: true },

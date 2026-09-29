@@ -42,6 +42,9 @@ export const useFeaturesStore = defineStore('features', () => {
   const maxTabs = ref(DEFAULT_TAB_LIMIT);
   const terminalEnabled = ref(false);
   const terminalExtensions = ref([]);
+  // What this installation adds to what is always comparable side by side. Whatever
+  // the text editor can open is comparable without being listed here.
+  const compareExtensions = ref([]);
   // Whether deleting goes to the trash, and for how many days it keeps things.
   const trashEnabled = ref(false);
   const trashRetentionDays = ref(null);
@@ -147,6 +150,9 @@ export const useFeaturesStore = defineStore('features', () => {
         terminalExtensions.value = Array.isArray(features?.terminal?.extensions)
           ? features.terminal.extensions
           : [];
+        compareExtensions.value = Array.isArray(features?.compare?.extensions)
+          ? features.compare.extensions
+          : [];
 
         // Trash
         trashEnabled.value = features?.trash?.enabled === true;
@@ -189,6 +195,7 @@ export const useFeaturesStore = defineStore('features', () => {
         maxTabs.value = DEFAULT_TAB_LIMIT;
         terminalEnabled.value = false;
         terminalExtensions.value = [];
+        compareExtensions.value = [];
         trashEnabled.value = false;
         trashRetentionDays.value = null;
         versionsEnabled.value = false;
@@ -236,6 +243,7 @@ export const useFeaturesStore = defineStore('features', () => {
     maxTabs,
     terminalEnabled,
     terminalExtensions,
+    compareExtensions,
     trashEnabled,
     trashRetentionDays,
     versionsEnabled,

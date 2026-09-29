@@ -824,6 +824,465 @@ test('a file with versions is marked in the listing, and an administrator can cl
  * then arrives as its own file — three pieces that the unit suites each prove
  * alone and that have to add up in a browser.
  */
+/**
+ * Two files, side by side, and one side taken over the other.
+ *
+ * What cannot be proved anywhere but in a browser is the part that makes this usable
+ * rather than merely correct: that the differences can be walked without hunting for
+ * them, that taking one across really changes the other file *on disk*, and that
+ * what is written back is the file the reader was looking at.
+ */
+test('two files are compared, and one side is taken over the other', async () => {
+  const before = ['first line', 'second line', 'third line', 'fourth line'].join('\n');
+  const after = ['first line', 'SECOND line', 'third line', 'a new fourth', 'fifth line'].join(
+    '\n'
+  );
+  fs.writeFileSync(path.join(volume, 'left.conf'), `${before}\n`);
+  fs.writeFileSync(path.join(volume, 'right.conf'), `${after}\n`);
+
+  await page.goto('/browse/Projects');
+  await page.locator('[title="left.conf"]:not([role="tab"])').first().click();
+  await page
+    .locator('[title="right.conf"]:not([role="tab"])')
+    .first()
+    .click({ modifiers: ['Meta'] });
+  await page.locator('[title="right.conf"]:not([role="tab"])').first().click({ button: 'right' });
+  await page.getByText(/Compare 2 files/).click();
+
+  await expect(page.locator('[data-test="compare"]')).toBeVisible();
+  await expect(page.locator('[data-test="compare-names"]')).toHaveText('left.conf ↔ right.conf');
+  // Two differences: the second line, and the tail where one file has a line more.
+  await expect(page.locator('[data-test="compare-count"]')).toContainText('2');
+
+  // Walked rather than hunted for, and the one being read is marked.
+  await page.locator('[data-test="compare-next"]').click();
+  await expect(page.locator('[data-current="true"]')).toHaveCount(1);
+  await expect(page.locator('[data-current="true"]')).toContainText('SECOND line');
+  await page.locator('[data-test="compare-next"]').click();
+  await expect(page.locator('[data-current="true"]').first()).toContainText('fourth');
+
+  // The part of the line that differs, marked inside it.
+  await expect(page.locator('[data-test="compare-inline"]').first()).toBeVisible();
+
+  /**
+   * The bar stays one line.
+   *
+   * Everything in it used to be spelled out, and on a screen narrower than the words
+   * it wrapped: the bar became two rows tall and pushed the comparison down. Measured
+   * rather than described — a header taller than one row of controls is the defect.
+   */
+  const header = page.locator('[data-test="compare"] > header');
+  expect((await header.boundingBox()).height).toBeLessThan(48);
+
+  /**
+   * Where the differences are, down the whole file, and one press from here to there.
+   *
+   * Out of the way until it is wanted — it comes out when the pointer nears the
+   * right-hand edge — so it is pinned here, which is what a reader who wants it there
+   * does, and is the only way a journey can rely on it being there.
+   */
+  await expect(page.locator('[data-test="compare-map"]')).toHaveCount(0);
+  await page.locator('[data-test="compare-map-pin"]').click();
+  await expect(page.locator('[data-test="compare-map-mark-1"]')).toBeVisible();
+  await page.locator('[data-test="compare-map-mark-1"]').click();
+  await expect(page.locator('[data-current="true"]').first()).toContainText('fourth');
+
+  // In the colours the panes use, one band per side. Both of these differences are lines
+  // the two files each have and wrote differently, so all four bands are amber; a
+  // difference only one side has is a colour and a gap, which the long comparison below
+  // is built to show.
+  const tintsOf = (mark) =>
+    page
+      .locator(`[data-test="compare-map-mark-${mark}"] span`)
+      .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-tint')));
+  expect(await tintsOf(0)).toEqual(['both', 'both']);
+  expect(await tintsOf(1)).toEqual(['both', 'both']);
+
+  // And the two sides the other way round, address and all.
+  await page.locator('[data-test="compare-swap-0"]').click();
+  await expect(page.locator('[data-test="compare-names"]')).toHaveText('right.conf ↔ left.conf');
+  await expect(page).toHaveURL(/paths=Projects.right\.conf&paths=Projects.left\.conf/);
+  await page.locator('[data-test="compare-swap-0"]').click();
+  await expect(page.locator('[data-test="compare-names"]')).toHaveText('left.conf ↔ right.conf');
+
+  // Back to the first difference, and taken from left to right.
+  await page.locator('[data-test="compare-next"]').click();
+  await expect(page.locator('[data-current="true"]')).toContainText('SECOND line');
+  await page.locator('[data-test="compare-copy-forward-0"]').click();
+  await page.locator('[data-test="compare-save-1"]').click();
+
+  // On disk, and only that line: the rest of the file is untouched — including the
+  // newline it ended with, which a comparison that rewrote every line ending would
+  // have turned into a change on every line of the file.
+  await expect
+    .poll(() => onDisk('right.conf'), { timeout: 15_000 })
+    .toBe(
+      `${['first line', 'second line', 'third line', 'a new fourth', 'fifth line'].join('\n')}\n`
+    );
+
+  // And the comparison now says one difference, not two.
+  await expect(page.locator('[data-test="compare-count"]')).toContainText('1');
+
+  /**
+   * Looking for something, and putting something else in its place — in one side only,
+   * which is the question people actually ask.
+   */
+  await page.locator('[data-test="compare-search-toggle"]').click();
+  await page.locator('[data-test="compare-search-query"]').fill('third line');
+  await expect(page.locator('[data-test="compare-search-count"]')).toHaveAttribute(
+    'data-count',
+    '2'
+  );
+  await page.locator('[data-test="compare-search-scope"]').selectOption('1');
+  await expect(page.locator('[data-test="compare-search-count"]')).toHaveAttribute(
+    'data-count',
+    '1'
+  );
+  await page.locator('[data-test="compare-search-replacement"]').fill('THIRD LINE');
+  await page.locator('[data-test="compare-replace-all"]').click();
+  await page.locator('[data-test="compare-save-1"]').click();
+  await expect.poll(() => onDisk('right.conf'), { timeout: 15_000 }).toContain('THIRD LINE');
+  // Only the side it was told to: the left is as it was.
+  expect(onDisk('left.conf')).toContain('third line');
+  await page.locator('[data-test="compare-search-toggle"]').click();
+
+  /**
+   * The lines can be selected and copied.
+   *
+   * Which is the first thing anybody does with two files side by side, and it did
+   * nothing at all: the window turns `user-select` off on the body so a file list
+   * behaves like a file list, and hands it back only to fields, the editor, a terminal
+   * and prose — none of which these panes are. Nothing but a browser can see it, and
+   * nothing but the selection itself can prove it.
+   */
+  const lineOf = (side, text) =>
+    page
+      .locator('[data-test="compare-row"]')
+      .filter({ hasText: text })
+      .first()
+      .locator(`[data-cell="${side}"] span`)
+      .nth(1);
+
+  const dragged = lineOf(0, 'first line');
+  // Dragged across, which is the gesture: a triple-click is no proof at all, because
+  // Chrome fills the selection object from one even where `user-select` says none.
+  const box = await dragged.boundingBox();
+  await page.mouse.move(box.x + 1, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 1, box.y + box.height / 2, { steps: 8 });
+  await page.mouse.up();
+  const picked = await page.evaluate(() => window.getSelection().toString());
+  expect(picked).toContain('first line');
+  // And the gutter still says no, so a block copied out of a pane carries the lines
+  // without the numbers in front of them.
+  expect(
+    await dragged.evaluate((node) => ({
+      text: getComputedStyle(node).userSelect,
+      gutter: getComputedStyle(node.parentElement.firstElementChild).userSelect,
+    }))
+  ).toEqual({ text: 'text', gutter: 'none' });
+
+  /**
+   * A line added by hand, with the key that adds it.
+   *
+   * The field used to arrive unfocused — the click that opened it landed on the text it
+   * replaced — so what this proves is the whole chain: a double-click hands over the
+   * keyboard, Enter breaks the line, what is typed into the line that break made goes
+   * to disk.
+   */
+  await lineOf(1, 'fifth line').dblclick();
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('sixth line');
+  await page.locator('[data-test="compare-save-1"]').click();
+  await expect
+    .poll(() => onDisk('right.conf'), { timeout: 15_000 })
+    .toContain('fifth line\nsixth line');
+
+  // And removed again from the button beside the line being edited.
+  await lineOf(1, 'sixth line').dblclick();
+  await page.locator('[data-test="compare-delete-1"]').click();
+  await page.locator('[data-test="compare-save-1"]').click();
+  await expect.poll(() => onDisk('right.conf'), { timeout: 15_000 }).not.toContain('sixth line');
+
+  /**
+   * Three files, aligned on the middle one — the only arrangement that answers "who
+   * changed what", which is what a comparison is for when two people have both
+   * edited a common version.
+   */
+  fs.writeFileSync(path.join(volume, 'base.conf'), `${before}\n`);
+  await page.goto('/browse/Projects');
+  await page.locator('[title="left.conf"]:not([role="tab"])').first().click();
+  await page
+    .locator('[title="base.conf"]:not([role="tab"])')
+    .first()
+    .click({ modifiers: ['Meta'] });
+  await page
+    .locator('[title="right.conf"]:not([role="tab"])')
+    .first()
+    .click({ modifiers: ['Meta'] });
+  await page.locator('[title="base.conf"]:not([role="tab"])').first().click({ button: 'right' });
+  await page.getByText(/Compare 3 files/).click();
+
+  await expect(page.locator('[data-test="compare"]')).toBeVisible();
+  await expect(page.locator('[data-test="compare-names"]')).toContainText('base.conf');
+  // Three columns, and a copy between neighbours in each direction.
+  await expect(page.locator('[data-test="compare-copy-forward-1"]')).toBeVisible();
+  await expect(page.locator('[data-test="compare-copy-forward-2"]')).toHaveCount(0);
+});
+
+/**
+ * Where the reader is in a long comparison, said twice over.
+ *
+ * Two things were wrong, and only a browser lays a scrollbar out at all, so only a
+ * browser could say so. The map of the differences was laid over the right-hand edge of
+ * the scrolling box, which is exactly where a scrollbar is drawn — and this platform
+ * draws its scrollbars *over* the content and fades them out when nothing is moving, so
+ * even uncovered there was nothing to see. Measured here: the scrollbar reserves no
+ * width at all. Which is why the lane has to say where the reader is itself, and be on
+ * screen the whole time while it does.
+ *
+ * Short of four hundred lines on purpose: past that the comparison folds the identical
+ * parts away by itself, and a screen with eight rows on it has nothing to scroll.
+ */
+test('a long comparison shows where the reader is, and the scrollbar is not covered', async () => {
+  const lines = (changed) =>
+    Array.from({ length: 300 }, (_, index) =>
+      index === 4 && changed ? 'CHANGED near the top' : `line ${index}`
+    ).join('\n');
+  fs.writeFileSync(path.join(volume, 'long-a.conf'), `${lines(false)}\n`);
+  // One line the other file simply does not have, so the map has a one-sided difference
+  // to colour as well as a rewritten one.
+  fs.writeFileSync(path.join(volume, 'long-b.conf'), `${lines(true)}\nonly here\n`);
+
+  await page.goto('/compare?paths=Projects%2Flong-a.conf&paths=Projects%2Flong-b.conf');
+  await expect(page.locator('[data-test="compare-rows"]')).toBeVisible();
+
+  /**
+   * Out of the way until the pointer comes near the right-hand edge — and then it
+   * stays, which is what it is out for.
+   *
+   * It did not: the map is drawn over the text, so the pointer moving onto it left the
+   * text, the map was taken off screen, the pointer was back over the text, and the map
+   * came back. It flickered, and a mark on it could not be pressed. Only a real pointer
+   * crossing a real boundary shows that, so the mouse is walked across it here and a
+   * mark is pressed at the end of the walk.
+   */
+  const surface = await page.locator('[data-test="compare-rows"]').boundingBox();
+  const middle = surface.y + surface.height / 2;
+  await expect(page.locator('[data-test="compare-map"]')).toHaveCount(0);
+
+  await page.mouse.move(surface.x + surface.width - 30, middle);
+  await expect(page.locator('[data-test="compare-map"]')).toBeVisible();
+
+  // Onto the lane itself, and across it, which is where it used to blink out.
+  const lane = await page.locator('[data-test="compare-map"]').boundingBox();
+  await page.mouse.move(lane.x + lane.width / 2, middle, { steps: 6 });
+  await expect(page.locator('[data-test="compare-map"]')).toBeVisible();
+  await page.mouse.move(lane.x + lane.width / 2, lane.y + lane.height * 0.7, { steps: 6 });
+  await expect(page.locator('[data-test="compare-map"]')).toBeVisible();
+
+  // And a mark on it can be pressed, which is the whole point of it staying.
+  await page.locator('[data-test="compare-map-mark-1"]').click();
+  await expect(page.locator('[data-current="true"]').first()).toContainText('only here');
+
+  // Pinned for the rest of this journey, which is what a reader who wants it there does.
+  await page.locator('[data-test="compare-map-pin"]').click();
+  await expect(page.locator('[data-test="compare-map"]')).toBeVisible();
+
+  const box = page.locator('[data-test="compare-rows"]');
+  const measured = await page.evaluate(() => {
+    const rows = document.querySelector('[data-test="compare-rows"]');
+    const lane = document.querySelector('[data-test="compare-map"]');
+    return {
+      scrollable: rows.scrollHeight - rows.clientHeight,
+      scrollbar: rows.offsetWidth - rows.clientWidth,
+      clear: rows.getBoundingClientRect().right - lane.getBoundingClientRect().right,
+      laneWidth: lane.getBoundingClientRect().width,
+    };
+  });
+
+  // There is something to scroll, the platform drew a scrollbar for it, and the lane
+  // stops before that scrollbar rather than sitting on top of it.
+  expect(measured.scrollable).toBeGreaterThan(0);
+  // Whatever the platform gave its own scrollbar, the lane stops before it rather than
+  // sitting on top of it. Here it gave nothing: this browser draws scrollbars over the
+  // content, which is the whole reason the lane has to say the same thing itself.
+  expect(measured.scrollbar).toBe(0);
+  expect(measured.clear).toBeGreaterThanOrEqual(measured.scrollbar - 1);
+  // And the lane is on screen the whole time, which an overlay scrollbar is not.
+  expect(measured.laneWidth).toBeGreaterThan(0);
+
+  // And the map says the thing a scrollbar cannot: it shows the whole file, so the
+  // reader's place is in the same picture as the differences.
+  const viewTop = async () =>
+    parseFloat(
+      await page.locator('[data-test="compare-map-view"]').evaluate((node) => node.style.top)
+    );
+  // Near the top rather than exactly at it: pressing a mark above set a smooth scroll
+  // going, and a number a still-running animation is allowed to nudge is a test that
+  // fails for no reason somebody will have to look into later.
+  await box.evaluate((node) => {
+    node.scrollTop = 0;
+  });
+  await expect.poll(viewTop).toBeLessThan(2);
+
+  await box.evaluate((node) => {
+    node.scrollTop = node.scrollHeight;
+  });
+  await expect.poll(viewTop).toBeGreaterThan(50);
+
+  /**
+   * Pressed down the lane, the file goes there. Near the bottom, where a file whose one
+   * difference is near the top has nothing but empty lane — a mark is a difference to
+   * go to, and has its own answer.
+   */
+  const pinnedLane = await page.locator('[data-test="compare-map"]').boundingBox();
+  await page.mouse.click(
+    pinnedLane.x + pinnedLane.width / 2,
+    pinnedLane.y + pinnedLane.height * 0.25
+  );
+  await expect
+    .poll(async () => {
+      const where = await box.evaluate((node) => node.scrollTop / node.scrollHeight);
+      return where > 0.15 && where < 0.3;
+    })
+    .toBe(true);
+
+  /**
+   * And the colours say which side has what, which a map of identical amber marks could
+   * not: the rewritten line is amber on both sides, the line only one file has is a
+   * colour and a gap.
+   */
+  const bands = (mark) =>
+    page
+      .locator(`[data-test="compare-map-mark-${mark}"] span`)
+      .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('data-tint')));
+  expect(await bands(0)).toEqual(['both', 'both']);
+  expect(await bands(1)).toEqual(['none', 'new']);
+
+  // Left where it was found: these journeys share one window, and a tab still pointing
+  // at a comparison is the state the next one would start from.
+  await page.goto('/browse/Projects');
+});
+
+/**
+ * A comparison in a tab: named after what it compares, and not read again.
+ *
+ * The screen is a page, and a page is unmounted the moment another tab comes forward —
+ * so a glance at another tab read both files again and lost the reader's place. Worse:
+ * lines taken across and not yet saved exist nowhere but that screen. Held with both
+ * files held back, so the only way anything can be on screen is that the tab had it.
+ */
+test('a comparison tab keeps what it was in the middle of, and says what it is', async () => {
+  await page.goto('/settings/user-preferences');
+  const preference = page.locator('[data-test="browse-in-tabs"]');
+  await preference.click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(preference).toHaveAttribute('aria-checked', 'true');
+
+  const strip = page.locator('[data-test="tab-strip"]');
+  try {
+    await page.goto('/browse/Projects');
+    await page.locator('[title="left.conf"]:not([role="tab"])').first().click();
+    await page
+      .locator('[title="right.conf"]:not([role="tab"])')
+      .first()
+      .click({ modifiers: ['Meta'] });
+    await page.locator('[title="right.conf"]:not([role="tab"])').first().click({ button: 'right' });
+    await page.getByText(/Compare 2 files/).click();
+    await expect(page.locator('[data-test="compare"]')).toBeVisible();
+
+    // The tab says what it is comparing: three comparisons open would otherwise be
+    // three tabs all reading "Compare".
+    await expect(strip.locator('[role="tab"][title="left.conf ↔ right.conf"]')).toHaveCount(1);
+
+    // A line taken across, not saved.
+    await page.locator('[data-test="compare-next"]').click();
+    await page.locator('[data-test="compare-copy-forward-0"]').click();
+    await expect(page.locator('[data-test="compare-save-1"]')).toBeEnabled();
+
+    // Another tab in front, and back again — with both files refused.
+    await page.route('**/api/editor?**', (request) => request.abort());
+    await strip.locator('[data-test="tab"]').first().getByRole('tab').click();
+    await expect(page).not.toHaveURL(/\/compare/);
+    await strip.locator('[role="tab"][title="left.conf ↔ right.conf"]').click();
+    await expect(page).toHaveURL(/\/compare/);
+
+    // Read nothing, and still holding the line that was taken across.
+    await expect(page.locator('[data-test="compare-rows"]')).toBeVisible();
+    await expect(page.locator('[data-test="compare-loading"]')).toHaveCount(0);
+    await expect(page.locator('[data-test="compare-save-1"]')).toBeEnabled();
+    await page.unroute('**/api/editor?**');
+
+    /**
+     * And all of that again once the sides have been swapped over.
+     *
+     * A swap rewrites the screen's own address, and the address was spelled two ways:
+     * `URLSearchParams` writes the slash in `Projects/left.conf` as `%2F` and the router
+     * does not. So every piece of the window that matches an address by name missed
+     * after a swap — the tab was held under a name nothing kept it under, and the
+     * landing dropped the flag a screen's own cross closes a tab by, which is how the
+     * cross came to push the volumes over the comparison instead of closing it. Nothing
+     * but a browser has a real router to spell it.
+     */
+    await page.locator('[data-test="compare-swap-0"]').click();
+    await expect(strip.locator('[role="tab"][title="right.conf ↔ left.conf"]')).toHaveCount(1);
+
+    // Still held, under the swapped address, with both files refused again.
+    await page.route('**/api/editor?**', (request) => request.abort());
+    await strip.locator('[data-test="tab"]').first().getByRole('tab').click();
+    await expect(page).not.toHaveURL(/\/compare/);
+    await strip.locator('[role="tab"][title="right.conf ↔ left.conf"]').click();
+    await expect(page.locator('[data-test="compare-rows"]')).toBeVisible();
+    await expect(page.locator('[data-test="compare-loading"]')).toHaveCount(0);
+    // right.conf is on the left now, and it is still the side that was changed.
+    await expect(page.locator('[data-test="compare-save-0"]')).toBeEnabled();
+    await page.unroute('**/api/editor?**');
+
+    /**
+     * And the cross closes the tab — after asking, because a line was taken across and
+     * not saved. Closing is the one gesture that really loses those lines, so the tab
+     * has a question to put first.
+     *
+     * Asked in the application's own dialog, which is the point: `window.confirm` put
+     * the server's address and port at the top of a question about somebody's file,
+     * and stopped the page until it was dismissed. Nothing but a browser can tell the
+     * two apart, so the browser is asked to record every box of its own that opens —
+     * and the assertion is that none did.
+     */
+    const browserBoxes = [];
+    const watchForBoxes = (dialog) => {
+      browserBoxes.push(dialog.message());
+      return dialog.dismiss();
+    };
+    page.on('dialog', watchForBoxes);
+    const before = await strip.locator('[data-test="tab"]').count();
+    await page.locator('[data-test="compare-close"]').click();
+    await expect(page.locator('[data-test="ask-confirm"]')).toBeVisible();
+
+    // Called off, and the tab is still there with its lines in it.
+    await page.locator('[data-test="ask-cancel"]').click();
+    await expect(page.locator('[data-test="ask-confirm"]')).toHaveCount(0);
+    await expect(strip.locator('[data-test="tab"]')).toHaveCount(before);
+    await expect(page.locator('[data-test="compare-save-0"]')).toBeEnabled();
+
+    // Asked again, agreed to: two tabs before, one after — and not a third.
+    await page.locator('[data-test="compare-close"]').click();
+    await page.locator('[data-test="ask-confirm"]').click();
+    await expect(strip.locator('[data-test="tab"]')).toHaveCount(before - 1);
+    expect(browserBoxes).toEqual([]);
+    // Let go of, for the reason given where the editor's cross is pressed: a listener
+    // left attached answers `beforeunload` for every navigation that follows.
+    page.off('dialog', watchForBoxes);
+    await expect(strip.locator('[role="tab"][title="right.conf ↔ left.conf"]')).toHaveCount(0);
+  } finally {
+    await page.goto('/settings/user-preferences');
+    await preference.click();
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(preference).toHaveAttribute('aria-checked', 'false');
+  }
+});
+
 test('several files download one by one, without a zip', async () => {
   fs.writeFileSync(path.join(volume, 'premier.txt'), 'un');
   fs.writeFileSync(path.join(volume, 'second.txt'), 'deux');

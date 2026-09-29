@@ -1,4 +1,5 @@
 import {
+  ArrowsRightLeftIcon,
   StarIcon as StarOutline,
   DocumentTextIcon,
   CommandLineIcon,
@@ -210,6 +211,19 @@ const itemSections = (situation, run, entries, words) => {
   // Where a browser puts it, and for the same reason: it is about *this* entry, and
   // it is the first thing somebody with tabs open reaches for. Offered only where
   // it would do something — tabs on, and an entry that has an address of its own.
+  // Comparing two or three files, beside opening one: both are about what has been
+  // chosen rather than about where it is, and this is the one that needs more than one.
+  if (situation.canCompare) {
+    sections.push([
+      mk(
+        'compare',
+        t('compare.compareCount', { count: situation.comparedCount || 2 }),
+        ArrowsRightLeftIcon,
+        run.compare
+      ),
+    ]);
+  }
+
   if (situation.canOpenInTab) {
     // Named for what it will do: four chosen entries become four tabs, and a
     // label that said "a new tab" would be describing something else. Two keys

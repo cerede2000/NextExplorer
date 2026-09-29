@@ -139,3 +139,28 @@ describe('a terminal', () => {
     );
   });
 });
+
+/**
+ * A comparison names itself after what it is comparing.
+ *
+ * Somebody with three comparisons open has three tabs that would otherwise all read
+ * "Compare", which is the whole reason a tab carries a name. Read from the address,
+ * because the strip names tabs that are not on screen — the page that knows what it
+ * is comparing has not been built, and may never be.
+ */
+describe('the name on a comparison tab', () => {
+  const name = (path) => tabTitle({ kind: 'compare', path }, (key) => key);
+
+  it('is the two files it is about', () => {
+    expect(name('/compare?paths=Docs%2Fa.txt&paths=Docs%2Fb.txt')).toBe('a.txt ↔ b.txt');
+  });
+
+  it('is all three when there are three', () => {
+    expect(name('/compare?paths=a.txt&paths=b.txt&paths=c.txt')).toBe('a.txt ↔ b.txt ↔ c.txt');
+  });
+
+  it('falls back to the word for it when the address names nothing', () => {
+    expect(name('/compare')).toBe('compare.title');
+    expect(name('/compare?paths=')).toBe('compare.title');
+  });
+});

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resolveAddress } from '@/utils/testing/routerAddress';
 import { mount, flushPromises } from '@vue/test-utils';
 import { defineComponent, h, inject, ref } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
@@ -41,7 +42,9 @@ vi.mock('@floating-ui/vue', () => ({
   autoUpdate: vi.fn(),
   size: vi.fn(),
 }));
-vi.mock('vue-router', () => ({ useRouter: () => ({ push: routerPush }) }));
+vi.mock('vue-router', () => ({
+  useRouter: () => ({ push: routerPush, resolve: resolveAddress }),
+}));
 /**
  * `t` gives back the key, and the values interpolated into it when there are
  * any — so a message naming a file, or counting several, can be told apart from
@@ -1355,6 +1358,84 @@ describe('an archive that wants a password', () => {
  * offered where it would do nothing — tabs off, or an entry with no address of its
  * own, which is a download rather than a place.
  */
+/**
+ * Two or three files, compared side by side.
+ *
+ * Offered where it would do something — a selection of two or three files this
+ * application reads as text — and refused everywhere else, because comparing two
+ * photographs line by line is an offer that was never worth making.
+ */
+describe('comparing what was chosen', () => {
+  // Text, because that is what a comparison reads: `report.docx` beside it is a
+  // document this application opens in an editor, not lines it can align.
+  const first = { name: 'notes.txt', path: 'Docs', kind: 'txt' };
+  const second = { name: 'plan.md', path: 'Docs', kind: 'md' };
+  const image = { name: 'holiday.png', path: 'Docs', kind: 'png' };
+
+  const openOn = async (chosen) => {
+    fileStore.selectedItems = chosen;
+    actions = makeActions({ primaryItem: ref(chosen[0]), selectedItems: ref(chosen) });
+    document.body.innerHTML = '';
+    const { api } = await mountMenu();
+    api.openItemMenu(rightClick(), chosen[0]);
+    await flushPromises();
+  };
+
+  it('is offered for two files that can be read as text', async () => {
+    await openOn([first, second]);
+
+    expect(labels()).toContain('compare.compareCount {"count":2}');
+  });
+
+  it('is offered for three of them', async () => {
+    await openOn([first, second, { name: 'more.txt', path: 'Docs', kind: 'txt' }]);
+
+    expect(labels()).toContain('compare.compareCount {"count":3}');
+  });
+
+  it('is not offered for one file, which has nothing to be compared with', async () => {
+    await openOn([first]);
+
+    expect(labels().some((label) => label.startsWith('compare.compareCount'))).toBe(false);
+  });
+
+  it('is not offered when anything chosen cannot be read as text', async () => {
+    await openOn([first, image]);
+
+    expect(labels().some((label) => label.startsWith('compare.compareCount'))).toBe(false);
+  });
+
+  /**
+   * Spelled the way the router spells it, which is the way the screen is handed it back.
+   *
+   * `URLSearchParams` writes a slash in a query value as `%2F`, so a tab was opened
+   * under one spelling of the address and landed under another. Everything downstream
+   * that matches an address by name then missed it.
+   */
+  it('opens the comparison in a tab of its own, carrying both paths', async () => {
+    await openOn([first, second]);
+
+    await clickLabel('compare.compareCount {"count":2}');
+
+    expect(address.open).toHaveBeenCalledWith('/compare?paths=Docs/notes.txt&paths=Docs/plan.md', {
+      own: true,
+    });
+  });
+
+  /** Without tabs there is nowhere else to put it, so the window goes there. */
+  it('goes there itself when there are no tabs', async () => {
+    address.enabled = false;
+    await openOn([first, second]);
+
+    await clickLabel('compare.compareCount {"count":2}');
+
+    expect(routerPush).toHaveBeenCalledWith({
+      path: '/compare',
+      query: { paths: ['Docs/notes.txt', 'Docs/plan.md'] },
+    });
+  });
+});
+
 describe('open in a new tab', () => {
   beforeEach(() => {
     address.enabled = true;
