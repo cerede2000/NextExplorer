@@ -51,6 +51,22 @@ vi.mock('@/components/TabStrip.vue', () => ({
 // was open. Stubbed because this spec is about the configuration gate; that the
 // shell mounts it, once, is checked below.
 const previewHost = vi.fn();
+/**
+ * Every open shell, mounted here and only here — for the same reason the documents
+ * are: `/browse` and `/terminal` are two route records, so a host inside the browser
+ * layout was destroyed whenever the reader crossed between them, and an unmounted
+ * terminal is a killed shell.
+ */
+const terminals = vi.hoisted(() => ({ terminalEnabled: false, openIds: [] }));
+vi.mock('@/stores/features', () => ({ useFeaturesStore: () => terminals }));
+vi.mock('@/stores/terminal', () => ({ useTerminalStore: () => terminals }));
+// Marked as a module so Vue's async resolution reads it as one rather than asking the
+// mock for exports it does not have.
+vi.mock('@/components/TerminalHost.vue', () => ({
+  __esModule: true,
+  default: { template: '<div data-test="terminal-host-stub"></div>' },
+}));
+
 vi.mock('@/plugins/preview/PreviewHost.vue', () => ({
   default: {
     setup: () => previewHost(),
@@ -134,6 +150,33 @@ describe('App config error handling', () => {
 
     expect(askDialog).toHaveBeenCalledTimes(1);
     expect(wrapper.findAll('[data-test="ask-dialog-stub"]')).toHaveLength(1);
+  });
+
+  /**
+   * And every open shell, in that same one place.
+   *
+   * A host inside the browser layout was destroyed whenever the reader crossed between
+   * `/browse` and `/terminal` — two route records, two layout instances — and every
+   * shell went with it: coming back to a terminal tab found a new one, with the slide
+   * from the right playing again and what had been typed gone.
+   */
+  it('keeps every open shell in one place too', async () => {
+    terminals.terminalEnabled = true;
+    terminals.openIds = ['tab-1'];
+
+    const wrapper = mount(App, { global: { stubs: { RouterView: true } } });
+    await flushPromises();
+
+    expect(wrapper.findAll('[data-test="terminal-host-stub"]')).toHaveLength(1);
+    terminals.terminalEnabled = false;
+    terminals.openIds = [];
+  });
+
+  /** And nothing at all when no shell is open: xterm is carried in only when asked. */
+  it('draws no shell host when nothing has asked for one', () => {
+    const wrapper = mount(App, { global: { stubs: { RouterView: true } } });
+
+    expect(wrapper.find('[data-test="terminal-host-stub"]').exists()).toBe(false);
   });
 
   it('shows a dismissible warning for PUBLIC_URL mismatches without blocking the router', async () => {

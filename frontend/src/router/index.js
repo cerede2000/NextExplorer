@@ -257,23 +257,21 @@ const router = createRouter({
     {
       // One terminal, at an address of its own — see views/TerminalView.vue.
       //
-      // Inside the browser layout, unlike a document, because the terminal itself
-      // is drawn there: every open terminal belongs to `TerminalHost.vue`, which
-      // is mounted once beside what a tab holds and outlives every page, since a
-      // page is unmounted the moment another tab comes forward and an unmounted
-      // terminal is a killed shell. Outside the layout there is no host, and the
-      // page — which deliberately draws no terminal of its own — was a black
-      // rectangle. Loaded on demand, because the host carries xterm with it.
+      // No layout at all, and the page deliberately draws no terminal of its own:
+      // every open shell belongs to `TerminalHost.vue`, which is mounted once in the
+      // shell of the application and outlives every page *and* every layout. It used
+      // to be inside the browser layout, which is not one thing — `/browse` and this
+      // are two route records, so crossing between them destroys that layout and
+      // builds another, and it took every shell with it. A terminal that is unmounted
+      // is a shell that has been killed.
+      //
+      // Which also gives a shell the whole tab: the sidebar is for going somewhere,
+      // and beside a shell its only answer was to leave the shell — easy to confuse
+      // with a `cd` a keystroke away. The strip of tabs still leads out.
       path: '/terminal/:path(.*)*',
-      component: BrowserLayout,
+      name: 'TerminalView',
+      component: () => import('@/views/TerminalView.vue'),
       meta: { requiresAuth: true, requiresAdmin: true },
-      children: [
-        {
-          path: '',
-          name: 'TerminalView',
-          component: () => import('@/views/TerminalView.vue'),
-        },
-      ],
     },
     {
       path: '/auth/setup',

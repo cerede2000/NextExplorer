@@ -34,16 +34,22 @@ export const useTerminalStore = defineStore('terminal', () => {
   /**
    * Open one in this tab, in the folder given.
    *
-   * `key` counts the launches rather than naming the session: a shell cannot
-   * change its mind about where it started, so asking for another folder builds
-   * another terminal instead of moving this one. Asking for the same folder again
-   * while it is already open does nothing at all — the reader is looking at it.
+   * `key` counts the launches rather than naming the session: a shell cannot change
+   * its mind about where it started, so asking for another folder builds another
+   * terminal instead of moving this one. Asking for the same folder again gives back
+   * the shell that is already there — running, with everything it has printed and
+   * everything that was typed into it — whether the drawer was open or shut.
+   *
+   * That last part is the whole of it: shutting the drawer used to end the shell, so
+   * somebody who shut it to look at the folder underneath came back to a fresh prompt
+   * with their history gone. A drawer is a drawer.
    */
   const openIn = (id, cwd = '', { input = '', mode = 'drawer' } = {}) => {
     if (!id) return null;
     const path = typeof cwd === 'string' ? cwd : '';
     const existing = sessions[id];
-    if (existing && existing.open && existing.path === path && existing.mode === mode && !input) {
+    if (existing && existing.path === path && existing.mode === mode && !input) {
+      existing.open = true;
       return existing;
     }
 
@@ -58,14 +64,17 @@ export const useTerminalStore = defineStore('terminal', () => {
   };
 
   /**
-   * Shut the drawer, which ends the shell in it.
+   * Shut the drawer, and keep what is in it.
    *
-   * Ended rather than hidden: a terminal nobody can see is a process nobody can
-   * see, and the reader who shut the drawer meant to be done with it. Coming back
-   * to a tab is the other case entirely, and that one keeps everything.
+   * Shut rather than ended. It used to be ended, on the grounds that a terminal nobody
+   * can see is a process nobody can see — but shutting a drawer is how somebody looks
+   * at the folder underneath it, not how they say they are done, and coming back to a
+   * fresh prompt with the history gone is not what a drawer means anywhere else.
+   *
+   * What does end a shell: typing `exit` in it, and closing the tab it belongs to.
    */
   const closeIn = (id) => {
-    if (sessions[id]) delete sessions[id];
+    if (sessions[id]) sessions[id].open = false;
   };
 
   const toggleIn = (id, cwd = '', options = {}) =>
@@ -79,8 +88,14 @@ export const useTerminalStore = defineStore('terminal', () => {
     }
   };
 
-  /** Which tabs have one, for whoever draws them. */
-  const openIds = computed(() => Object.keys(sessions).filter((id) => sessions[id].open));
+  /**
+   * Which tabs have one at all, for whoever draws them.
+   *
+   * Every session, not only the ones on screen: a shut drawer is still a running shell,
+   * and whoever draws them has to keep drawing it — hidden — or it is unmounted, and an
+   * unmounted terminal is a killed shell.
+   */
+  const openIds = computed(() => Object.keys(sessions));
 
   return { sessions, sessionFor, isOpenIn, openIn, closeIn, toggleIn, keepOnly, openIds };
 });

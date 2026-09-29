@@ -96,6 +96,30 @@ describe('the terminals on screen', () => {
     expect(surface().classes()).not.toContain('invisible');
   });
 
+  /**
+   * A shut drawer is still drawn — hidden.
+   *
+   * Shutting it no longer ends the shell, so the surface has to stay on the page or it
+   * is unmounted, and an unmounted terminal is a killed shell. Hidden is the whole
+   * mechanism: the box keeps its place, the socket keeps printing, and opening the
+   * drawer again is looking at what has been there all along.
+   */
+  it('keeps a shut drawer on the page, out of sight', async () => {
+    terminals.openIn('tab-1', 'Projects');
+    const wrapper = show();
+
+    terminals.closeIn('tab-1');
+    await nextTick();
+
+    const surface = wrapper.find('[data-tab="tab-1"]');
+    expect(surface.exists()).toBe(true);
+    expect(surface.classes()).toContain('invisible');
+
+    terminals.openIn('tab-1', 'Projects');
+    await nextTick();
+    expect(wrapper.get('[data-tab="tab-1"]').classes()).not.toContain('invisible');
+  });
+
   /** A drawer is the other case: it floats over whatever the tab is on. */
   it('leaves a drawer where it is, whatever the tab is showing', async () => {
     terminals.openIn('tab-1', 'Projects', { mode: 'drawer' });

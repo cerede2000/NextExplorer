@@ -121,3 +121,62 @@ describe('a terminal in a tab', () => {
     expect(terminals.openIds).toEqual([]);
   });
 });
+
+/**
+ * A drawer is a drawer: shutting it is how somebody looks at the folder underneath,
+ * not how they say they are done with the shell.
+ *
+ * It used to end the shell, on the grounds that a terminal nobody can see is a process
+ * nobody can see. Coming back to a fresh prompt with the history gone is not what a
+ * drawer means anywhere else, and it is not what the reader shutting it asked for.
+ */
+describe('shutting the drawer and opening it again', () => {
+  it('gives back the shell that was in it, not another one', () => {
+    const store = useTerminalStore();
+    const first = store.openIn('tab-1', 'Projects');
+
+    store.closeIn('tab-1');
+    const again = store.openIn('tab-1', 'Projects');
+
+    // The same launch: the surface is keyed on this, so it is not rebuilt.
+    expect(again.key).toBe(first.key);
+    expect(store.isOpenIn('tab-1')).toBe(true);
+  });
+
+  it('keeps the shell running while the drawer is shut', () => {
+    const store = useTerminalStore();
+    store.openIn('tab-1', 'Projects');
+
+    store.closeIn('tab-1');
+
+    // Not on screen…
+    expect(store.isOpenIn('tab-1')).toBe(false);
+    // …but still there to be drawn, hidden, which is what keeps it alive.
+    expect(store.sessionFor('tab-1')).not.toBe(null);
+    expect(store.openIds).toContain('tab-1');
+  });
+
+  /** Another folder is another shell: one cannot change its mind about where it started. */
+  it('builds another when another folder is asked for', () => {
+    const store = useTerminalStore();
+    const first = store.openIn('tab-1', 'Projects');
+
+    store.closeIn('tab-1');
+    const other = store.openIn('tab-1', 'Media');
+
+    expect(other.key).not.toBe(first.key);
+    expect(other.path).toBe('Media');
+  });
+
+  /** And closing the tab ends it, which is the gesture that means "done". */
+  it('ends with the tab it belongs to', () => {
+    const store = useTerminalStore();
+    store.openIn('tab-1', 'Projects');
+    store.closeIn('tab-1');
+
+    store.keepOnly(['tab-9']);
+
+    expect(store.sessionFor('tab-1')).toBe(null);
+    expect(store.openIds).toEqual([]);
+  });
+});

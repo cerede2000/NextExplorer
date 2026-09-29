@@ -38,8 +38,10 @@ const terminalStore = useTerminalStore();
  */
 const surfaces = computed(() => {
   const live = tabsStore.tabs.map((tab) => tab.id);
+  // Every session a live tab has, open or shut: a shut drawer is still a running
+  // shell, and dropping it here would unmount it, which kills it.
   return live
-    .filter((id) => terminalStore.isOpenIn(id))
+    .filter((id) => terminalStore.sessionFor(id))
     .map((id) => ({ id, session: terminalStore.sessionFor(id) }));
 });
 
@@ -68,7 +70,10 @@ const route = useRoute();
 
 const isShowing = (id) => {
   if (id !== tabsStore.activeId) return false;
-  if (terminalStore.sessionFor(id)?.mode !== 'page') return true;
+  const session = terminalStore.sessionFor(id);
+  // A shut drawer is drawn hidden: the shell keeps running behind the folder.
+  if (!session?.open) return false;
+  if (session.mode !== 'page') return true;
   return route.path.startsWith('/terminal');
 };
 

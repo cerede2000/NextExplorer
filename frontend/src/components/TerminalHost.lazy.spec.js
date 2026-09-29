@@ -14,11 +14,11 @@ import { describe, expect, it } from 'vitest';
  */
 
 describe('the terminal', () => {
-  it('is loaded on demand by the layout, not imported into it', async () => {
-    const layout = (await import('@/layouts/BrowserLayout.vue?raw')).default;
+  it('is loaded on demand by the shell of the application, not imported into it', async () => {
+    const shell = (await import('@/App.vue?raw')).default;
 
-    expect(layout).toMatch(/defineAsyncComponent\(\s*\(\)\s*=>\s*import\(/);
-    expect(layout).not.toMatch(/^import TerminalHost from/m);
+    expect(shell).toMatch(/defineAsyncComponent\(\s*\(\)\s*=>\s*import\(/);
+    expect(shell).not.toMatch(/^import TerminalHost from/m);
   });
 
   /**
@@ -28,9 +28,9 @@ describe('the terminal', () => {
    * which is the cost this was meant to avoid.
    */
   it('is not on the page until a terminal is open', async () => {
-    const layout = (await import('@/layouts/BrowserLayout.vue?raw')).default;
+    const shell = (await import('@/App.vue?raw')).default;
 
-    expect(layout).toMatch(/<TerminalHost\s+v-if="[^"]*terminalStore\.openIds\.length > 0"/);
+    expect(shell).toMatch(/<TerminalHost\s+v-if="[^"]*terminalStore\.openIds\.length > 0"/);
   });
 
   it('is where xterm lives, so it travels with whatever shows a terminal', async () => {
@@ -59,26 +59,34 @@ describe('the terminal', () => {
   });
 
   /**
-   * And the terminal's address is inside the layout the host is mounted in.
+   * And the host is above every layout, which is the other half of the page drawing
+   * nothing.
    *
-   * This is the other half of the page drawing nothing, and the two together were
-   * a black rectangle: the route sat outside `BrowserLayout` — deliberately, as a
-   * document's does — so there was no host on it, and a page whose whole job is to
-   * say "my tab wants a terminal" had nobody to say it to. Nothing else could have
-   * caught it. Every piece was right on its own, and the chain from the page to
-   * the host to the layout was only joined by the route table.
+   * The two together were a black rectangle once, when the route sat outside the layout
+   * the host was in: a page whose whole job is to say "my tab wants a terminal" had
+   * nobody to say it to. Putting the route *inside* that layout fixed the rectangle and
+   * left a worse fault behind it — `/browse` and `/terminal` are two route records, so
+   * crossing between them destroyed the layout and every shell in it. A terminal that
+   * is unmounted is a shell that has been killed.
+   *
+   * So the host is mounted in the shell of the application, where it outlives every
+   * page and every layout, and the terminal's address needs no layout at all.
    *
    * Asked of the source, like the rest of this file: importing the router pulls in
-   * every screen it names eagerly, which under jsdom reaches for a canvas that is
-   * not there and hangs.
+   * every screen it names eagerly, which under jsdom reaches for a canvas that is not
+   * there and hangs.
    */
-  it('is in the layout the terminal address is reached through', async () => {
+  it('is mounted above every layout, so no layout can take a shell with it', async () => {
+    const shell = (await import('@/App.vue?raw')).default;
+    const layout = (await import('@/layouts/BrowserLayout.vue?raw')).default;
     const router = (await import('@/router/index.js?raw')).default;
-    const between = router.slice(
+    const terminalRoute = router.slice(
       router.indexOf("path: '/terminal/"),
       router.indexOf("import('@/views/TerminalView.vue')")
     );
 
-    expect(between).toMatch(/component: BrowserLayout/);
+    expect(shell).toMatch(/<TerminalHost/);
+    expect(layout).not.toMatch(/<TerminalHost/);
+    expect(terminalRoute).not.toMatch(/component: BrowserLayout/);
   });
 });

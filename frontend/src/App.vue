@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, defineAsyncComponent } from 'vue';
 import { RouterView } from 'vue-router';
 import { useAccountLanguage } from '@/composables/useAccountLanguage';
 import { useConfigErrorGate } from '@/composables/useConfigErrorGate';
@@ -9,6 +9,10 @@ import ConfigWarningNotice from '@/components/ConfigWarningNotice.vue';
 import TabStrip from '@/components/TabStrip.vue';
 import PreviewHost from '@/plugins/preview/PreviewHost.vue';
 import AskDialog from '@/components/AskDialog.vue';
+import { useFeaturesStore } from '@/stores/features';
+import { useTerminalStore } from '@/stores/terminal';
+// Carried in only when a shell is asked for: xterm travels with it.
+const TerminalHost = defineAsyncComponent(() => import('@/components/TerminalHost.vue'));
 
 const { configError, dismissConfigWarning } = useConfigErrorGate();
 
@@ -19,6 +23,9 @@ useAccountLanguage();
 // strip is only drawn where a tab can be, and the tabs have to keep up with the
 // address wherever it goes.
 useTabRouteSync();
+
+const featuresStore = useFeaturesStore();
+const terminalStore = useTerminalStore();
 
 const blockingConfigError = computed(() => configError.value?.mode === 'error');
 const configWarning = computed(() =>
@@ -53,6 +60,17 @@ const configWarning = computed(() =>
     <TabStrip class="shrink-0" />
     <div class="relative min-h-0 flex-1">
       <router-view></router-view>
+      <!--
+        Every open shell, drawn over what a tab holds and outliving every page.
+
+        It used to live in the browser layout, which is not one thing: `/browse` and
+        `/terminal` are two route records, so crossing between them destroys that layout
+        and builds another — and it took every shell with it. A terminal that is
+        unmounted is a shell that has been killed, so coming back to a terminal tab
+        found a new one: the slide from the right played again and what had been typed
+        was gone. Here it is mounted once, like the documents beside it.
+      -->
+      <TerminalHost v-if="featuresStore.terminalEnabled && terminalStore.openIds.length > 0" />
     </div>
     <!-- Every tab's open document, teleported to the body and outliving the
          pages: which one is visible is a tab away, and nothing is rebuilt to
