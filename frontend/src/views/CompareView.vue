@@ -869,8 +869,8 @@ const close = () => {
     <!--
       One line, and it stays one line.
 
-      Everything here used to be spelled out — "5 differences", "1 of 5", "Save
-      Detect-ModeleMail.ps1" — and on a screen narrower than the words it wrapped,
+      Everything here used to be spelled out — the count, the position, and a save
+      button naming its file — and on a screen narrower than those words it wrapped,
       which made the bar two rows tall and pushed the comparison down. What a toolbar
       owes is to be readable at a glance and to stay out of the way; the words live in
       the titles now, where they are read by whoever asks.
