@@ -703,6 +703,7 @@ const USER_SETTINGS = {
   downloadMode: asDownloadMode,
   browseInTabs: asBoolean,
   closeTabsOnDoubleClick: asBoolean,
+  reopenTabs: asBoolean,
   preloadBackgroundTabs: asBoolean,
 };
 

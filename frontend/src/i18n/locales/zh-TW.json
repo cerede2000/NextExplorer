@@ -619,7 +619,9 @@
       "quickActionsPositionHelp": "對齊到名稱欄的一側後，它們在每一列都在同一位置；無論是否停留，所需的空間都會保留。",
       "quickActionsPositionAfter": "名稱之後",
       "quickActionsPositionStart": "名稱欄的開頭",
-      "quickActionsPositionEnd": "名稱欄的結尾"
+      "quickActionsPositionEnd": "名稱欄的結尾",
+      "reopenTabs": "回來時重新開啟分頁",
+      "reopenTabsHelp": "關閉時只有釘選的分頁會回來，這正是釘選的用途。開啟時全部回來。"
     },
     "thumbs": {
       "subtitle": "自訂圖片和影片的預覽縮圖。",

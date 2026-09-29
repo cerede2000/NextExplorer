@@ -74,6 +74,7 @@ const SWITCHES = [
   'documentsOpenInNewTab',
   'browseInTabs',
   'closeTabsOnDoubleClick',
+  'reopenTabs',
   'preloadBackgroundTabs',
   'showVersionMarks',
   'showSidebarFavorites',
@@ -192,6 +193,10 @@ describe('the preferences', () => {
         downloadMode: 'separate',
         browseInTabs: true,
         closeTabsOnDoubleClick: true,
+        // Off unless it is turned on, which is what makes keeping a tab mean
+        // something: with everything coming back, "kept" says nothing that "open"
+        // does not already say.
+        reopenTabs: false,
         // On unless it is turned off: a tab opened in the background is opened in
         // order not to wait for it.
         preloadBackgroundTabs: true,

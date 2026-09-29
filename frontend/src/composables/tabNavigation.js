@@ -40,11 +40,35 @@ export function useTabRouteSync() {
   const appSettings = useAppSettings();
   const route = useRoute();
 
-  // The address is the truth. `immediate` so the tab in front starts out saying
-  // where the page was opened, however it was reached — a deep link included.
+  /**
+   * The address is the truth — except for the one address that says nothing.
+   *
+   * `immediate`, so the tab in front starts out saying where the page was opened,
+   * however it was reached, a deep link included. But opening the application at its
+   * own root is not a statement about any tab: it is "open the application". Writing it
+   * into the tab in front is how a kept tab came back on the volumes — pinned tabs sit
+   * at the front of the row, so the front tab is very often the kept one, and the
+   * landing quietly took the folder it had been kept on away from it.
+   *
+   * So the first landing on the root goes to the tab's own address instead. Every other
+   * address, and every later landing, is the truth as before.
+   */
+  const router = useRouter();
+  let landed = false;
+
   watch(
     () => route.fullPath,
-    (path) => tabs.syncActive(path),
+    (path) => {
+      if (!landed) {
+        landed = true;
+        const own = tabs.activeTab?.path;
+        if (path === HOME && own && own !== HOME) {
+          void router.replace(own);
+          return;
+        }
+      }
+      tabs.syncActive(path);
+    },
     { immediate: true }
   );
 
@@ -59,6 +83,18 @@ export function useTabRouteSync() {
     () => [appSettings.loaded, appSettings.userSettings?.browseInTabs],
     ([ready, on]) => {
       if (ready) tabs.setEnabled(on === true);
+    },
+    { immediate: true }
+  );
+
+  /**
+   * And whether they come back next time, told the same way and for the same reason:
+   * before the settings arrive the answer is unknown, not false.
+   */
+  watch(
+    () => [appSettings.loaded, appSettings.userSettings?.reopenTabs],
+    ([ready, again]) => {
+      if (ready) tabs.setReopen(again === true);
     },
     { immediate: true }
   );

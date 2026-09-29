@@ -619,7 +619,9 @@
       "quickActionsPositionHelp": "Alignées sur un bord de la colonne des noms, elles gardent la même place à chaque ligne ; la place qu'il leur faut est réservée, que la ligne soit survolée ou non.",
       "quickActionsPositionAfter": "Après le nom",
       "quickActionsPositionStart": "Au début de la colonne des noms",
-      "quickActionsPositionEnd": "À la fin de la colonne des noms"
+      "quickActionsPositionEnd": "À la fin de la colonne des noms",
+      "reopenTabs": "Rouvrir les onglets au retour",
+      "reopenTabsHelp": "Éteint, les onglets que vous aviez ne reviennent pas : seuls ceux que vous avez épinglés reviennent — c'est à cela que sert l'épinglage. Allumé, ils reviennent tous."
     },
     "thumbs": {
       "subtitle": "Personnalisez les vignettes d'aperçu pour les images et les vidéos.",

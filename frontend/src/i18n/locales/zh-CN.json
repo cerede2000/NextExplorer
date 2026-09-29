@@ -619,7 +619,9 @@
       "quickActionsPositionHelp": "对齐到名称列的一侧后，它们在每一行都在同一位置；无论是否悬停，所需的空间都会保留。",
       "quickActionsPositionAfter": "名称之后",
       "quickActionsPositionStart": "名称列的开头",
-      "quickActionsPositionEnd": "名称列的末尾"
+      "quickActionsPositionEnd": "名称列的末尾",
+      "reopenTabs": "返回时重新打开标签页",
+      "reopenTabsHelp": "关闭时只有固定的标签页会回来，这正是固定的用途。开启时全部回来。"
     },
     "thumbs": {
       "subtitle": "自定义图片和视频的预览缩略图。",

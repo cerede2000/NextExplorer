@@ -619,7 +619,9 @@
       "quickActionsPositionHelp": "Allineate a un bordo della colonna dei nomi, restano nello stesso punto in ogni riga; lo spazio che serve resta riservato, con o senza il puntatore sulla riga.",
       "quickActionsPositionAfter": "Dopo il nome",
       "quickActionsPositionStart": "All'inizio della colonna dei nomi",
-      "quickActionsPositionEnd": "Alla fine della colonna dei nomi"
+      "quickActionsPositionEnd": "Alla fine della colonna dei nomi",
+      "reopenTabs": "Riapri le schede al ritorno",
+      "reopenTabsHelp": "Spento, le schede che avevi non tornano: tornano solo quelle che hai fissato, che è a questo che serve fissarle. Acceso, tornano tutte."
     },
     "thumbs": {
       "subtitle": "Personalizza le miniature di anteprima per immagini e video.",

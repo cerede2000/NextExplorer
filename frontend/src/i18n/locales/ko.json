@@ -619,7 +619,9 @@
       "quickActionsPositionHelp": "이름 열의 한쪽 끝에 맞추면 모든 행에서 같은 자리에 놓입니다. 필요한 공간은 행에 포인터가 있든 없든 그대로 유지됩니다.",
       "quickActionsPositionAfter": "이름 뒤",
       "quickActionsPositionStart": "이름 열의 시작",
-      "quickActionsPositionEnd": "이름 열의 끝"
+      "quickActionsPositionEnd": "이름 열의 끝",
+      "reopenTabs": "돌아올 때 탭 다시 열기",
+      "reopenTabsHelp": "끄면 고정한 탭만 돌아옵니다. 고정은 바로 그것을 위한 것입니다. 켜면 모두 돌아옵니다."
     },
     "thumbs": {
       "subtitle": "사진, 영상 파일의 미리보기 썸네일 관련 설정을 커스터마이징하세요.",

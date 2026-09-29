@@ -82,6 +82,42 @@ export const useTabsStore = defineStore('tabs', () => {
    * browse, it just will not remember its tabs.
    */
   const OPEN_KEY = 'settings:tabs:open';
+  /**
+   * Whether the tabs come back, kept beside them rather than read from the settings.
+   *
+   * The tabs are restored while this file is still being evaluated, and the account's
+   * settings have not arrived then — so asking the settings would be asking a question
+   * whose answer is "unknown", and acting on it would throw away what somebody had. The
+   * answer is written here the moment it is known, and read from here the next time.
+   */
+  const REOPEN_KEY = 'settings:tabs:reopen';
+  /**
+   * That this window has already been here, which reloading does not undo.
+   *
+   * Session storage is the one thing that tells a *reload* from a *return*: it survives
+   * F5 and every navigation within the window, and goes when the window does. Without
+   * it, "only the kept tabs come back" applied to reloading a page — so a reader who
+   * pressed F5, or followed a link that reloaded the application, lost every tab they
+   * had. That is not what any browser does, and it is not what the preference means:
+   * it is about coming back, not about staying.
+   */
+  const SESSION_KEY = 'settings:tabs:here';
+
+  const stillHere = () => {
+    try {
+      return sessionStorage.getItem(SESSION_KEY) !== null;
+    } catch {
+      return false;
+    }
+  };
+
+  const markHere = () => {
+    try {
+      sessionStorage.setItem(SESSION_KEY, '1');
+    } catch {
+      // A window that will not hold a mark simply restores the way a return does.
+    }
+  };
   const ACTIVE_KEY = 'settings:tabs:active';
 
   const read = (key, fallback) => {
@@ -134,8 +170,19 @@ export const useTabsStore = defineStore('tabs', () => {
    */
   const load = () => {
     const remembered = read(OPEN_KEY, []);
-    const kept = (Array.isArray(remembered) ? remembered : []).filter(isTab).map((entry) =>
-      TAB_KINDS_BY_ID[entry.kind].restores
+    // Off by default, which is what makes keeping a tab mean something: with everything
+    // coming back, "kept" said nothing that "open" did not already say. A window that
+    // has already been here is reloading rather than returning, and a reload keeps what
+    // the reader had.
+    const reopen = stillHere() || read(REOPEN_KEY, false) === true;
+    const wanted = (Array.isArray(remembered) ? remembered : []).filter(isTab);
+    const kept = (reopen ? wanted : wanted.filter((entry) => entry.pinned === true)).map((entry) =>
+      // A kept tab comes back as it was, whatever its kind. `restores` says what to do
+      // with a tab that merely happened to be showing something — a shell that is not
+      // running any more, a settings page nobody was mid-anything on. Keeping a tab is
+      // a statement about tomorrow, and answering it with the volumes is answering
+      // something the reader did not ask.
+      entry.pinned === true || TAB_KINDS_BY_ID[entry.kind].restores
         ? {
             id: entry.id,
             kind: entry.kind,
@@ -154,13 +201,28 @@ export const useTabsStore = defineStore('tabs', () => {
             at: 0,
           }
     );
-    return kept.length > 0 ? kept : [makeTab(HOME)];
+    // A kept tab is a place somebody keeps, not necessarily where they want to land, so
+    // coming back lands on a fresh tab at the volumes — which is also the only tab there
+    // is when nothing was kept.
+    if (reopen && kept.length > 0) return kept;
+    landOnFresh = true;
+    return [...kept, makeTab(HOME)];
   };
 
+  /** Whether the tab to land on is the fresh one `load` just made, rather than a kept one. */
+  let landOnFresh = false;
+
   const tabs = ref(load());
+  markHere();
   const rememberedActive = read(ACTIVE_KEY, '');
   const activeId = ref(
-    tabs.value.some((tab) => tab.id === rememberedActive) ? rememberedActive : tabs.value[0].id
+    // The fresh tab is the last one, and it is where a return lands when the tabs did
+    // not come back: a kept tab is a place somebody keeps, not where they want to be.
+    landOnFresh
+      ? tabs.value[tabs.value.length - 1].id
+      : tabs.value.some((tab) => tab.id === rememberedActive)
+        ? rememberedActive
+        : tabs.value[0].id
   );
 
   /** Whether this account asked for tabs at all. Set from the settings, not read. */
@@ -587,6 +649,17 @@ export const useTabsStore = defineStore('tabs', () => {
     if (!enabled.value && tabs.value.length > 1) closeOthers(activeId.value);
   };
 
+  /**
+   * Whether the tabs come back next time, written down for the next load.
+   *
+   * Told the same way and for the same reason as the one above: before the settings
+   * arrive the answer is unknown, and nobody calls this guessing. Nothing on screen
+   * changes when it is told — this is about the return, not about now.
+   */
+  const setReopen = (value) => {
+    write(REOPEN_KEY, value === true);
+  };
+
   return {
     tabs,
     activeId,
@@ -596,6 +669,7 @@ export const useTabsStore = defineStore('tabs', () => {
     canClose,
     enabled,
     setEnabled,
+    setReopen,
     limit,
     setLimit,
     atLimit,

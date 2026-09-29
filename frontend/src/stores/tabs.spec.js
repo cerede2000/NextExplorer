@@ -17,6 +17,18 @@ import { DEFAULT_TAB_LIMIT, HOME, useTabsStore } from './tabs';
 
 const paths = (store) => store.tabs.map((tab) => tab.path);
 
+/**
+ * The window opened again, with the account asking for its tabs back.
+ *
+ * Not the default: off, only the kept tabs return, which is what keeping a tab is for.
+ * Anything below that is about what persistence *stores* asks for them.
+ */
+const comingBack = () => {
+  localStorage.setItem('settings:tabs:reopen', JSON.stringify(true));
+  setActivePinia(createPinia());
+  return withTabsOn();
+};
+
 /** The store as `useTabRouteSync` hands it over once the settings have arrived. */
 const withTabsOn = () => {
   const store = useTabsStore();
@@ -26,6 +38,8 @@ const withTabsOn = () => {
 
 beforeEach(() => {
   localStorage.clear();
+  // A fresh window each time: the mark one leaves is what tells a reload from a return.
+  sessionStorage.clear();
   setActivePinia(createPinia());
 });
 
@@ -48,9 +62,17 @@ describe('what a fresh window holds', () => {
 });
 
 describe('what was stored is read back as something openable', () => {
-  const store = (open, active = '') => {
+  /**
+   * Read back with the tabs coming back, which is not the default.
+   *
+   * Off by default, only the kept tabs return — which is what keeping a tab is *for*:
+   * with everything coming back, "kept" said nothing that "open" did not already say.
+   * These cases are about the reading itself, so they ask for the whole list.
+   */
+  const store = (open, active = '', reopen = true) => {
     localStorage.setItem('settings:tabs:open', JSON.stringify(open));
     localStorage.setItem('settings:tabs:active', JSON.stringify(active));
+    localStorage.setItem('settings:tabs:reopen', JSON.stringify(reopen));
     setActivePinia(createPinia());
     return withTabsOn();
   };
@@ -122,8 +144,7 @@ describe('what was stored is read back as something openable', () => {
     const wasActive = opened.activeId;
     await nextTick();
 
-    setActivePinia(createPinia());
-    const returning = withTabsOn();
+    const returning = comingBack();
 
     expect(paths(returning)).toEqual([HOME, '/browse/Docs']);
     expect(returning.activeId).toBe(wasActive);
@@ -182,6 +203,139 @@ describe('opening a tab', () => {
     expect(store.count).toBe(1);
     expect(tab.path).toBe('/browse/Docs');
     expect(tab.kind).toBe('folder');
+  });
+});
+
+/**
+ * Whether the tabs come back, which is what keeping one is for.
+ *
+ * They always came back, and keeping a tab therefore said nothing that having it open
+ * did not already say: the front of the row, no cross, and immunity from "close them
+ * all" were all it amounted to. Off by default — the reader who wants a tab tomorrow
+ * says so by keeping it.
+ */
+describe('coming back to the window', () => {
+  const lastTime = (open, reopen) => {
+    localStorage.setItem('settings:tabs:open', JSON.stringify(open));
+    localStorage.setItem('settings:tabs:reopen', JSON.stringify(reopen));
+    // A window that has not been here yet: this is a return, not a reload.
+    sessionStorage.clear();
+    setActivePinia(createPinia());
+    return withTabsOn();
+  };
+
+  const three = [
+    { id: 'a', kind: 'folder', path: '/browse/Docs' },
+    { id: 'b', kind: 'folder', path: '/browse/Media', pinned: true },
+    { id: 'c', kind: 'trash', path: '/trash' },
+  ];
+
+  it('brings back only the kept tabs, and lands on a fresh one', () => {
+    const back = lastTime(three, false);
+
+    expect(paths(back)).toEqual(['/browse/Media', HOME]);
+    // A kept tab is a place somebody keeps, not necessarily where they want to land.
+    expect(back.activeTab.path).toBe(HOME);
+    expect(back.tabs[0].pinned).toBe(true);
+  });
+
+  it('brings back one fresh tab when nothing was kept', () => {
+    const back = lastTime([three[0], three[2]], false);
+
+    expect(paths(back)).toEqual([HOME]);
+  });
+
+  /**
+   * A kept tab comes back as it was, whatever its kind.
+   *
+   * `restores` says what to do with a tab that merely happened to be showing something
+   * — a shell that is not running any more, a settings page nobody was mid-anything on.
+   * Keeping a tab is a statement about tomorrow, and answering it with the volumes is
+   * answering a question the reader did not ask.
+   */
+  it('brings a kept tab back on what it was kept on, whatever it was', () => {
+    const back = lastTime(
+      [
+        { id: 'a', kind: 'terminal', path: '/terminal/Projects', pinned: true },
+        { id: 'b', kind: 'settings', path: '/settings/about', pinned: true },
+        { id: 'c', kind: 'document', path: '/open/Docs/a.md', pinned: true },
+      ],
+      false
+    );
+
+    expect(paths(back)).toEqual(['/terminal/Projects', '/settings/about', '/open/Docs/a.md', HOME]);
+    expect(back.tabs.map((tab) => tab.kind)).toEqual([
+      'terminal',
+      'settings',
+      'document',
+      'folder',
+    ]);
+  });
+
+  /** And one that was not kept still comes back at the volumes, as it always did. */
+  it('still brings an unkept shell back to the volumes', () => {
+    const back = lastTime(
+      [
+        { id: 'a', kind: 'terminal', path: '/terminal/Projects' },
+        { id: 'b', kind: 'folder', path: '/browse/Docs', pinned: true },
+      ],
+      true
+    );
+
+    expect(paths(back)).toEqual([HOME, '/browse/Docs']);
+    expect(back.tabs[0].kind).toBe('folder');
+  });
+
+  /**
+   * Reloading is not returning.
+   *
+   * The preference is about coming back to the application, not about staying in it —
+   * so a reader who presses F5, or follows a link that loads the application again,
+   * keeps every tab they had whatever the preference says. Session storage is the one
+   * thing that tells the two apart: it survives a reload and goes with the window.
+   */
+  it('keeps every tab through a reload, whatever the preference says', () => {
+    localStorage.setItem('settings:tabs:open', JSON.stringify(three));
+    localStorage.setItem('settings:tabs:reopen', JSON.stringify(false));
+    // The mark a window leaves the first time it is here, which a reload does not undo.
+    sessionStorage.setItem('settings:tabs:here', '1');
+    setActivePinia(createPinia());
+
+    expect(paths(withTabsOn())).toEqual(['/browse/Docs', '/browse/Media', '/trash']);
+  });
+
+  it('brings them all back when the account asks for that', () => {
+    const back = lastTime(three, true);
+
+    expect(paths(back)).toEqual(['/browse/Docs', '/browse/Media', '/trash']);
+  });
+
+  /** Nobody has said yet, and a question with no answer is not a yes. */
+  it('brings back only the kept tabs when nobody has said', () => {
+    localStorage.setItem('settings:tabs:open', JSON.stringify(three));
+    localStorage.removeItem('settings:tabs:reopen');
+    setActivePinia(createPinia());
+
+    expect(paths(withTabsOn())).toEqual(['/browse/Media', HOME]);
+  });
+
+  /**
+   * Written down when the answer is known, and read the next time.
+   *
+   * The tabs are restored while the store is still being built, and the account's
+   * settings have not arrived then: asking them would be asking a question whose answer
+   * is "unknown", and acting on it would throw away what somebody had.
+   */
+  it('remembers the answer for next time, and changes nothing now', () => {
+    const store = lastTime(three, false);
+    const before = paths(store);
+
+    store.setReopen(true);
+
+    expect(paths(store)).toEqual(before);
+    expect(
+      paths(lastTime(three, JSON.parse(localStorage.getItem('settings:tabs:reopen'))))
+    ).toEqual(['/browse/Docs', '/browse/Media', '/trash']);
   });
 });
 
@@ -340,8 +494,7 @@ describe('a tab opened for one thing', () => {
     const opened = withTabsOn();
     opened.open('/open/Docs/a.md', { own: true });
 
-    setActivePinia(createPinia());
-    const returning = withTabsOn();
+    const returning = comingBack();
 
     expect(returning.tabs.map((tab) => tab.own)).toEqual([false, true]);
   });
@@ -793,8 +946,7 @@ describe('where a tab has been', () => {
     opened.open('/browse/A');
     opened.syncActive('/browse/A/one');
 
-    setActivePinia(createPinia());
-    const returning = withTabsOn();
+    const returning = comingBack();
 
     expect(returning.canGoBack(returning.tabs[1].id)).toBe(true);
     expect(returning.back(returning.tabs[1].id).path).toBe('/browse/A');

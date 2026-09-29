@@ -619,7 +619,9 @@
       "quickActionsPositionHelp": "Alineados en un borde de la columna de nombres, ocupan el mismo lugar en todas las filas; el espacio que necesitan se reserva, se pase o no el ratón por la fila.",
       "quickActionsPositionAfter": "Después del nombre",
       "quickActionsPositionStart": "Al principio de la columna de nombres",
-      "quickActionsPositionEnd": "Al final de la columna de nombres"
+      "quickActionsPositionEnd": "Al final de la columna de nombres",
+      "reopenTabs": "Reabrir las pestañas al volver",
+      "reopenTabsHelp": "Apagado, las pestañas que tenía no vuelven: solo vuelven las que fijó, que es para lo que sirve fijarlas. Encendido, vuelven todas."
     },
     "thumbs": {
       "subtitle": "Personaliza las miniaturas de vista previa para imágenes y vídeos.",

@@ -619,7 +619,9 @@
       "quickActionsPositionHelp": "Aliniate la o margine a coloanei de nume, stau în același loc pe fiecare rând; spațiul de care au nevoie rămâne rezervat, indiferent dacă rândul e sub indicator.",
       "quickActionsPositionAfter": "După nume",
       "quickActionsPositionStart": "La începutul coloanei de nume",
-      "quickActionsPositionEnd": "La sfârșitul coloanei de nume"
+      "quickActionsPositionEnd": "La sfârșitul coloanei de nume",
+      "reopenTabs": "Redeschide filele la revenire",
+      "reopenTabsHelp": "Oprit, filele pe care le aveați nu revin: revin doar cele fixate, pentru asta există fixarea. Pornit, revin toate."
     },
     "thumbs": {
       "subtitle": "Personalizează miniaturile de previzualizare pentru imagini și video.",

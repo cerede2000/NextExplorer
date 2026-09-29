@@ -17,10 +17,11 @@ import { nextTick } from 'vue';
  */
 
 const push = vi.fn();
+const replace = vi.fn();
 const route = { fullPath: '/browse/' };
 
 vi.mock('vue-router', () => ({
-  useRouter: () => ({ push }),
+  useRouter: () => ({ push, replace }),
   useRoute: () => route,
 }));
 
@@ -67,6 +68,8 @@ import { useTabsStore } from '@/stores/tabs';
 beforeEach(() => {
   setActivePinia(createPinia());
   push.mockClear();
+  replace.mockClear();
+  route.fullPath = '/browse/';
   warmInBackground.mockClear();
   tabLoading.keepOnly.mockClear();
   guards.mayClose.mockClear();
@@ -283,5 +286,55 @@ describe('closing a tab that has something to say', () => {
     await useTabNavigation().close(opened.id);
 
     expect(guards.release).toHaveBeenCalledWith(opened.id);
+  });
+});
+
+/**
+ * Opening the application is not a statement about any tab.
+ *
+ * The address is the truth, and the tab in front is told what it is — which is right
+ * for a deep link and wrong for the one address that says nothing. Arriving at the root
+ * means "open the application", and writing it into the tab in front is how a kept tab
+ * came back on the volumes: kept tabs sit at the front of the row, so the front tab is
+ * very often the kept one, and the landing quietly took away the folder it was kept on.
+ */
+describe('landing on the application', () => {
+  const landOn = (where, tabPath) => {
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    const tab = tabs.open(tabPath);
+    tabs.activate(tab.id);
+    route.fullPath = where;
+    useTabRouteSync();
+    return { tabs, tab };
+  };
+
+  it('goes to the tab’s own address rather than writing the root into it', async () => {
+    const { tab } = landOn('/browse/', '/browse/Docs');
+    await nextTick();
+
+    expect(replace).toHaveBeenCalledWith('/browse/Docs');
+    expect(tab.path).toBe('/browse/Docs');
+  });
+
+  /** A deep link is a statement, and the tab is told what it is, as before. */
+  it('takes a deep link as the truth', async () => {
+    const { tab } = landOn('/browse/Media/Photos', '/browse/Docs');
+    await nextTick();
+
+    expect(replace).not.toHaveBeenCalled();
+    expect(tab.path).toBe('/browse/Media/Photos');
+  });
+
+  /** And a tab already at the root has nothing to be taken back to. */
+  it('leaves a tab that is already at the volumes alone', async () => {
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    route.fullPath = '/browse/';
+    useTabRouteSync();
+    await nextTick();
+
+    expect(replace).not.toHaveBeenCalled();
+    expect(tabs.activeTab.path).toBe('/browse/');
   });
 });

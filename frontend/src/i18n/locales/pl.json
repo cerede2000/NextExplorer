@@ -619,7 +619,9 @@
       "quickActionsPositionHelp": "Wyrównane do krawędzi kolumny nazw zajmują to samo miejsce w każdym wierszu; miejsce dla nich jest zarezerwowane niezależnie od tego, czy wskaźnik jest nad wierszem.",
       "quickActionsPositionAfter": "Po nazwie",
       "quickActionsPositionStart": "Na początku kolumny nazw",
-      "quickActionsPositionEnd": "Na końcu kolumny nazw"
+      "quickActionsPositionEnd": "Na końcu kolumny nazw",
+      "reopenTabs": "Otwieraj karty ponownie po powrocie",
+      "reopenTabsHelp": "Wyłączone — wracają tylko karty przypięte, i po to właśnie jest przypinanie. Włączone — wracają wszystkie."
     },
     "thumbs": {
       "subtitle": "Dostosuj miniatury podglądu dla obrazów i filmów.",

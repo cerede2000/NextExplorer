@@ -619,7 +619,9 @@
       "quickActionsPositionHelp": "An einem Rand der Namensspalte ausgerichtet, bleiben sie in jeder Zeile an derselben Stelle; der Platz dafür bleibt frei, ob eine Zeile überfahren wird oder nicht.",
       "quickActionsPositionAfter": "Nach dem Namen",
       "quickActionsPositionStart": "Am Anfang der Namensspalte",
-      "quickActionsPositionEnd": "Am Ende der Namensspalte"
+      "quickActionsPositionEnd": "Am Ende der Namensspalte",
+      "reopenTabs": "Tabs beim nächsten Besuch wieder öffnen",
+      "reopenTabsHelp": "Aus kommt keiner Ihrer Tabs zurück, nur die angehefteten – wofür das Anheften da ist. An kommen alle zurück."
     },
     "thumbs": {
       "subtitle": "Vorschau-Miniaturen für Bilder und Videos anpassen.",

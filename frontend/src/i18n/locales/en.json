@@ -619,7 +619,9 @@
       "quickActionsPositionHelp": "Aligned at an edge of the name column, they keep the same place on every row; the room they need is held whether a row is hovered or not.",
       "quickActionsPositionAfter": "After the name",
       "quickActionsPositionStart": "At the start of the name column",
-      "quickActionsPositionEnd": "At the end of the name column"
+      "quickActionsPositionEnd": "At the end of the name column",
+      "reopenTabs": "Reopen tabs when you return",
+      "reopenTabsHelp": "Off, every tab you had is gone when you return and only the ones you kept come back — which is what keeping a tab is for. On, they all come back."
     },
     "thumbs": {
       "subtitle": "Customize preview thumbnails for images and videos.",
