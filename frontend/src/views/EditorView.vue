@@ -366,6 +366,17 @@ const isTrashViewer = computed(() => route.name === 'TrashFileViewer');
  * reasons, and leaving goes back to the folder with the history open again.
  */
 const isVersionViewer = computed(() => route.name === 'VersionFileViewer');
+
+/**
+ * A file of this instance's own, at its own address.
+ *
+ * Which is the only kind a tab can come back to and find unchanged: a version, a
+ * deleted file and a share are read through another door, and what was kept for one
+ * of them says nothing about what the door will answer now.
+ */
+const isPlainFile = computed(
+  () => !isSharedEditor.value && !isTrashViewer.value && !isVersionViewer.value
+);
 const isViewerOnly = computed(() => isTrashViewer.value || isVersionViewer.value);
 const isReadOnly = computed(() => isSharedReadOnly.value || isViewerOnly.value);
 const versionFileName = ref('');
@@ -455,6 +466,10 @@ const placeNow = () => ({
   // the file itself — putting it back as an edit would call it unsaved.
   text:
     !isViewerOnly.value && hasUnsavedChanges.value ? String(surface.value?.snapshot() ?? '') : null,
+  // And the file as it was read, so coming back does not read it again. Not where
+  // the reader was — what they were reading, which is what lets the editor be on
+  // screen before anything is asked of the network.
+  source: isPlainFile.value ? loadedContent.value : null,
   ...(surface.value?.place?.() ?? { selection: null, scrollTop: 0, topLine: null }),
 });
 
@@ -506,6 +521,42 @@ onBeforeRouteLeave((to) => {
   }
 });
 
+/**
+ * What the file said the last time this tab read it.
+ *
+ * A page is unmounted the moment another tab comes forward, so coming back read the
+ * file from the server again: a glance at another tab cost a "Loading file…" and a
+ * redraw of everything. The document in a preview does not have that problem —
+ * its session outlives the page — and this is the same promise kept the only way a
+ * page can keep it: by having been told what it read before it went.
+ */
+const readBefore = () => {
+  const kept = drafts.placeFor(tabKey.value, route.fullPath);
+  return typeof kept?.source === 'string' ? kept.source : null;
+};
+
+/**
+ * The file checked again, quietly, once the editor is already on screen.
+ *
+ * Somebody else may have written to it while this tab was behind another. What is
+ * on screen is replaced only when the file really differs and nothing is unsaved:
+ * the reader's own work outranks anything found on the disk, and replacing text
+ * that matches would throw away a cursor for nothing.
+ */
+const checkFileQuietly = async (requestPath) => {
+  try {
+    const response = await fetchFileContent(normalizedPath.value);
+    if (requestPath !== route.fullPath) return;
+    if (hasUnsavedChanges.value) return;
+    const onDisk = response.content || '';
+    if (onDisk === loadedContent.value) return;
+    loadedContent.value = onDisk;
+    hasUnsavedChanges.value = false;
+  } catch {
+    // The file is on screen; failing to confirm it costs nothing worth saying.
+  }
+};
+
 // Operations
 const loadFile = async () => {
   const requestPath = route.fullPath;
@@ -514,6 +565,28 @@ const loadFile = async () => {
   if (!isSharedEditor.value && !isTrashViewer.value && !path) {
     loadedContent.value = '';
     hasUnsavedChanges.value = false;
+    return;
+  }
+
+  // Straight onto the screen when this tab has been here: no spinner, no redraw,
+  // and the file checked afterwards rather than waited for. Only for a file of its
+  // own — a version, a deleted file or a share is read through another door, and
+  // through another address.
+  const kept = isPlainFile.value ? readBefore() : null;
+  if (kept !== null) {
+    loadError.value = '';
+    saveError.value = '';
+    loadedContent.value = kept;
+    hasUnsavedChanges.value = false;
+    shownAddress.value = requestPath;
+    isLoading.value = false;
+    applyLanguage(displayPath.value);
+    try {
+      await restoreKeptPlace(requestPath);
+    } finally {
+      settling.value = false;
+    }
+    void checkFileQuietly(requestPath);
     return;
   }
 

@@ -1289,6 +1289,27 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   await plainTab.click();
   await expect(page).toHaveURL(/\/editor\/Projects\/plain\.txt$/);
 
+  /**
+   * And coming back reads nothing from the server.
+   *
+   * The page is unmounted the moment another tab comes forward, so it used to read
+   * the file again on the way back: every glance at another tab cost a spinner and a
+   * redraw of everything. Held with the file held back — the request never answers —
+   * so the only way the text can be on screen is that the tab had it already.
+   */
+  await page.route('**/api/editor?**', (request) => request.abort());
+  const plainTabFirst = strip.locator('[role="tab"][title="plain.txt"]');
+  await tabs.first().getByRole('tab').click();
+  await expect(page).toHaveURL(/\/browse\/Projects$/);
+  await plainTabFirst.click();
+  await expect(page).toHaveURL(/\/editor\/Projects\/plain\.txt$/);
+
+  // Whichever lines the editor draws — it renders the window the reader is in, not
+  // the whole file — they are lines of this file, arrived without asking for it.
+  await expect(page.locator('.cm-content')).toContainText('of a file worth scrolling');
+  await expect(page.getByText('Loading file…')).toHaveCount(0);
+  await page.unroute('**/api/editor?**');
+
   await expect.poll(async () => (await where()).selected).toBe(before.selected);
   // Back where it was, not merely somewhere below the top: the editor draws what
   // is in view and estimates the rest, so a position written into it before it

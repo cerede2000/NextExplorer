@@ -10,7 +10,7 @@ import { useTabNavigation } from '@/composables/tabNavigation';
 import { useAppSettings } from '@/stores/appSettings';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
 import { useTabLoadingStore } from '@/stores/tabLoading';
-import LoadingIcon from '@/icons/LoadingIcon.vue';
+import SpinnerIcon from '@/icons/SpinnerIcon.vue';
 import { normalizePath } from '@/api';
 
 /**
@@ -317,7 +317,7 @@ const duplicate = (id) => {
         @auxclick.middle.prevent="close(tab.id)"
         @contextmenu.prevent="openMenu(tab.id)"
       >
-        <LoadingIcon
+        <SpinnerIcon
           v-if="isLoading(tab)"
           class="h-4 w-4 shrink-0 animate-spin text-neutral-500 dark:text-neutral-400"
           data-test="tab-loading"

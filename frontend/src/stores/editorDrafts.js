@@ -21,6 +21,13 @@ import { useTabsStore } from '@/stores/tabs';
  * inside CodeMirror and would mean keeping the editor itself alive, which the
  * router cannot do for a page that is not on screen.
  *
+ * And a fourth, which is not about where anybody was: `source`, the file as it was
+ * last read. Without it a tab coming back read the file from the server again, so
+ * every glance at another tab cost a "Loading file…" and a redraw — the page has
+ * gone, and a page that has gone knows nothing. With it the editor is on screen
+ * before anything is asked of the network, and the file is checked quietly
+ * afterwards.
+ *
  * Kept in memory only, and per tab: this is something the window holds between two
  * glances, not a second copy of somebody's file to be found later in their
  * browser's storage.

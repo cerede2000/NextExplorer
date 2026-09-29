@@ -126,6 +126,7 @@ vi.mock('@/components/editor/CodeSurface.vue', async () => {
     onMounted,
     onBeforeUnmount,
     getCurrentInstance,
+    watch,
     h,
   } = await import('vue');
   return {
@@ -134,6 +135,19 @@ vi.mock('@/components/editor/CodeSurface.vue', async () => {
       props: ['content', 'extensions', 'autofocus'],
       emits: ['ready', 'edit', 'dirty-change'],
       setup(props, { emit, expose }) {
+        // A different content is a different document, as the real surface has it:
+        // replaced, and not an unsaved change. Without this the stand-in ignored the
+        // file being handed to it again, which is what the quiet check after a tab
+        // comes back does when somebody else has written to it.
+        watch(
+          () => props.content,
+          (next) => {
+            if (next === text) return;
+            text = next;
+            saved = next;
+            emit('dirty-change', false);
+          }
+        );
         // This stand-in's own element, so what the page puts on the editor can be
         // read without attaching the whole wrapper to the document.
         const instance = getCurrentInstance();
@@ -1250,6 +1264,68 @@ describe('what a tab holds on to', () => {
     await flushPromises();
 
     expect(wrapper.get('[data-test="editor-surface"]').attributes('data-settling')).toBe('false');
+  });
+
+  /**
+   * A tab coming back does not read the file again.
+   *
+   * The page is unmounted the moment another tab comes forward, so it used to read
+   * the file from the server on the way back: every glance at another tab cost a
+   * "Loading file…" and a redraw of everything. What it kept is on screen before
+   * anything is asked of the network, and the file is checked quietly afterwards.
+   */
+  it('shows what it read before, without a spinner', async () => {
+    await mountEditor();
+    await flushPromises();
+    await anotherTabComesForward();
+    appTabs.activeId = 'tab-1';
+    // Never answers, so anything that waits for the network waits for ever: the
+    // point is that this does not wait for it at all.
+    api.fetchFileContent.mockImplementation(() => new Promise(() => {}));
+
+    wrapper = mount(EditorViewComponent, { global: { mocks: { $t: (key) => key } } });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.vm.isLoading).toBe(false);
+    expect(surface.current.snapshot()).toBe('hello');
+  });
+
+  /** A file this tab has never read is read, spinner and all. */
+  it('reads the file when the tab has nothing in hand', async () => {
+    api.fetchFileContent.mockImplementation(() => new Promise(() => {}));
+
+    wrapper = mount(EditorViewComponent, { global: { mocks: { $t: (key) => key } } });
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.vm.isLoading).toBe(true);
+  });
+
+  it('checks the file afterwards, and takes what somebody else wrote', async () => {
+    await mountEditor();
+    await flushPromises();
+    await anotherTabComesForward();
+    appTabs.activeId = 'tab-1';
+    api.fetchFileContent.mockResolvedValue({ content: 'somebody else wrote this' });
+
+    await mountEditor();
+    await flushPromises();
+
+    expect(api.fetchFileContent).toHaveBeenCalled();
+    expect(surface.current.snapshot()).toBe('somebody else wrote this');
+  });
+
+  /** The reader's own work outranks anything found on the disk. */
+  it('leaves unsaved text alone, whatever the file now says', async () => {
+    const view = await mountEditor();
+    await type(view, 'half a sentence');
+    await anotherTabComesForward();
+    appTabs.activeId = 'tab-1';
+    api.fetchFileContent.mockResolvedValue({ content: 'somebody else wrote this' });
+
+    await mountEditor();
+    await flushPromises();
+
+    expect(surface.current.snapshot()).toBe('half a sentence');
   });
 
   it('hands it back, still unsaved, when its tab comes back', async () => {

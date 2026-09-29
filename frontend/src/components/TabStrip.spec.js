@@ -611,6 +611,28 @@ describe('a tab that is still working', () => {
     expect(quiet.find('[data-test="tab-loading"]').exists()).toBe(false);
   });
 
+  /**
+   * The size it is told to be, and no larger.
+   *
+   * The first one was `LoadingIcon`, whose box is sized from `font-size: 48px` in a
+   * global stylesheet — the `scale-50` that makes it look half that is a transform
+   * and changes nothing about the room it takes. Forty-eight pixels tall in a row of
+   * twenty-four: the strip grew and the whole page moved down.
+   */
+  it('is an icon the size of the one it replaces', () => {
+    loading.isLoading.mockReturnValue(true);
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A')]);
+
+    const spinner = wrapper.get('[data-test="tab-loading"]');
+    expect(spinner.element.tagName.toLowerCase()).toBe('svg');
+    // Sized by the class it is given, like every other icon on a tab.
+    expect(spinner.classes()).toContain('h-4');
+    expect(spinner.classes()).toContain('w-4');
+    // And nothing of its own to size it: a viewBox scales, an attribute does not.
+    expect(spinner.attributes('width')).toBeUndefined();
+    expect(spinner.attributes('height')).toBeUndefined();
+  });
+
   /** In its place, so the name does not move sideways when the work ends. */
   it('still names the tab while it works', () => {
     loading.isLoading.mockReturnValue(true);
