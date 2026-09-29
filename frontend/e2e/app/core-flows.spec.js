@@ -1056,8 +1056,36 @@ test('a long comparison shows where the reader is, and the scrollbar is not cove
 
   await page.goto('/compare?paths=Projects%2Flong-a.conf&paths=Projects%2Flong-b.conf');
   await expect(page.locator('[data-test="compare-rows"]')).toBeVisible();
-  // Out of the way until it is wanted, so it is pinned for the length of this journey —
-  // which is what a reader who wants it there does.
+
+  /**
+   * Out of the way until the pointer comes near the right-hand edge — and then it
+   * stays, which is what it is out for.
+   *
+   * It did not: the map is drawn over the text, so the pointer moving onto it left the
+   * text, the map was taken off screen, the pointer was back over the text, and the map
+   * came back. It flickered, and a mark on it could not be pressed. Only a real pointer
+   * crossing a real boundary shows that, so the mouse is walked across it here and a
+   * mark is pressed at the end of the walk.
+   */
+  const surface = await page.locator('[data-test="compare-rows"]').boundingBox();
+  const middle = surface.y + surface.height / 2;
+  await expect(page.locator('[data-test="compare-map"]')).toHaveCount(0);
+
+  await page.mouse.move(surface.x + surface.width - 30, middle);
+  await expect(page.locator('[data-test="compare-map"]')).toBeVisible();
+
+  // Onto the lane itself, and across it, which is where it used to blink out.
+  const lane = await page.locator('[data-test="compare-map"]').boundingBox();
+  await page.mouse.move(lane.x + lane.width / 2, middle, { steps: 6 });
+  await expect(page.locator('[data-test="compare-map"]')).toBeVisible();
+  await page.mouse.move(lane.x + lane.width / 2, lane.y + lane.height * 0.7, { steps: 6 });
+  await expect(page.locator('[data-test="compare-map"]')).toBeVisible();
+
+  // And a mark on it can be pressed, which is the whole point of it staying.
+  await page.locator('[data-test="compare-map-mark-1"]').click();
+  await expect(page.locator('[data-current="true"]').first()).toContainText('only here');
+
+  // Pinned for the rest of this journey, which is what a reader who wants it there does.
   await page.locator('[data-test="compare-map-pin"]').click();
   await expect(page.locator('[data-test="compare-map"]')).toBeVisible();
 
@@ -1086,23 +1114,33 @@ test('a long comparison shows where the reader is, and the scrollbar is not cove
 
   // And the map says the thing a scrollbar cannot: it shows the whole file, so the
   // reader's place is in the same picture as the differences.
-  const viewTop = () =>
-    page.locator('[data-test="compare-map-view"]').evaluate((node) => node.style.top);
-  const atTheTop = await viewTop();
-  expect(atTheTop).toBe('0%');
+  const viewTop = async () =>
+    parseFloat(
+      await page.locator('[data-test="compare-map-view"]').evaluate((node) => node.style.top)
+    );
+  // Near the top rather than exactly at it: pressing a mark above set a smooth scroll
+  // going, and a number a still-running animation is allowed to nudge is a test that
+  // fails for no reason somebody will have to look into later.
+  await box.evaluate((node) => {
+    node.scrollTop = 0;
+  });
+  await expect.poll(viewTop).toBeLessThan(2);
 
   await box.evaluate((node) => {
     node.scrollTop = node.scrollHeight;
   });
-  await expect.poll(viewTop).not.toBe(atTheTop);
+  await expect.poll(viewTop).toBeGreaterThan(50);
 
   /**
    * Pressed down the lane, the file goes there. Near the bottom, where a file whose one
    * difference is near the top has nothing but empty lane — a mark is a difference to
    * go to, and has its own answer.
    */
-  const lane = await page.locator('[data-test="compare-map"]').boundingBox();
-  await page.mouse.click(lane.x + lane.width / 2, lane.y + lane.height * 0.25);
+  const pinnedLane = await page.locator('[data-test="compare-map"]').boundingBox();
+  await page.mouse.click(
+    pinnedLane.x + pinnedLane.width / 2,
+    pinnedLane.y + pinnedLane.height * 0.25
+  );
   await expect
     .poll(async () => {
       const where = await box.evaluate((node) => node.scrollTop / node.scrollHeight);

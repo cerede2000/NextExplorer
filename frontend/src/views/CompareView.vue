@@ -717,20 +717,38 @@ onMounted(() => {
 });
 onBeforeUnmount(() => watchingSize?.disconnect());
 
-/** How close to the right edge the pointer has to come for the map to appear. */
+/**
+ * How near the right-hand edge the pointer has to come for the map to appear, and how
+ * far it has to go for the map to leave.
+ *
+ * Two distances rather than one, because one made a line the pointer could sit on: at
+ * the boundary the map appeared, which moved nothing, and the next stray pixel put it
+ * away again. A band between them is the ordinary cure, and it costs nothing.
+ */
 const REVEAL_WITHIN = 40;
+const HIDE_BEYOND = 72;
 const mapNear = ref(false);
 const mapShown = computed(() => blocks.value.length > 0 && (mapPinned.value || mapNear.value));
 
 /**
+ * Watched on the box that holds both, not on the text alone.
+ *
+ * On the text alone it could not work, and did not: the map is over the text, so the
+ * pointer moving onto it *left* the text — the map was taken off screen, which put the
+ * pointer back over the text, which brought the map back. It flickered, and there was
+ * no way to press a mark on it. Listening where both live, moving onto the map is not
+ * leaving anything, and the pointer is then nearer the edge than ever.
+ *
  * Read from where the pointer is rather than from a strip laid over the text: a
  * transparent strip would be the thing under the pointer at the right-hand edge, and a
  * selection dragged down that edge would end on it instead of on the line.
  */
-const onRowsPointerMove = (event) => {
+const onEdgePointerMove = (event) => {
   const box = scroller.value;
   if (!box) return;
-  mapNear.value = box.getBoundingClientRect().right - event.clientX <= REVEAL_WITHIN;
+  const from = box.getBoundingClientRect().right - event.clientX;
+  if (from <= REVEAL_WITHIN) mapNear.value = true;
+  else if (from > HIDE_BEYOND) mapNear.value = false;
 };
 
 /**
@@ -1702,7 +1720,12 @@ const close = async () => {
         </div>
       </div>
 
-      <div class="relative min-h-0 flex-1">
+      <div
+        class="relative min-h-0 flex-1"
+        data-test="compare-surface"
+        @pointermove="onEdgePointerMove"
+        @pointerleave="mapNear = false"
+      >
         <!--
           The bar the application draws for itself, there the whole time.
 
@@ -1800,8 +1823,6 @@ const close = async () => {
           class="compare-scroller absolute inset-0 select-text overflow-auto pr-4 font-mono text-xs"
           data-test="compare-rows"
           @scroll="measureView"
-          @pointermove="onRowsPointerMove"
-          @pointerleave="mapNear = false"
         >
           <div
             v-for="entry in shown"

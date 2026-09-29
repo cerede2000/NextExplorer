@@ -1119,21 +1119,62 @@ describe('the map of the differences', () => {
     return wrapper;
   };
 
-  it('stays out of the way until the pointer comes near the right-hand edge', async () => {
-    const wrapper = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+  /** The right-hand edge of the box, wherever the pointer is said to be. */
+  const nearEdge = async (wrapper, x) => {
     const rows = wrapper.get('[data-test="compare-rows"]');
     rows.element.getBoundingClientRect = () => ({ top: 0, height: 100, left: 0, right: 500 });
+    await wrapper.get('[data-test="compare-rows"]').trigger('pointermove', { clientX: x });
+  };
+
+  it('stays out of the way until the pointer comes near the right-hand edge', async () => {
+    const wrapper = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
 
     expect(wrapper.find('[data-test="compare-map"]').exists()).toBe(false);
 
     // Well inside the text: still nothing.
-    await rows.trigger('pointermove', { clientX: 200 });
+    await nearEdge(wrapper, 200);
     expect(wrapper.find('[data-test="compare-map"]').exists()).toBe(false);
 
-    await rows.trigger('pointermove', { clientX: 480 });
+    await nearEdge(wrapper, 480);
     expect(wrapper.find('[data-test="compare-map"]').exists()).toBe(true);
 
-    await rows.trigger('pointerleave');
+    await wrapper.get('[data-test="compare-surface"]').trigger('pointerleave');
+    expect(wrapper.find('[data-test="compare-map"]').exists()).toBe(false);
+  });
+
+  /**
+   * And it stays out while the pointer is on it, which is what it is out for.
+   *
+   * It did not: the map is over the text, so the pointer moving onto the map left the
+   * text, the map was taken off screen, the pointer was back over the text, and the map
+   * came back. It flickered, and there was no pressing a mark on it. Watched on the box
+   * that holds both, moving onto the map is not leaving anything.
+   */
+  it('stays out while the pointer is on it', async () => {
+    const wrapper = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+    await nearEdge(wrapper, 480);
+
+    // Onto the lane itself, which is nearer the edge still.
+    await wrapper.get('[data-test="compare-map"]').trigger('pointermove', { clientX: 492 });
+
+    expect(wrapper.find('[data-test="compare-map"]').exists()).toBe(true);
+  });
+
+  /**
+   * A band between coming out and going away, because one distance is a line the
+   * pointer can sit on: at the boundary the map appears, which moves nothing, and the
+   * next stray pixel puts it away again.
+   */
+  it('does not go away at the first pixel back', async () => {
+    const wrapper = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+    await nearEdge(wrapper, 480);
+
+    // Just past the distance that brought it out, and still there.
+    await nearEdge(wrapper, 450);
+    expect(wrapper.find('[data-test="compare-map"]').exists()).toBe(true);
+
+    // Well clear of it, and gone.
+    await nearEdge(wrapper, 400);
     expect(wrapper.find('[data-test="compare-map"]').exists()).toBe(false);
   });
 
