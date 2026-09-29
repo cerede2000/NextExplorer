@@ -1061,6 +1061,26 @@
     "closeAll": "Închide toate filele",
     "full": "Nu mai este loc pentru încă o filă (limită: {count})"
   },
+  "compare": {
+    "title": "Compară",
+    "compareCount": "Compară {count} fișiere",
+    "differences": "{count} diferențe",
+    "identical": "Aceste fișiere sunt identice",
+    "position": "{index} din {count}",
+    "next": "Diferența următoare (F8)",
+    "previous": "Diferența anterioară (F7)",
+    "copyForward": "Copiază această diferență din {from} în {to}",
+    "copyBack": "Copiază această diferență din {from} în {to}",
+    "save": "Salvează {name}",
+    "saved": "{name} salvat",
+    "saveFailed": "{name} nu a putut fi salvat",
+    "onlyDifferences": "Doar diferențele",
+    "wrap": "Încadrează liniile lungi",
+    "folded": "{count} linii identice",
+    "needTwo": "O comparație are nevoie de două sau trei fișiere.",
+    "failed": "Aceste fișiere nu au putut fi citite.",
+    "leaveUnsaved": "Unele linii au fost copiate și nu sunt salvate. Ieși oricum?"
+  },
   "mediaPreview": {
     "audioTrack": "Pistă audio",
     "audioTrackNumbered": "Pista {number}",

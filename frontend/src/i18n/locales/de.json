@@ -1061,6 +1061,26 @@
     "closeAll": "Alle Tabs schließen",
     "full": "Kein Platz für einen weiteren Tab (Grenze: {count})"
   },
+  "compare": {
+    "title": "Vergleichen",
+    "compareCount": "{count} Dateien vergleichen",
+    "differences": "{count} Unterschiede",
+    "identical": "Diese Dateien sind identisch",
+    "position": "{index} von {count}",
+    "next": "Nächster Unterschied (F8)",
+    "previous": "Voriger Unterschied (F7)",
+    "copyForward": "Diesen Unterschied von {from} nach {to} kopieren",
+    "copyBack": "Diesen Unterschied von {from} nach {to} kopieren",
+    "save": "{name} speichern",
+    "saved": "{name} gespeichert",
+    "saveFailed": "{name} konnte nicht gespeichert werden",
+    "onlyDifferences": "Nur die Unterschiede",
+    "wrap": "Lange Zeilen umbrechen",
+    "folded": "{count} identische Zeilen",
+    "needTwo": "Ein Vergleich braucht zwei oder drei Dateien.",
+    "failed": "Diese Dateien konnten nicht gelesen werden.",
+    "leaveUnsaved": "Zeilen wurden übernommen und nicht gespeichert. Trotzdem verlassen?"
+  },
   "mediaPreview": {
     "audioTrack": "Tonspur",
     "audioTrackNumbered": "Spur {number}",

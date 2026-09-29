@@ -1061,6 +1061,26 @@
     "closeAll": "모든 탭 닫기",
     "full": "탭을 더 열 공간이 없습니다 (한도: {count})"
   },
+  "compare": {
+    "title": "비교",
+    "compareCount": "{count}개 파일 비교",
+    "differences": "차이 {count}개",
+    "identical": "이 파일들은 동일합니다",
+    "position": "{count} 중 {index}",
+    "next": "다음 차이 (F8)",
+    "previous": "이전 차이 (F7)",
+    "copyForward": "이 차이를 {from}에서 {to}으로 복사",
+    "copyBack": "이 차이를 {from}에서 {to}으로 복사",
+    "save": "{name} 저장",
+    "saved": "{name} 저장됨",
+    "saveFailed": "{name}을(를) 저장할 수 없습니다",
+    "onlyDifferences": "차이만 보기",
+    "wrap": "긴 줄 줄바꿈",
+    "folded": "동일한 줄 {count}개",
+    "needTwo": "비교에는 두 개 또는 세 개의 파일이 필요합니다.",
+    "failed": "이 파일들을 읽을 수 없습니다.",
+    "leaveUnsaved": "복사한 줄이 저장되지 않았습니다. 그래도 나가시겠습니까?"
+  },
   "mediaPreview": {
     "audioTrack": "오디오 트랙",
     "audioTrackNumbered": "트랙 {number}",

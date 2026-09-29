@@ -1061,6 +1061,26 @@
     "closeAll": "關閉所有分頁",
     "full": "沒有空間再開分頁（上限：{count}）"
   },
+  "compare": {
+    "title": "比較",
+    "compareCount": "比較 {count} 個檔案",
+    "differences": "{count} 處差異",
+    "identical": "這些檔案完全相同",
+    "position": "第 {index} / {count} 處",
+    "next": "下一處差異 (F8)",
+    "previous": "上一處差異 (F7)",
+    "copyForward": "將此差異從 {from} 複製到 {to}",
+    "copyBack": "將此差異從 {from} 複製到 {to}",
+    "save": "儲存 {name}",
+    "saved": "已儲存 {name}",
+    "saveFailed": "無法儲存 {name}",
+    "onlyDifferences": "僅顯示差異",
+    "wrap": "長行換行",
+    "folded": "{count} 行相同",
+    "needTwo": "比較需要兩個或三個檔案。",
+    "failed": "無法讀取這些檔案。",
+    "leaveUnsaved": "已複製的行尚未儲存。仍要離開嗎？"
+  },
   "mediaPreview": {
     "audioTrack": "音軌",
     "audioTrackNumbered": "音軌 {number}",

@@ -1061,6 +1061,26 @@
     "closeAll": "Chiudi tutte le schede",
     "full": "Non c’è spazio per un’altra scheda (limite: {count})"
   },
+  "compare": {
+    "title": "Confronta",
+    "compareCount": "Confronta {count} file",
+    "differences": "{count} differenze",
+    "identical": "Questi file sono identici",
+    "position": "{index} di {count}",
+    "next": "Differenza successiva (F8)",
+    "previous": "Differenza precedente (F7)",
+    "copyForward": "Copia questa differenza da {from} a {to}",
+    "copyBack": "Copia questa differenza da {from} a {to}",
+    "save": "Salva {name}",
+    "saved": "{name} salvato",
+    "saveFailed": "Non è stato possibile salvare {name}",
+    "onlyDifferences": "Solo le differenze",
+    "wrap": "Manda a capo le righe lunghe",
+    "folded": "{count} righe identiche",
+    "needTwo": "Un confronto richiede due o tre file.",
+    "failed": "Non è stato possibile leggere questi file.",
+    "leaveUnsaved": "Alcune righe sono state copiate e non sono salvate. Uscire comunque?"
+  },
   "mediaPreview": {
     "audioTrack": "Traccia audio",
     "audioTrackNumbered": "Traccia {number}",

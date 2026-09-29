@@ -1061,6 +1061,26 @@
     "closeAll": "Закрыть все вкладки",
     "full": "Нет места для ещё одной вкладки (предел: {count})"
   },
+  "compare": {
+    "title": "Сравнить",
+    "compareCount": "Сравнить {count} файлов",
+    "differences": "Различий: {count}",
+    "identical": "Эти файлы одинаковы",
+    "position": "{index} из {count}",
+    "next": "Следующее различие (F8)",
+    "previous": "Предыдущее различие (F7)",
+    "copyForward": "Скопировать это различие из {from} в {to}",
+    "copyBack": "Скопировать это различие из {from} в {to}",
+    "save": "Сохранить {name}",
+    "saved": "{name} сохранён",
+    "saveFailed": "Не удалось сохранить {name}",
+    "onlyDifferences": "Только различия",
+    "wrap": "Переносить длинные строки",
+    "folded": "Одинаковых строк: {count}",
+    "needTwo": "Для сравнения нужны два или три файла.",
+    "failed": "Не удалось прочитать эти файлы.",
+    "leaveUnsaved": "Строки скопированы и не сохранены. Всё равно уйти?"
+  },
   "mediaPreview": {
     "audioTrack": "Звуковая дорожка",
     "audioTrackNumbered": "Дорожка {number}",

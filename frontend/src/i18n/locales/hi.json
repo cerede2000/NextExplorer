@@ -1061,6 +1061,26 @@
     "closeAll": "सभी टैब बंद करें",
     "full": "एक और टैब के लिए जगह नहीं है (सीमा: {count})"
   },
+  "compare": {
+    "title": "तुलना करें",
+    "compareCount": "{count} फ़ाइलों की तुलना करें",
+    "differences": "{count} अंतर",
+    "identical": "ये फ़ाइलें एक जैसी हैं",
+    "position": "{count} में से {index}",
+    "next": "अगला अंतर (F8)",
+    "previous": "पिछला अंतर (F7)",
+    "copyForward": "यह अंतर {from} से {to} में कॉपी करें",
+    "copyBack": "यह अंतर {from} से {to} में कॉपी करें",
+    "save": "{name} सहेजें",
+    "saved": "{name} सहेजा गया",
+    "saveFailed": "{name} सहेजा नहीं जा सका",
+    "onlyDifferences": "केवल अंतर",
+    "wrap": "लंबी पंक्तियाँ लपेटें",
+    "folded": "{count} एक जैसी पंक्तियाँ",
+    "needTwo": "तुलना के लिए दो या तीन फ़ाइलें चाहिए।",
+    "failed": "ये फ़ाइलें पढ़ी नहीं जा सकीं।",
+    "leaveUnsaved": "पंक्तियाँ कॉपी हुई हैं और सहेजी नहीं गई हैं। फिर भी छोड़ें?"
+  },
   "mediaPreview": {
     "audioTrack": "ऑडियो ट्रैक",
     "audioTrackNumbered": "ट्रैक {number}",

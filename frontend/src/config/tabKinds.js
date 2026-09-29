@@ -8,6 +8,7 @@ import {
   Cog6ToothIcon,
   ClockIcon,
   CommandLineIcon,
+  ArrowsRightLeftIcon,
 } from '@heroicons/vue/24/outline';
 
 /**
@@ -66,6 +67,17 @@ const TAB_KINDS = [
     // tab that comes back to a dead one is worse than a tab that comes back to
     // the volumes.
     restores: false,
+  },
+  {
+    // Two or three files side by side. Not a singleton: comparing one pair does not
+    // stop somebody comparing another, which is the usual way of reviewing a change
+    // across several files.
+    id: 'compare',
+    match: /^\/compare([/?#]|$)/,
+    icon: ArrowsRightLeftIcon,
+    titleKey: 'compare.title',
+    singleton: false,
+    restores: true,
   },
   {
     id: 'editor',

@@ -1061,6 +1061,26 @@
     "closeAll": "关闭所有标签页",
     "full": "没有空间再打开标签页（上限：{count}）"
   },
+  "compare": {
+    "title": "比较",
+    "compareCount": "比较 {count} 个文件",
+    "differences": "{count} 处差异",
+    "identical": "这些文件完全相同",
+    "position": "第 {index} / {count} 处",
+    "next": "下一处差异 (F8)",
+    "previous": "上一处差异 (F7)",
+    "copyForward": "将此差异从 {from} 复制到 {to}",
+    "copyBack": "将此差异从 {from} 复制到 {to}",
+    "save": "保存 {name}",
+    "saved": "已保存 {name}",
+    "saveFailed": "无法保存 {name}",
+    "onlyDifferences": "仅显示差异",
+    "wrap": "长行换行",
+    "folded": "{count} 行相同",
+    "needTwo": "比较需要两个或三个文件。",
+    "failed": "无法读取这些文件。",
+    "leaveUnsaved": "已复制的行尚未保存。仍要离开吗？"
+  },
   "mediaPreview": {
     "audioTrack": "音轨",
     "audioTrackNumbered": "音轨 {number}",

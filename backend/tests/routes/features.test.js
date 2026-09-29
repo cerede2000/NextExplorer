@@ -62,6 +62,10 @@ describe('Features Routes', () => {
         'regex:\\.uploading$',
       ]);
       expect(response.body.terminal.extensions).toEqual(['sh']);
+      // Nothing added here by default: what is always comparable is whatever the
+      // text editor opens, which the client already knows. A second copy of that
+      // list on this side would be a second list to keep in step.
+      expect(response.body.compare.extensions).toEqual([]);
       expect(response.body.volumeUsage.enabled).toBe(false);
       expect(response.body.navigation.skipHome).toBe(false);
       expect(response.body.version.app).toBe(backendPackage.version);
@@ -80,6 +84,7 @@ describe('Features Routes', () => {
         EDITOR_EXTENSIONS: '.MD,.txt',
         HIDDEN_FILE_PATTERNS: '.,@',
         TERMINAL_FILE_EXTENSIONS: '.SH,.bash',
+        COMPARE_FILE_EXTENSIONS: '.TF, ino',
         SHOW_VOLUME_USAGE: 'true',
         SKIP_HOME: 'true',
         GIT_COMMIT: 'abc123',
@@ -98,6 +103,9 @@ describe('Features Routes', () => {
       expect(response.body.editor.extensions).toEqual(['md', 'txt']);
       expect(response.body.hiddenFiles.patterns).toEqual(['.', '@']);
       expect(response.body.terminal.extensions).toEqual(['sh', 'bash']);
+      // What counts as text is a local question — somebody's `.ino`, somebody's
+      // `.tf` — so an installation says so, written however they wrote it.
+      expect(response.body.compare.extensions).toEqual(['tf', 'ino']);
       expect(response.body.volumeUsage.enabled).toBe(true);
       expect(response.body.navigation.skipHome).toBe(true);
       expect(response.body.version.gitCommit).toBe('abc123');

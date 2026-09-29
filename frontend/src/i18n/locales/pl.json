@@ -1061,6 +1061,26 @@
     "closeAll": "Zamknij wszystkie karty",
     "full": "Brak miejsca na kolejną kartę (limit: {count})"
   },
+  "compare": {
+    "title": "Porównaj",
+    "compareCount": "Porównaj {count} plików",
+    "differences": "Różnice: {count}",
+    "identical": "Te pliki są identyczne",
+    "position": "{index} z {count}",
+    "next": "Następna różnica (F8)",
+    "previous": "Poprzednia różnica (F7)",
+    "copyForward": "Skopiuj tę różnicę z {from} do {to}",
+    "copyBack": "Skopiuj tę różnicę z {from} do {to}",
+    "save": "Zapisz {name}",
+    "saved": "Zapisano {name}",
+    "saveFailed": "Nie udało się zapisać {name}",
+    "onlyDifferences": "Tylko różnice",
+    "wrap": "Zawijaj długie wiersze",
+    "folded": "Identyczne wiersze: {count}",
+    "needTwo": "Porównanie wymaga dwóch lub trzech plików.",
+    "failed": "Nie udało się odczytać tych plików.",
+    "leaveUnsaved": "Wiersze zostały skopiowane i nie są zapisane. Wyjść mimo to?"
+  },
   "mediaPreview": {
     "audioTrack": "Ścieżka dźwiękowa",
     "audioTrackNumbered": "Ścieżka {number}",

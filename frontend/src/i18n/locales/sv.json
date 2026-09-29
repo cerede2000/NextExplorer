@@ -1061,6 +1061,26 @@
     "closeAll": "Stäng alla flikar",
     "full": "Ingen plats för ännu en flik (gräns: {count})"
   },
+  "compare": {
+    "title": "Jämför",
+    "compareCount": "Jämför {count} filer",
+    "differences": "{count} skillnader",
+    "identical": "Dessa filer är identiska",
+    "position": "{index} av {count}",
+    "next": "Nästa skillnad (F8)",
+    "previous": "Föregående skillnad (F7)",
+    "copyForward": "Kopiera den här skillnaden från {from} till {to}",
+    "copyBack": "Kopiera den här skillnaden från {from} till {to}",
+    "save": "Spara {name}",
+    "saved": "{name} sparad",
+    "saveFailed": "{name} kunde inte sparas",
+    "onlyDifferences": "Bara skillnaderna",
+    "wrap": "Radbryt långa rader",
+    "folded": "{count} identiska rader",
+    "needTwo": "En jämförelse behöver två eller tre filer.",
+    "failed": "Dessa filer kunde inte läsas.",
+    "leaveUnsaved": "Rader har kopierats och är inte sparade. Lämna ändå?"
+  },
   "mediaPreview": {
     "audioTrack": "Ljudspår",
     "audioTrackNumbered": "Spår {number}",

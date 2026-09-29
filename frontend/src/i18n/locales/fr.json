@@ -1061,6 +1061,26 @@
     "closeAll": "Fermer tous les onglets",
     "full": "Plus de place pour un onglet (limite : {count})"
   },
+  "compare": {
+    "title": "Comparer",
+    "compareCount": "Comparer {count} fichiers",
+    "differences": "{count} différences",
+    "identical": "Ces fichiers sont identiques",
+    "position": "{index} sur {count}",
+    "next": "Différence suivante (F8)",
+    "previous": "Différence précédente (F7)",
+    "copyForward": "Copier cette différence de {from} vers {to}",
+    "copyBack": "Copier cette différence de {from} vers {to}",
+    "save": "Enregistrer {name}",
+    "saved": "{name} enregistré",
+    "saveFailed": "{name} n'a pas pu être enregistré",
+    "onlyDifferences": "Seulement les différences",
+    "wrap": "Retour à la ligne",
+    "folded": "{count} lignes identiques",
+    "needTwo": "Une comparaison demande deux ou trois fichiers.",
+    "failed": "Ces fichiers n'ont pas pu être lus.",
+    "leaveUnsaved": "Des lignes ont été copiées et ne sont pas enregistrées. Quitter quand même ?"
+  },
   "mediaPreview": {
     "audioTrack": "Piste audio",
     "audioTrackNumbered": "Piste {number}",

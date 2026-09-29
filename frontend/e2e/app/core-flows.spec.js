@@ -824,6 +824,90 @@ test('a file with versions is marked in the listing, and an administrator can cl
  * then arrives as its own file — three pieces that the unit suites each prove
  * alone and that have to add up in a browser.
  */
+/**
+ * Two files, side by side, and one side taken over the other.
+ *
+ * What cannot be proved anywhere but in a browser is the part that makes this usable
+ * rather than merely correct: that the differences can be walked without hunting for
+ * them, that taking one across really changes the other file *on disk*, and that
+ * what is written back is the file the reader was looking at.
+ */
+test('two files are compared, and one side is taken over the other', async () => {
+  const before = ['first line', 'second line', 'third line', 'fourth line'].join('\n');
+  const after = ['first line', 'SECOND line', 'third line', 'a new fourth', 'fifth line'].join(
+    '\n'
+  );
+  fs.writeFileSync(path.join(volume, 'left.conf'), `${before}\n`);
+  fs.writeFileSync(path.join(volume, 'right.conf'), `${after}\n`);
+
+  await page.goto('/browse/Projects');
+  await page.locator('[title="left.conf"]:not([role="tab"])').first().click();
+  await page
+    .locator('[title="right.conf"]:not([role="tab"])')
+    .first()
+    .click({ modifiers: ['Meta'] });
+  await page.locator('[title="right.conf"]:not([role="tab"])').first().click({ button: 'right' });
+  await page.getByText(/Compare 2 files/).click();
+
+  await expect(page.locator('[data-test="compare"]')).toBeVisible();
+  await expect(page.locator('[data-test="compare-names"]')).toHaveText('left.conf ↔ right.conf');
+  // Two differences: the second line, and the tail where one file has a line more.
+  await expect(page.locator('[data-test="compare-count"]')).toContainText('2');
+
+  // Walked rather than hunted for, and the one being read is marked.
+  await page.locator('[data-test="compare-next"]').click();
+  await expect(page.locator('[data-current="true"]')).toHaveCount(1);
+  await expect(page.locator('[data-current="true"]')).toContainText('SECOND line');
+  await page.locator('[data-test="compare-next"]').click();
+  await expect(page.locator('[data-current="true"]').first()).toContainText('fourth');
+
+  // The part of the line that differs, marked inside it.
+  await expect(page.locator('[data-test="compare-inline"]').first()).toBeVisible();
+
+  // Back to the first difference, and taken from left to right.
+  await page.locator('[data-test="compare-next"]').click();
+  await expect(page.locator('[data-current="true"]')).toContainText('SECOND line');
+  await page.locator('[data-test="compare-copy-forward-0"]').click();
+  await page.locator('[data-test="compare-save-1"]').click();
+
+  // On disk, and only that line: the rest of the file is untouched — including the
+  // newline it ended with, which a comparison that rewrote every line ending would
+  // have turned into a change on every line of the file.
+  await expect
+    .poll(() => onDisk('right.conf'), { timeout: 15_000 })
+    .toBe(
+      `${['first line', 'second line', 'third line', 'a new fourth', 'fifth line'].join('\n')}\n`
+    );
+
+  // And the comparison now says one difference, not two.
+  await expect(page.locator('[data-test="compare-count"]')).toContainText('1');
+
+  /**
+   * Three files, aligned on the middle one — the only arrangement that answers "who
+   * changed what", which is what a comparison is for when two people have both
+   * edited a common version.
+   */
+  fs.writeFileSync(path.join(volume, 'base.conf'), `${before}\n`);
+  await page.goto('/browse/Projects');
+  await page.locator('[title="left.conf"]:not([role="tab"])').first().click();
+  await page
+    .locator('[title="base.conf"]:not([role="tab"])')
+    .first()
+    .click({ modifiers: ['Meta'] });
+  await page
+    .locator('[title="right.conf"]:not([role="tab"])')
+    .first()
+    .click({ modifiers: ['Meta'] });
+  await page.locator('[title="base.conf"]:not([role="tab"])').first().click({ button: 'right' });
+  await page.getByText(/Compare 3 files/).click();
+
+  await expect(page.locator('[data-test="compare"]')).toBeVisible();
+  await expect(page.locator('[data-test="compare-names"]')).toContainText('base.conf');
+  // Three columns, and a copy between neighbours in each direction.
+  await expect(page.locator('[data-test="compare-copy-forward-1"]')).toBeVisible();
+  await expect(page.locator('[data-test="compare-copy-forward-2"]')).toHaveCount(0);
+});
+
 test('several files download one by one, without a zip', async () => {
   fs.writeFileSync(path.join(volume, 'premier.txt'), 'un');
   fs.writeFileSync(path.join(volume, 'second.txt'), 'deux');

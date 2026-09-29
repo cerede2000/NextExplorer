@@ -1061,6 +1061,26 @@
     "closeAll": "Alle tabbladen sluiten",
     "full": "Geen ruimte voor nog een tabblad (limiet: {count})"
   },
+  "compare": {
+    "title": "Vergelijken",
+    "compareCount": "{count} bestanden vergelijken",
+    "differences": "{count} verschillen",
+    "identical": "Deze bestanden zijn identiek",
+    "position": "{index} van {count}",
+    "next": "Volgend verschil (F8)",
+    "previous": "Vorig verschil (F7)",
+    "copyForward": "Dit verschil van {from} naar {to} kopiëren",
+    "copyBack": "Dit verschil van {from} naar {to} kopiëren",
+    "save": "{name} opslaan",
+    "saved": "{name} opgeslagen",
+    "saveFailed": "{name} kon niet worden opgeslagen",
+    "onlyDifferences": "Alleen de verschillen",
+    "wrap": "Lange regels afbreken",
+    "folded": "{count} identieke regels",
+    "needTwo": "Een vergelijking heeft twee of drie bestanden nodig.",
+    "failed": "Deze bestanden konden niet worden gelezen.",
+    "leaveUnsaved": "Er zijn regels overgenomen en niet opgeslagen. Toch weggaan?"
+  },
   "share": {
     "sharedWithMe": "Gedeeld met mij",
     "sharedByMe": "Gedeeld door mij",
