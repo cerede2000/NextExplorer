@@ -1675,6 +1675,10 @@
     {
       "match": "^frontend/src/views/settings/Settings(ApiTokens|Passkeys)\\.vue$",
       "note": "the same two screens, asking the same two questions through the application's dialog rather than the browser's box — the shape differs because an answer that arrives later has to be waited for, and the sentences put to the reader are unchanged"
+    },
+    {
+      "match": "^frontend/src/views/settings/(AdminUsers\\.vue|components/UserDetail\\.vue)$",
+      "note": "the two accounts screens stopped asking the browser: fifteen `alert` calls became notifications, and the question before an account or a volume is removed became the application's own dialog. The batch stack predates that — it is P3-58 that carries it — so the two versions differ until the stack is built again. Nothing the reader is told changes; where they are told it does."
     }
   ],
   "controls": [
