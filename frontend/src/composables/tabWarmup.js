@@ -135,3 +135,45 @@ export const warmTabs = (tabs, tools = {}, { limit = WARM_TAB_LIMIT } = {}) => {
 
   return warmed;
 };
+
+/**
+ * Get tabs ready, asking first whether this account wants that.
+ *
+ * The one door every gesture goes through, because they do not share a road: the
+ * middle button on a row, the modifier on a favourite and the entry in the menu all
+ * open a tab behind, and two of them go straight to the store rather than through
+ * `tabNavigation`. That is why the first version of this prepared nothing for the
+ * two gestures people actually use — it was wired into the one road that happened
+ * to be in front of me.
+ *
+ * Everything heavy is fetched when it is needed rather than imported, so that a
+ * row in a listing does not pull the preview manager, the file store and the
+ * terminal into its module graph for a gesture nobody has made yet.
+ *
+ * On unless the account has turned it off, and only once the settings have
+ * arrived: before that the answer is not "no", it is *unknown*, and acting on the
+ * wrong one would open editing sessions nobody asked for.
+ */
+export const warmInBackground = async (toWarm) => {
+  const candidates = (Array.isArray(toWarm) ? toWarm : [toWarm]).filter(Boolean);
+  if (candidates.length === 0) return [];
+
+  const [{ useAppSettings }, { useFileStore }, { usePreviewManager }, { useTerminalStore }, api] =
+    await Promise.all([
+      import('@/stores/appSettings'),
+      import('@/stores/fileStore'),
+      import('@/plugins/preview/manager'),
+      import('@/stores/terminal'),
+      import('@/api'),
+    ]);
+
+  const settings = useAppSettings();
+  if (!settings.loaded || settings.userSettings?.preloadBackgroundTabs === false) return [];
+
+  return warmTabs(candidates, {
+    fileStore: useFileStore(),
+    previewManager: usePreviewManager(),
+    terminalStore: useTerminalStore(),
+    readFile: api.fetchFileContent,
+  });
+};

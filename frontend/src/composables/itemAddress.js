@@ -84,7 +84,17 @@ export function useOpenItemInTab() {
     if (!tabs.enabled) return false;
     const target = useItemAddress().addressFor(item, { currentPath });
     if (!target?.path) return false;
-    return Boolean(tabs.open(target.path, { activate: false, own: true }));
+    const tab = tabs.open(target.path, { activate: false, own: true });
+    if (!tab) return false;
+
+    // And got ready while the reader is still on the listing. This is the gesture
+    // people actually use — the middle button, or the modifier, on a row — and the
+    // first version of the warming reached only the entry in the menu, because that
+    // was the one road that happened to go through `tabNavigation`.
+    void import('@/composables/tabWarmup')
+      .then(({ warmInBackground }) => warmInBackground([{ ...tab }]))
+      .catch(() => {});
+    return true;
   };
 
   return { openItemInTab };

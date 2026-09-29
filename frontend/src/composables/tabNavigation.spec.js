@@ -24,23 +24,19 @@ vi.mock('vue-router', () => ({
 }));
 
 /**
- * Getting a tab ready before the reader arrives at it.
+ * Asking for a tab to be got ready before the reader arrives at it.
  *
- * What this file owns is *when* — the gesture that opens a tab behind, and the
- * account's answer about whether that should happen at all. What it costs and what
- * each kind of tab does about it is `tabWarmup.js`, and its own suite.
+ * What this file owns is *when*: a tab opened behind is a tab with time to spare.
+ * What that costs, what each kind of tab does about it and whether this account
+ * wants it at all belong to `tabWarmup.js` — which every gesture goes through,
+ * because three of them open a tab behind and only this one comes through here.
  *
- * Everything the warming needs is fetched when it is needed rather than imported,
- * so that reaching for the preview manager from here does not put it into the
- * module graph of every screen that draws a tab. Standing in for those imports is
- * how that stays true in the test as well.
+ * Fetched when it is needed rather than imported, so reaching for the preview
+ * manager does not put it into the module graph of every screen that draws a tab.
+ * Standing in for it here is how that stays true in the test as well.
  */
-const warmTabs = vi.hoisted(() => vi.fn(() => []));
-vi.mock('@/composables/tabWarmup', () => ({ warmTabs, WARM_TAB_LIMIT: 3 }));
-vi.mock('@/plugins/preview/manager', () => ({ usePreviewManager: () => ({}) }));
-vi.mock('@/stores/terminal', () => ({ useTerminalStore: () => ({}) }));
-vi.mock('@/stores/fileStore', () => ({ useFileStore: () => ({ fetchIn: vi.fn() }) }));
-vi.mock('@/api', () => ({ fetchFileContent: vi.fn() }));
+const warmInBackground = vi.hoisted(() => vi.fn(async () => []));
+vi.mock('@/composables/tabWarmup', () => ({ warmInBackground, WARM_TAB_LIMIT: 3 }));
 
 const settings = vi.hoisted(() => ({ loaded: true, userSettings: {} }));
 vi.mock('@/stores/appSettings', () => ({ useAppSettings: () => settings }));
@@ -51,7 +47,7 @@ import { useTabsStore } from '@/stores/tabs';
 beforeEach(() => {
   setActivePinia(createPinia());
   push.mockClear();
-  warmTabs.mockClear();
+  warmInBackground.mockClear();
   settings.loaded = true;
   settings.userSettings = {};
   route.fullPath = '/browse/';
@@ -145,10 +141,9 @@ describe('a tab opened behind', () => {
     const { tab } = openBehind();
     await loaded();
 
-    expect(warmTabs).toHaveBeenCalledWith(
-      [expect.objectContaining({ id: tab.id, kind: 'document' })],
-      expect.anything()
-    );
+    expect(warmInBackground).toHaveBeenCalledWith([
+      expect.objectContaining({ id: tab.id, kind: 'document' }),
+    ]);
     expect(push).not.toHaveBeenCalled();
   });
 
@@ -159,28 +154,12 @@ describe('a tab opened behind', () => {
     useTabNavigation().open('/open/Docs/report.docx', { own: true });
     await loaded();
 
-    expect(warmTabs).not.toHaveBeenCalled();
+    expect(warmInBackground).not.toHaveBeenCalled();
   });
 
-  it('is not got ready when this account has said not to', async () => {
-    settings.userSettings = { preloadBackgroundTabs: false };
-    openBehind();
-    await loaded();
-
-    expect(warmTabs).not.toHaveBeenCalled();
-  });
-
-  /**
-   * Before the settings arrive the answer is not "no", it is *unknown* — and
-   * acting on the wrong one here would open editing sessions nobody asked for.
-   */
-  it('is not got ready before the account has answered', async () => {
-    settings.loaded = false;
-    openBehind();
-    await loaded();
-
-    expect(warmTabs).not.toHaveBeenCalled();
-  });
+  // Whether this account wants anything got ready is asked where the getting ready
+  // happens — see `tabWarmup.spec.js`. Asking twice would be two answers to keep
+  // in step, and three gestures asking one of them.
 
   it('is not got ready when the row was full and no tab was opened', async () => {
     const tabs = useTabsStore();
@@ -189,6 +168,6 @@ describe('a tab opened behind', () => {
     useTabNavigation().open('/open/Docs/report.docx', { behind: true });
     await loaded();
 
-    expect(warmTabs).not.toHaveBeenCalled();
+    expect(warmInBackground).not.toHaveBeenCalled();
   });
 });

@@ -34,7 +34,16 @@ export function useOpenPlaceInTab() {
     if (!path) return false;
     const tabs = useTabsStore();
     if (!tabs.enabled) return false;
-    return Boolean(tabs.open(folderRoute(path).path, { activate: false, own: true }));
+    const tab = tabs.open(folderRoute(path).path, { activate: false, own: true });
+    if (!tab) return false;
+
+    // Got ready while the reader is still looking at where they were, which is the
+    // whole point of opening it behind. Fetched when it is needed, for the same
+    // reason the store is: this composable is on every page that draws a sidebar.
+    void import('@/composables/tabWarmup')
+      .then(({ warmInBackground }) => warmInBackground([{ ...tab }]))
+      .catch(() => {});
+    return true;
   };
 
   return { openPlaceInTab };

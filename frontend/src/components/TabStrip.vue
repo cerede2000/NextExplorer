@@ -268,6 +268,7 @@ const duplicate = (id) => {
             : '',
       ]"
       data-test="tab"
+      :data-id="tab.id"
       :data-kind="tab.kind"
       :data-active="tab.id === tabs.activeId ? 'true' : 'false'"
       :data-pinned="tab.pinned ? 'true' : 'false'"

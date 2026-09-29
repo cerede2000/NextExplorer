@@ -1124,9 +1124,12 @@ test('tabs keep two folders open, and the middle button opens one behind', async
    * a document server reached only once the tab was brought forward. Seconds of
    * blank panel, after deliberately opening the tab in advance so as not to wait.
    *
-   * The viewer is drawn by the host, which holds one surface per tab and is
-   * mounted once, so the proof is that the surface for that tab exists while the
-   * reader is still looking at the folder — and that it is not the one on screen.
+   * The viewer is drawn by the host, which holds one surface per tab and is mounted
+   * once, so the proof is that a surface appears while the reader is still looking
+   * at the folder. Counted before and after, because "some hidden surface exists"
+   * is true of every document tab opened earlier in this journey — an assertion that
+   * cannot fail, which is how the first version of this passed while the feature
+   * reached none of the gestures anybody uses.
    */
   // An image, which every installation previews — markdown may open in the editor
   // for this account, and then there is no viewer to look for.
@@ -1141,6 +1144,27 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   await page.locator('[title="warm.png"]:not([role="tab"])').first().click({ button: 'middle' });
   await expect(tabs).toHaveCount(5);
 
+  // A viewer for *that* tab, named by its own id: this page is reopened often
+  // enough that "some hidden viewer exists" is true whatever happens, and the tabs
+  // restored with the window are being got ready at the same moment.
+  const warmedTabId = await strip.locator('[data-test="tab"]').last().getAttribute('data-id');
+  expect(
+    await strip.locator('[data-test="tab"]').last().getByRole('tab').getAttribute('title')
+  ).toBe('warm.png');
+  await expect
+    .poll(async () =>
+      page.evaluate(
+        (id) =>
+          Boolean(
+            document
+              .querySelector(`[data-tab="${id}"]`)
+              ?.querySelector('[data-test="preview-surface"]')
+          ),
+        warmedTabId
+      )
+    )
+    .toBe(true);
+  // Hidden, and still on the folder: preparing a tab takes the reader nowhere.
   await expect
     .poll(async () =>
       page.evaluate(() =>
@@ -1150,7 +1174,6 @@ test('tabs keep two folders open, and the middle button opens one behind', async
       )
     )
     .toContain('false');
-  // Still on the folder: nothing about preparing a tab takes the reader to it.
   await expect(page).toHaveURL(/\/browse\/Projects$/);
 
   // Away again, so the counts below are the counts this journey expects.

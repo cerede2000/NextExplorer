@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { warmTab, warmTabs, WARM_TAB_LIMIT } from './tabWarmup';
+import { warmInBackground, warmTab, warmTabs, WARM_TAB_LIMIT } from './tabWarmup';
 
 /**
  * Getting a tab ready before the reader arrives at it.
@@ -181,5 +181,75 @@ describe('several at once', () => {
 
     expect(warmed).toContain('a');
     expect(kit.previewManager.openIn).toHaveBeenCalledTimes(WARM_TAB_LIMIT);
+  });
+});
+
+/**
+ * The one door every gesture goes through.
+ *
+ * Three of them open a tab behind — the middle button on a row, the modifier on a
+ * favourite, the entry in the menu — and they do not share a road: two go straight
+ * to the tabs store. The first version of the warming was wired into the one that
+ * happened to pass through `tabNavigation`, so nothing was ever prepared for the
+ * two people actually use. The account's answer lives here for the same reason:
+ * one answer, asked once, wherever the gesture came from.
+ */
+describe('asking for a tab to be got ready', () => {
+  const stores = {
+    appSettings: { loaded: true, userSettings: {} },
+    fileStore: { fetchIn: vi.fn(), holdsFolder: vi.fn(() => false) },
+    previewManager: { openIn: vi.fn(() => true) },
+    terminalStore: { openIn: vi.fn(() => ({})) },
+  };
+
+  beforeEach(() => {
+    stores.appSettings.loaded = true;
+    stores.appSettings.userSettings = {};
+    stores.fileStore.fetchIn = vi.fn();
+    stores.fileStore.holdsFolder = vi.fn(() => false);
+    stores.previewManager.openIn = vi.fn(() => true);
+    vi.doMock('@/stores/appSettings', () => ({ useAppSettings: () => stores.appSettings }));
+    vi.doMock('@/stores/fileStore', () => ({ useFileStore: () => stores.fileStore }));
+    vi.doMock('@/plugins/preview/manager', () => ({
+      usePreviewManager: () => stores.previewManager,
+    }));
+    vi.doMock('@/stores/terminal', () => ({ useTerminalStore: () => stores.terminalStore }));
+    vi.doMock('@/api', () => ({ fetchFileContent: vi.fn(() => Promise.resolve({})) }));
+  });
+
+  it('gets it ready', async () => {
+    expect(await warmInBackground([tab('document', '/open/Docs/report.docx')])).toEqual([
+      'tab-document',
+    ]);
+    expect(stores.previewManager.openIn).toHaveBeenCalled();
+  });
+
+  it('takes one on its own, not only a list', async () => {
+    expect(await warmInBackground(tab('document', '/open/Docs/report.docx'))).toEqual([
+      'tab-document',
+    ]);
+  });
+
+  it('does nothing when this account has said not to', async () => {
+    stores.appSettings.userSettings = { preloadBackgroundTabs: false };
+
+    expect(await warmInBackground([tab('document', '/open/Docs/report.docx')])).toEqual([]);
+    expect(stores.previewManager.openIn).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Before the settings arrive the answer is not "no", it is *unknown* — and acting
+   * on the wrong one would open editing sessions nobody asked for.
+   */
+  it('does nothing before the account has answered', async () => {
+    stores.appSettings.loaded = false;
+
+    expect(await warmInBackground([tab('document', '/open/Docs/report.docx')])).toEqual([]);
+    expect(stores.previewManager.openIn).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when there is nothing to get ready', async () => {
+    expect(await warmInBackground([])).toEqual([]);
+    expect(await warmInBackground(null)).toEqual([]);
   });
 });

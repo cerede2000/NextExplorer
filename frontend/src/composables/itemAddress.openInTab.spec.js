@@ -19,6 +19,15 @@ vi.mock('@/config/editor', () => ({
   isEditableExtension: (extension) => ['txt', 'md'].includes(extension),
 }));
 
+/**
+ * Got ready while the reader is still on the listing. This is the gesture people
+ * actually use — the middle button, or the modifier, on a row — and it goes straight
+ * to the tabs store rather than through `tabNavigation`, which is why the first
+ * version of the warming never reached it.
+ */
+const warmInBackground = vi.hoisted(() => vi.fn(async () => []));
+vi.mock('@/composables/tabWarmup', () => ({ warmInBackground }));
+
 import { useOpenItemInTab } from './itemAddress';
 import { useTabsStore } from '@/stores/tabs';
 
@@ -27,6 +36,7 @@ const DOCUMENT = { name: 'report.docx', path: 'Docs', kind: 'docx' };
 
 beforeEach(() => {
   setActivePinia(createPinia());
+  warmInBackground.mockClear();
   findPlugin.mockReturnValue({ plugin: { id: 'preview' } });
   userSettings.markdownOpensInEditor = false;
 });
@@ -94,5 +104,45 @@ describe('opening an entry in a tab', () => {
 
     expect(tabs.count).toBe(1);
     expect(tabs.activeTab.path).toBe(before);
+  });
+});
+
+describe('and got ready before the reader arrives', () => {
+  it('asks for the tab it just opened', async () => {
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    const { openItemInTab } = useOpenItemInTab();
+
+    openItemInTab(DOCUMENT, 'Docs');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(warmInBackground).toHaveBeenCalledWith([
+      expect.objectContaining({ kind: 'document', path: '/open/Docs/report.docx' }),
+    ]);
+  });
+
+  /** A file with neither a preview nor an editor is a download, not a tab. */
+  it('asks for nothing when the entry has nowhere of its own', async () => {
+    findPlugin.mockReturnValue(null);
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    const { openItemInTab } = useOpenItemInTab();
+
+    openItemInTab({ name: 'thing.bin', path: 'Docs', kind: 'bin' }, 'Docs');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(warmInBackground).not.toHaveBeenCalled();
+  });
+
+  it('asks for nothing when the row of tabs is full', async () => {
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    tabs.setLimit(1);
+    const { openItemInTab } = useOpenItemInTab();
+
+    openItemInTab(DOCUMENT, 'Docs');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(warmInBackground).not.toHaveBeenCalled();
   });
 });

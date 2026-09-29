@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 
 /**
@@ -10,11 +10,21 @@ import { createPinia, setActivePinia } from 'pinia';
  * asked by all of them, or the gesture works in one place and not the next.
  */
 
+/**
+ * Got ready while the reader is still looking at where they were, which is the
+ * whole point of opening it behind. Standing in for the warming keeps the preview
+ * manager and the file store out of a suite about opening a tab — which is also why
+ * the real one is fetched when it is needed rather than imported.
+ */
+const warmInBackground = vi.hoisted(() => vi.fn(async () => []));
+vi.mock('@/composables/tabWarmup', () => ({ warmInBackground }));
+
 import { useOpenPlaceInTab } from './openPlaceInTab';
 import { useTabsStore } from '@/stores/tabs';
 
 beforeEach(() => {
   setActivePinia(createPinia());
+  warmInBackground.mockClear();
 });
 
 describe('opening a place in a tab', () => {
@@ -73,5 +83,39 @@ describe('opening a place in a tab', () => {
     expect(openPlaceInTab('')).toBe(false);
     expect(openPlaceInTab(undefined)).toBe(false);
     expect(tabs.count).toBe(1);
+  });
+});
+
+describe('and got ready before the reader arrives', () => {
+  /**
+   * The middle button and the modifier on a favourite are the gestures people
+   * actually use, and they go straight to the tabs store rather than through
+   * `tabNavigation` — so the first version of the warming never reached them, and
+   * a tab opened in advance still loaded on arrival.
+   */
+  it('asks for the tab it just opened', async () => {
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    tabs.syncActive('/browse/Projects');
+    const { openPlaceInTab } = useOpenPlaceInTab();
+
+    openPlaceInTab('Photos/2026');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(warmInBackground).toHaveBeenCalledWith([
+      expect.objectContaining({ kind: 'folder', path: '/browse/Photos/2026' }),
+    ]);
+  });
+
+  it('asks for nothing when no tab was opened', async () => {
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    tabs.setLimit(1);
+    const { openPlaceInTab } = useOpenPlaceInTab();
+
+    openPlaceInTab('Photos/2026');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(warmInBackground).not.toHaveBeenCalled();
   });
 });
