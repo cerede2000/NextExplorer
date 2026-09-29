@@ -26,10 +26,10 @@
   "rules": [
     {
       "axis": "*",
-      "match": "^(frontend/src/(utils/(textDiff|compareRoute)\\.js|config/compare\\.js|views/CompareView\\.vue)|COMPARE_FILE_EXTENSIONS)(:|$)",
+      "match": "^(frontend/src/(utils/(textDiff|compareRoute)\\.js|config/compare\\.js|views/CompareView\\.vue)|COMPARE_FILE_EXTENSIONS|frontend/src/stores/compareSessions\\.js)(:|$)",
       "verdict": "PORT",
       "batch": "P3-60",
-      "note": "comparing two or three files side by side, as WinMerge does — P3-60 when it goes. `textDiff.js` is the alignment, written here rather than taken from a library because the answer has to be aligned and not merely listed: a patch says what changed, a comparison has to put line 40 of one file beside the line it corresponds to in the other, with a gap where there is nothing to put. `CompareView.vue` is the screen that walks the differences and takes one side over the other; `config/compare.js` decides what can be compared — whatever the text editor opens, plus whatever `COMPARE_FILE_EXTENSIONS` adds, because what counts as text is a local question"
+      "note": "comparing two or three files side by side, as WinMerge does — P3-60 when it goes. `textDiff.js` is the alignment, written here rather than taken from a library because the answer has to be aligned and not merely listed: a patch says what changed, a comparison has to put line 40 of one file beside the line it corresponds to in the other, with a gap where there is nothing to put. `CompareView.vue` is the screen that walks the differences and takes one side over the other; `config/compare.js` decides what can be compared — whatever the text editor opens, plus whatever `COMPARE_FILE_EXTENSIONS` adds, because what counts as text is a local question. `compareSessions.js` is what a tab is in the middle of comparing — the files, their lines as they now stand, the difference the reader was on. The screen is a page, and a page is unmounted the moment another tab comes forward, so without it a glance at another tab read both files again and took the lines somebody had copied across with it"
     },
     {
       "axis": "*",
