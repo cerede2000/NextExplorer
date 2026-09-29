@@ -2082,6 +2082,12 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   const twinTab = strip.locator('[data-test="tab"]').filter({
     has: page.locator('[role="tab"][title="Twin"]'),
   });
+  // Waited for before the row is counted, because `count` is a snapshot and does not
+  // retry: `goto` answers when the document has loaded, and the strip arrives a chunk
+  // later, with the route the address names. A count taken in that gap reads nothing
+  // at all, and every count this journey compares against it is then measured from
+  // zero — which is exactly how this read four tabs as none.
+  await expect(twinTab).toHaveCount(1);
   /**
    * The tab's own menu, and a check that it can actually be pressed.
    *
