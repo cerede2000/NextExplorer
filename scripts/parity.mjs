@@ -910,7 +910,8 @@ if (AS_JSON) {
 if (outOfOrder.length) {
   console.error(
     `${outOfOrder.length} batch(es) would not build where they sit: a file they change imports ` +
-      'a file only this fork has that a later batch brings. Move the batch, or move the file.'
+      'a file only this fork has that a later batch brings. Move the batch, or move the file:\n  ' +
+      outOfOrder.join('\n  ')
   );
   process.exit(1);
 }

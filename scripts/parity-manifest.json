@@ -26,6 +26,27 @@
   "rules": [
     {
       "axis": "*",
+      "match": "^frontend/src/(composables/useAsk\\.js|components/AskDialog\\.vue)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-58",
+      "note": "the application asking a question in its own voice — P3-58 when it goes. `window.confirm`, `window.prompt` and `alert` were still answering for twenty-three questions and messages, and what they draw is the browser's box in the browser's chrome, headed by the server's address and port, over a question about somebody's file. `useAsk` keeps the one thing they gave for free — a call that waits for the answer — and everything from a tab's guard to the cross on the tab waits with it. Goes as one piece: the dialog, the composable, and the screens that stopped asking the browser."
+    },
+    {
+      "axis": "*",
+      "match": "^frontend/src/views/settings/SettingsApiTokens\\.vue:go$",
+      "verdict": "PORT",
+      "batch": "P3-58",
+      "note": "the answer to the question before a token is revoked, which `window.confirm` used to be an expression in an `if`: a dialog answers with a promise, so the answer is read into something before it is tested."
+    },
+    {
+      "axis": "*",
+      "match": "^frontend/src/views/settings/Settings(ApiTokens|Passkeys)\\.vue$",
+      "verdict": "PORT",
+      "batch": "P3-58",
+      "note": "two screens that had been sent and were in step again, changed by the dialog batch and so drifted again: both asked the browser for a name and one asked it to confirm a revocation. Nothing the reader is told changes — the sentences are the same — but an answer that arrives later has to be waited for, so the shape of the handlers does."
+    },
+    {
+      "axis": "*",
       "match": "^(frontend/src/(utils/(textDiff|compareRoute)\\.js|utils/testing/routerAddress\\.js|config/compare\\.js|views/CompareView\\.vue)|COMPARE_FILE_EXTENSIONS|frontend/src/stores/compareSessions\\.js)(:|$)",
       "verdict": "PORT",
       "batch": "P3-60",
@@ -1650,6 +1671,10 @@
     {
       "match": "^(backend/src/config/(env|index)\\.js|docs/configuration/environment\\.md)$",
       "note": "the one setting the comparison needs: the extensions this installation also calls text, on top of everything the text editor opens. Four lines of configuration and a row of documentation, which go up with the screen they are for — P3-60"
+    },
+    {
+      "match": "^frontend/src/views/settings/Settings(ApiTokens|Passkeys)\\.vue$",
+      "note": "the same two screens, asking the same two questions through the application's dialog rather than the browser's box — the shape differs because an answer that arrives later has to be waited for, and the sentences put to the reader are unchanged"
     }
   ],
   "controls": [
@@ -1660,6 +1685,10 @@
     {
       "match": "^compare\\.",
       "note": "the comparison screen: stepping through the differences, taking one side over the other, and saving the side that was changed — P3-60 when it goes, with the screen they belong to"
+    },
+    {
+      "match": "^common\\.confirm$",
+      "note": "the word on the button of a question the application asks, which had no button of its own while the browser drew it — it goes with the dialog, P3-58"
     }
   ],
   "literals": [
