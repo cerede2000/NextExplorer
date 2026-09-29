@@ -79,10 +79,9 @@ export function useAsk() {
     body = '',
     label = '',
     value = '',
-    placeholder = '',
     confirmLabel = '',
     password = false,
-  } = {}) => put({ title, body, label, value, placeholder, confirmLabel, password, field: true });
+  } = {}) => put({ title, body, label, value, confirmLabel, password, field: true });
 
   instance = {
     question,

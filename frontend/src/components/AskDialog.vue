@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue';
+import { nextTick, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ModalDialog from '@/components/ModalDialog.vue';
 import { useAsk } from '@/composables/useAsk';
@@ -15,10 +15,6 @@ const { question, answer, isOpen, wantsText, cancel, accept } = useAsk();
 const { t } = useI18n();
 
 const field = ref(null);
-// Worked out here rather than in the attribute: an expression inside a `:placeholder`
-// reads as a sentence to the instrument that checks nothing is left untranslated, and
-// an exception written into a manifest to excuse it would be one more thing to read.
-const placeholder = computed(() => question.value?.placeholder || undefined);
 
 // The field, not the cross in the corner, which is what the dialog would otherwise
 // hand the keyboard to: somebody asked to type something should be able to type.
@@ -46,7 +42,6 @@ watch(isOpen, async (open) => {
         ref="field"
         v-model="answer"
         :type="question?.password ? 'password' : 'text'"
-        :placeholder="placeholder"
         class="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-800 outline-none focus:border-blue-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-neutral-200"
         data-test="ask-field"
         @keydown.enter.prevent="accept"
