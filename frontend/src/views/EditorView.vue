@@ -525,8 +525,8 @@ onBeforeRouteLeave((to) => {
  * What the file said the last time this tab read it.
  *
  * A page is unmounted the moment another tab comes forward, so coming back read the
- * file from the server again: a glance at another tab cost a "Loading file…" and a
- * redraw of everything. The document in a preview does not have that problem —
+ * file from the server again: a glance at another tab cost a spinner and a redraw
+ * of everything. The document in a preview does not have that problem —
  * its session outlives the page — and this is the same promise kept the only way a
  * page can keep it: by having been told what it read before it went.
  */

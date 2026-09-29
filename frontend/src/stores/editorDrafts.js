@@ -23,8 +23,8 @@ import { useTabsStore } from '@/stores/tabs';
  *
  * And a fourth, which is not about where anybody was: `source`, the file as it was
  * last read. Without it a tab coming back read the file from the server again, so
- * every glance at another tab cost a "Loading file…" and a redraw — the page has
- * gone, and a page that has gone knows nothing. With it the editor is on screen
+ * every glance at another tab cost a spinner and a redraw — the page has gone, and
+ * a page that has gone knows nothing. With it the editor is on screen
  * before anything is asked of the network, and the file is checked quietly
  * afterwards.
  *
