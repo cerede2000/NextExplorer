@@ -864,6 +864,28 @@ test('two files are compared, and one side is taken over the other', async () =>
   // The part of the line that differs, marked inside it.
   await expect(page.locator('[data-test="compare-inline"]').first()).toBeVisible();
 
+  /**
+   * The bar stays one line.
+   *
+   * Everything in it used to be spelled out, and on a screen narrower than the words
+   * it wrapped: the bar became two rows tall and pushed the comparison down. Measured
+   * rather than described — a header taller than one row of controls is the defect.
+   */
+  const header = page.locator('[data-test="compare"] > header');
+  expect((await header.boundingBox()).height).toBeLessThan(48);
+
+  // Where the differences are, down the whole file, and one click from here to there.
+  await expect(page.locator('[data-test="compare-map-mark-1"]')).toBeVisible();
+  await page.locator('[data-test="compare-map-mark-1"]').click();
+  await expect(page.locator('[data-current="true"]').first()).toContainText('fourth');
+
+  // And the two sides the other way round, address and all.
+  await page.locator('[data-test="compare-swap-0"]').click();
+  await expect(page.locator('[data-test="compare-names"]')).toHaveText('right.conf ↔ left.conf');
+  await expect(page).toHaveURL(/paths=Projects.right\.conf&paths=Projects.left\.conf/);
+  await page.locator('[data-test="compare-swap-0"]').click();
+  await expect(page.locator('[data-test="compare-names"]')).toHaveText('left.conf ↔ right.conf');
+
   // Back to the first difference, and taken from left to right.
   await page.locator('[data-test="compare-next"]').click();
   await expect(page.locator('[data-current="true"]')).toContainText('SECOND line');
@@ -881,6 +903,29 @@ test('two files are compared, and one side is taken over the other', async () =>
 
   // And the comparison now says one difference, not two.
   await expect(page.locator('[data-test="compare-count"]')).toContainText('1');
+
+  /**
+   * Looking for something, and putting something else in its place — in one side only,
+   * which is the question people actually ask.
+   */
+  await page.locator('[data-test="compare-search-toggle"]').click();
+  await page.locator('[data-test="compare-search-query"]').fill('third line');
+  await expect(page.locator('[data-test="compare-search-count"]')).toHaveAttribute(
+    'data-count',
+    '2'
+  );
+  await page.locator('[data-test="compare-search-scope"]').selectOption('1');
+  await expect(page.locator('[data-test="compare-search-count"]')).toHaveAttribute(
+    'data-count',
+    '1'
+  );
+  await page.locator('[data-test="compare-search-replacement"]').fill('THIRD LINE');
+  await page.locator('[data-test="compare-replace-all"]').click();
+  await page.locator('[data-test="compare-save-1"]').click();
+  await expect.poll(() => onDisk('right.conf'), { timeout: 15_000 }).toContain('THIRD LINE');
+  // Only the side it was told to: the left is as it was.
+  expect(onDisk('left.conf')).toContain('third line');
+  await page.locator('[data-test="compare-search-toggle"]').click();
 
   /**
    * Three files, aligned on the middle one — the only arrangement that answers "who

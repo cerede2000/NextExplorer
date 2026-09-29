@@ -18,10 +18,11 @@ import { reactive } from 'vue';
 
 const route = reactive({ fullPath: '/compare?paths=Docs%2Fa.txt&paths=Docs%2Fb.txt', query: {} });
 const push = vi.fn();
+const replace = vi.fn();
 const leaveGuards = [];
 vi.mock('vue-router', () => ({
   useRoute: () => route,
-  useRouter: () => ({ push }),
+  useRouter: () => ({ push, replace }),
   onBeforeRouteLeave: (guard) => leaveGuards.push(guard),
 }));
 
@@ -51,6 +52,23 @@ const appTabs = vi.hoisted(() => ({ activeId: 'tab-1', tabs: [{ id: 'tab-1' }, {
 vi.mock('@/stores/tabs', () => ({ useTabsStore: () => appTabs }));
 vi.mock('@/stores/tabLoading', () => ({
   useTabLoadingStore: () => ({ begin: () => () => {} }),
+}));
+/**
+ * A question this tab leaves for whoever closes it. Closing is the one gesture that
+ * really loses lines copied across: coming back to a tab keeps them.
+ */
+const guards = vi.hoisted(() => ({ asked: [], guard: vi.fn(), release: vi.fn() }));
+vi.mock('@/stores/tabGuards', () => ({
+  useTabGuardsStore: () => ({
+    guard: (id, ask) => {
+      guards.guard(id, ask);
+      guards.asked.push({ id, ask });
+      return () => {
+        guards.asked = guards.asked.filter((one) => one.ask !== ask);
+      };
+    },
+    release: guards.release,
+  }),
 }));
 const notifications = vi.hoisted(() => ({ addNotification: vi.fn() }));
 vi.mock('@/stores/notifications', () => ({ useNotificationsStore: () => notifications }));
@@ -88,9 +106,12 @@ const rows = (wrapper) => wrapper.findAll('[data-test="compare-row"]');
 
 beforeEach(() => {
   kept.clear();
+  guards.asked = [];
+  guards.guard.mockClear();
   appTabs.activeId = 'tab-1';
   appTabs.tabs = [{ id: 'tab-1' }, { id: 'tab-9' }];
   push.mockClear();
+  replace.mockClear();
   leaveGuards.length = 0;
   api.saveFileContent.mockClear();
   versionText.mockClear();
@@ -105,7 +126,9 @@ describe('a comparison of two files', () => {
       'b.txt': 'one\nTWO\nthree',
     });
 
-    expect(wrapper.get('[data-test="compare-count"]').text()).toContain('"count":1');
+    // The bar shows the number; the sentence is in the title, where it is read by
+    // whoever asks rather than by everybody at every width.
+    expect(wrapper.get('[data-test="compare-count"]').attributes('title')).toContain('"count":1');
   });
 
   it('says so when the two files are the same', async () => {
@@ -276,15 +299,17 @@ describe('taking one side over the other', () => {
 });
 
 describe('saving a side that has been changed', () => {
+  /** Not there at all until there is: a row of greyed buttons naming files is what
+   * made this bar wrap in the first place. */
   it('is offered only once something has been taken across', async () => {
     const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
 
-    expect(wrapper.get('[data-test="compare-save-1"]').attributes('disabled')).toBeDefined();
+    expect(wrapper.find('[data-test="compare-save-1"]').exists()).toBe(false);
 
     await wrapper.get('[data-test="compare-next"]').trigger('click');
     await wrapper.get('[data-test="compare-copy-forward-0"]').trigger('click');
 
-    expect(wrapper.get('[data-test="compare-save-1"]').attributes('disabled')).toBeUndefined();
+    expect(wrapper.find('[data-test="compare-save-1"]').exists()).toBe(true);
   });
 
   /**
@@ -395,7 +420,7 @@ describe('a comparison tab coming back', () => {
 
     expect(api.fetchFileContent).not.toHaveBeenCalled();
     expect(back.find('[data-test="compare-loading"]').exists()).toBe(false);
-    expect(back.get('[data-test="compare-count"]').text()).toContain('"count":1');
+    expect(back.get('[data-test="compare-count"]').attributes('title')).toContain('"count":1');
   });
 
   /** The lines exist nowhere else: losing them is losing somebody's work. */
@@ -504,9 +529,259 @@ describe('a comparison with an earlier version', () => {
 
   it('never writes the version itself back', async () => {
     const wrapper = await withVersion();
+    await wrapper.get('[data-test="compare-next"]').trigger('click');
+    await wrapper.get('[data-test="compare-copy-forward-0"]').trigger('click');
+    await flushPromises();
 
-    expect(wrapper.findAll('[data-test="compare-save-0"]')).toHaveLength(1);
-    expect(wrapper.get('[data-test="compare-save-0"]').isVisible()).toBe(false);
+    // The file took a line from the version, so the file has a save button; the
+    // version never does, whatever happens.
+    expect(wrapper.find('[data-test="compare-save-1"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="compare-save-0"]').exists()).toBe(false);
+  });
+});
+
+/**
+ * Looking for something, and putting something else in its place.
+ *
+ * A comparison is read for a reason, and the reason is usually a name: which of these
+ * two files still says the old server, and what does the other one say instead. So the
+ * search is how somebody gets to the line they came for, and the replacement is how
+ * they leave.
+ */
+describe('searching and replacing', () => {
+  const opened = async () => {
+    const wrapper = await open({
+      'a.txt': 'server = old\nport = 80\nname = old',
+      'b.txt': 'server = old\nport = 8080\nname = new',
+    });
+    await wrapper.get('[data-test="compare-search-toggle"]').trigger('click');
+    return wrapper;
+  };
+
+  it('counts what it found, everywhere by default', async () => {
+    const wrapper = await opened();
+
+    await wrapper.get('[data-test="compare-search-query"]').setValue('old');
+
+    // Twice on the left, once on the right.
+    expect(wrapper.get('[data-test="compare-search-count"]').attributes('data-count')).toBe('3');
+  });
+
+  it('marks what it found, and the one being read', async () => {
+    const wrapper = await opened();
+    await wrapper.get('[data-test="compare-search-query"]').setValue('old');
+
+    await wrapper.get('[data-test="compare-search-next"]').trigger('click');
+
+    expect(wrapper.get('[data-test="compare-search-count"]').text()).toContain('"index":1');
+  });
+
+  /** In this file, in that one, or in all of them — the question people ask. */
+  it('looks in one side only when told to', async () => {
+    const wrapper = await opened();
+    await wrapper.get('[data-test="compare-search-query"]').setValue('old');
+
+    await wrapper.get('[data-test="compare-search-scope"]').setValue('1');
+
+    expect(wrapper.get('[data-test="compare-search-count"]').attributes('data-count')).toBe('1');
+  });
+
+  it('minds the case when asked to', async () => {
+    const wrapper = await opened();
+    await wrapper.get('[data-test="compare-search-query"]').setValue('OLD');
+    expect(wrapper.get('[data-test="compare-search-count"]').attributes('data-count')).toBe('3');
+
+    await wrapper.get('[data-test="compare-search-case"]').setValue(true);
+
+    expect(wrapper.get('[data-test="compare-search-count"]').text()).toContain('compare.noMatch');
+  });
+
+  it('replaces the one being read, and nothing else', async () => {
+    const wrapper = await opened();
+    await wrapper.get('[data-test="compare-search-query"]').setValue('old');
+    await wrapper.get('[data-test="compare-search-replacement"]').setValue('new');
+    await wrapper.get('[data-test="compare-search-next"]').trigger('click');
+
+    await wrapper.get('[data-test="compare-replace-one"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-test="compare-save-0"]').trigger('click');
+    await flushPromises();
+
+    expect(api.saveFileContent).toHaveBeenCalledWith(
+      'a.txt',
+      'server = new\nport = 80\nname = old'
+    );
+  });
+
+  it('replaces every one in the side it was told to', async () => {
+    const wrapper = await opened();
+    await wrapper.get('[data-test="compare-search-query"]').setValue('old');
+    await wrapper.get('[data-test="compare-search-replacement"]').setValue('new');
+    await wrapper.get('[data-test="compare-search-scope"]').setValue('0');
+
+    await wrapper.get('[data-test="compare-replace-all"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-test="compare-save-0"]').trigger('click');
+    await flushPromises();
+
+    expect(api.saveFileContent).toHaveBeenCalledWith(
+      'a.txt',
+      'server = new\nport = 80\nname = new'
+    );
+  });
+
+  /**
+   * Right to left within a line, so replacing one does not move the ones not yet
+   * replaced — the classic way to lose the last match on a line.
+   */
+  it('replaces every one on a line, whatever the lengths', async () => {
+    const wrapper = await open({ 'a.txt': 'a a a', 'b.txt': 'b' });
+    await wrapper.get('[data-test="compare-search-toggle"]').trigger('click');
+    await wrapper.get('[data-test="compare-search-query"]').setValue('a');
+    await wrapper.get('[data-test="compare-search-replacement"]').setValue('LONGER');
+    await wrapper.get('[data-test="compare-search-scope"]').setValue('0');
+
+    await wrapper.get('[data-test="compare-replace-all"]').trigger('click');
+    await flushPromises();
+    await wrapper.get('[data-test="compare-save-0"]').trigger('click');
+    await flushPromises();
+
+    expect(api.saveFileContent).toHaveBeenCalledWith('a.txt', 'LONGER LONGER LONGER');
+  });
+
+  /** A match folded away is a match somebody would swear was not there. */
+  it('unfolds when the search opens', async () => {
+    const long = Array.from({ length: 500 }, (_, index) => `line ${index}`).join('\n');
+    const wrapper = await open({ 'a.txt': long, 'b.txt': `${long}\nextra` });
+    expect(wrapper.get('[data-test="compare-fold"]').attributes('aria-pressed')).toBe('true');
+
+    await wrapper.get('[data-test="compare-search-toggle"]').trigger('click');
+
+    expect(wrapper.get('[data-test="compare-fold"]').attributes('aria-pressed')).toBe('false');
+  });
+
+  it('never writes into a side that is a version', async () => {
+    api.fetchFileContent.mockImplementation(async () => ({ content: 'old' }));
+    versionText.mockImplementation(async () => ({ content: 'old', name: 'notes.txt' }));
+    route.query = { paths: ['notes.txt', 'notes.txt'], versions: ['v7', ''] };
+    route.fullPath = '/compare?paths=notes.txt&paths=notes.txt&versions=v7&versions=';
+    const wrapper = mount(CompareView, { global: { mocks: { $t: (key) => key } } });
+    await flushPromises();
+    await flushPromises();
+    await wrapper.get('[data-test="compare-search-toggle"]').trigger('click');
+    await wrapper.get('[data-test="compare-search-query"]').setValue('old');
+    await wrapper.get('[data-test="compare-search-replacement"]').setValue('new');
+
+    await wrapper.get('[data-test="compare-replace-all"]').trigger('click');
+    await flushPromises();
+
+    // Only the file has a save button; the version was left exactly as it was.
+    expect(wrapper.find('[data-test="compare-save-0"]').exists()).toBe(false);
+    expect(wrapper.find('[data-test="compare-save-1"]').exists()).toBe(true);
+  });
+});
+
+/**
+ * One line changed by hand.
+ *
+ * Taking a whole difference across is the common gesture, but not every fix is one
+ * side or the other: sometimes the answer is neither, and walking to the editor and
+ * back to type one word is a walk nobody should have to make.
+ */
+describe('editing a line in place', () => {
+  it('takes what was typed, and the side is then worth saving', async () => {
+    const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
+
+    await wrapper.findAll('[data-test="compare-row"]')[1].findAll('span')[1].trigger('dblclick');
+    const field = wrapper.get('[data-test="compare-edit-0"]');
+    await field.setValue('typed by hand');
+    await field.trigger('keydown.enter');
+    await flushPromises();
+
+    await wrapper.get('[data-test="compare-save-0"]').trigger('click');
+    await flushPromises();
+    expect(api.saveFileContent).toHaveBeenCalledWith('a.txt', 'one\ntyped by hand');
+  });
+
+  it('leaves the line alone when the edit is called off', async () => {
+    const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
+
+    await wrapper.findAll('[data-test="compare-row"]')[1].findAll('span')[1].trigger('dblclick');
+    const field = wrapper.get('[data-test="compare-edit-0"]');
+    await field.setValue('never mind');
+    await field.trigger('keydown.esc');
+    await flushPromises();
+
+    expect(wrapper.find('[data-test="compare-save-0"]').exists()).toBe(false);
+  });
+
+  /** There is nothing to write a version back to. */
+  it('cannot be started on a version', async () => {
+    api.fetchFileContent.mockImplementation(async () => ({ content: 'one\nNOW' }));
+    versionText.mockImplementation(async () => ({ content: 'one\nTHEN', name: 'notes.txt' }));
+    route.query = { paths: ['notes.txt', 'notes.txt'], versions: ['v7', ''] };
+    route.fullPath = '/compare?paths=notes.txt&paths=notes.txt&versions=v7&versions=';
+    const wrapper = mount(CompareView, { global: { mocks: { $t: (key) => key } } });
+    await flushPromises();
+    await flushPromises();
+
+    await wrapper.findAll('[data-test="compare-row"]')[1].findAll('span')[1].trigger('dblclick');
+
+    expect(wrapper.find('[data-test="compare-edit-0"]').exists()).toBe(false);
+  });
+});
+
+/**
+ * Where the differences are, down the whole file.
+ *
+ * A scrollbar says where you are; this says where you are going — and it is one click
+ * from here to there, which on a file of two thousand lines is the difference between
+ * reading a comparison and hunting through one.
+ */
+describe('the map of the differences', () => {
+  it('has a mark for each of them, and none when there are none', async () => {
+    const two = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+    expect(two.findAll('[data-test^="compare-map-mark-"]')).toHaveLength(2);
+
+    const same = await open({ 'a.txt': 'a\nb', 'b.txt': 'a\nb' });
+    expect(same.find('[data-test="compare-map"]').exists()).toBe(false);
+  });
+
+  it('goes to the difference the mark stands for', async () => {
+    const wrapper = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+
+    await wrapper.get('[data-test="compare-map-mark-1"]').trigger('click');
+
+    expect(wrapper.get('[data-current="true"]').text()).toContain('D');
+  });
+});
+
+/**
+ * Which file is on the left is the reader's business, not the order they happened to
+ * click in — and with a version in the comparison it is the difference between reading
+ * "what happened since" and reading it backwards.
+ */
+describe('putting the two sides the other way round', () => {
+  it('swaps them, and says so in the address', async () => {
+    const wrapper = await open({ 'a.txt': 'one', 'b.txt': 'ONE' });
+
+    await wrapper.get('[data-test="compare-swap-0"]').trigger('click');
+
+    expect(wrapper.get('[data-test="compare-names"]').text()).toBe('b.txt ↔ a.txt');
+    expect(push).not.toHaveBeenCalled();
+    expect(replace).toHaveBeenCalledWith('/compare?paths=b.txt&paths=a.txt');
+  });
+
+  /** What the tab is holding must not be lost because the sides moved. */
+  it('keeps the lines that were taken across', async () => {
+    const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
+    await wrapper.get('[data-test="compare-next"]').trigger('click');
+    await wrapper.get('[data-test="compare-copy-forward-0"]').trigger('click');
+
+    await wrapper.get('[data-test="compare-swap-0"]').trigger('click');
+
+    // b.txt is on the left now, and it is the one that was changed.
+    expect(wrapper.find('[data-test="compare-save-0"]').exists()).toBe(true);
   });
 });
 
@@ -525,7 +800,7 @@ describe('a long file', () => {
   it('shows only the differences, and says how much it folded away', async () => {
     const wrapper = await open({ 'a.txt': long(-1), 'b.txt': long(250) });
 
-    expect(wrapper.get('[data-test="compare-fold"]').element.checked).toBe(true);
+    expect(wrapper.get('[data-test="compare-fold"]').attributes('aria-pressed')).toBe('true');
     expect(rows(wrapper).length).toBeLessThan(20);
     expect(wrapper.findAll('[data-test="compare-gap"]').length).toBeGreaterThan(0);
     expect(wrapper.findAll('[data-test="compare-gap"]')[0].text()).toContain('"count":247');
@@ -534,7 +809,7 @@ describe('a long file', () => {
   it('unfolds when the reader says so', async () => {
     const wrapper = await open({ 'a.txt': long(-1), 'b.txt': long(250) });
 
-    await wrapper.get('[data-test="compare-fold"]').setValue(false);
+    await wrapper.get('[data-test="compare-fold"]').trigger('click');
 
     expect(rows(wrapper)).toHaveLength(500);
     expect(wrapper.findAll('[data-test="compare-gap"]')).toHaveLength(0);
@@ -543,7 +818,20 @@ describe('a long file', () => {
   it('is not folded when it is short', async () => {
     const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
 
-    expect(wrapper.get('[data-test="compare-fold"]').element.checked).toBe(false);
+    expect(wrapper.get('[data-test="compare-fold"]').attributes('aria-pressed')).toBe('false');
+  });
+
+  /**
+   * A checkbox that can do nothing looks like a checkbox that does nothing. On a short
+   * file with changes all through it there is no line more than three from a change,
+   * so folding would hide none of it — and that is what the button says.
+   */
+  it('cannot be pressed when folding would hide nothing', async () => {
+    const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'ONE\nTWO' });
+
+    const fold = wrapper.get('[data-test="compare-fold"]');
+    expect(fold.attributes('disabled')).toBeDefined();
+    expect(fold.attributes('title')).toContain('compare.nothingToFold');
   });
 });
 

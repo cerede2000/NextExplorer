@@ -47,6 +47,14 @@ vi.mock('@/composables/tabWarmup', () => ({ warmInBackground, WARM_TAB_LIMIT: 3 
 const tabLoading = vi.hoisted(() => ({ keepOnly: vi.fn(), begin: () => () => {} }));
 vi.mock('@/stores/tabLoading', () => ({ useTabLoadingStore: () => tabLoading }));
 
+/**
+ * What a tab has to say before it is closed. Closing is the one gesture that destroys
+ * what a tab was holding, and this store is where a screen with something to lose
+ * leaves its question.
+ */
+const guards = vi.hoisted(() => ({ mayClose: vi.fn(() => true), release: vi.fn() }));
+vi.mock('@/stores/tabGuards', () => ({ useTabGuardsStore: () => guards }));
+
 const settings = vi.hoisted(() => ({ loaded: true, userSettings: {} }));
 vi.mock('@/stores/appSettings', () => ({ useAppSettings: () => settings }));
 vi.mock('@/stores/features', () => ({ useFeaturesStore: () => ({ maxTabs: 10 }) }));
@@ -59,6 +67,9 @@ beforeEach(() => {
   push.mockClear();
   warmInBackground.mockClear();
   tabLoading.keepOnly.mockClear();
+  guards.mayClose.mockClear();
+  guards.mayClose.mockReturnValue(true);
+  guards.release.mockClear();
   settings.loaded = true;
   settings.userSettings = {};
   route.fullPath = '/browse/';
@@ -199,11 +210,76 @@ describe('a tab that has gone', () => {
     const opened = tabs.open('/browse/Docs');
     await nextTick();
     tabLoading.keepOnly.mockClear();
+    guards.mayClose.mockClear();
+    guards.mayClose.mockReturnValue(true);
+    guards.release.mockClear();
 
     tabs.close(opened.id);
     await nextTick();
 
     expect(tabLoading.keepOnly).toHaveBeenCalledWith(tabs.tabs.map((tab) => tab.id));
     expect(tabLoading.keepOnly.mock.calls.at(-1)[0]).not.toContain(opened.id);
+  });
+});
+
+/**
+ * Closing a tab, once whatever is in it has had its say.
+ *
+ * A comparison with lines copied across and not saved has something to lose; a folder
+ * has not, and being asked about a folder would train everybody to click through the
+ * question without reading it.
+ */
+describe('closing a tab that has something to say', () => {
+  const twoTabs = () => {
+    settings.userSettings = { browseInTabs: true };
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    const opened = tabs.open('/browse/Docs');
+    return { tabs, opened };
+  };
+
+  it('asks, and closes it when the answer is yes', () => {
+    const { tabs, opened } = twoTabs();
+
+    useTabNavigation().close(opened.id);
+
+    expect(guards.mayClose).toHaveBeenCalledWith(opened.id);
+    expect(tabs.tabs.some((tab) => tab.id === opened.id)).toBe(false);
+  });
+
+  it('leaves it alone when the answer is no', () => {
+    const { tabs, opened } = twoTabs();
+    guards.mayClose.mockReturnValue(false);
+
+    expect(useTabNavigation().close(opened.id)).toBeNull();
+    expect(tabs.tabs.some((tab) => tab.id === opened.id)).toBe(true);
+  });
+
+  /** One tab refusing holds the whole gesture: nothing half-closed. */
+  it('closes none of the others when one of them refuses', () => {
+    const { tabs } = twoTabs();
+    const second = tabs.open('/browse/Media');
+    guards.mayClose.mockImplementation((id) => id !== second.id);
+
+    expect(useTabNavigation().closeAll()).toBeNull();
+    expect(tabs.count).toBe(3);
+  });
+
+  it('closes them all when none of them minds', () => {
+    const { tabs } = twoTabs();
+    tabs.open('/browse/Media');
+
+    useTabNavigation().closeAll();
+
+    expect(tabs.count).toBe(1);
+  });
+
+  /** A question for a tab that has gone is a question nobody will ever answer. */
+  it('lets go of the question once the tab is closed', () => {
+    const { opened } = twoTabs();
+
+    useTabNavigation().close(opened.id);
+
+    expect(guards.release).toHaveBeenCalledWith(opened.id);
   });
 });

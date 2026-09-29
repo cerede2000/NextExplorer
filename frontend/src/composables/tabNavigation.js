@@ -4,6 +4,7 @@ import { HOME, useTabsStore } from '@/stores/tabs';
 import { useAppSettings } from '@/stores/appSettings';
 import { useFeaturesStore } from '@/stores/features';
 import { useTabLoadingStore } from '@/stores/tabLoading';
+import { useTabGuardsStore } from '@/stores/tabGuards';
 import { tabKindForPath } from '@/config/tabKinds';
 
 /**
@@ -155,10 +156,38 @@ export function useTabNavigation() {
 
   const openHome = () => open(HOME);
 
-  const close = (id) => go(tabs.close(id));
-  const closeOthers = (id) => go(tabs.closeOthers(id));
+  /**
+   * Closing a tab, once whatever is in it has had its say.
+   *
+   * Closing is the one gesture that destroys what a tab was holding, and the store
+   * cannot know whether that matters — it holds addresses, not work. A comparison with
+   * lines copied across and not saved has something to lose; a folder has not, and
+   * being asked about a folder would train everybody to click through the question
+   * without reading it. So a screen with something to lose leaves a question, and this
+   * asks it.
+   */
+  const guards = useTabGuardsStore();
+
+  const close = (id) => {
+    if (!guards.mayClose(id)) return null;
+    guards.release(id);
+    return go(tabs.close(id));
+  };
+
+  const closeOthers = (id) => {
+    const others = tabs.tabs.filter((tab) => tab.id !== id && !tab.pinned);
+    if (others.some((tab) => !guards.mayClose(tab.id))) return null;
+    others.forEach((tab) => guards.release(tab.id));
+    return go(tabs.closeOthers(id));
+  };
+
   /** Every one of them, and a new tab at the volumes to land in. */
-  const closeAll = () => go(tabs.closeAll());
+  const closeAll = () => {
+    const going = tabs.tabs.filter((tab) => !tab.pinned);
+    if (going.some((tab) => !guards.mayClose(tab.id))) return null;
+    going.forEach((tab) => guards.release(tab.id));
+    return go(tabs.closeAll());
+  };
 
   /**
    * Close the tab that exists *for* what is on screen, and say whether it did.
