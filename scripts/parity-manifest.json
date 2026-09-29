@@ -26,6 +26,13 @@
   "rules": [
     {
       "axis": "*",
+      "match": "^(frontend/src/(utils/(textDiff|compareRoute)\\.js|config/compare\\.js|views/CompareView\\.vue)|COMPARE_FILE_EXTENSIONS)(:|$)",
+      "verdict": "PORT",
+      "batch": "P3-60",
+      "note": "comparing two or three files side by side, as WinMerge does — P3-60 when it goes. `textDiff.js` is the alignment, written here rather than taken from a library because the answer has to be aligned and not merely listed: a patch says what changed, a comparison has to put line 40 of one file beside the line it corresponds to in the other, with a gap where there is nothing to put. `CompareView.vue` is the screen that walks the differences and takes one side over the other; `config/compare.js` decides what can be compared — whatever the text editor opens, plus whatever `COMPARE_FILE_EXTENSIONS` adds, because what counts as text is a local question"
+    },
+    {
+      "axis": "*",
       "match": "^frontend/playwright\\.config\\.js$",
       "verdict": "OURS",
       "note": "the Playwright suite needs a browser, and nothing upstream installs one"
@@ -1645,6 +1652,10 @@
     {
       "match": "^(tabs\\.(newTab|closeTab|closeOthers|closeAll|openInNewTab|moveLeft|moveRight|duplicate|pin|unpin|full)|settings\\.tabs\\.maxOpen|\\\"titleFor\\(tab\\)\\\")$",
       "note": "tabs, lot 1: a folder per tab, the kinds a tab can hold, the strip, and the switch that offers any of it — P3-59 when it goes — the strip's own buttons, the name it writes on a tab, the two entries that move a tab along the row, the one that closes every tab, what a full row says, and the number an administrator chooses, and the three the menu gained with the same batch — duplicating a tab, keeping one at the front of the row, and letting it go again"
+    },
+    {
+      "match": "^compare\\.",
+      "note": "the comparison screen: stepping through the differences, taking one side over the other, and saving the side that was changed — P3-60 when it goes, with the screen they belong to"
     }
   ],
   "literals": [

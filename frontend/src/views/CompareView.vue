@@ -322,7 +322,7 @@ const cellFor = (row, index) => {
  * The part of a changed line that differs, in three pieces.
  *
  * Only where there are two lines to compare and only for the pair the reader is
- * looking at from: on a line of two hundred characters "this changed" is not an
+ * looking at from: on a line of two hundred characters a mark on the whole line is not an
  * answer, and one character in a long path is exactly the case this is for.
  */
 const pieces = (row, index) => {

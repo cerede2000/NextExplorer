@@ -283,7 +283,7 @@ export const alignThree = (leftLines, middleLines, rightLines) => {
 /**
  * Within a changed pair, the part that actually differs.
  *
- * "This line changed" is not much help on a line of two hundred characters, and a
+ * saying only that a line changed is not much help on a line of two hundred characters, and a
  * word-by-word comparison of every changed line in a large file costs more than it
  * returns. What earns its place is the cheap half of the answer: trim what the two
  * lines begin and end with, and what is left in the middle is what changed. On a
