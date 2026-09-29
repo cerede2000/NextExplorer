@@ -1646,6 +1646,10 @@
     {
       "match": "^frontend/src/plugins/onlyoffice/onlyofficePreview\\.js$",
       "note": "one line: this viewer declares that it has a real wait after its component is on screen — a document server to reach, a session to be given, a file to load into an iframe — so the tab it is in stops saying it is working when the document is really there rather than when the panel exists. It means nothing without the tabs the batch below brings"
+    },
+    {
+      "match": "^(backend/src/config/(env|index)\\.js|docs/configuration/environment\\.md)$",
+      "note": "the one setting the comparison needs: the extensions this installation also calls text, on top of everything the text editor opens. Four lines of configuration and a row of documentation, which go up with the screen they are for — P3-60"
     }
   ],
   "controls": [
