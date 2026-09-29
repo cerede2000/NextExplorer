@@ -257,8 +257,14 @@ describe('the rename box', () => {
     expect(applyRename).toHaveBeenCalled();
   });
 
+  /**
+   * Said where this application says things, rather than in the browser's own box.
+   *
+   * `alert` was headed by the server's address and port, and stopped the page until it
+   * was dismissed — for a message. The box is gone; the message is not.
+   */
   it('says why a rename was refused, and comes back for another try', async () => {
-    const alert = vi.spyOn(window, 'alert').mockImplementation(() => {});
+    notifications.addNotification.mockClear();
     vi.spyOn(console, 'error').mockImplementation(() => {});
     applyRename.mockRejectedValueOnce(new Error('A file with that name already exists'));
     await renaming(FILE);
@@ -266,9 +272,11 @@ describe('the rename box', () => {
     await wrapper.find('input').trigger('keydown', { key: 'Enter' });
     await flushPromises();
 
-    expect(alert).toHaveBeenCalledWith('A file with that name already exists');
+    expect(notifications.addNotification).toHaveBeenCalledWith({
+      type: 'error',
+      heading: 'A file with that name already exists',
+    });
     expect(document.activeElement).toBe(input());
-    alert.mockRestore();
   });
 
   it('ignores any other key', async () => {

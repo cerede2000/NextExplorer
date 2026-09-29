@@ -225,12 +225,14 @@ import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import { usePageTitle } from '@/composables/usePageTitle';
 import { fileTitleFor } from '@/utils/pageTitle';
 import { useTabNavigation } from '@/composables/tabNavigation';
+import { useAsk } from '@/composables/useAsk';
 import { useEditorDraftsStore } from '@/stores/editorDrafts';
 import { useTabLoadingStore } from '@/stores/tabLoading';
 
 const route = useRoute();
 const router = useRouter();
 const tabNavigation = useTabNavigation();
+const { ask } = useAsk();
 const tabs = tabNavigation.tabs;
 const drafts = useEditorDraftsStore();
 
@@ -722,15 +724,18 @@ const openDownload = () => {
   window.open(url, '_blank', 'noopener,noreferrer');
 };
 
-const requestClose = () => {
+const requestClose = async () => {
   if (isSaving.value) return;
   // Nothing read from the trash can be lost by leaving: it was never editable.
-  if (
-    !isViewerOnly.value &&
-    hasUnsavedChanges.value &&
-    !confirm(t('editor.confirmCloseWithoutSaving'))
-  )
-    return;
+  if (!isViewerOnly.value && hasUnsavedChanges.value) {
+    const go = await ask({
+      title: t('editor.unsavedTitle'),
+      body: t('editor.confirmCloseWithoutSaving'),
+      confirmLabel: t('common.closeAnyway'),
+      tone: 'danger',
+    });
+    if (!go) return;
+  }
 
   // Said out loud, so the text is not kept for the tab to hand back later.
   drafts.forget(tabKey.value);
@@ -740,7 +745,7 @@ const requestClose = () => {
   // `tabNavigation`. A `.txt` and a `.md` come here rather than to the preview,
   // so without this the cross of half the documents a reader opens in a tab left
   // that tab sitting on a folder.
-  if (tabNavigation.closeOwn()) return;
+  if (await tabNavigation.closeOwn()) return;
 
   // A tab opened for this file alone is closed rather than sent somewhere: the
   // preference that opens documents in their own tab sends editable files here

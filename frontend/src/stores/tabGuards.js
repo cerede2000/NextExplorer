@@ -37,12 +37,17 @@ export const useTabGuardsStore = defineStore('tab-guards', () => {
    * True for a tab nobody asked about, which is nearly all of them — and true if the
    * question itself goes wrong, because a screen with a broken question must not be
    * able to make a tab unclosable.
+   *
+   * Answers with a promise, because the question is now the application's own dialog
+   * rather than the browser's box. `window.confirm` gave an answer on the spot by
+   * stopping the world; a dialog that is part of the page cannot, so everything from
+   * here to the cross on the tab waits for it.
    */
-  const mayClose = (id) => {
+  const mayClose = async (id) => {
     const ask = questions.get(id);
     if (!ask) return true;
     try {
-      return ask() !== false;
+      return (await ask()) !== false;
     } catch {
       return true;
     }

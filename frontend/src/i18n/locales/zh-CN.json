@@ -77,7 +77,10 @@
     "dismissWarning": "忽略此警告",
     "reset": "重置",
     "moveUp": "上移",
-    "moveDown": "下移"
+    "moveDown": "下移",
+    "confirm": "确认",
+    "closeAnyway": "仍然关闭",
+    "leaveAnyway": "仍然离开"
   },
   "editor": {
     "editing": "编辑中",
@@ -90,7 +93,8 @@
     "versionReadOnly": "历史版本，只读",
     "highlightingOffTooLarge": "此文件已关闭语法高亮：其中一部分太大，无法在不卡住页面的情况下高亮显示。",
     "raw": "原始",
-    "selectTheme": "选择编辑器主题"
+    "selectTheme": "选择编辑器主题",
+    "unsavedTitle": "未保存的更改"
   },
   "status": {
     "updated": "更新成功",
@@ -699,7 +703,10 @@
       "accessMode": "访问模式",
       "noUsers": "没有可用用户",
       "lockedBadge": "已锁定",
-      "lockedUntil": "锁定至 {time}"
+      "lockedUntil": "锁定至 {time}",
+      "removeTitle": "删除用户",
+      "removeVolumeTitle": "移除卷",
+      "newPasswordTitle": "新密码"
     },
     "userDetails": {
       "profileTab": "个人资料",
@@ -921,7 +928,8 @@
       "loadFailed": "无法读取此账户的通行密钥。",
       "addFailed": "无法添加此通行密钥。",
       "cancelled": "未添加任何内容：浏览器已关闭或操作超时。",
-      "alreadyHere": "此设备已有该账户的通行密钥。"
+      "alreadyHere": "此设备已有该账户的通行密钥。",
+      "renameTitle": "重命名通行密钥"
     },
     "activity": {
       "title": "活动日志",
@@ -1007,7 +1015,9 @@
       "loadFailed": "无法加载令牌。",
       "createFailed": "无法签发令牌。",
       "renameFailed": "无法重命名令牌。",
-      "revokeFailed": "无法吊销令牌。"
+      "revokeFailed": "无法吊销令牌。",
+      "renameTitle": "重命名令牌",
+      "revokeTitle": "吊销令牌"
     },
     "folderSize": {
       "title": "文件夹大小",
@@ -1103,7 +1113,8 @@
     "nothingToFold": "没有可折叠的内容：每一行都紧邻一处差异",
     "onlyDifferencesOf": "仅显示差异，折叠 {count} 行相同内容",
     "closeUnsaved": "此比较中有已复制但未保存的行。仍要关闭吗？",
-    "matchCount": "{count} 处匹配"
+    "matchCount": "{count} 处匹配",
+    "unsavedTitle": "未保存的行"
   },
   "mediaPreview": {
     "audioTrack": "音轨",

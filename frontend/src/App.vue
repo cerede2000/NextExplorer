@@ -8,6 +8,7 @@ import ConfigErrorScreen from '@/components/ConfigErrorScreen.vue';
 import ConfigWarningNotice from '@/components/ConfigWarningNotice.vue';
 import TabStrip from '@/components/TabStrip.vue';
 import PreviewHost from '@/plugins/preview/PreviewHost.vue';
+import AskDialog from '@/components/AskDialog.vue';
 
 const { configError, dismissConfigWarning } = useConfigErrorGate();
 
@@ -57,5 +58,9 @@ const configWarning = computed(() =>
          pages: which one is visible is a tab away, and nothing is rebuilt to
          bring it forward. -->
     <PreviewHost />
+    <!-- Whatever the application is asking, drawn once and above everything: the
+         screens that ask are usually the ones on their way out, so a dialog belonging
+         to the page would leave with the page it is asking about. -->
+    <AskDialog />
   </div>
 </template>

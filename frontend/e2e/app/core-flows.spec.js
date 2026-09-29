@@ -1088,17 +1088,34 @@ test('a comparison tab keeps what it was in the middle of, and says what it is',
     /**
      * And the cross closes the tab — after asking, because a line was taken across and
      * not saved. Closing is the one gesture that really loses those lines, so the tab
-     * has a question to put first; two tabs before, one after, and not a third.
+     * has a question to put first.
+     *
+     * Asked in the application's own dialog, which is the point: `window.confirm` put
+     * the server's address and port at the top of a question about somebody's file,
+     * and stopped the page until it was dismissed. Nothing but a browser can tell the
+     * two apart, so the browser is asked to record every box of its own that opens —
+     * and the assertion is that none did.
      */
-    const asked = [];
-    page.once('dialog', (dialog) => {
-      asked.push(dialog.message());
-      return dialog.accept();
+    const browserBoxes = [];
+    page.on('dialog', (dialog) => {
+      browserBoxes.push(dialog.message());
+      return dialog.dismiss();
     });
     const before = await strip.locator('[data-test="tab"]').count();
     await page.locator('[data-test="compare-close"]').click();
+    await expect(page.locator('[data-test="ask-confirm"]')).toBeVisible();
+
+    // Called off, and the tab is still there with its lines in it.
+    await page.locator('[data-test="ask-cancel"]').click();
+    await expect(page.locator('[data-test="ask-confirm"]')).toHaveCount(0);
+    await expect(strip.locator('[data-test="tab"]')).toHaveCount(before);
+    await expect(page.locator('[data-test="compare-save-0"]')).toBeEnabled();
+
+    // Asked again, agreed to: two tabs before, one after — and not a third.
+    await page.locator('[data-test="compare-close"]').click();
+    await page.locator('[data-test="ask-confirm"]').click();
     await expect(strip.locator('[data-test="tab"]')).toHaveCount(before - 1);
-    expect(asked).toHaveLength(1);
+    expect(browserBoxes).toEqual([]);
     await expect(strip.locator('[role="tab"][title="right.conf ↔ left.conf"]')).toHaveCount(0);
   } finally {
     await page.goto('/settings/user-preferences');
@@ -1573,12 +1590,34 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   // that exists nowhere but this window.
   await expect(page.getByText('Unsaved changes')).toBeVisible();
 
-  // The cross closes the tab it was opened in — said out loud, since the text
-  // above was never saved.
-  page.once('dialog', (dialog) => dialog.accept());
+  /**
+   * The cross closes the tab it was opened in — said out loud, since the text above was
+   * never saved, and said in the application's own dialog.
+   *
+   * `confirm` was answering here: the browser's box, headed by the server's address and
+   * port, over a question about somebody's file. Nothing but a browser can tell that
+   * apart from a dialog, so the browser is asked to record every box of its own that
+   * opens, and the assertion is that none did.
+   */
+  const editorBoxes = [];
+  page.on('dialog', (dialog) => {
+    editorBoxes.push(dialog.message());
+    return dialog.dismiss();
+  });
   await page.locator('[data-test="editor-close"]').click();
+  await expect(page.locator('[data-test="ask-confirm"]')).toBeVisible();
+
+  // Called off, and the text is still there in its tab.
+  await page.locator('[data-test="ask-cancel"]').click();
+  await expect(page.locator('[data-test="ask-confirm"]')).toHaveCount(0);
+  await expect(tabs).toHaveCount(5);
+  await expect(page.locator('.cm-content')).toContainText('typed in a tab');
+
+  await page.locator('[data-test="editor-close"]').click();
+  await page.locator('[data-test="ask-confirm"]').click();
   await expect(tabs).toHaveCount(4);
   await expect(page).not.toHaveURL(/\/editor\//);
+  expect(editorBoxes).toEqual([]);
 
   /**
    * And where the reader was, with nothing typed at all.

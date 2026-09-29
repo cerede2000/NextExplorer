@@ -77,7 +77,10 @@
     "dismissWarning": "Waarschuwing sluiten",
     "reset": "Herstellen",
     "moveUp": "Omhoog",
-    "moveDown": "Omlaag"
+    "moveDown": "Omlaag",
+    "confirm": "Bevestigen",
+    "closeAnyway": "Toch sluiten",
+    "leaveAnyway": "Toch weggaan"
   },
   "editor": {
     "editing": "Bewerken",
@@ -90,7 +93,8 @@
     "versionReadOnly": "Eerdere versie, alleen-lezen",
     "highlightingOffTooLarge": "Syntaxiskleuring staat uit voor dit bestand: een deel ervan is te groot om te kleuren zonder de pagina te laten vastlopen.",
     "raw": "Onbewerkt",
-    "selectTheme": "Editorthema kiezen"
+    "selectTheme": "Editorthema kiezen",
+    "unsavedTitle": "Niet-opgeslagen wijzigingen"
   },
   "status": {
     "updated": "Met succes bijgewerkt",
@@ -699,7 +703,10 @@
       "accessMode": "Toegangsmodus",
       "noUsers": "Geen gebruikers beschikbaar",
       "lockedBadge": "Vergrendeld",
-      "lockedUntil": "Vergrendeld tot {time}"
+      "lockedUntil": "Vergrendeld tot {time}",
+      "removeTitle": "Gebruiker verwijderen",
+      "removeVolumeTitle": "Volume verwijderen",
+      "newPasswordTitle": "Nieuw wachtwoord"
     },
     "userDetails": {
       "profileTab": "Profiel",
@@ -921,7 +928,8 @@
       "loadFailed": "Kon de passkeys van dit account niet lezen.",
       "addFailed": "Kon deze passkey niet toevoegen.",
       "cancelled": "Er is niets toegevoegd: de browser werd gesloten of het duurde te lang.",
-      "alreadyHere": "Dit apparaat heeft al een passkey voor dit account."
+      "alreadyHere": "Dit apparaat heeft al een passkey voor dit account.",
+      "renameTitle": "Passkey hernoemen"
     },
     "activity": {
       "title": "Activiteitenlogboek",
@@ -1007,7 +1015,9 @@
       "loadFailed": "De tokens konden niet worden geladen.",
       "createFailed": "Het token kon niet worden uitgegeven.",
       "renameFailed": "Het token kon niet worden hernoemd.",
-      "revokeFailed": "Het token kon niet worden ingetrokken."
+      "revokeFailed": "Het token kon niet worden ingetrokken.",
+      "renameTitle": "Token hernoemen",
+      "revokeTitle": "Token intrekken"
     },
     "folderSize": {
       "title": "Mapgroottes",
@@ -1103,7 +1113,8 @@
     "nothingToFold": "Niets in te vouwen: elke regel staat naast een verschil",
     "onlyDifferencesOf": "Alleen de verschillen tonen en {count} identieke regels invouwen",
     "closeUnsaved": "Deze vergelijking heeft overgenomen, niet-opgeslagen regels. Toch sluiten?",
-    "matchCount": "{count} resultaten"
+    "matchCount": "{count} resultaten",
+    "unsavedTitle": "Niet-opgeslagen regels"
   },
   "share": {
     "sharedWithMe": "Gedeeld met mij",

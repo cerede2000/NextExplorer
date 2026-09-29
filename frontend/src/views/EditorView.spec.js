@@ -67,6 +67,14 @@ vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key) => key }) }));
 // that this view asks it, and asks it before offering the window to the browser.
 const closeOwn = vi.fn(() => false);
 const appTabs = vi.hoisted(() => ({ activeId: 'tab-1', tabs: [{ id: 'tab-1' }] }));
+/**
+ * What the application asks, in its own dialog rather than the browser's box. Answers
+ * with a promise, as the real one does: it is part of the page, so it cannot answer
+ * before it has been read.
+ */
+const asked = vi.hoisted(() => ({ ask: vi.fn(async () => false), askFor: vi.fn() }));
+vi.mock('@/composables/useAsk', () => ({ useAsk: () => asked }));
+
 vi.mock('@/composables/tabNavigation', () => ({
   useTabNavigation: () => ({
     get tabs() {
@@ -280,6 +288,8 @@ const type = async (view, text) => {
 let historyLength = 3;
 
 beforeEach(() => {
+  asked.ask.mockClear();
+  asked.ask.mockResolvedValue(false);
   Object.defineProperty(window.history, 'length', {
     configurable: true,
     get: () => historyLength,
@@ -579,7 +589,7 @@ describe('leaving the editor', () => {
     historyLength = 1;
     const view = await mountEditor();
 
-    view.requestClose();
+    await view.requestClose();
 
     expect(window.close).toHaveBeenCalled();
     expect(router.replace).not.toHaveBeenCalled();
@@ -597,7 +607,7 @@ describe('leaving the editor', () => {
     historyLength = 1;
     const view = await mountEditor();
 
-    view.requestClose();
+    await view.requestClose();
 
     expect(closeOwn).toHaveBeenCalled();
     // Asked first, or shutting a file would take the browser window with it.
@@ -608,15 +618,14 @@ describe('leaving the editor', () => {
   /** Unsaved work is asked about before anything is closed, tab or window. */
   it('asks before closing its tab when there is unsaved work', async () => {
     closeOwn.mockReturnValue(true);
-    const confirmed = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    asked.ask.mockResolvedValue(false);
     const view = await mountEditor();
     await type(view, 'unsaved');
 
-    view.requestClose();
+    await view.requestClose();
 
-    expect(confirmed).toHaveBeenCalled();
+    expect(asked.ask).toHaveBeenCalled();
     expect(closeOwn).not.toHaveBeenCalled();
-    confirmed.mockRestore();
   });
 
   // The tab somebody opened the whole application in is also "created by web
@@ -625,7 +634,7 @@ describe('leaving the editor', () => {
   it('does not close a tab that has been somewhere else', async () => {
     const view = await mountEditor();
 
-    view.requestClose();
+    await view.requestClose();
 
     expect(window.close).not.toHaveBeenCalled();
     expect(router.replace).toHaveBeenCalledWith('/browse/Docs');
@@ -634,7 +643,7 @@ describe('leaving the editor', () => {
   it('goes back to the folder the file lives in', async () => {
     const view = await mountEditor();
 
-    view.requestClose();
+    await view.requestClose();
 
     expect(router.replace).toHaveBeenCalledWith('/browse/Docs');
   });
@@ -643,7 +652,7 @@ describe('leaving the editor', () => {
     route().params = { path: 'notes.md' };
     const view = await mountEditor();
 
-    view.requestClose();
+    await view.requestClose();
 
     expect(router.replace).toHaveBeenCalledWith('/browse');
   });
@@ -652,43 +661,40 @@ describe('leaving the editor', () => {
     asShare();
     const view = await mountEditor();
 
-    view.requestClose();
+    await view.requestClose();
 
     expect(router.replace).toHaveBeenCalledWith('/share/tok');
   });
 
   /** Leaving with unsaved work is a decision, not a side effect of a click. */
   it('asks first when there is unsaved work', async () => {
-    const confirmed = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    asked.ask.mockResolvedValue(false);
     const view = await mountEditor();
     await type(view, 'unsaved');
 
-    view.requestClose();
+    await view.requestClose();
 
-    expect(confirmed).toHaveBeenCalled();
+    expect(asked.ask).toHaveBeenCalled();
     expect(router.replace).not.toHaveBeenCalled();
-    confirmed.mockRestore();
   });
 
   it('leaves when the answer is yes', async () => {
-    const confirmed = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    asked.ask.mockResolvedValue(true);
     const view = await mountEditor();
     await type(view, 'unsaved');
 
-    view.requestClose();
+    await view.requestClose();
 
     expect(router.replace).toHaveBeenCalled();
-    confirmed.mockRestore();
   });
 
   it('does not ask when there is nothing unsaved', async () => {
-    const confirmed = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    asked.ask.mockResolvedValue(true);
     const view = await mountEditor();
 
-    view.requestClose();
+    await view.requestClose();
 
-    expect(confirmed).not.toHaveBeenCalled();
-    confirmed.mockRestore();
+    expect(asked.ask).not.toHaveBeenCalled();
   });
 
   /**
@@ -696,17 +702,16 @@ describe('leaving the editor', () => {
    * one moment when saying yes to the question must not be enough.
    */
   it('refuses to leave in the middle of a write', async () => {
-    const confirmed = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    asked.ask.mockResolvedValue(true);
     const view = await mountEditor();
     await type(view, 'unsaved');
     api.saveFileContent.mockImplementation(() => new Promise(() => {}));
     view.saveFile();
     await flushPromises();
 
-    view.requestClose();
+    await view.requestClose();
 
     expect(router.replace).not.toHaveBeenCalled();
-    confirmed.mockRestore();
   });
 
   /**
@@ -794,7 +799,7 @@ describe('reading a file from the trash', () => {
     await type(view, 'changed anyway');
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
-    view.requestClose();
+    await view.requestClose();
 
     expect(confirm).not.toHaveBeenCalled();
     expect(router.replace).toHaveBeenCalledWith({
@@ -808,7 +813,7 @@ describe('reading a file from the trash', () => {
     asTrash(['run.sh']);
     const view = await mountEditor();
 
-    view.requestClose();
+    await view.requestClose();
 
     expect(router.replace).toHaveBeenCalledWith({ name: 'Trash', query: { item: 'id-1' } });
   });
@@ -817,7 +822,7 @@ describe('reading a file from the trash', () => {
     asTrash([]);
     const view = await mountEditor();
 
-    view.requestClose();
+    await view.requestClose();
 
     expect(api.getTrashFileText).toHaveBeenCalledWith('id-1', '');
     expect(router.replace).toHaveBeenCalledWith({ name: 'Trash', query: {} });
@@ -898,7 +903,7 @@ describe('reading an earlier version of a file', () => {
     await type(view, 'changed anyway');
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
-    view.requestClose();
+    await view.requestClose();
 
     expect(confirm).not.toHaveBeenCalled();
     expect(versionsPanel.openPath).toHaveBeenCalledWith('Docs/notes.md');
@@ -1436,14 +1441,13 @@ describe('what a tab holds on to', () => {
   });
 
   it('lets go when leaving without saving is said out loud', async () => {
-    const confirmed = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    asked.ask.mockResolvedValue(true);
     const view = await mountEditor();
     await type(view, 'half a sentence');
     drafts.set('tab-1', { address: '/editor/Docs/notes.md', text: 'half a sentence' });
 
-    view.requestClose();
+    await view.requestClose();
 
     expect(drafts.has('tab-1')).toBe(false);
-    confirmed.mockRestore();
   });
 });

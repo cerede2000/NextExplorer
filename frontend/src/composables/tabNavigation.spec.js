@@ -52,7 +52,9 @@ vi.mock('@/stores/tabLoading', () => ({ useTabLoadingStore: () => tabLoading }))
  * what a tab was holding, and this store is where a screen with something to lose
  * leaves its question.
  */
-const guards = vi.hoisted(() => ({ mayClose: vi.fn(() => true), release: vi.fn() }));
+// Answers with a promise, as the store does: the question is the application's own
+// dialog now, and a dialog cannot answer before it has been read.
+const guards = vi.hoisted(() => ({ mayClose: vi.fn(async () => true), release: vi.fn() }));
 vi.mock('@/stores/tabGuards', () => ({ useTabGuardsStore: () => guards }));
 
 const settings = vi.hoisted(() => ({ loaded: true, userSettings: {} }));
@@ -68,7 +70,7 @@ beforeEach(() => {
   warmInBackground.mockClear();
   tabLoading.keepOnly.mockClear();
   guards.mayClose.mockClear();
-  guards.mayClose.mockReturnValue(true);
+  guards.mayClose.mockResolvedValue(true);
   guards.release.mockClear();
   settings.loaded = true;
   settings.userSettings = {};
@@ -84,11 +86,11 @@ const withOwnDocumentTab = () => {
 };
 
 describe('closing the tab something was opened for', () => {
-  it('closes it, and says so', () => {
+  it('closes it, and says so', async () => {
     const { tabs, tab } = withOwnDocumentTab();
     const navigation = useTabNavigation();
 
-    expect(navigation.closeOwn()).toBe(true);
+    expect(await navigation.closeOwn()).toBe(true);
     expect(tabs.tabs.some((entry) => entry.id === tab.id)).toBe(false);
   });
 
@@ -97,46 +99,46 @@ describe('closing the tab something was opened for', () => {
    * The store stops saying `own` the moment the address changes; this is what
    * that is for.
    */
-  it('leaves alone a tab somebody had been browsing in', () => {
+  it('leaves alone a tab somebody had been browsing in', async () => {
     const { tabs } = withOwnDocumentTab();
     tabs.syncActive('/browse/Docs');
     const navigation = useTabNavigation();
 
-    expect(navigation.closeOwn()).toBe(false);
+    expect(await navigation.closeOwn()).toBe(false);
     expect(tabs.count).toBe(2);
   });
 
   /** The last tab cannot close: there would be nowhere to be. */
-  it('refuses the only tab', () => {
+  it('refuses the only tab', async () => {
     const tabs = useTabsStore();
     tabs.setEnabled(true);
     tabs.syncActive('/open/Docs/report.docx');
     tabs.activeTab.own = true;
     const navigation = useTabNavigation();
 
-    expect(navigation.closeOwn()).toBe(false);
+    expect(await navigation.closeOwn()).toBe(false);
     expect(tabs.count).toBe(1);
   });
 
   /** With tabs off there is one tab and it is the window; closing is not ours. */
-  it('refuses when tabs are turned off', () => {
+  it('refuses when tabs are turned off', async () => {
     const { tabs } = withOwnDocumentTab();
     tabs.setEnabled(false);
     tabs.activeTab.own = true;
     const navigation = useTabNavigation();
 
-    expect(navigation.closeOwn()).toBe(false);
+    expect(await navigation.closeOwn()).toBe(false);
   });
 
   /** Whatever is left takes over, and the address follows it. */
-  it('goes where the tab that takes over says it is', () => {
+  it('goes where the tab that takes over says it is', async () => {
     const tabs = useTabsStore();
     tabs.setEnabled(true);
     tabs.syncActive('/browse/Photos');
     const second = tabs.open('/open/Docs/report.docx', { own: true });
     const navigation = useTabNavigation();
 
-    expect(navigation.closeOwn()).toBe(true);
+    expect(await navigation.closeOwn()).toBe(true);
     expect(tabs.activeId).not.toBe(second.id);
     expect(push).toHaveBeenCalledWith('/browse/Photos');
   });
@@ -211,7 +213,7 @@ describe('a tab that has gone', () => {
     await nextTick();
     tabLoading.keepOnly.mockClear();
     guards.mayClose.mockClear();
-    guards.mayClose.mockReturnValue(true);
+    guards.mayClose.mockResolvedValue(true);
     guards.release.mockClear();
 
     tabs.close(opened.id);
@@ -238,47 +240,47 @@ describe('closing a tab that has something to say', () => {
     return { tabs, opened };
   };
 
-  it('asks, and closes it when the answer is yes', () => {
+  it('asks, and closes it when the answer is yes', async () => {
     const { tabs, opened } = twoTabs();
 
-    useTabNavigation().close(opened.id);
+    await useTabNavigation().close(opened.id);
 
     expect(guards.mayClose).toHaveBeenCalledWith(opened.id);
     expect(tabs.tabs.some((tab) => tab.id === opened.id)).toBe(false);
   });
 
-  it('leaves it alone when the answer is no', () => {
+  it('leaves it alone when the answer is no', async () => {
     const { tabs, opened } = twoTabs();
-    guards.mayClose.mockReturnValue(false);
+    guards.mayClose.mockResolvedValue(false);
 
-    expect(useTabNavigation().close(opened.id)).toBeNull();
+    expect(await useTabNavigation().close(opened.id)).toBeNull();
     expect(tabs.tabs.some((tab) => tab.id === opened.id)).toBe(true);
   });
 
   /** One tab refusing holds the whole gesture: nothing half-closed. */
-  it('closes none of the others when one of them refuses', () => {
+  it('closes none of the others when one of them refuses', async () => {
     const { tabs } = twoTabs();
     const second = tabs.open('/browse/Media');
-    guards.mayClose.mockImplementation((id) => id !== second.id);
+    guards.mayClose.mockImplementation(async (id) => id !== second.id);
 
-    expect(useTabNavigation().closeAll()).toBeNull();
+    expect(await useTabNavigation().closeAll()).toBeNull();
     expect(tabs.count).toBe(3);
   });
 
-  it('closes them all when none of them minds', () => {
+  it('closes them all when none of them minds', async () => {
     const { tabs } = twoTabs();
     tabs.open('/browse/Media');
 
-    useTabNavigation().closeAll();
+    await useTabNavigation().closeAll();
 
     expect(tabs.count).toBe(1);
   });
 
   /** A question for a tab that has gone is a question nobody will ever answer. */
-  it('lets go of the question once the tab is closed', () => {
+  it('lets go of the question once the tab is closed', async () => {
     const { opened } = twoTabs();
 
-    useTabNavigation().close(opened.id);
+    await useTabNavigation().close(opened.id);
 
     expect(guards.release).toHaveBeenCalledWith(opened.id);
   });

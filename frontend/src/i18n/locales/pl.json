@@ -77,7 +77,10 @@
     "dismissWarning": "Odrzuć ostrzeżenie",
     "reset": "Resetuj",
     "moveUp": "Przesuń w górę",
-    "moveDown": "Przesuń w dół"
+    "moveDown": "Przesuń w dół",
+    "confirm": "Potwierdź",
+    "closeAnyway": "Zamknij mimo to",
+    "leaveAnyway": "Wyjdź mimo to"
   },
   "editor": {
     "editing": "Edytowanie",
@@ -90,7 +93,8 @@
     "versionReadOnly": "Wcześniejsza wersja, tylko do odczytu",
     "highlightingOffTooLarge": "Podświetlanie składni jest wyłączone dla tego pliku: jego część jest zbyt duża, by ją podświetlić bez zamrożenia strony.",
     "raw": "Surowy",
-    "selectTheme": "Wybierz motyw edytora"
+    "selectTheme": "Wybierz motyw edytora",
+    "unsavedTitle": "Niezapisane zmiany"
   },
   "status": {
     "updated": "Pomyślnie zaktualizowano",
@@ -699,7 +703,10 @@
       "accessMode": "Tryb dostępu",
       "noUsers": "Brak dostępnych użytkowników",
       "lockedBadge": "Zablokowane",
-      "lockedUntil": "Zablokowane do {time}"
+      "lockedUntil": "Zablokowane do {time}",
+      "removeTitle": "Usuń użytkownika",
+      "removeVolumeTitle": "Usuń wolumin",
+      "newPasswordTitle": "Nowe hasło"
     },
     "userDetails": {
       "profileTab": "Profil",
@@ -921,7 +928,8 @@
       "loadFailed": "Nie udało się odczytać kluczy dostępu tego konta.",
       "addFailed": "Nie udało się dodać tego klucza dostępu.",
       "cancelled": "Nic nie dodano: przeglądarka została zamknięta lub minęło zbyt dużo czasu.",
-      "alreadyHere": "To urządzenie ma już klucz dostępu do tego konta."
+      "alreadyHere": "To urządzenie ma już klucz dostępu do tego konta.",
+      "renameTitle": "Zmień nazwę klucza dostępu"
     },
     "activity": {
       "title": "Dziennik aktywności",
@@ -1007,7 +1015,9 @@
       "loadFailed": "Nie udało się wczytać tokenów.",
       "createFailed": "Nie udało się wydać tokenu.",
       "renameFailed": "Nie udało się zmienić nazwy tokenu.",
-      "revokeFailed": "Nie udało się unieważnić tokenu."
+      "revokeFailed": "Nie udało się unieważnić tokenu.",
+      "renameTitle": "Zmień nazwę tokenu",
+      "revokeTitle": "Unieważnij token"
     },
     "folderSize": {
       "title": "Rozmiary folderów",
@@ -1103,7 +1113,8 @@
     "nothingToFold": "Nie ma czego zwinąć: każdy wiersz sąsiaduje z różnicą",
     "onlyDifferencesOf": "Pokaż tylko różnice, zwijając {count} identycznych wierszy",
     "closeUnsaved": "To porównanie zawiera skopiowane, niezapisane wiersze. Zamknąć mimo to?",
-    "matchCount": "Wyniki: {count}"
+    "matchCount": "Wyniki: {count}",
+    "unsavedTitle": "Niezapisane wiersze"
   },
   "mediaPreview": {
     "audioTrack": "Ścieżka dźwiękowa",

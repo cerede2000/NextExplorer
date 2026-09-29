@@ -77,7 +77,10 @@
     "dismissWarning": "Ignorer l'avertissement",
     "reset": "Réinitialiser",
     "moveUp": "Monter",
-    "moveDown": "Descendre"
+    "moveDown": "Descendre",
+    "confirm": "Confirmer",
+    "closeAnyway": "Fermer quand même",
+    "leaveAnyway": "Quitter quand même"
   },
   "editor": {
     "editing": "Édition en cours",
@@ -90,7 +93,8 @@
     "versionReadOnly": "Version antérieure, lecture seule",
     "highlightingOffTooLarge": "Coloration syntaxique désactivée pour ce fichier : une partie est trop grande pour être colorée sans figer la page.",
     "raw": "Brut",
-    "selectTheme": "Choisir le thème de l'éditeur"
+    "selectTheme": "Choisir le thème de l'éditeur",
+    "unsavedTitle": "Modifications non enregistrées"
   },
   "status": {
     "updated": "Mis à jour avec succès",
@@ -699,7 +703,10 @@
       "accessMode": "Mode d'accès",
       "noUsers": "Aucun utilisateur disponible",
       "lockedBadge": "Verrouillé",
-      "lockedUntil": "Verrouillé jusqu'à {time}"
+      "lockedUntil": "Verrouillé jusqu'à {time}",
+      "removeTitle": "Supprimer l’utilisateur",
+      "removeVolumeTitle": "Retirer le volume",
+      "newPasswordTitle": "Nouveau mot de passe"
     },
     "userDetails": {
       "profileTab": "Profil",
@@ -921,7 +928,8 @@
       "loadFailed": "Impossible de lire les clés d’accès de ce compte.",
       "addFailed": "Impossible d’ajouter cette clé d’accès.",
       "cancelled": "Rien n’a été ajouté : le navigateur a été fermé ou le délai a expiré.",
-      "alreadyHere": "Cet appareil détient déjà une clé d’accès pour ce compte."
+      "alreadyHere": "Cet appareil détient déjà une clé d’accès pour ce compte.",
+      "renameTitle": "Renommer la clé d’accès"
     },
     "activity": {
       "title": "Journal d’activité",
@@ -1007,7 +1015,9 @@
       "loadFailed": "Les jetons n’ont pas pu être chargés.",
       "createFailed": "Le jeton n’a pas pu être émis.",
       "renameFailed": "Le jeton n’a pas pu être renommé.",
-      "revokeFailed": "Le jeton n’a pas pu être révoqué."
+      "revokeFailed": "Le jeton n’a pas pu être révoqué.",
+      "renameTitle": "Renommer le jeton",
+      "revokeTitle": "Révoquer le jeton"
     },
     "folderSize": {
       "title": "Taille des dossiers",
@@ -1103,7 +1113,8 @@
     "nothingToFold": "Rien à replier : chaque ligne est à côté d’une différence",
     "onlyDifferencesOf": "Afficher seulement les différences, en repliant {count} lignes identiques",
     "closeUnsaved": "Cette comparaison contient des lignes copiées et non enregistrées. Fermer quand même ?",
-    "matchCount": "{count} résultats"
+    "matchCount": "{count} résultats",
+    "unsavedTitle": "Lignes non enregistrées"
   },
   "mediaPreview": {
     "audioTrack": "Piste audio",

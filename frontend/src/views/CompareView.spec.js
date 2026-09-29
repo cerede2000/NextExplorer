@@ -77,6 +77,16 @@ vi.mock('@/stores/tabGuards', () => ({
     release: guards.release,
   }),
 }));
+/**
+ * What the application asks, in its own dialog. Answers with a promise, as the real one
+ * does: it is part of the page, so it cannot answer before it has been read.
+ */
+const asked = vi.hoisted(() => ({
+  ask: vi.fn(async () => false),
+  askFor: vi.fn(async () => null),
+}));
+vi.mock('@/composables/useAsk', () => ({ useAsk: () => asked }));
+
 const notifications = vi.hoisted(() => ({ addNotification: vi.fn() }));
 vi.mock('@/stores/notifications', () => ({ useNotificationsStore: () => notifications }));
 
@@ -115,6 +125,8 @@ beforeEach(() => {
   kept.clear();
   guards.asked = [];
   guards.guard.mockClear();
+  asked.ask.mockClear();
+  asked.ask.mockResolvedValue(false);
   appTabs.activeId = 'tab-1';
   appTabs.tabs = [{ id: 'tab-1' }, { id: 'tab-9' }];
   appTabs.retarget.mockClear();
@@ -361,13 +373,37 @@ describe('saving a side that has been changed', () => {
     await wrapper.get('[data-test="compare-next"]').trigger('click');
     await wrapper.get('[data-test="compare-copy-forward-0"]').trigger('click');
 
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    try {
-      expect(leaveGuards.map((guard) => guard())).toEqual([false]);
-      expect(confirm).toHaveBeenCalled();
-    } finally {
-      confirm.mockRestore();
-    }
+    expect(await Promise.all(leaveGuards.map((guard) => guard()))).toEqual([false]);
+    expect(asked.ask).toHaveBeenCalled();
+  });
+
+  /**
+   * And it is the application's own dialog, not the browser's box.
+   *
+   * Which is the whole of this change: `window.confirm` puts the server's address and
+   * port at the top of a question about somebody's file, and stops the page until it
+   * is answered. Asserted by the shape of the answer — a promise — because that is
+   * what a dialog inside the page can give and the browser's box could not.
+   */
+  it('asks with a dialog that answers when it is read', async () => {
+    const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
+    await wrapper.get('[data-test="compare-next"]').trigger('click');
+    await wrapper.get('[data-test="compare-copy-forward-0"]').trigger('click');
+    let answer;
+    asked.ask.mockReturnValue(
+      new Promise((resolve) => {
+        answer = resolve;
+      })
+    );
+
+    const leaving = leaveGuards[0]();
+    let settled = 'still asking';
+    void leaving.then((may) => (settled = may));
+    await flushPromises();
+    expect(settled).toBe('still asking');
+
+    answer(true);
+    expect(await leaving).toBe(true);
   });
 
   /**
@@ -382,25 +418,15 @@ describe('saving a side that has been changed', () => {
     await wrapper.get('[data-test="compare-copy-forward-0"]').trigger('click');
     appTabs.activeId = 'tab-9';
 
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    try {
-      expect(leaveGuards.map((guard) => guard())).toEqual([true]);
-      expect(confirm).not.toHaveBeenCalled();
-    } finally {
-      confirm.mockRestore();
-    }
+    expect(await Promise.all(leaveGuards.map((guard) => guard()))).toEqual([true]);
+    expect(asked.ask).not.toHaveBeenCalled();
   });
 
   it('does not ask when nothing was taken across', async () => {
     await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
 
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    try {
-      expect(leaveGuards.map((guard) => guard())).toEqual([true]);
-      expect(confirm).not.toHaveBeenCalled();
-    } finally {
-      confirm.mockRestore();
-    }
+    expect(await Promise.all(leaveGuards.map((guard) => guard()))).toEqual([true]);
+    expect(asked.ask).not.toHaveBeenCalled();
   });
 });
 

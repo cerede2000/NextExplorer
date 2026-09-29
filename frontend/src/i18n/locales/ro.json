@@ -77,7 +77,10 @@
     "dismissWarning": "Închideți avertismentul",
     "reset": "Resetează",
     "moveUp": "Mută în sus",
-    "moveDown": "Mută în jos"
+    "moveDown": "Mută în jos",
+    "confirm": "Confirmă",
+    "closeAnyway": "Închide oricum",
+    "leaveAnyway": "Pleacă oricum"
   },
   "editor": {
     "editing": "În curs de editare",
@@ -90,7 +93,8 @@
     "versionReadOnly": "Versiune anterioară, doar citire",
     "highlightingOffTooLarge": "Evidențierea sintaxei este dezactivată pentru acest fișier: o parte din el este prea mare pentru a fi evidențiată fără a bloca pagina.",
     "raw": "Brut",
-    "selectTheme": "Alegeți tema editorului"
+    "selectTheme": "Alegeți tema editorului",
+    "unsavedTitle": "Modificări nesalvate"
   },
   "status": {
     "updated": "Actualizat cu succes",
@@ -699,7 +703,10 @@
       "accessMode": "Mod acces",
       "noUsers": "Nu există utilizatori disponibili",
       "lockedBadge": "Blocat",
-      "lockedUntil": "Blocat până la {time}"
+      "lockedUntil": "Blocat până la {time}",
+      "removeTitle": "Șterge utilizatorul",
+      "removeVolumeTitle": "Elimină volumul",
+      "newPasswordTitle": "Parolă nouă"
     },
     "userDetails": {
       "profileTab": "Profil",
@@ -921,7 +928,8 @@
       "loadFailed": "Cheile de acces ale acestui cont nu au putut fi citite.",
       "addFailed": "Cheia de acces nu a putut fi adăugată.",
       "cancelled": "Nu s-a adăugat nimic: browserul a fost închis sau a durat prea mult.",
-      "alreadyHere": "Acest dispozitiv are deja o cheie de acces pentru acest cont."
+      "alreadyHere": "Acest dispozitiv are deja o cheie de acces pentru acest cont.",
+      "renameTitle": "Redenumește cheia de acces"
     },
     "activity": {
       "title": "Jurnal de activitate",
@@ -1007,7 +1015,9 @@
       "loadFailed": "Jetoanele nu au putut fi încărcate.",
       "createFailed": "Jetonul nu a putut fi emis.",
       "renameFailed": "Jetonul nu a putut fi redenumit.",
-      "revokeFailed": "Jetonul nu a putut fi revocat."
+      "revokeFailed": "Jetonul nu a putut fi revocat.",
+      "renameTitle": "Redenumește jetonul",
+      "revokeTitle": "Revocă jetonul"
     },
     "folderSize": {
       "title": "Dimensiunea dosarelor",
@@ -1103,7 +1113,8 @@
     "nothingToFold": "Nimic de pliat: fiecare linie este lângă o diferență",
     "onlyDifferencesOf": "Arată doar diferențele, pliind {count} linii identice",
     "closeUnsaved": "Această comparație are linii copiate și nesalvate. Închizi oricum?",
-    "matchCount": "{count} rezultate"
+    "matchCount": "{count} rezultate",
+    "unsavedTitle": "Linii nesalvate"
   },
   "mediaPreview": {
     "audioTrack": "Pistă audio",

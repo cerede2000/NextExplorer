@@ -168,23 +168,36 @@ export function useTabNavigation() {
    */
   const guards = useTabGuardsStore();
 
-  const close = (id) => {
-    if (!guards.mayClose(id)) return null;
+  /**
+   * Waited on, all of them, because the question is the application's own dialog now
+   * and a dialog cannot answer before it has been read. Asked one tab at a time rather
+   * than all at once: several dialogs cannot be on screen together, and being asked
+   * about six tabs in a row is at least being asked about each of them.
+   */
+  const everyoneAgrees = async (list) => {
+    for (const tab of list) {
+      if (!(await guards.mayClose(tab.id))) return false;
+    }
+    return true;
+  };
+
+  const close = async (id) => {
+    if (!(await guards.mayClose(id))) return null;
     guards.release(id);
     return go(tabs.close(id));
   };
 
-  const closeOthers = (id) => {
+  const closeOthers = async (id) => {
     const others = tabs.tabs.filter((tab) => tab.id !== id && !tab.pinned);
-    if (others.some((tab) => !guards.mayClose(tab.id))) return null;
+    if (!(await everyoneAgrees(others))) return null;
     others.forEach((tab) => guards.release(tab.id));
     return go(tabs.closeOthers(id));
   };
 
   /** Every one of them, and a new tab at the volumes to land in. */
-  const closeAll = () => {
+  const closeAll = async () => {
     const going = tabs.tabs.filter((tab) => !tab.pinned);
-    if (going.some((tab) => !guards.mayClose(tab.id))) return null;
+    if (!(await everyoneAgrees(going))) return null;
     going.forEach((tab) => guards.release(tab.id));
     return go(tabs.closeAll());
   };
@@ -202,11 +215,14 @@ export function useTabNavigation() {
    * while somebody was browsing (`own` stops being true the moment it is), and the
    * last tab, because there would be nowhere left to be.
    */
-  const closeOwn = () => {
+  const closeOwn = async () => {
     if (!tabs.enabled) return false;
     const tab = tabs.activeTab;
     if (!tab?.own || !tabs.canClose) return false;
-    close(tab.id);
+    // Awaited rather than let go of: the answer is what decides whether the tab is
+    // still there, and a caller told "yes, this was your tab" while the question was
+    // still on screen would go on to do the rest of its closing behind the dialog.
+    await close(tab.id);
     return true;
   };
 

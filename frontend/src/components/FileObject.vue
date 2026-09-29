@@ -275,7 +275,7 @@ const commitRename = async () => {
   } catch (error) {
     console.error('Rename operation failed', error);
     if (error && error.message) {
-      window.alert(error.message);
+      notificationsStore.addNotification({ type: 'error', heading: error.message });
     }
     focusRenameInput();
   }

@@ -32,6 +32,7 @@ import { useTabLoadingStore } from '@/stores/tabLoading';
 import { useNotificationsStore } from '@/stores/notifications';
 import { useCompareSessionsStore } from '@/stores/compareSessions';
 import { useTabGuardsStore } from '@/stores/tabGuards';
+import { useAsk } from '@/composables/useAsk';
 
 /**
  * Two or three files, side by side.
@@ -60,6 +61,7 @@ const tabsStore = useTabsStore();
 const tabLoading = useTabLoadingStore();
 const notifications = useNotificationsStore();
 const tabNavigation = useTabNavigation();
+const { ask } = useAsk();
 
 /**
  * The tab this screen speaks for, re-read whenever the address changes.
@@ -432,10 +434,15 @@ const anythingUnsaved = computed(() => sides.value.some((side) => side.dirty));
  * would be asking about something that is not going to happen. It asked, the answer
  * was no, and the reader could not leave their own comparison.
  */
-onBeforeRouteLeave(() => {
+onBeforeRouteLeave(async () => {
   if (!anythingUnsaved.value) return true;
   if (tabsStore.activeId !== ownTabId.value) return true;
-  return window.confirm(t('compare.leaveUnsaved'));
+  return ask({
+    title: t('compare.unsavedTitle'),
+    body: t('compare.leaveUnsaved'),
+    confirmLabel: t('common.leaveAnyway'),
+    tone: 'danger',
+  });
 });
 
 /**
@@ -455,7 +462,14 @@ watch(
   ([id, unsaved]) => {
     releaseGuard();
     releaseGuard = unsaved
-      ? guards.guard(id, () => window.confirm(t('compare.closeUnsaved')))
+      ? guards.guard(id, () =>
+          ask({
+            title: t('compare.unsavedTitle'),
+            body: t('compare.closeUnsaved'),
+            confirmLabel: t('common.closeAnyway'),
+            tone: 'danger',
+          })
+        )
       : () => {};
   },
   { immediate: true }
@@ -1126,8 +1140,8 @@ const onKey = (event) => {
 window.addEventListener('keydown', onKey);
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
-const close = () => {
-  if (tabNavigation.closeOwn()) return;
+const close = async () => {
+  if (await tabNavigation.closeOwn()) return;
   void router.push('/browse/');
 };
 </script>

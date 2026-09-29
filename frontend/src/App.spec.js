@@ -58,6 +58,17 @@ vi.mock('@/plugins/preview/PreviewHost.vue', () => ({
   },
 }));
 
+// Whatever the application is asking, mounted here and only here, for the same reason
+// the documents are: the screens that ask are the ones on their way out. Stubbed, and
+// that the shell mounts it is checked below.
+const askDialog = vi.fn();
+vi.mock('@/components/AskDialog.vue', () => ({
+  default: {
+    setup: () => askDialog(),
+    template: '<div data-test="ask-dialog-stub"></div>',
+  },
+}));
+
 vi.mock('@/components/ConfigErrorScreen.vue', () => ({
   default: {
     props: ['mode', 'expectedOrigin', 'requestOrigin'],
@@ -74,6 +85,7 @@ describe('App config error handling', () => {
     accountLanguage.mockClear();
     tabRouteSync.mockClear();
     previewHost.mockClear();
+    askDialog.mockClear();
   });
 
   /**
@@ -110,6 +122,18 @@ describe('App config error handling', () => {
 
     expect(previewHost).toHaveBeenCalledTimes(1);
     expect(wrapper.findAll('[data-test="preview-host-stub"]')).toHaveLength(1);
+  });
+
+  /**
+   * And whatever the application is asking, in the same one place and for the same
+   * reason: a dialog belonging to a page would leave with the page that is asking to
+   * be allowed to leave.
+   */
+  it('keeps the question the application asks in one place too', () => {
+    const wrapper = mount(App, { global: { stubs: { RouterView: true } } });
+
+    expect(askDialog).toHaveBeenCalledTimes(1);
+    expect(wrapper.findAll('[data-test="ask-dialog-stub"]')).toHaveLength(1);
   });
 
   it('shows a dismissible warning for PUBLIC_URL mismatches without blocking the router', async () => {

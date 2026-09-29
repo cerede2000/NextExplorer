@@ -77,7 +77,10 @@
     "dismissWarning": "Descartar el aviso",
     "reset": "Restablecer",
     "moveUp": "Subir",
-    "moveDown": "Bajar"
+    "moveDown": "Bajar",
+    "confirm": "Confirmar",
+    "closeAnyway": "Cerrar de todos modos",
+    "leaveAnyway": "Salir de todos modos"
   },
   "editor": {
     "editing": "Editando",
@@ -90,7 +93,8 @@
     "versionReadOnly": "Versión anterior, solo lectura",
     "highlightingOffTooLarge": "El resaltado de sintaxis está desactivado para este archivo: una parte es demasiado grande para resaltarla sin bloquear la página.",
     "raw": "Sin formato",
-    "selectTheme": "Elegir el tema del editor"
+    "selectTheme": "Elegir el tema del editor",
+    "unsavedTitle": "Cambios sin guardar"
   },
   "status": {
     "updated": "Actualizado correctamente",
@@ -699,7 +703,10 @@
       "accessMode": "Modo de acceso",
       "noUsers": "No hay usuarios disponibles",
       "lockedBadge": "Bloqueado",
-      "lockedUntil": "Bloqueado hasta las {time}"
+      "lockedUntil": "Bloqueado hasta las {time}",
+      "removeTitle": "Eliminar el usuario",
+      "removeVolumeTitle": "Quitar el volumen",
+      "newPasswordTitle": "Nueva contraseña"
     },
     "userDetails": {
       "profileTab": "Perfil",
@@ -921,7 +928,8 @@
       "loadFailed": "No se han podido leer las claves de acceso de esta cuenta.",
       "addFailed": "No se ha podido añadir esta clave de acceso.",
       "cancelled": "No se ha añadido nada: se cerró el navegador o tardó demasiado.",
-      "alreadyHere": "Este dispositivo ya tiene una clave de acceso para esta cuenta."
+      "alreadyHere": "Este dispositivo ya tiene una clave de acceso para esta cuenta.",
+      "renameTitle": "Renombrar la clave de acceso"
     },
     "activity": {
       "title": "Registro de actividad",
@@ -1007,7 +1015,9 @@
       "loadFailed": "No se han podido cargar los tokens.",
       "createFailed": "No se ha podido emitir el token.",
       "renameFailed": "No se ha podido renombrar el token.",
-      "revokeFailed": "No se ha podido revocar el token."
+      "revokeFailed": "No se ha podido revocar el token.",
+      "renameTitle": "Renombrar el token",
+      "revokeTitle": "Revocar el token"
     },
     "folderSize": {
       "title": "Tamaño de carpetas",
@@ -1103,7 +1113,8 @@
     "nothingToFold": "Nada que plegar: cada línea está junto a una diferencia",
     "onlyDifferencesOf": "Mostrar solo las diferencias, plegando {count} líneas idénticas",
     "closeUnsaved": "Esta comparación tiene líneas copiadas y sin guardar. ¿Cerrar de todos modos?",
-    "matchCount": "{count} resultados"
+    "matchCount": "{count} resultados",
+    "unsavedTitle": "Líneas sin guardar"
   },
   "mediaPreview": {
     "audioTrack": "Pista de audio",

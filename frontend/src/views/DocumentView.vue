@@ -121,12 +121,12 @@ const CLOSE_REFUSED_AFTER_MS = 150;
  */
 const tabIsThisDocument = () => window.history.length === 1;
 
-const closeTabOrLeave = () => {
+const closeTabOrLeave = async () => {
   // In one of this application's own tabs, the thing to close is that tab. The
   // rule itself is in `tabNavigation`, because the text editor's cross means
   // exactly the same thing and a rule kept in two places is a rule that will
   // disagree with itself.
-  if (tabNavigation.closeOwn()) return;
+  if (await tabNavigation.closeOwn()) return;
 
   if (!tabIsThisDocument()) {
     leave();

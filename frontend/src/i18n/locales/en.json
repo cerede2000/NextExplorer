@@ -77,7 +77,10 @@
     "dismissWarning": "Dismiss warning",
     "reset": "Reset",
     "moveUp": "Move up",
-    "moveDown": "Move down"
+    "moveDown": "Move down",
+    "confirm": "Confirm",
+    "closeAnyway": "Close anyway",
+    "leaveAnyway": "Leave anyway"
   },
   "editor": {
     "editing": "Editing",
@@ -90,7 +93,8 @@
     "versionReadOnly": "Earlier version, read-only",
     "highlightingOffTooLarge": "Syntax highlighting is off for this file: part of it is too large to highlight without freezing the page.",
     "raw": "Raw",
-    "selectTheme": "Select editor theme"
+    "selectTheme": "Select editor theme",
+    "unsavedTitle": "Unsaved changes"
   },
   "status": {
     "updated": "Updated successfully",
@@ -699,7 +703,10 @@
       "accessMode": "Access Mode",
       "noUsers": "No users available",
       "lockedBadge": "Locked",
-      "lockedUntil": "Locked until {time}"
+      "lockedUntil": "Locked until {time}",
+      "removeTitle": "Remove user",
+      "removeVolumeTitle": "Remove volume",
+      "newPasswordTitle": "New password"
     },
     "userDetails": {
       "profileTab": "Profile",
@@ -921,7 +928,8 @@
       "loadFailed": "Could not read the passkeys on this account.",
       "addFailed": "Could not add this passkey.",
       "cancelled": "Nothing was added: the browser was closed or it took too long.",
-      "alreadyHere": "This device already holds a passkey for this account."
+      "alreadyHere": "This device already holds a passkey for this account.",
+      "renameTitle": "Rename passkey"
     },
     "activity": {
       "title": "Activity log",
@@ -1007,7 +1015,9 @@
       "loadFailed": "The tokens could not be loaded.",
       "createFailed": "The token could not be issued.",
       "renameFailed": "The token could not be renamed.",
-      "revokeFailed": "The token could not be revoked."
+      "revokeFailed": "The token could not be revoked.",
+      "renameTitle": "Rename token",
+      "revokeTitle": "Revoke token"
     },
     "folderSize": {
       "title": "Folder sizes",
@@ -1103,7 +1113,8 @@
     "nothingToFold": "Nothing to fold away: every line is beside a difference",
     "onlyDifferencesOf": "Show only the differences, folding {count} identical lines away",
     "closeUnsaved": "This comparison has lines that were copied across and not saved. Close it anyway?",
-    "matchCount": "{count} matches"
+    "matchCount": "{count} matches",
+    "unsavedTitle": "Unsaved lines"
   },
   "mediaPreview": {
     "audioTrack": "Audio track",

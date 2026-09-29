@@ -77,7 +77,10 @@
     "dismissWarning": "Warnung ausblenden",
     "reset": "Zurücksetzen",
     "moveUp": "Nach oben",
-    "moveDown": "Nach unten"
+    "moveDown": "Nach unten",
+    "confirm": "Bestätigen",
+    "closeAnyway": "Trotzdem schließen",
+    "leaveAnyway": "Trotzdem verlassen"
   },
   "editor": {
     "editing": "Wird bearbeitet",
@@ -90,7 +93,8 @@
     "versionReadOnly": "Frühere Version, schreibgeschützt",
     "highlightingOffTooLarge": "Syntaxhervorhebung für diese Datei ausgeschaltet: Ein Teil davon ist zu groß, um ihn hervorzuheben, ohne die Seite einzufrieren.",
     "raw": "Roh",
-    "selectTheme": "Editor-Thema wählen"
+    "selectTheme": "Editor-Thema wählen",
+    "unsavedTitle": "Nicht gespeicherte Änderungen"
   },
   "status": {
     "updated": "Erfolgreich aktualisiert",
@@ -699,7 +703,10 @@
       "accessMode": "Zugriffsmodus",
       "noUsers": "Keine Benutzer verfügbar",
       "lockedBadge": "Gesperrt",
-      "lockedUntil": "Gesperrt bis {time}"
+      "lockedUntil": "Gesperrt bis {time}",
+      "removeTitle": "Benutzer entfernen",
+      "removeVolumeTitle": "Volume entfernen",
+      "newPasswordTitle": "Neues Passwort"
     },
     "userDetails": {
       "profileTab": "Profil",
@@ -921,7 +928,8 @@
       "loadFailed": "Die Passkeys dieses Kontos konnten nicht gelesen werden.",
       "addFailed": "Dieser Passkey konnte nicht hinzugefügt werden.",
       "cancelled": "Nichts wurde hinzugefügt: Der Browser wurde geschlossen oder es hat zu lange gedauert.",
-      "alreadyHere": "Dieses Gerät hat bereits einen Passkey für dieses Konto."
+      "alreadyHere": "Dieses Gerät hat bereits einen Passkey für dieses Konto.",
+      "renameTitle": "Passkey umbenennen"
     },
     "activity": {
       "title": "Aktivitätsprotokoll",
@@ -1007,7 +1015,9 @@
       "loadFailed": "Die Token konnten nicht geladen werden.",
       "createFailed": "Das Token konnte nicht ausgestellt werden.",
       "renameFailed": "Das Token konnte nicht umbenannt werden.",
-      "revokeFailed": "Das Token konnte nicht widerrufen werden."
+      "revokeFailed": "Das Token konnte nicht widerrufen werden.",
+      "renameTitle": "Token umbenennen",
+      "revokeTitle": "Token widerrufen"
     },
     "folderSize": {
       "title": "Ordnergrößen",
@@ -1103,7 +1113,8 @@
     "nothingToFold": "Nichts zusammenzufalten: jede Zeile steht neben einem Unterschied",
     "onlyDifferencesOf": "Nur die Unterschiede zeigen und {count} identische Zeilen einklappen",
     "closeUnsaved": "Dieser Vergleich enthält übernommene, nicht gespeicherte Zeilen. Trotzdem schließen?",
-    "matchCount": "{count} Treffer"
+    "matchCount": "{count} Treffer",
+    "unsavedTitle": "Nicht gespeicherte Zeilen"
   },
   "mediaPreview": {
     "audioTrack": "Tonspur",

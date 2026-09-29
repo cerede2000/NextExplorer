@@ -77,7 +77,10 @@
     "dismissWarning": "Ignora l'avviso",
     "reset": "Reimposta",
     "moveUp": "Sposta su",
-    "moveDown": "Sposta giù"
+    "moveDown": "Sposta giù",
+    "confirm": "Conferma",
+    "closeAnyway": "Chiudi comunque",
+    "leaveAnyway": "Esci comunque"
   },
   "editor": {
     "editing": "Modifica in corso",
@@ -90,7 +93,8 @@
     "versionReadOnly": "Versione precedente, sola lettura",
     "highlightingOffTooLarge": "Evidenziazione della sintassi disattivata per questo file: una parte è troppo grande per essere evidenziata senza bloccare la pagina.",
     "raw": "Grezzo",
-    "selectTheme": "Scegli il tema dell'editor"
+    "selectTheme": "Scegli il tema dell'editor",
+    "unsavedTitle": "Modifiche non salvate"
   },
   "status": {
     "updated": "Aggiornato con successo",
@@ -699,7 +703,10 @@
       "accessMode": "Modalità di accesso",
       "noUsers": "Nessun utente disponibile",
       "lockedBadge": "Bloccato",
-      "lockedUntil": "Bloccato fino alle {time}"
+      "lockedUntil": "Bloccato fino alle {time}",
+      "removeTitle": "Rimuovi l’utente",
+      "removeVolumeTitle": "Rimuovi il volume",
+      "newPasswordTitle": "Nuova password"
     },
     "userDetails": {
       "profileTab": "Profilo",
@@ -921,7 +928,8 @@
       "loadFailed": "Impossibile leggere le passkey di questo account.",
       "addFailed": "Impossibile aggiungere questa passkey.",
       "cancelled": "Non è stato aggiunto nulla: il browser è stato chiuso o ci ha messo troppo.",
-      "alreadyHere": "Questo dispositivo ha già una passkey per questo account."
+      "alreadyHere": "Questo dispositivo ha già una passkey per questo account.",
+      "renameTitle": "Rinomina la passkey"
     },
     "activity": {
       "title": "Registro attività",
@@ -1007,7 +1015,9 @@
       "loadFailed": "Non è stato possibile caricare i token.",
       "createFailed": "Non è stato possibile emettere il token.",
       "renameFailed": "Non è stato possibile rinominare il token.",
-      "revokeFailed": "Non è stato possibile revocare il token."
+      "revokeFailed": "Non è stato possibile revocare il token.",
+      "renameTitle": "Rinomina il token",
+      "revokeTitle": "Revoca il token"
     },
     "folderSize": {
       "title": "Dimensioni cartelle",
@@ -1103,7 +1113,8 @@
     "nothingToFold": "Niente da comprimere: ogni riga è accanto a una differenza",
     "onlyDifferencesOf": "Mostra solo le differenze, comprimendo {count} righe identiche",
     "closeUnsaved": "Questo confronto ha righe copiate e non salvate. Chiudere comunque?",
-    "matchCount": "{count} risultati"
+    "matchCount": "{count} risultati",
+    "unsavedTitle": "Righe non salvate"
   },
   "mediaPreview": {
     "audioTrack": "Traccia audio",

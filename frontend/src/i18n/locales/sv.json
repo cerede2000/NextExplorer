@@ -77,7 +77,10 @@
     "dismissWarning": "Avfärda varningen",
     "reset": "Återställ",
     "moveUp": "Flytta upp",
-    "moveDown": "Flytta ner"
+    "moveDown": "Flytta ner",
+    "confirm": "Bekräfta",
+    "closeAnyway": "Stäng ändå",
+    "leaveAnyway": "Lämna ändå"
   },
   "editor": {
     "editing": "Redigerar",
@@ -90,7 +93,8 @@
     "versionReadOnly": "Tidigare version, skrivskyddad",
     "highlightingOffTooLarge": "Syntaxmarkering är avstängd för den här filen: en del av den är för stor för att markeras utan att sidan fryser.",
     "raw": "Rå",
-    "selectTheme": "Välj redigerarens tema"
+    "selectTheme": "Välj redigerarens tema",
+    "unsavedTitle": "Osparade ändringar"
   },
   "status": {
     "updated": "Uppdaterades",
@@ -699,7 +703,10 @@
       "accessMode": "Åtkomstläge",
       "noUsers": "Inga användare tillgängliga",
       "lockedBadge": "Låst",
-      "lockedUntil": "Låst till {time}"
+      "lockedUntil": "Låst till {time}",
+      "removeTitle": "Ta bort användaren",
+      "removeVolumeTitle": "Ta bort volymen",
+      "newPasswordTitle": "Nytt lösenord"
     },
     "userDetails": {
       "profileTab": "Profil",
@@ -921,7 +928,8 @@
       "loadFailed": "Det gick inte att läsa kontots lösenordsnycklar.",
       "addFailed": "Det gick inte att lägga till nyckeln.",
       "cancelled": "Ingenting lades till: webbläsaren stängdes eller det tog för lång tid.",
-      "alreadyHere": "Den här enheten har redan en nyckel för det här kontot."
+      "alreadyHere": "Den här enheten har redan en nyckel för det här kontot.",
+      "renameTitle": "Byt namn på nyckel"
     },
     "activity": {
       "title": "Aktivitetslogg",
@@ -1007,7 +1015,9 @@
       "loadFailed": "Nycklarna kunde inte läsas in.",
       "createFailed": "Nyckeln kunde inte utfärdas.",
       "renameFailed": "Nyckeln kunde inte byta namn.",
-      "revokeFailed": "Nyckeln kunde inte återkallas."
+      "revokeFailed": "Nyckeln kunde inte återkallas.",
+      "renameTitle": "Byt namn på token",
+      "revokeTitle": "Återkalla token"
     },
     "folderSize": {
       "title": "Mappstorlekar",
@@ -1103,7 +1113,8 @@
     "nothingToFold": "Inget att fälla ihop: varje rad ligger intill en skillnad",
     "onlyDifferencesOf": "Visa bara skillnaderna och fäll ihop {count} identiska rader",
     "closeUnsaved": "Den här jämförelsen har kopierade, osparade rader. Stäng ändå?",
-    "matchCount": "{count} träffar"
+    "matchCount": "{count} träffar",
+    "unsavedTitle": "Osparade rader"
   },
   "mediaPreview": {
     "audioTrack": "Ljudspår",

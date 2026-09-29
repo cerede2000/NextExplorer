@@ -77,7 +77,10 @@
     "dismissWarning": "忽略此警告",
     "reset": "重設",
     "moveUp": "上移",
-    "moveDown": "下移"
+    "moveDown": "下移",
+    "confirm": "確認",
+    "closeAnyway": "仍要關閉",
+    "leaveAnyway": "仍要離開"
   },
   "editor": {
     "editing": "編輯中",
@@ -90,7 +93,8 @@
     "versionReadOnly": "先前版本，唯讀",
     "highlightingOffTooLarge": "此檔案已關閉語法醒目提示：其中一部分太大，無法在不讓頁面凍結的情況下醒目提示。",
     "raw": "原始",
-    "selectTheme": "選擇編輯器佈景"
+    "selectTheme": "選擇編輯器佈景",
+    "unsavedTitle": "未儲存的變更"
   },
   "status": {
     "updated": "更新成功",
@@ -699,7 +703,10 @@
       "accessMode": "存取模式",
       "noUsers": "沒有可用使用者",
       "lockedBadge": "已鎖定",
-      "lockedUntil": "鎖定至 {time}"
+      "lockedUntil": "鎖定至 {time}",
+      "removeTitle": "刪除使用者",
+      "removeVolumeTitle": "移除磁碟區",
+      "newPasswordTitle": "新密碼"
     },
     "userDetails": {
       "profileTab": "個人資料",
@@ -921,7 +928,8 @@
       "loadFailed": "無法讀取此帳戶的通行金鑰。",
       "addFailed": "無法新增此通行金鑰。",
       "cancelled": "未新增任何項目：瀏覽器已關閉或操作逾時。",
-      "alreadyHere": "此裝置已有此帳戶的通行金鑰。"
+      "alreadyHere": "此裝置已有此帳戶的通行金鑰。",
+      "renameTitle": "重新命名密碼金鑰"
     },
     "activity": {
       "title": "活動記錄",
@@ -1007,7 +1015,9 @@
       "loadFailed": "無法載入權杖。",
       "createFailed": "無法簽發權杖。",
       "renameFailed": "無法重新命名權杖。",
-      "revokeFailed": "無法撤銷權杖。"
+      "revokeFailed": "無法撤銷權杖。",
+      "renameTitle": "重新命名權杖",
+      "revokeTitle": "撤銷權杖"
     },
     "folderSize": {
       "title": "檔案夾大小",
@@ -1103,7 +1113,8 @@
     "nothingToFold": "沒有可摺疊的內容：每一行都緊鄰一處差異",
     "onlyDifferencesOf": "僅顯示差異，摺疊 {count} 行相同內容",
     "closeUnsaved": "此比較中有已複製但未儲存的行。仍要關閉嗎？",
-    "matchCount": "{count} 處相符"
+    "matchCount": "{count} 處相符",
+    "unsavedTitle": "未儲存的行"
   },
   "mediaPreview": {
     "audioTrack": "音軌",
