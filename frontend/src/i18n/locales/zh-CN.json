@@ -1115,7 +1115,7 @@
     "closeUnsaved": "此比较中有已复制但未保存的行。仍要关闭吗？",
     "matchCount": "{count} 处匹配",
     "unsavedTitle": "未保存的行",
-    "mapHint": "您在文件中的位置 — 点击即可前往",
+    "mapHint": "您在文件中的位置。红色：仅左侧有。绿色：仅右侧有。橙色：两侧都有且内容不同。点击即可前往。",
     "pinMap": "保持差异地图打开"
   },
   "mediaPreview": {

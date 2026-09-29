@@ -1115,7 +1115,7 @@
     "closeUnsaved": "Esta comparação tem linhas copiadas e não salvas. Fechar mesmo assim?",
     "matchCount": "{count} resultados",
     "unsavedTitle": "Linhas não salvas",
-    "mapHint": "Onde você está no arquivo — clique para ir até lá",
+    "mapHint": "Onde você está no arquivo. Vermelho: só à esquerda. Verde: só à direita. Âmbar: os dois têm uma linha e elas diferem. Clique para ir até lá.",
     "pinMap": "Manter aberto o mapa das diferenças"
   },
   "mediaPreview": {

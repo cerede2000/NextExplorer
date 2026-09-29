@@ -1115,7 +1115,7 @@
     "closeUnsaved": "Den här jämförelsen har kopierade, osparade rader. Stäng ändå?",
     "matchCount": "{count} träffar",
     "unsavedTitle": "Osparade rader",
-    "mapHint": "Var du är i filen – klicka för att gå dit",
+    "mapHint": "Var du är i filen. Rött: bara till vänster. Grönt: bara till höger. Gult: båda har en rad och de skiljer sig åt. Klicka för att gå dit.",
     "pinMap": "Håll kartan över skillnaderna öppen"
   },
   "mediaPreview": {

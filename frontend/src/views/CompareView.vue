@@ -653,19 +653,47 @@ const rowClass = (row) => {
   return 'bg-amber-50/70 dark:bg-amber-500/10';
 };
 
-const cellClass = (row, index) => {
+/**
+ * What one cell of one line is, in a word — and the only place that decides it.
+ *
+ * The map and the panes were each deciding for themselves and disagreeing, which is
+ * the worst thing a colour can do. The panes read a line at a time; the map read a
+ * whole difference at a time and asked "does either side have anything here" — so a
+ * rewrite of three hundred lines, which is one difference with a line on the left and
+ * three hundred on the right, came out amber in the map while the panes showed it
+ * green. Both were defensible and together they were unreadable.
+ *
+ * So there is one answer to the question and two renderings of it. `none` is the one
+ * worth naming: it is not a pale version of a difference, it is the absence of a line,
+ * and it has to read as a hole rather than as something faint.
+ */
+const tintFor = (row, index) => {
   const cell = cellFor(row, index);
-  if (!cell) return 'bg-neutral-100/80 dark:bg-white/5';
-  if (row.kind === 'same') return '';
+  if (!cell) return 'none';
+  if (row.kind === 'same') return 'plain';
   if (sides.value.length === 3) {
+    // Three files are read against the middle one: a side that agrees with it has
+    // nothing to say, which is the whole point of putting the common version between
+    // the two that changed it.
     const middle = cellFor(row, 1);
-    if (index === 1 || !middle) return '';
-    return cell.text === middle.text ? '' : 'bg-amber-100/70 dark:bg-amber-400/15';
+    if (index === 1 || !middle) return 'plain';
+    return cell.text === middle.text ? 'plain' : 'both';
   }
-  if (row.kind === 'removed') return 'bg-rose-100/70 dark:bg-rose-500/15';
-  if (row.kind === 'added') return 'bg-emerald-100/70 dark:bg-emerald-500/15';
-  return 'bg-amber-100/70 dark:bg-amber-400/15';
+  if (row.kind === 'removed') return 'gone';
+  if (row.kind === 'added') return 'new';
+  return 'both';
 };
+
+/** The same five answers, as a line of text on the page. */
+const CELL_TINTS = {
+  none: 'bg-neutral-200/80 dark:bg-black/25',
+  plain: '',
+  gone: 'bg-rose-100/70 dark:bg-rose-500/15',
+  new: 'bg-emerald-100/70 dark:bg-emerald-500/15',
+  both: 'bg-amber-100/70 dark:bg-amber-400/15',
+};
+
+const cellClass = (row, index) => CELL_TINTS[tintFor(row, index)];
 
 /**
  * Where the reader is in the file, and where the differences are.
@@ -752,45 +780,64 @@ const onEdgePointerMove = (event) => {
 };
 
 /**
- * What each side has in a block, as a colour.
+ * The map, as bands of colour — one per run of lines that say the same thing.
  *
- * The panes already say it in colour — a line only the left has is red, only the right
- * green, a line both changed amber — and the map said none of it: every difference was
- * the same amber mark, so the one thing worth seeing at a glance, whether something was
- * taken away or added or merely rewritten, was the one thing the map could not show.
+ * Not one per difference, which is what it was and what made it disagree with the
+ * panes: a difference is a run of lines that differ *somehow*, and a three hundred line
+ * rewrite is one of them. Asked of the whole run, "does either side have anything here"
+ * answers yes for both sides, and the map painted amber over what the panes were showing
+ * green. A reader comparing the two had no way to tell which was lying.
  *
- * One band per side, side by side, so a block that is on one side only reads as a
- * colour and a gap rather than as a mark that has to be gone to before it means
- * anything.
+ * So the map is built from the lines, like the panes, and a band is as long as the
+ * answer stays the same. Each band still belongs to a difference, which is where a press
+ * on it goes: the colour is line by line, the navigation is difference by difference,
+ * and neither has to pretend to be the other.
  */
-const blockTints = computed(() =>
-  blocks.value.map((block) => {
-    const within = rows.value.slice(block.from, block.to + 1);
-    const present = keys.value.map((key) =>
-      within.some((row) => row[key] !== null && row[key] !== undefined)
-    );
-    const only = present.filter(Boolean).length === 1;
-    return present.map((has, index) => {
-      if (!has) return 'none';
-      if (!only) return 'both';
-      if (index === 0) return 'gone';
-      if (index === keys.value.length - 1) return 'new';
-      return 'both';
-    });
-  })
-);
+const mapBands = computed(() => {
+  const all = rows.value;
+  const runs = [];
+  let run = null;
+  let block = -1;
+  let wasSame = true;
 
-const tintClass = (tint) => {
-  if (tint === 'gone') return 'bg-rose-500 dark:bg-rose-500';
-  if (tint === 'new') return 'bg-emerald-500 dark:bg-emerald-500';
-  if (tint === 'both') return 'bg-amber-400 dark:bg-amber-400';
-  return 'bg-neutral-300/70 dark:bg-neutral-700/70';
+  all.forEach((row, index) => {
+    if (row.kind === 'same') {
+      run = null;
+      wasSame = true;
+      return;
+    }
+    // A new difference begins wherever a run of differing lines begins.
+    if (wasSame) block += 1;
+    wasSame = false;
+
+    const tints = keys.value.map((_, side) => tintFor(row, side));
+    const signature = tints.join('|');
+    if (run && run.signature === signature && run.to === index - 1) {
+      run.to = index;
+      return;
+    }
+    run = { from: index, to: index, signature, tints, block };
+    runs.push(run);
+  });
+
+  return runs;
+});
+
+/** The same five answers, as a band in the map. */
+const MAP_TINTS = {
+  none: 'bg-neutral-300/60 dark:bg-neutral-700/60',
+  plain: 'bg-neutral-300/60 dark:bg-neutral-700/60',
+  gone: 'bg-rose-500',
+  new: 'bg-emerald-500',
+  both: 'bg-amber-400',
 };
 
-/** Where a block sits down the whole file, and how much of it there is to see. */
-const bandStyle = (block) => ({
-  top: `${(block.from / Math.max(1, rows.value.length)) * 100}%`,
-  height: `${Math.max(0.8, ((block.to - block.from + 1) / Math.max(1, rows.value.length)) * 100)}%`,
+const tintClass = (tint) => MAP_TINTS[tint];
+
+/** Where a band sits down the whole file, and how much of it there is to see. */
+const bandStyle = (band) => ({
+  top: `${(band.from / Math.max(1, rows.value.length)) * 100}%`,
+  height: `${Math.max(0.8, ((band.to - band.from + 1) / Math.max(1, rows.value.length)) * 100)}%`,
 });
 
 /** The file put where a lane was pressed, with that point in the middle of the view. */
@@ -1787,19 +1834,20 @@ const close = async () => {
             data-test="compare-map-view"
           ></div>
           <button
-            v-for="(block, index) in blocks"
+            v-for="(band, index) in mapBands"
             :key="`map-${index}`"
             type="button"
             class="absolute inset-x-0 flex overflow-hidden rounded-[1px]"
-            :class="index === at ? 'ring-1 ring-accent ring-offset-0' : ''"
-            :style="bandStyle(block)"
-            :title="t('compare.position', { index: index + 1, count: blocks.length })"
-            :aria-label="t('compare.position', { index: index + 1, count: blocks.length })"
+            :class="band.block === at ? 'ring-1 ring-accent ring-offset-0' : ''"
+            :style="bandStyle(band)"
+            :title="t('compare.position', { index: band.block + 1, count: blocks.length })"
+            :aria-label="t('compare.position', { index: band.block + 1, count: blocks.length })"
             :data-test="`compare-map-mark-${index}`"
-            @click="goToBlock(index)"
+            :data-block="band.block"
+            @click="goToBlock(band.block)"
           >
             <span
-              v-for="(tint, side) in blockTints[index]"
+              v-for="(tint, side) in band.tints"
               :key="side"
               class="h-full flex-1"
               :class="tintClass(tint)"

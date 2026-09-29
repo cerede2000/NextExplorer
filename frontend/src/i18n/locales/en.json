@@ -1115,7 +1115,7 @@
     "closeUnsaved": "This comparison has lines that were copied across and not saved. Close it anyway?",
     "matchCount": "{count} matches",
     "unsavedTitle": "Unsaved lines",
-    "mapHint": "Where you are in the file — press to go there",
+    "mapHint": "Where you are in the file. Red: only on the left. Green: only on the right. Amber: both have a line and they differ. Press to go there.",
     "pinMap": "Keep the map of the differences open"
   },
   "mediaPreview": {

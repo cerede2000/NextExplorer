@@ -1241,6 +1241,50 @@ describe('the map of the differences', () => {
     ).toEqual(['none', 'new']);
   });
 
+  /**
+   * The case that gave the map away.
+   *
+   * One difference can be a line rewritten *and* three hundred lines added — that is
+   * what a rewritten section looks like — and the map used to ask of the whole
+   * difference "does either side have anything here", which answers yes for both sides.
+   * So it painted amber over what the panes were showing green, and a reader comparing
+   * the two had no way to tell which was lying.
+   */
+  it('follows the lines, not the difference they belong to', async () => {
+    const wrapper = await withMap({ 'a.txt': 'one\nX', 'b.txt': 'one\nY\nY2\nY3' });
+
+    const marks = wrapper.findAll('[data-test^="compare-map-mark-"]');
+    const tints = marks.map((mark) =>
+      mark.findAll('span').map((one) => one.attributes('data-tint'))
+    );
+
+    // One line each side, rewritten — then two the right has and the left has not.
+    expect(tints).toEqual([
+      ['both', 'both'],
+      ['none', 'new'],
+    ]);
+    // And both bands belong to the one difference, which is where a press on either goes.
+    expect(marks.map((mark) => mark.attributes('data-block'))).toEqual(['0', '0']);
+  });
+
+  /** Which is the other half of it: the colour is by line, the walking is by difference. */
+  it('goes to the difference a band belongs to', async () => {
+    // Two differences, so a band's own number and its difference's number are not the
+    // same number — which is the only arrangement in which this can be got wrong.
+    const wrapper = await withMap({
+      'a.txt': 'one\nX\nsame\nP',
+      'b.txt': 'one\nY\nY2\nsame\nQ',
+    });
+
+    // The second band is the part only the right has; the difference it belongs to is
+    // the first one, which begins at the rewritten line above it.
+    await wrapper.get('[data-test="compare-map-mark-1"]').trigger('click');
+
+    const current = wrapper.findAll('[data-current="true"]').map((row) => row.text());
+    expect(current.join(' ')).toContain('X');
+    expect(current.join(' ')).not.toContain('Q');
+  });
+
   it('goes to the difference the mark stands for', async () => {
     const wrapper = await withMap({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
 

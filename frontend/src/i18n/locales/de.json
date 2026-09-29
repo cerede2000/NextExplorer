@@ -1115,7 +1115,7 @@
     "closeUnsaved": "Dieser Vergleich enthält übernommene, nicht gespeicherte Zeilen. Trotzdem schließen?",
     "matchCount": "{count} Treffer",
     "unsavedTitle": "Nicht gespeicherte Zeilen",
-    "mapHint": "Wo Sie in der Datei sind – klicken, um dorthin zu gehen",
+    "mapHint": "Wo Sie in der Datei sind. Rot: nur links. Grün: nur rechts. Gelb: beide haben eine Zeile und sie unterscheiden sich. Klicken, um dorthin zu gehen.",
     "pinMap": "Karte der Unterschiede offen lassen"
   },
   "mediaPreview": {
