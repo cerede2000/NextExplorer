@@ -1114,7 +1114,8 @@
     "onlyDifferencesOf": "僅顯示差異，摺疊 {count} 行相同內容",
     "closeUnsaved": "此比較中有已複製但未儲存的行。仍要關閉嗎？",
     "matchCount": "{count} 處相符",
-    "unsavedTitle": "未儲存的行"
+    "unsavedTitle": "未儲存的行",
+    "mapHint": "您在檔案中的位置 — 按一下即可前往"
   },
   "mediaPreview": {
     "audioTrack": "音軌",

@@ -1012,6 +1012,82 @@ test('two files are compared, and one side is taken over the other', async () =>
 });
 
 /**
+ * Where the reader is in a long comparison, said twice over.
+ *
+ * Two things were wrong, and only a browser lays a scrollbar out at all, so only a
+ * browser could say so. The map of the differences was laid over the right-hand edge of
+ * the scrolling box, which is exactly where a scrollbar is drawn — and this platform
+ * draws its scrollbars *over* the content and fades them out when nothing is moving, so
+ * even uncovered there was nothing to see. Measured here: the scrollbar reserves no
+ * width at all. Which is why the lane has to say where the reader is itself, and be on
+ * screen the whole time while it does.
+ *
+ * Short of four hundred lines on purpose: past that the comparison folds the identical
+ * parts away by itself, and a screen with eight rows on it has nothing to scroll.
+ */
+test('a long comparison shows where the reader is, and the scrollbar is not covered', async () => {
+  const lines = (changed) =>
+    Array.from({ length: 300 }, (_, index) =>
+      index === 4 && changed ? 'CHANGED near the top' : `line ${index}`
+    ).join('\n');
+  fs.writeFileSync(path.join(volume, 'long-a.conf'), `${lines(false)}\n`);
+  fs.writeFileSync(path.join(volume, 'long-b.conf'), `${lines(true)}\n`);
+
+  await page.goto('/compare?paths=Projects%2Flong-a.conf&paths=Projects%2Flong-b.conf');
+  await expect(page.locator('[data-test="compare-rows"]')).toBeVisible();
+  await expect(page.locator('[data-test="compare-map"]')).toBeVisible();
+
+  const box = page.locator('[data-test="compare-rows"]');
+  const measured = await page.evaluate(() => {
+    const rows = document.querySelector('[data-test="compare-rows"]');
+    const lane = document.querySelector('[data-test="compare-map"]');
+    return {
+      scrollable: rows.scrollHeight - rows.clientHeight,
+      scrollbar: rows.offsetWidth - rows.clientWidth,
+      clear: rows.getBoundingClientRect().right - lane.getBoundingClientRect().right,
+      laneWidth: lane.getBoundingClientRect().width,
+    };
+  });
+
+  // There is something to scroll, the platform drew a scrollbar for it, and the lane
+  // stops before that scrollbar rather than sitting on top of it.
+  expect(measured.scrollable).toBeGreaterThan(0);
+  // Whatever the platform gave its own scrollbar, the lane stops before it rather than
+  // sitting on top of it. Here it gave nothing: this browser draws scrollbars over the
+  // content, which is the whole reason the lane has to say the same thing itself.
+  expect(measured.scrollbar).toBe(0);
+  expect(measured.clear).toBeGreaterThanOrEqual(measured.scrollbar - 1);
+  // And the lane is on screen the whole time, which an overlay scrollbar is not.
+  expect(measured.laneWidth).toBeGreaterThan(0);
+
+  // And the map says the thing a scrollbar cannot: it shows the whole file, so the
+  // reader's place is in the same picture as the differences.
+  const viewTop = () =>
+    page.locator('[data-test="compare-map-view"]').evaluate((node) => node.style.top);
+  const atTheTop = await viewTop();
+  expect(atTheTop).toBe('0%');
+
+  await box.evaluate((node) => {
+    node.scrollTop = node.scrollHeight;
+  });
+  await expect.poll(viewTop).not.toBe(atTheTop);
+
+  /**
+   * Pressed down the lane, the file goes there. Near the bottom, where a file whose one
+   * difference is near the top has nothing but empty lane — a mark is a difference to
+   * go to, and has its own answer.
+   */
+  const lane = await page.locator('[data-test="compare-map"]').boundingBox();
+  await page.mouse.click(lane.x + lane.width / 2, lane.y + lane.height * 0.25);
+  await expect
+    .poll(async () => {
+      const where = await box.evaluate((node) => node.scrollTop / node.scrollHeight);
+      return where > 0.15 && where < 0.3;
+    })
+    .toBe(true);
+});
+
+/**
  * A comparison in a tab: named after what it compares, and not read again.
  *
  * The screen is a page, and a page is unmounted the moment another tab comes forward —

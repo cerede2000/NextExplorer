@@ -1114,7 +1114,8 @@
     "onlyDifferencesOf": "Mostrar solo las diferencias, plegando {count} líneas idénticas",
     "closeUnsaved": "Esta comparación tiene líneas copiadas y sin guardar. ¿Cerrar de todos modos?",
     "matchCount": "{count} resultados",
-    "unsavedTitle": "Líneas sin guardar"
+    "unsavedTitle": "Líneas sin guardar",
+    "mapHint": "Dónde está en el archivo: pulse para ir allí"
   },
   "mediaPreview": {
     "audioTrack": "Pista de audio",

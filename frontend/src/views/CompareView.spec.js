@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
+import { nextTick } from 'vue';
 import { resolveAddress } from '@/utils/testing/routerAddress';
 import { reactive } from 'vue';
 
@@ -1017,6 +1018,120 @@ describe('the map of the differences', () => {
     await wrapper.get('[data-test="compare-map-mark-1"]').trigger('click');
 
     expect(wrapper.get('[data-current="true"]').text()).toContain('D');
+  });
+
+  /**
+   * A box of a given height that scrolls, which is not something jsdom has: it lays
+   * nothing out, so every one of these is zero until it is said what they are.
+   */
+  const scrolling = (wrapper, { scrollHeight, clientHeight, offsetWidth, clientWidth }) => {
+    const box = wrapper.get('[data-test="compare-rows"]').element;
+    const sizes = { scrollHeight, clientHeight, offsetWidth, clientWidth };
+    for (const [name, value] of Object.entries(sizes)) {
+      Object.defineProperty(box, name, { value, configurable: true, writable: true });
+    }
+    return box;
+  };
+
+  /** The lane, placed, since jsdom gives everything a box of nothing. */
+  const laneOf = (wrapper) => {
+    const lane = wrapper.get('[data-test="compare-map"]').element;
+    lane.getBoundingClientRect = () => ({ top: 0, height: 100, bottom: 100, left: 0, right: 12 });
+    return lane;
+  };
+
+  /**
+   * The scrollbar was there all along and nobody could see it.
+   *
+   * This lane is laid over the right-hand edge of the scrolling box, which is exactly
+   * where a scrollbar is drawn — so the one control that says how far down a long file
+   * somebody has come was underneath it. Set beside it by what the scrollbar measures,
+   * because how wide one is belongs to the platform.
+   */
+  it('stands beside the scrollbar rather than over it', async () => {
+    const wrapper = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+    const box = scrolling(wrapper, {
+      scrollHeight: 1000,
+      clientHeight: 200,
+      offsetWidth: 510,
+      clientWidth: 500,
+    });
+
+    box.dispatchEvent(new Event('scroll'));
+    await nextTick();
+
+    expect(wrapper.get('[data-test="compare-map"]').attributes('style')).toContain('right: 10px');
+  });
+
+  /** Nothing to stay clear of where the platform draws no scrollbar. */
+  it('sits at the edge where there is no scrollbar', async () => {
+    const wrapper = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+    const box = scrolling(wrapper, {
+      scrollHeight: 1000,
+      clientHeight: 200,
+      offsetWidth: 500,
+      clientWidth: 500,
+    });
+
+    box.dispatchEvent(new Event('scroll'));
+    await nextTick();
+
+    expect(wrapper.get('[data-test="compare-map"]').attributes('style')).toContain('right: 0px');
+  });
+
+  /**
+   * And the map says the thing a scrollbar cannot: it shows the whole file at once, so
+   * the reader's place and the differences they are looking for are one picture.
+   */
+  it('draws what is on screen over the whole file', async () => {
+    const wrapper = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+    const box = scrolling(wrapper, {
+      scrollHeight: 1000,
+      clientHeight: 200,
+      offsetWidth: 500,
+      clientWidth: 500,
+    });
+    box.scrollTop = 400;
+
+    box.dispatchEvent(new Event('scroll'));
+    await nextTick();
+
+    const style = wrapper.get('[data-test="compare-map-view"]').attributes('style');
+    expect(style).toContain('top: 40%');
+    expect(style).toContain('height: 20%');
+  });
+
+  /** Pressed anywhere down the lane, the file goes there — that point in the middle. */
+  it('takes the file to where the lane was pressed', async () => {
+    const wrapper = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+    const box = scrolling(wrapper, {
+      scrollHeight: 1000,
+      clientHeight: 200,
+      offsetWidth: 500,
+      clientWidth: 500,
+    });
+    laneOf(wrapper);
+
+    await wrapper.get('[data-test="compare-map"]').trigger('pointerdown', { clientY: 50 });
+
+    // Half way down a thousand pixels, less half a view: 500 − 100.
+    expect(box.scrollTop).toBe(400);
+  });
+
+  /** A mark is a difference to go to, not a place in the file. */
+  it('leaves a press on a mark to the mark', async () => {
+    const wrapper = await open({ 'a.txt': 'a\nb\nc\nd\ne', 'b.txt': 'a\nB\nc\nD\ne' });
+    const box = scrolling(wrapper, {
+      scrollHeight: 1000,
+      clientHeight: 200,
+      offsetWidth: 500,
+      clientWidth: 500,
+    });
+    laneOf(wrapper);
+
+    await wrapper.get('[data-test="compare-map-mark-1"]').trigger('pointerdown', { clientY: 50 });
+
+    expect(box.scrollTop).toBe(0);
   });
 });
 

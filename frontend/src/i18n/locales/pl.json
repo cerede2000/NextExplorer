@@ -1114,7 +1114,8 @@
     "onlyDifferencesOf": "Pokaż tylko różnice, zwijając {count} identycznych wierszy",
     "closeUnsaved": "To porównanie zawiera skopiowane, niezapisane wiersze. Zamknąć mimo to?",
     "matchCount": "Wyniki: {count}",
-    "unsavedTitle": "Niezapisane wiersze"
+    "unsavedTitle": "Niezapisane wiersze",
+    "mapHint": "Gdzie jesteś w pliku — kliknij, aby tam przejść"
   },
   "mediaPreview": {
     "audioTrack": "Ścieżka dźwiękowa",

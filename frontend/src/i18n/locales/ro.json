@@ -1114,7 +1114,8 @@
     "onlyDifferencesOf": "Arată doar diferențele, pliind {count} linii identice",
     "closeUnsaved": "Această comparație are linii copiate și nesalvate. Închizi oricum?",
     "matchCount": "{count} rezultate",
-    "unsavedTitle": "Linii nesalvate"
+    "unsavedTitle": "Linii nesalvate",
+    "mapHint": "Unde vă aflați în fișier — apăsați pentru a merge acolo"
   },
   "mediaPreview": {
     "audioTrack": "Pistă audio",

@@ -1114,7 +1114,8 @@
     "onlyDifferencesOf": "Show only the differences, folding {count} identical lines away",
     "closeUnsaved": "This comparison has lines that were copied across and not saved. Close it anyway?",
     "matchCount": "{count} matches",
-    "unsavedTitle": "Unsaved lines"
+    "unsavedTitle": "Unsaved lines",
+    "mapHint": "Where you are in the file — press to go there"
   },
   "mediaPreview": {
     "audioTrack": "Audio track",

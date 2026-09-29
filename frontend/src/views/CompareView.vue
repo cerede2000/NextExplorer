@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
@@ -652,6 +652,82 @@ const cellClass = (row, index) => {
   if (row.kind === 'removed') return 'bg-rose-100/70 dark:bg-rose-500/15';
   if (row.kind === 'added') return 'bg-emerald-100/70 dark:bg-emerald-500/15';
   return 'bg-amber-100/70 dark:bg-amber-400/15';
+};
+
+/**
+ * Where the reader is in the file, said twice over.
+ *
+ * The comparison had a scrollbar all along and nobody could see it: the map of the
+ * differences is laid over the right-hand edge of the scrolling box, which is exactly
+ * where a scrollbar is drawn, so the one control that says how far down a two thousand
+ * line file somebody has come was underneath it. The map has a lane of its own now,
+ * beside the scrollbar rather than on top of it — measured rather than assumed, because
+ * how wide a scrollbar is belongs to the platform and not to us.
+ *
+ * And the map says it too, which is the thing a scrollbar cannot: it shows the whole
+ * file at once, so a box drawn over the part that is on screen puts the reader's
+ * position in the same picture as the differences they are looking for. That box is
+ * also how they move — pressed or dragged anywhere down the lane, the file goes there.
+ */
+const scroller = ref(null);
+const mapLane = ref(null);
+/** Both as fractions of the whole file, so the lane can be any height. */
+const view = ref({ top: 0, height: 1 });
+const scrollbarWidth = ref(0);
+
+const measureView = () => {
+  const box = scroller.value;
+  if (!box) return;
+  const whole = box.scrollHeight || 1;
+  view.value = {
+    top: box.scrollTop / whole,
+    height: Math.min(1, box.clientHeight / whole),
+  };
+  // What the platform gave the scrollbar, which is what the map must stay clear of.
+  scrollbarWidth.value = Math.max(0, box.offsetWidth - box.clientWidth);
+};
+
+/** Redrawn when what is in the box changes, not only when it is scrolled. */
+watch([shown, wrap], () => nextTick(measureView));
+
+let watchingSize = null;
+onMounted(() => {
+  measureView();
+  if (typeof ResizeObserver === 'undefined') return;
+  watchingSize = new ResizeObserver(measureView);
+  if (scroller.value) watchingSize.observe(scroller.value);
+});
+onBeforeUnmount(() => watchingSize?.disconnect());
+
+/** The file put where the lane was pressed, with that point in the middle of the view. */
+const scrollToPointer = (event) => {
+  const box = scroller.value;
+  const lane = mapLane.value;
+  if (!box || !lane) return;
+  const rect = lane.getBoundingClientRect();
+  const fraction = (event.clientY - rect.top) / Math.max(1, rect.height);
+  const wanted = fraction * box.scrollHeight - box.clientHeight / 2;
+  box.scrollTop = Math.max(0, Math.min(box.scrollHeight - box.clientHeight, wanted));
+  measureView();
+};
+
+let draggingMap = false;
+
+const onMapDown = (event) => {
+  // A mark is a difference to go to, not a place in the file: it has its own answer.
+  if (event.target?.closest?.('[data-test^="compare-map-mark"]')) return;
+  draggingMap = true;
+  mapLane.value?.setPointerCapture?.(event.pointerId);
+  scrollToPointer(event);
+};
+
+const onMapMove = (event) => {
+  if (draggingMap) scrollToPointer(event);
+};
+
+const onMapUp = (event) => {
+  draggingMap = false;
+  mapLane.value?.releasePointerCapture?.(event.pointerId);
 };
 
 /**
@@ -1473,16 +1549,44 @@ const close = async () => {
 
       <div class="relative min-h-0 flex-1">
         <!--
-          Where the differences are, down the whole file, whatever is on screen.
-          A scrollbar says where you are; this says where you are going — and it is one
-          click from here to there, which on a file of two thousand lines is the
-          difference between reading a comparison and hunting through one.
+          Where the differences are, down the whole file, and where the reader is in it.
+
+          A scrollbar says how far down somebody has come; this says where they are
+          going, and it is one press from here to there — which on a file of two
+          thousand lines is the difference between reading a comparison and hunting
+          through one. The two say different things, so they both belong on screen:
+          this lane used to be laid over the scrollbar and hid it completely.
+
+          Set beside the scrollbar by what the scrollbar actually measures, because how
+          wide one is belongs to the platform. Where there is none — a file short enough
+          to fit, a phone drawing them over the content — the lane simply sits at the
+          edge.
         -->
         <div
           v-if="blocks.length"
-          class="absolute inset-y-0 right-0 z-10 w-3 border-l border-neutral-200/70 bg-neutral-50/80 dark:border-neutral-800 dark:bg-zinc-900/70"
+          ref="mapLane"
+          class="group absolute inset-y-0 z-10 w-3 cursor-pointer border-l border-neutral-200/70 bg-neutral-50/80 dark:border-neutral-800 dark:bg-zinc-900/70"
+          :style="{ right: `${scrollbarWidth}px` }"
+          :title="t('compare.mapHint')"
           data-test="compare-map"
+          @pointerdown="onMapDown"
+          @pointermove="onMapMove"
+          @pointerup="onMapUp"
+          @pointercancel="onMapUp"
         >
+          <!--
+            What is on screen, drawn over the whole file: the reader's place and the
+            differences they are looking for in one picture. Behind the marks, so a
+            difference under the view is still the thing the press lands on.
+          -->
+          <div
+            class="pointer-events-none absolute inset-x-0 rounded-sm border border-neutral-500/60 bg-neutral-500/30 group-hover:bg-neutral-500/45 dark:border-neutral-400/60 dark:bg-neutral-400/30 dark:group-hover:bg-neutral-400/45"
+            :style="{
+              top: `${view.top * 100}%`,
+              height: `${Math.max(2, view.height * 100)}%`,
+            }"
+            data-test="compare-map-view"
+          ></div>
           <button
             v-for="(block, index) in blocks"
             :key="`map-${index}`"
@@ -1511,8 +1615,10 @@ const close = async () => {
           no, so a selection dragged down the pane copies the lines without the numbers.
         -->
         <div
+          ref="scroller"
           class="absolute inset-0 select-text overflow-auto pr-3 font-mono text-xs"
           data-test="compare-rows"
+          @scroll="measureView"
         >
           <div
             v-for="entry in shown"

@@ -1114,7 +1114,8 @@
     "onlyDifferencesOf": "仅显示差异，折叠 {count} 行相同内容",
     "closeUnsaved": "此比较中有已复制但未保存的行。仍要关闭吗？",
     "matchCount": "{count} 处匹配",
-    "unsavedTitle": "未保存的行"
+    "unsavedTitle": "未保存的行",
+    "mapHint": "您在文件中的位置 — 点击即可前往"
   },
   "mediaPreview": {
     "audioTrack": "音轨",

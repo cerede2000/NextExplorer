@@ -1114,7 +1114,8 @@
     "onlyDifferencesOf": "Mostra solo le differenze, comprimendo {count} righe identiche",
     "closeUnsaved": "Questo confronto ha righe copiate e non salvate. Chiudere comunque?",
     "matchCount": "{count} risultati",
-    "unsavedTitle": "Righe non salvate"
+    "unsavedTitle": "Righe non salvate",
+    "mapHint": "Dove si trova nel file — premere per andarci"
   },
   "mediaPreview": {
     "audioTrack": "Traccia audio",

@@ -1114,7 +1114,8 @@
     "onlyDifferencesOf": "Visa bara skillnaderna och fäll ihop {count} identiska rader",
     "closeUnsaved": "Den här jämförelsen har kopierade, osparade rader. Stäng ändå?",
     "matchCount": "{count} träffar",
-    "unsavedTitle": "Osparade rader"
+    "unsavedTitle": "Osparade rader",
+    "mapHint": "Var du är i filen – klicka för att gå dit"
   },
   "mediaPreview": {
     "audioTrack": "Ljudspår",
