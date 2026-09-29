@@ -72,9 +72,14 @@ export const createFolderTab = ({ onListed, warn } = {}) => {
     activeBrowseController?.abort();
     const controller = new AbortController();
     activeBrowseController = controller;
-    useSettingsStore().restoreFolderPreferences(normalizedPath);
+    // How this folder is shown is a window-wide setting, so reading a folder for a
+    // tab nobody is looking at must not touch it: preparing a background tab in
+    // list view put the *window* into that folder's view, under a reader who was
+    // looking at something else — and the folder they were in, remembered in one
+    // view, came back measured in another.
+    if (!options.background) useSettingsStore().restoreFolderPreferences(normalizedPath);
     path.value = normalizedPath;
-    if (!options.preserveInteraction) {
+    if (!options.preserveInteraction && !options.background) {
       selection.clearSelection();
       // When changing folders, exit selection mode (mobile UX).
       selection.setSelectionMode(false, { clearOnDisable: false });

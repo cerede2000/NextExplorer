@@ -114,6 +114,35 @@ export const useFileStore = defineStore('fileStore', () => {
   const fetchPathItems = (path, options) => active.value.fetchItems(path, options);
 
   /**
+   * A listing read into a named tab rather than into the one in front.
+   *
+   * Every folder already has its own listing, its own selection and its own
+   * request in flight — that is what makes a tab keep what it was holding. What
+   * was missing was a way to fill one the reader is not looking at, which is what
+   * preparing a tab opened in the background means: by the time they arrive, the
+   * folder is there instead of a spinner.
+   */
+  const fetchIn = (id, path, options) =>
+    ensureFolder(id).fetchItems(path, { ...options, background: true });
+
+  /**
+   * Whether a tab already holds a folder, listed.
+   *
+   * Asked before preparing one: a tab that has been there has its listing, its
+   * selection and possibly a rename half typed, and reading the folder again would
+   * be a head start on nothing at the cost of disturbing all of it. Does not make
+   * a folder for a tab it has never heard of — asking is not visiting.
+   */
+  const holdsFolder = (id, wanted) => {
+    const folder = folders.get(id);
+    if (!folder) return false;
+    return (
+      normalizePath(folder.path.value) === normalizePath(wanted) &&
+      (folder.items.value?.length ?? 0) > 0
+    );
+  };
+
+  /**
    * The folder already on screen, read again.
    *
    * The other half of `fetchPathItems`, and the difference between them is not
@@ -209,6 +238,8 @@ export const useFileStore = defineStore('fileStore', () => {
     currentPathData,
     getCurrentPathItems,
     fetchPathItems,
+    fetchIn,
+    holdsFolder,
     refresh,
     selectedItems: selection.selectedItems,
     keyboardActionItem: selection.keyboardActionItem,

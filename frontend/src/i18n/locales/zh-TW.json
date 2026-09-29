@@ -596,6 +596,8 @@
       "browseInTabsHelp": "同時開啟多個位置——資料夾、文件、回收筒——各在一個索引標籤中，就像桌面上的檔案管理員那樣。關閉時一次只有一個位置，工具列上方不繪製任何內容。",
       "closeTabsOnDoubleClick": "雙擊關閉分頁",
       "closeTabsOnDoubleClickHelp": "在分頁上任意位置雙擊即可關閉，與關閉按鈕一樣。",
+      "preloadBackgroundTabs": "預先準備在背景開啟的索引標籤",
+      "preloadBackgroundTabsHelp": "在背景開啟或隨視窗重新開啟的索引標籤會立即載入，而不是等到你切換過去。以這種方式準備的文件會在編輯器中開啟，因此會被算作正在編輯。",
       "downloadMode": "下載多個項目",
       "downloadModeHelp": "同時下載多個項目時的處理方式。所選資料夾一律作為一個壓縮檔。",
       "downloadModeZip": "一個 ZIP 壓縮檔",

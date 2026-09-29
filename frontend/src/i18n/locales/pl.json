@@ -596,6 +596,8 @@
       "browseInTabsHelp": "Kilka miejsc otwartych naraz — foldery, dokumenty, kosz — każde we własnej karcie, tak jak w menedżerze plików na pulpicie. Wyłączone: jedno miejsce naraz, a nad paskiem narzędzi nic się nie rysuje.",
       "closeTabsOnDoubleClick": "Zamykanie karty podwójnym kliknięciem",
       "closeTabsOnDoubleClickHelp": "Podwójne kliknięcie w dowolnym miejscu karty zamyka ją, obok krzyżyka.",
+      "preloadBackgroundTabs": "Przygotuj karty otwarte w tle",
+      "preloadBackgroundTabsHelp": "Karta otwarta w tle lub przywrócona wraz z oknem wczytuje się od razu, zamiast czekać, aż do niej przejdziesz. Dokument przygotowany w ten sposób zostaje otwarty w edytorze, więc liczy się jako edytowany.",
       "downloadMode": "Pobieranie wielu elementów",
       "downloadModeHelp": "Co się dzieje przy pobieraniu więcej niż jednego elementu naraz. Wybrane foldery zawsze przychodzą jako jedno archiwum.",
       "downloadModeZip": "Jedno archiwum ZIP",

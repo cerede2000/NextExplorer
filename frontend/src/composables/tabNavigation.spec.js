@@ -23,12 +23,37 @@ vi.mock('vue-router', () => ({
   useRoute: () => route,
 }));
 
+/**
+ * Getting a tab ready before the reader arrives at it.
+ *
+ * What this file owns is *when* — the gesture that opens a tab behind, and the
+ * account's answer about whether that should happen at all. What it costs and what
+ * each kind of tab does about it is `tabWarmup.js`, and its own suite.
+ *
+ * Everything the warming needs is fetched when it is needed rather than imported,
+ * so that reaching for the preview manager from here does not put it into the
+ * module graph of every screen that draws a tab. Standing in for those imports is
+ * how that stays true in the test as well.
+ */
+const warmTabs = vi.hoisted(() => vi.fn(() => []));
+vi.mock('@/composables/tabWarmup', () => ({ warmTabs, WARM_TAB_LIMIT: 3 }));
+vi.mock('@/plugins/preview/manager', () => ({ usePreviewManager: () => ({}) }));
+vi.mock('@/stores/terminal', () => ({ useTerminalStore: () => ({}) }));
+vi.mock('@/stores/fileStore', () => ({ useFileStore: () => ({ fetchIn: vi.fn() }) }));
+vi.mock('@/api', () => ({ fetchFileContent: vi.fn() }));
+
+const settings = vi.hoisted(() => ({ loaded: true, userSettings: {} }));
+vi.mock('@/stores/appSettings', () => ({ useAppSettings: () => settings }));
+
 import { useTabNavigation } from './tabNavigation';
 import { useTabsStore } from '@/stores/tabs';
 
 beforeEach(() => {
   setActivePinia(createPinia());
   push.mockClear();
+  warmTabs.mockClear();
+  settings.loaded = true;
+  settings.userSettings = {};
   route.fullPath = '/browse/';
 });
 
@@ -96,5 +121,74 @@ describe('closing the tab something was opened for', () => {
     expect(navigation.closeOwn()).toBe(true);
     expect(tabs.activeId).not.toBe(second.id);
     expect(push).toHaveBeenCalledWith('/browse/Photos');
+  });
+});
+
+describe('a tab opened behind', () => {
+  const openBehind = (path = '/open/Docs/report.docx') => {
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    const navigation = useTabNavigation();
+    const tab = navigation.open(path, { behind: true, own: true });
+    return { tabs, tab };
+  };
+
+  /**
+   * Waited for on the clock rather than on a turn of the microtask queue: what
+   * the warming needs is fetched with dynamic imports, and a handful of
+   * `Promise.resolve()` comes back while they are still loading.
+   */
+  const loaded = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  /** The reader is still looking at something else, which is when there is time. */
+  it('is got ready, and the reader is left where they were', async () => {
+    const { tab } = openBehind();
+    await loaded();
+
+    expect(warmTabs).toHaveBeenCalledWith(
+      [expect.objectContaining({ id: tab.id, kind: 'document' })],
+      expect.anything()
+    );
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  /** A tab opened in front is already being drawn: there is nothing to prepare. */
+  it('is not got ready when it is opened in front', async () => {
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    useTabNavigation().open('/open/Docs/report.docx', { own: true });
+    await loaded();
+
+    expect(warmTabs).not.toHaveBeenCalled();
+  });
+
+  it('is not got ready when this account has said not to', async () => {
+    settings.userSettings = { preloadBackgroundTabs: false };
+    openBehind();
+    await loaded();
+
+    expect(warmTabs).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Before the settings arrive the answer is not "no", it is *unknown* — and
+   * acting on the wrong one here would open editing sessions nobody asked for.
+   */
+  it('is not got ready before the account has answered', async () => {
+    settings.loaded = false;
+    openBehind();
+    await loaded();
+
+    expect(warmTabs).not.toHaveBeenCalled();
+  });
+
+  it('is not got ready when the row was full and no tab was opened', async () => {
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    tabs.setLimit(1);
+    useTabNavigation().open('/open/Docs/report.docx', { behind: true });
+    await loaded();
+
+    expect(warmTabs).not.toHaveBeenCalled();
   });
 });

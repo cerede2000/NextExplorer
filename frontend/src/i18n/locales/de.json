@@ -596,6 +596,8 @@
       "browseInTabsHelp": "Mehrere Orte gleichzeitig offen halten — Ordner, Dokumente, den Papierkorb — jeden in einem Tab, wie es ein Dateimanager auf dem Schreibtisch tut. Aus: ein Ort zur Zeit, und über der Werkzeugleiste wird nichts gezeichnet.",
       "closeTabsOnDoubleClick": "Tab per Doppelklick schließen",
       "closeTabsOnDoubleClickHelp": "Ein Doppelklick irgendwo auf einem Tab schließt ihn, zusätzlich zum Kreuz.",
+      "preloadBackgroundTabs": "Im Hintergrund geöffnete Tabs vorbereiten",
+      "preloadBackgroundTabsHelp": "Ein Tab, der im Hintergrund geöffnet oder mit dem Fenster wiederhergestellt wurde, lädt sofort, statt zu warten, bis Sie ihn aufrufen. Ein so vorbereitetes Dokument wird im Editor geöffnet und gilt damit als in Bearbeitung.",
       "downloadMode": "Mehrere Elemente herunterladen",
       "downloadModeHelp": "Was beim Herunterladen von mehr als einem Element gleichzeitig geschieht. Ausgewählte Ordner kommen immer als ein Archiv.",
       "downloadModeZip": "Ein ZIP-Archiv",

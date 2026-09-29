@@ -596,6 +596,8 @@
       "browseInTabsHelp": "Mantener varios lugares abiertos a la vez — carpetas, documentos, la papelera — cada uno en una pestaña, como hace un gestor de archivos de escritorio. Desactivado: un lugar a la vez, y no se dibuja nada encima de la barra de herramientas.",
       "closeTabsOnDoubleClick": "Cerrar una pestaña con doble clic",
       "closeTabsOnDoubleClickHelp": "Un doble clic en cualquier parte de la pestaña la cierra, además de la cruz.",
+      "preloadBackgroundTabs": "Preparar las pestañas abiertas en segundo plano",
+      "preloadBackgroundTabsHelp": "Una pestaña abierta detrás, o reabierta con la ventana, se carga de inmediato en lugar de esperar a que llegues a ella. Un documento preparado así se abre en su editor, por lo que cuenta como en edición.",
       "downloadMode": "Descargar varios elementos",
       "downloadModeHelp": "Qué ocurre al descargar más de un elemento a la vez. Las carpetas seleccionadas siempre llegan como un único archivo comprimido.",
       "downloadModeZip": "Un archivo ZIP",

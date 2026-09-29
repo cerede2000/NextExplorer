@@ -596,6 +596,8 @@
       "browseInTabsHelp": "同时打开多个位置——文件夹、文档、回收站——各在一个标签页中，就像桌面上的文件管理器那样。关闭时一次只有一个位置，工具栏上方不绘制任何内容。",
       "closeTabsOnDoubleClick": "双击关闭标签页",
       "closeTabsOnDoubleClickHelp": "在标签页上任意位置双击即可关闭，与关闭按钮一样。",
+      "preloadBackgroundTabs": "预先准备在后台打开的标签页",
+      "preloadBackgroundTabsHelp": "在后台打开或随窗口重新打开的标签页会立即加载，而不是等到你切换过去。以这种方式准备的文档会在编辑器中打开，因此会被算作正在编辑。",
       "downloadMode": "下载多个项目",
       "downloadModeHelp": "同时下载多个项目时的处理方式。所选文件夹始终作为一个压缩包。",
       "downloadModeZip": "一个 ZIP 压缩包",

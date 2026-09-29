@@ -38,6 +38,9 @@ const local = reactive({
   downloadMode: 'zip',
   browseInTabs: false,
   closeTabsOnDoubleClick: false,
+  // On unless it is turned off: a tab opened in the background is opened in order
+  // not to wait for it.
+  preloadBackgroundTabs: true,
 });
 
 const original = computed(() => appSettings.userSettings);
@@ -63,7 +66,8 @@ const dirty = computed(() => {
     local.locale !== (orig.locale ?? null) ||
     local.downloadMode !== (orig.downloadMode ?? 'zip') ||
     local.browseInTabs !== (orig.browseInTabs ?? false) ||
-    local.closeTabsOnDoubleClick !== (orig.closeTabsOnDoubleClick ?? false)
+    local.closeTabsOnDoubleClick !== (orig.closeTabsOnDoubleClick ?? false) ||
+    local.preloadBackgroundTabs !== (orig.preloadBackgroundTabs ?? true)
   );
 });
 
@@ -136,6 +140,7 @@ watch(
     local.downloadMode = userSettings.downloadMode ?? 'zip';
     local.browseInTabs = userSettings.browseInTabs ?? false;
     local.closeTabsOnDoubleClick = userSettings.closeTabsOnDoubleClick ?? false;
+    local.preloadBackgroundTabs = userSettings.preloadBackgroundTabs ?? true;
   },
   { immediate: true }
 );
@@ -190,6 +195,7 @@ const save = async () => {
       downloadMode: local.downloadMode,
       browseInTabs: local.browseInTabs,
       closeTabsOnDoubleClick: local.closeTabsOnDoubleClick,
+      preloadBackgroundTabs: local.preloadBackgroundTabs,
     },
   });
 };
@@ -354,6 +360,24 @@ const save = async () => {
             v-model="local.closeTabsOnDoubleClick"
             :disabled="!local.browseInTabs"
             data-test="close-tabs-on-double-click"
+          />
+        </div>
+
+        <div
+          class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800 last:border-0"
+        >
+          <div>
+            <div class="font-medium text-zinc-900 dark:text-zinc-100">
+              {{ t('settings.userPreferences.preloadBackgroundTabs') }}
+            </div>
+            <div class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              {{ t('settings.userPreferences.preloadBackgroundTabsHelp') }}
+            </div>
+          </div>
+          <ToggleSwitch
+            v-model="local.preloadBackgroundTabs"
+            :disabled="!local.browseInTabs"
+            data-test="preload-background-tabs"
           />
         </div>
 

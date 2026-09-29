@@ -226,6 +226,11 @@ beforeEach(() => {
     }),
     listViewColumnWidths: [0, 200, 100, 100, 160],
     setListViewColumnWidth: vi.fn(),
+    // How a folder is shown is its own preference. Walking into another folder
+    // applies that folder's to the window, so a tab coming back has to ask for its
+    // own again — otherwise it comes back looking like somewhere else, and the
+    // position it looks up belongs to a view nobody is in.
+    restoreFolderPreferences: vi.fn(),
   });
 
   Object.assign(stores.file, {
@@ -263,7 +268,12 @@ beforeEach(() => {
     consumeRestoreState: vi.fn(() => ({ permitted: false, scrollTop: 0, activeItemKey: '' })),
     rememberTabPlace: vi.fn(),
     tabPlace: vi.fn(() => 0),
+    // The folder's own memory, which a tab coming back falls back to: it is what
+    // a walk back up the path reads, and it has been putting readers back where
+    // they were since long before tabs existed.
+    get: vi.fn(() => 0),
   });
+  appTabs.activeId = 'tab-1';
   appTabs.takeBroughtForward.mockClear();
   appTabs.takeBroughtForward.mockReturnValue(false);
   Object.assign(stores.operationTasks, { operationCount: 0 });
@@ -1327,6 +1337,66 @@ describe('a folder tab coming back', () => {
     expect(stores.file.fetchPathItems).toHaveBeenCalledWith('Docs', { preserveInteraction: true });
   });
 
+  /**
+   * The folder's own memory answers when the tab's does not.
+   *
+   * Two memories, one question. The tab's is the precise one — two tabs on one
+   * folder can be in different places in it — but the folder's is the one that has
+   * been putting readers back where they were since long before tabs existed, and
+   * it is what a walk back up the path reads. A tab that never left the folder has
+   * the same answer under both, so asking the second costs nothing; and when the
+   * first is missing, the reader lands where they were instead of at the top,
+   * which is what they were told would happen.
+   */
+  it('falls back to where the folder was when the tab has no place of its own', async () => {
+    stores.folderScroll.tabPlace.mockReturnValue(0);
+    stores.folderScroll.get = vi.fn(() => 540);
+
+    await mountFolder();
+
+    expect(stores.folderScroll.get).toHaveBeenCalledWith('Docs::list');
+  });
+
+  it('prefers the tab’s own place when there is one', async () => {
+    stores.folderScroll.tabPlace.mockReturnValue(120);
+    stores.folderScroll.get = vi.fn(() => 540);
+
+    await mountFolder();
+
+    expect(stores.folderScroll.tabPlace).toHaveBeenCalledWith('tab-1::Docs::list');
+    expect(stores.folderScroll.get).not.toHaveBeenCalledWith('Docs::list');
+  });
+
+  /**
+   * As it was left, which includes how it was shown.
+   *
+   * How a folder is shown is its own preference, and walking into another folder
+   * applies that folder's to the whole window. A tab left in the list view and
+   * come back to while the window is in the grid came back in the grid — and asked
+   * the wrong question about where the reader was, because the position is
+   * remembered per view: the same folder is a different height in each. It found an
+   * older position under the other view's key and put the reader two hundred pixels
+   * down a folder they had left four thousand pixels down, with the selection still
+   * there, which is exactly how it was reported.
+   */
+  it('comes back shown the way this folder is shown', async () => {
+    await mountFolder();
+
+    expect(stores.settings.restoreFolderPreferences).toHaveBeenCalledWith('Docs');
+  });
+
+  it('asks where the reader was under the view it is now in', async () => {
+    stores.settings.restoreFolderPreferences = vi.fn(() => {
+      // As the real one does when this folder's own preference is the grid.
+      stores.settings.view = 'grid';
+    });
+    stores.folderScroll.tabPlace.mockReturnValue(540);
+
+    await mountFolder();
+
+    expect(stores.folderScroll.tabPlace).toHaveBeenCalledWith('tab-1::Docs::grid');
+  });
+
   it('puts the tab back where it was in the folder', async () => {
     stores.folderScroll.tabPlace.mockReturnValue(540);
 
@@ -1348,6 +1418,39 @@ describe('a folder tab coming back', () => {
   it('remembers nothing for the tab from the page behind the listing', async () => {
     await mountFolder();
 
+    expect(stores.folderScroll.rememberTabPlace).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Nothing at all once another tab is in front.
+   *
+   * This is the one that was reported, and it is a measurement of somebody else's
+   * folder. The listing draws the folder of whichever tab is in front, so the
+   * instant that is another tab it is drawing a handful of rows where there were
+   * twelve hundred — the container becomes shorter than the position it was
+   * holding, the browser clamps the position, and the clamp arrives as an ordinary
+   * scroll event. Two hundred pixels was written over four thousand, a moment
+   * before anybody could come back to it. Only long folders lost anything, because
+   * a short one has no position to lose; the selection survived, because a
+   * selection is not a measurement of a container that had just been emptied.
+   */
+  it('writes nothing once another tab is the one in front', async () => {
+    await mountFolder();
+    const listing = wrapper.find('.upload-drop-target').element;
+    Object.defineProperty(listing, 'scrollHeight', { value: 4000, configurable: true });
+    Object.defineProperty(listing, 'clientHeight', { value: 800, configurable: true });
+    listing.scrollTop = 4000;
+    stores.folderScroll.remember.mockClear();
+    stores.folderScroll.rememberTabPlace.mockClear();
+
+    // Another tab comes forward, and the listing is clamped to what is left.
+    appTabs.activeId = 'tab-9';
+    listing.scrollTop = 212;
+    listing.dispatchEvent(new Event('scroll'));
+    await flushPromises();
+    routeLeaveGuards.forEach((guard) => guard());
+
+    expect(stores.folderScroll.remember).not.toHaveBeenCalled();
     expect(stores.folderScroll.rememberTabPlace).not.toHaveBeenCalled();
   });
 

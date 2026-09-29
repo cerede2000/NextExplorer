@@ -596,6 +596,8 @@
       "browseInTabsHelp": "Manter vários lugares abertos ao mesmo tempo — pastas, documentos, a lixeira — cada um em uma aba, como faz um gerenciador de arquivos de mesa. Desligado: um lugar por vez, e nada é desenhado acima da barra de ferramentas.",
       "closeTabsOnDoubleClick": "Fechar uma aba com clique duplo",
       "closeTabsOnDoubleClickHelp": "Um clique duplo em qualquer parte da aba a fecha, além do xis.",
+      "preloadBackgroundTabs": "Preparar as abas abertas em segundo plano",
+      "preloadBackgroundTabsHelp": "Uma aba aberta atrás, ou reaberta com a janela, carrega de imediato em vez de esperar até você chegar nela. Um documento preparado assim é aberto no editor, portanto conta como em edição.",
       "downloadMode": "Baixar vários itens",
       "downloadModeHelp": "O que acontece ao baixar mais de um item de uma vez. As pastas selecionadas sempre chegam como um único arquivo compactado.",
       "downloadModeZip": "Um único arquivo ZIP",

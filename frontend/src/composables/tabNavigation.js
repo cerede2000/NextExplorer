@@ -72,13 +72,78 @@ export function useTabRouteSync() {
     (many) => tabs.setLimit(many),
     { immediate: true }
   );
+
+  /**
+   * And the tabs that came back with the window, got ready once.
+   *
+   * A reader who left four documents open and returns finds them open again —
+   * which until now meant four addresses and four waits, one per tab as they
+   * reached it. Done once rather than watched: the tabs that were restored are
+   * the ones that were there when the settings arrived, and every tab opened
+   * after that is the gesture's own business.
+   *
+   * Never the tab in front: the router is already drawing it.
+   */
+  let warmedOnce = false;
+  watch(
+    () => [appSettings.loaded, appSettings.userSettings?.browseInTabs],
+    ([ready, on]) => {
+      if (warmedOnce || !ready || on !== true) return;
+      if (appSettings.userSettings?.preloadBackgroundTabs === false) return;
+      warmedOnce = true;
+      const behind = tabs.tabs.filter((tab) => tab.id !== tabs.activeId).map((tab) => ({ ...tab }));
+      if (behind.length > 0) void warmInBackground(behind);
+    },
+    { immediate: true }
+  );
 }
+
+/**
+ * Getting tabs ready before the reader arrives at them.
+ *
+ * Everything it needs is fetched when it is needed, not imported here. Reaching
+ * for the preview manager from this file would put it — and the router, and the
+ * plugins — into the module graph of every screen that draws a tab, which is how
+ * three suites that had mocked their own stores and nothing else stopped loading
+ * at all. Nothing is loaded until a tab is actually opened in the background.
+ */
+const warmInBackground = async (toWarm) => {
+  const candidates = (Array.isArray(toWarm) ? toWarm : [toWarm]).filter(Boolean);
+  if (candidates.length === 0) return [];
+
+  const [{ warmTabs }, { useFileStore }, { usePreviewManager }, { useTerminalStore }, api] =
+    await Promise.all([
+      import('@/composables/tabWarmup'),
+      import('@/stores/fileStore'),
+      import('@/plugins/preview/manager'),
+      import('@/stores/terminal'),
+      import('@/api'),
+    ]);
+
+  return warmTabs(candidates, {
+    fileStore: useFileStore(),
+    previewManager: usePreviewManager(),
+    terminalStore: useTerminalStore(),
+    readFile: api.fetchFileContent,
+  });
+};
 
 /** The actions, safe to ask for anywhere: no watchers, nothing installed. */
 export function useTabNavigation() {
   const tabs = useTabsStore();
   const router = useRouter();
   const route = useRoute();
+  const appSettings = useAppSettings();
+
+  /**
+   * Whether this account asked for tabs to be got ready in advance.
+   *
+   * On unless it is turned off, and only once the settings have arrived: before
+   * that the answer is not "no", it is *unknown*, and acting on the wrong one here
+   * would open editing sessions nobody asked for.
+   */
+  const warmsAhead = () =>
+    appSettings.loaded && appSettings.userSettings?.preloadBackgroundTabs !== false;
 
   /** Go where a tab says it is, unless that is already where we are. */
   const go = (tab) => {
@@ -96,6 +161,9 @@ export function useTabNavigation() {
    */
   const open = (path, { behind = false, own = false } = {}) => {
     const tab = tabs.open(path, { activate: !behind, own });
+    // Opened behind on purpose, which is exactly when there is time to get it
+    // ready: the reader is still looking at something else.
+    if (tab && behind && warmsAhead()) void warmInBackground([{ ...tab }]);
     return behind ? tab : go(tab);
   };
 

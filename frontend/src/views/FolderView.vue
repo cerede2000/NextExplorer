@@ -111,20 +111,39 @@ let keyboardTypeaheadTimer = null;
 // BrowserLayout keys this view by full route, so navigating into a directory
 // replaces the component. Capture this instance's folder now: during unmount
 // the reactive route may already point to the destination.
-const scrollPositionKey = `${normalizePath(
+const ownFolderPath = normalizePath(
   Array.isArray(route.params.path) ? route.params.path.join('/') : route.params.path || ''
-)}::${settings.view}`;
+);
+
+/**
+ * Where the reader was, keyed by folder *and* by the view it was seen in.
+ *
+ * The view belongs in the key because the same folder is a different height in
+ * each of them, so a position taken in one says nothing about the other. What it
+ * cannot be is the view at the moment this instance was built: how a folder is
+ * shown is its own preference, and walking into another folder applies that
+ * folder's. Coming back, the window could be in a different view from the one this
+ * tab was left in — so a key frozen at setup looked up a position that belonged to
+ * a view nobody was in, found an old one, and put the reader two hundred pixels
+ * down a folder they had left four thousand pixels down. The selection came back,
+ * because a selection is not keyed by a view, and that is exactly how it was
+ * reported.
+ *
+ * So the folder is captured and the view is read when it is asked for.
+ */
+const scrollKey = () => `${ownFolderPath}::${settings.view}`;
 
 /**
  * The same folder, in this tab.
  *
  * Two tabs can be on one folder and be in different places in it, so the tab is
- * part of the key. Taken once, like everything else about this instance: the
- * keyed router view builds a new one of these for every address, so the tab in
- * front when it is built is the tab it belongs to.
+ * part of the key. The tab is taken once, like everything else about this
+ * instance: the keyed router view builds a new one of these for every address, so
+ * the tab in front when it is built is the tab it belongs to.
  */
 const tabsStore = useTabsStore();
-const tabPlaceKey = `${tabsStore.activeId}::${scrollPositionKey}`;
+const ownTabId = tabsStore.activeId;
+const placeKey = () => `${ownTabId}::${scrollKey()}`;
 
 /**
  * Whether this is a tab coming back rather than a folder being opened.
@@ -169,14 +188,40 @@ const getScrollTarget = () => {
  * So nothing is written from a container that cannot scroll. It has nothing to
  * say about where anybody was, and silence keeps what was already known.
  */
+/**
+ * Whether this instance still speaks for where the reader is.
+ *
+ * Bringing another tab forward is the moment this goes wrong, and the tab changes
+ * before the address does. This listing reads the folder of whichever tab is in
+ * front, so the instant that is somebody else's tab it is drawing somebody else's
+ * folder — a handful of rows where there were twelve hundred. The container becomes
+ * shorter than the position it was holding, the browser clamps that position, and
+ * the clamp arrives as an ordinary scroll event. Four thousand pixels down became
+ * two hundred, and two hundred is what was written down, a moment before anybody
+ * could come back to it.
+ *
+ * Which is why it only ever happened in long folders: a short one has no position
+ * to lose. And why the selection survived — a selection is not a measurement of a
+ * container that had just been emptied.
+ *
+ * So this instance speaks only while the tab in front is its own and the address is
+ * still its own. After that it has nothing to say about where anybody is.
+ */
+const stillOurs = () =>
+  ownTabId === tabsStore.activeId &&
+  normalizePath(
+    Array.isArray(route.params.path) ? route.params.path.join('/') : route.params.path || ''
+  ) === ownFolderPath;
+
 const rememberScrollPosition = () => {
+  if (!stillOurs()) return;
   const target = getScrollTarget();
   if (target && target.scrollHeight - target.clientHeight > 2) {
-    folderScrollStore.remember(scrollPositionKey, target.scrollTop);
+    folderScrollStore.remember(scrollKey(), target.scrollTop);
     // And for this tab, which is a different question with a different answer:
     // the tab never left this folder, another one simply came in front of it, so
     // where it was is always worth putting back.
-    folderScrollStore.rememberTabPlace(tabPlaceKey, target.scrollTop);
+    folderScrollStore.rememberTabPlace(placeKey(), target.scrollTop);
   }
   rememberActiveItem();
 };
@@ -197,7 +242,7 @@ const freezeWhereItIs = () => {
 const rememberActiveItem = (itemKey = keyboardActiveItemKey.value) => {
   const selectedItem = fileStore.selectedItems[fileStore.selectedItems.length - 1];
   const key = itemKey || getItemKey(selectedItem);
-  if (key) folderScrollStore.rememberActiveItem(scrollPositionKey, key);
+  if (key) folderScrollStore.rememberActiveItem(scrollKey(), key);
 };
 
 /**
@@ -486,7 +531,7 @@ const restoreScrollPosition = async () => {
   // Landing on a named item wins over coming back to where this folder was
   // last left: one is what the reader just asked for, the other is where they
   // happened to be some time ago.
-  const restoreState = folderScrollStore.consumeRestoreState(scrollPositionKey);
+  const restoreState = folderScrollStore.consumeRestoreState(scrollKey());
   if (await revealPendingItem()) return;
   if (!restoreState.permitted) return;
 
@@ -863,9 +908,33 @@ const loadFiles = async () => {
  */
 const returnToFolder = async () => {
   loading.value = false;
+  // As it was left, which includes how it was shown: how a folder is shown is its
+  // own preference, and walking into another folder applied that one to the window.
+  // Coming back to a tab that was left in the list view and finding it in the grid
+  // is wrong on its own, and it also asks the wrong question about where the reader
+  // was — the position is remembered per view, because the same folder is a
+  // different height in each.
+  settings.restoreFolderPreferences(ownFolderPath);
+  await nextTick();
   await setupLoadMoreObserver();
   await nextTick();
-  const savedScrollTop = folderScrollStore.tabPlace(tabPlaceKey);
+  /**
+   * Where this tab was — and, failing that, where this folder was.
+   *
+   * Two memories answer the same question from different angles. The tab's is the
+   * precise one: two tabs on one folder can be in different places in it, so the
+   * tab is part of the key. The folder's is the one that has been putting readers
+   * back where they were since long before tabs existed — it is what a walk back
+   * up the path reads, and it demonstrably works.
+   *
+   * So the tab's answer is preferred and the folder's is the fallback, rather than
+   * the tab's being the only one asked. A tab that never left the folder has the
+   * same answer under both keys, so the fallback costs nothing when the first one
+   * is there — and when it is not, for any of the reasons a tab place can be
+   * missing, the reader still lands where they were instead of at the top.
+   */
+  const savedScrollTop =
+    folderScrollStore.tabPlace(placeKey()) || folderScrollStore.get(scrollKey());
   if (savedScrollTop > 0) {
     await waitForScrollLayout();
     // Asked for over several frames: a folder of two thousand files is not as
@@ -877,11 +946,30 @@ const returnToFolder = async () => {
   updateScrollState();
   resetIdleThumbnailPrefetch();
 
-  // Somebody else may have changed the folder while this tab was behind another.
-  // Asked for quietly: the listing is replaced under whatever is selected, and
-  // nothing about it moves the reader.
+  /**
+   * Somebody else may have changed the folder while this tab was behind another.
+   *
+   * Asked for quietly: the listing is replaced under whatever is selected, and
+   * nothing about it moves the reader. That last part took two goes. Replacing the
+   * rows makes the listing briefly shorter than it was, and a browser handed a
+   * container that can no longer hold the position clamps it — so the reader,
+   * having just been put back four thousand pixels down, was taken to two hundred
+   * the moment the answer arrived. Whether it happened at all depended on whether
+   * the answer beat the loop that was still placing them, which is why it came and
+   * went: a slower network made it certain.
+   *
+   * So the position is placed again, and only where it was clamped — a position
+   * that is still where it was put, or further down, is the reader's own and is
+   * left alone.
+   */
   void fileStore
     .fetchPathItems(route.params.path || '', { preserveInteraction: true })
+    .then(async () => {
+      if (!(savedScrollTop > 0)) return;
+      const now = getScrollTarget()?.scrollTop ?? 0;
+      if (now >= savedScrollTop - 1) return;
+      await settleScrollAt(savedScrollTop);
+    })
     .catch(() => {});
 };
 
@@ -1156,6 +1244,8 @@ onBeforeUnmount(() => {
         <div
           :class="[gridClasses, 'min-h-full', settings.view === 'list' ? 'pb-5' : '']"
           :style="gridStyle"
+          :data-view="settings.view"
+          data-test="listing"
           @dragover.self="handleCurrentFolderDragOver"
           @dragleave.self="handleCurrentFolderDragLeave"
           @drop.self="handleCurrentFolderDrop"

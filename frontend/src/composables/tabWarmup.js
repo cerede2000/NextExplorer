@@ -1,0 +1,137 @@
+import { TAB_KINDS_BY_ID, tabFolderPath } from '@/config/tabKinds';
+import { documentItemFromAddress } from '@/utils/documentRoute';
+
+/**
+ * Getting a tab ready before the reader arrives at it.
+ *
+ * A tab opened behind is an address and nothing else: the router draws one page,
+ * the one in front, so everything a background tab needs happens at the moment it
+ * is brought forward. For a folder that is a listing to fetch; for a document in
+ * ONLYOFFICE it is an iframe, a document server to reach and an editing session to
+ * open, which is seconds of watching a blank panel — after deliberately opening
+ * that tab in advance precisely so as not to wait.
+ *
+ * So each kind of tab is asked to do its own waiting early. Nothing here draws
+ * anything or navigates anywhere; it fills the places that already outlive a page,
+ * which is why it is possible at all:
+ *
+ * - a **document** gets its session in the preview manager, and the host — mounted
+ *   once, for every tab at once — builds the viewer hidden. Arriving at the tab
+ *   finds it already showing, and the page's own first question ("is this already
+ *   here?") answers yes.
+ * - a **folder** gets its listing read into its own tab's folder, which every tab
+ *   has had since tabs existed.
+ * - a **terminal** gets its session, and the terminal host starts the shell.
+ * - an **editor** gets the file read once, so the page's own read is a
+ *   revalidation of something the browser already holds rather than a transfer.
+ *
+ * The screens there is only one of — the trash, the settings, a search — are left
+ * alone: they are cheap, and a second copy of one is not a thing.
+ */
+
+/**
+ * How many tabs may be got ready.
+ *
+ * A number rather than "all of them", because what a warm document tab holds is
+ * not a cache: it is an iframe, a connection to the document server and an editing
+ * session on it. Ten of those opened by one gesture would be ten editors nobody
+ * asked to open. Three is enough to cover the gesture this exists for — opening a
+ * handful of places to read through — and small enough to be honest about.
+ */
+export const WARM_TAB_LIMIT = 3;
+
+/**
+ * What getting one ready costs, in the only unit that matters here: whether it
+ * takes a session on a server. A listing does not; an editor does.
+ */
+const holdsASession = (kind) => kind === 'document' || kind === 'terminal';
+
+/**
+ * Prepare one tab, and say whether there was anything to prepare.
+ *
+ * Told everything it needs rather than reaching for it: the stores come from the
+ * caller, which is what lets this be tested without a router, a document server or
+ * fifteen stores around it — and what keeps it out of the module graph of every
+ * screen that opens a tab.
+ *
+ * @param {{ id: string, kind: string, path: string }} tab
+ * @param {object} tools
+ * @param {object} tools.fileStore
+ * @param {object} tools.previewManager
+ * @param {object} tools.terminalStore
+ * @param {(path: string) => Promise<unknown>} tools.readFile
+ */
+export const warmTab = (tab, { fileStore, previewManager, terminalStore, readFile } = {}) => {
+  if (!tab?.id || !TAB_KINDS_BY_ID[tab.kind]) return false;
+
+  if (tab.kind === 'folder') {
+    const folder = tabFolderPath(tab);
+    // A tab that has already been there holds its listing, its selection and
+    // possibly a rename half typed. Reading the folder again would be a head start
+    // on nothing, at the cost of disturbing all of it.
+    if (fileStore?.holdsFolder?.(tab.id, folder)) return false;
+    // Quietly, and without touching what is on screen: this is a tab nobody is
+    // looking at, and a failure here costs the head start, not the tab.
+    void fileStore?.fetchIn?.(tab.id, folder)?.catch?.(() => {});
+    return true;
+  }
+
+  if (tab.kind === 'document') {
+    const item = documentItemFromAddress(tab.path);
+    if (!item) return false;
+    return Boolean(previewManager?.openIn?.(tab.id, item));
+  }
+
+  if (tab.kind === 'terminal') {
+    const folder = String(tab.path || '').replace(/^\/terminal\/?/, '');
+    let decoded = folder;
+    try {
+      decoded = folder
+        .split('/')
+        .map((segment) => decodeURIComponent(segment))
+        .join('/');
+    } catch {
+      // A percent sign that decodes to nothing is still part of a folder's name.
+    }
+    return Boolean(terminalStore?.openIn?.(tab.id, decoded, { mode: 'page' }));
+  }
+
+  if (tab.kind === 'editor') {
+    const path = String(tab.path || '').replace(/^\/editor\/?/, '');
+    if (!path) return false;
+    let decoded = path;
+    try {
+      decoded = path
+        .split('/')
+        .map((segment) => decodeURIComponent(segment))
+        .join('/');
+    } catch {
+      // As above.
+    }
+    void readFile?.(decoded)?.catch?.(() => {});
+    return true;
+  }
+
+  return false;
+};
+
+/**
+ * Prepare several, newest first, up to the number allowed.
+ *
+ * Newest first because the tab somebody has just opened is the one they are about
+ * to look at. Tabs that hold a session on a server are counted against the limit
+ * and the rest are not: a listing is a listing.
+ */
+export const warmTabs = (tabs, tools = {}, { limit = WARM_TAB_LIMIT } = {}) => {
+  const warmed = [];
+  let sessions = 0;
+
+  for (const tab of [...(tabs || [])].reverse()) {
+    if (holdsASession(tab?.kind) && sessions >= limit) continue;
+    if (!warmTab(tab, tools)) continue;
+    if (holdsASession(tab.kind)) sessions += 1;
+    warmed.push(tab.id);
+  }
+
+  return warmed;
+};

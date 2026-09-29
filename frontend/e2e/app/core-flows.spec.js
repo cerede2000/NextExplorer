@@ -1116,6 +1116,52 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   await expect(tabs).toHaveCount(4);
   await expect(page).toHaveURL(/\/browse\/Projects$/);
 
+  /**
+   * And it is ready before the reader gets there.
+   *
+   * A tab opened behind used to be an address and nothing else: the router draws
+   * one page, so the document was read, the viewer built and — for ONLYOFFICE —
+   * a document server reached only once the tab was brought forward. Seconds of
+   * blank panel, after deliberately opening the tab in advance so as not to wait.
+   *
+   * The viewer is drawn by the host, which holds one surface per tab and is
+   * mounted once, so the proof is that the surface for that tab exists while the
+   * reader is still looking at the folder — and that it is not the one on screen.
+   */
+  // An image, which every installation previews — markdown may open in the editor
+  // for this account, and then there is no viewer to look for.
+  fs.writeFileSync(
+    path.join(volume, 'warm.png'),
+    Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==',
+      'base64'
+    )
+  );
+  await page.goto('/browse/Projects');
+  await page.locator('[title="warm.png"]:not([role="tab"])').first().click({ button: 'middle' });
+  await expect(tabs).toHaveCount(5);
+
+  await expect
+    .poll(async () =>
+      page.evaluate(() =>
+        [...document.querySelectorAll('[data-tab][data-active]')]
+          .filter((node) => node.querySelector('[data-test="preview-surface"]'))
+          .map((node) => node.dataset.active)
+      )
+    )
+    .toContain('false');
+  // Still on the folder: nothing about preparing a tab takes the reader to it.
+  await expect(page).toHaveURL(/\/browse\/Projects$/);
+
+  // Away again, so the counts below are the counts this journey expects.
+  await strip
+    .locator('[data-test="tab"]')
+    .filter({ has: page.locator('[role="tab"][title="warm.png"]') })
+    .first()
+    .locator('[data-test="tab-close"]')
+    .click();
+  await expect(tabs).toHaveCount(4);
+
   // The menu says so too, for whoever has no middle button.
   await document().click({ button: 'right' });
   await page.getByRole('button', { name: 'Open in a new tab' }).click();
@@ -1355,7 +1401,17 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   // rather than as twelve hundred rows: the rows on screen are decided from the
   // scroll position and the height of the box, and on the frame a returning tab
   // asks to be put back, neither of those is known yet.
+  //
+  // It is also what makes this folder look different from every other one, which
+  // is the other half of what is being asked here: how a folder is shown is its
+  // own preference, walking into another folder applies that folder's to the
+  // window, and where the reader was is remembered per view because the same
+  // folder is a different height in each.
   await page.getByRole('button', { name: 'List view' }).first().click();
+  await expect(page.locator('[data-test="listing"]')).toHaveAttribute('data-view', 'list');
+  // Read back from the server, so what follows is not racing the save.
+  await page.goto('/browse/Projects/Deep');
+  await expect(page.locator('[data-test="listing"]')).toHaveAttribute('data-view', 'list');
   await expect(page.locator('[title="row-0001.txt"]').first()).toBeVisible();
 
   await page.locator('.upload-drop-target').evaluate((node) => {
@@ -1371,6 +1427,9 @@ test('tabs keep two folders open, and the middle button opens one behind', async
   await deepTab.click();
   await expect(page).toHaveURL(/\/browse\/Projects\/Deep$/);
 
+  // Shown the way this folder is shown, rather than the way the tab it was left
+  // for was — and therefore asked about under the right view.
+  await expect(page.locator('[data-test="listing"]')).toHaveAttribute('data-view', 'list');
   await expect.poll(folderScrollTop).toBeGreaterThan(deepScrolledTo - 40);
 
   // Back to the view the rest of this journey is written against.

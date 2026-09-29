@@ -74,6 +74,7 @@ const SWITCHES = [
   'documentsOpenInNewTab',
   'browseInTabs',
   'closeTabsOnDoubleClick',
+  'preloadBackgroundTabs',
   'showVersionMarks',
   'showSidebarFavorites',
   'showSidebarShares',
@@ -191,6 +192,9 @@ describe('the preferences', () => {
         downloadMode: 'separate',
         browseInTabs: true,
         closeTabsOnDoubleClick: true,
+        // On unless it is turned off: a tab opened in the background is opened in
+        // order not to wait for it.
+        preloadBackgroundTabs: true,
       },
     });
     expect(sentUser()).not.toHaveProperty('folderSorts');

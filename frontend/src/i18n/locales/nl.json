@@ -596,6 +596,8 @@
       "browseInTabsHelp": "Meerdere plekken tegelijk openhouden — mappen, documenten, de prullenbak — elk in een tabblad, zoals een bestandsbeheerder op het bureaublad doet. Uit: één plek tegelijk, en boven de werkbalk wordt niets getekend.",
       "closeTabsOnDoubleClick": "Een tabblad sluiten met dubbelklik",
       "closeTabsOnDoubleClickHelp": "Dubbelklikken op een tabblad sluit het, naast het kruisje.",
+      "preloadBackgroundTabs": "Tabbladen die op de achtergrond zijn geopend voorbereiden",
+      "preloadBackgroundTabsHelp": "Een tabblad dat op de achtergrond is geopend, of met het venster is heropend, laadt direct in plaats van te wachten tot u er komt. Een zo voorbereid document wordt in de editor geopend en geldt dus als in bewerking.",
       "downloadMode": "Meerdere items downloaden",
       "downloadModeHelp": "Wat er gebeurt als er meer dan één item tegelijk wordt gedownload. Geselecteerde mappen komen altijd als één archief.",
       "downloadModeZip": "Één ZIP-archief",

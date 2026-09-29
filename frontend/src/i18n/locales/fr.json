@@ -596,6 +596,8 @@
       "browseInTabsHelp": "Garder plusieurs endroits ouverts à la fois — dossiers, documents, corbeille — chacun dans un onglet, comme le fait un gestionnaire de fichiers de bureau. Désactivé : un seul endroit à la fois, et rien n'est dessiné au-dessus de la barre d'outils.",
       "closeTabsOnDoubleClick": "Fermer un onglet par double-clic",
       "closeTabsOnDoubleClickHelp": "Un double-clic n’importe où sur un onglet le ferme, en plus de la croix.",
+      "preloadBackgroundTabs": "Préparer les onglets ouverts en arrière-plan",
+      "preloadBackgroundTabsHelp": "Un onglet ouvert derrière, ou rouvert avec la fenêtre, se charge tout de suite au lieu d'attendre que vous y arriviez. Un document ainsi préparé est ouvert dans son éditeur : il compte donc comme en cours d'édition.",
       "downloadMode": "Téléchargement de plusieurs éléments",
       "downloadModeHelp": "Ce qui se passe quand plusieurs éléments sont téléchargés à la fois. Les dossiers sélectionnés arrivent toujours dans une archive.",
       "downloadModeZip": "Une archive ZIP",

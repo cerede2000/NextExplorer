@@ -596,6 +596,8 @@
       "browseInTabsHelp": "Keep several places open at once — folders, documents, the trash — each in a tab, the way a file manager on your desktop does. Off, there is one place at a time and nothing is drawn above the toolbar.",
       "closeTabsOnDoubleClick": "Close a tab by double-clicking it",
       "closeTabsOnDoubleClickHelp": "A double click anywhere on a tab closes it, as well as the cross.",
+      "preloadBackgroundTabs": "Prepare tabs opened in the background",
+      "preloadBackgroundTabsHelp": "A tab opened behind, or reopened with the window, loads straight away instead of waiting until you reach it. A document prepared this way is opened in its editor, so it counts as being edited.",
       "downloadMode": "Downloading several items",
       "downloadModeHelp": "What happens when more than one item is downloaded at once. Selected folders always come as one archive.",
       "downloadModeZip": "One ZIP archive",

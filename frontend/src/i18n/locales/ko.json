@@ -596,6 +596,8 @@
       "browseInTabsHelp": "폴더, 문서, 휴지통 등 여러 곳을 각각 탭으로 한꺼번에 열어 둡니다. 데스크톱 파일 관리자와 같은 방식입니다. 끄면 한 번에 한 곳만 열리고, 도구 모음 위에는 아무것도 표시되지 않습니다.",
       "closeTabsOnDoubleClick": "더블 클릭으로 탭 닫기",
       "closeTabsOnDoubleClickHelp": "탭의 아무 곳이나 더블 클릭하면 닫힙니다. 닫기 버튼과 함께 쓸 수 있습니다.",
+      "preloadBackgroundTabs": "백그라운드에서 열린 탭 미리 준비",
+      "preloadBackgroundTabsHelp": "뒤에서 열린 탭이나 창과 함께 다시 열린 탭이 이동할 때까지 기다리지 않고 바로 불러옵니다. 이렇게 준비된 문서는 편집기에서 열리므로 편집 중으로 표시됩니다.",
       "downloadMode": "여러 항목 다운로드",
       "downloadModeHelp": "한 번에 두 개 이상을 다운로드할 때의 동작입니다. 선택한 폴더는 항상 하나의 압축 파일로 받습니다.",
       "downloadModeZip": "하나의 ZIP 압축 파일",

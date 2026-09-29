@@ -596,6 +596,8 @@
       "browseInTabsHelp": "Tenere aperti più luoghi alla volta — cartelle, documenti, il cestino — ognuno in una scheda, come fa un gestore di file da scrivania. Disattivato: un luogo alla volta, e sopra la barra degli strumenti non viene disegnato nulla.",
       "closeTabsOnDoubleClick": "Chiudere una scheda con un doppio clic",
       "closeTabsOnDoubleClickHelp": "Un doppio clic in qualsiasi punto della scheda la chiude, oltre alla croce.",
+      "preloadBackgroundTabs": "Prepara le schede aperte in secondo piano",
+      "preloadBackgroundTabsHelp": "Una scheda aperta dietro, o riaperta con la finestra, si carica subito invece di attendere che tu la raggiunga. Un documento preparato così viene aperto nel suo editor, quindi conta come in modifica.",
       "downloadMode": "Scaricare più elementi",
       "downloadModeHelp": "Cosa accade quando si scarica più di un elemento alla volta. Le cartelle selezionate arrivano sempre come un unico archivio.",
       "downloadModeZip": "Un unico archivio ZIP",
