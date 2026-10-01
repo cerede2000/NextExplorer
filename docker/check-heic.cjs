@@ -1,11 +1,8 @@
 // Decode a HEIC the way the thumbnail service does — ffmpeg to PNG, then sharp
 // — and print the colour near each side, as "R G B R G B", left then right.
 //
-// .github/workflows/build-image.yml runs this inside each built image, so the
-// ffmpeg asked is the one that image ships. The lean image builds ffmpeg with
-// nearly every encoder removed; PNG is kept because the service needs it, and
-// that is why this goes through PNG rather than a raw pixel dump, which the
-// lean ffmpeg cannot write at all.
+// The image build runs this against the FFmpeg package installed for its
+// target architecture. PNG keeps the check aligned with the thumbnail service.
 //
 // Usage: node check-heic.cjs <file.heic> [video filter]
 // The filter defaults to the service's reduction; another one (hflip, a crop)

@@ -187,6 +187,23 @@ The multi-stage `Dockerfile` builds the Vue app and packages it with the Node ba
 docker build -t nextexplorer:dev .
 ```
 
+The application image copies minimal FFmpeg binaries from
+`ghcr.io/nxzai/nextexplorer-ffmpeg:8.1.3`; it never compiles FFmpeg. Build and
+publish that multi-architecture artifact only when `Dockerfile.ffmpeg`, its
+verification script, or the pinned FFmpeg version changes:
+
+```bash
+docker buildx build \
+  --file Dockerfile.ffmpeg \
+  --platform linux/amd64,linux/arm64 \
+  --tag ghcr.io/nxzai/nextexplorer-ffmpeg:8.1.3 \
+  --push .
+```
+
+`.github/workflows/ffmpeg-publish.yml` validates matching changes on pull
+requests. Run it manually with **publish** enabled before changing
+`FFMPEG_IMAGE` in `Dockerfile` to the new version.
+
 ### Multi-architecture build & push
 
 ```bash
