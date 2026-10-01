@@ -189,8 +189,17 @@ docker build -t nextexplorer:dev .
 
 The application image copies minimal FFmpeg binaries from
 `ghcr.io/nxzai/nextexplorer-ffmpeg:8.1.3`; it never compiles FFmpeg. Build and
-publish that multi-architecture artifact only when `Dockerfile.ffmpeg`, its
-verification script, or the pinned FFmpeg version changes:
+publish that artifact only when `Dockerfile.ffmpeg`, its verification script,
+or the pinned FFmpeg version changes.
+
+Before publishing, authenticate to GHCR with a token that has package write
+permission:
+
+```bash
+docker login ghcr.io
+```
+
+Then build and publish the multi-architecture artifact:
 
 ```bash
 docker buildx build \
@@ -201,8 +210,9 @@ docker buildx build \
 ```
 
 `.github/workflows/ffmpeg-publish.yml` validates matching changes on pull
-requests. Run it manually with **publish** enabled before changing
-`FFMPEG_IMAGE` in `Dockerfile` to the new version.
+requests. When changing the FFmpeg version, update both `FFMPEG_VERSION` in
+that workflow and `FFMPEG_IMAGE` in `Dockerfile`, then run the workflow
+manually with **publish** enabled before building the application image.
 
 ### Multi-architecture build & push
 
@@ -213,7 +223,7 @@ docker run --privileged --rm tonistiigi/binfmt --install all
 
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  -t nxzai/explorer:latest \
+  -t ghcr.io/nxzai/explorer:latest \
   --push .
 ```
 

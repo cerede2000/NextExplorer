@@ -39,7 +39,7 @@ the host's GPU device exposed to the container, and the matching
 ```yaml
 services:
   nextexplorer:
-    image: ghcr.io/cerede2000/explorer:latest
+    image: ghcr.io/nxzai/explorer:latest
     container_name: nextexplorer
     restart: unless-stopped
     ports:

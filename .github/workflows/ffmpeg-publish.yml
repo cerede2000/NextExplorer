@@ -17,6 +17,7 @@ on:
 env:
   IMAGE_NAME: nextexplorer-ffmpeg
   FFMPEG_VERSION: 8.1.3
+  PUSH_IMAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.publish || 'false' }}
 
 concurrency:
   group: ffmpeg-image-${{ github.ref }}
@@ -52,7 +53,7 @@ jobs:
           context: .
           file: ./Dockerfile.ffmpeg
           platforms: linux/amd64,linux/arm64
-          push: ${{ inputs.publish }}
+          push: ${{ fromJSON(env.PUSH_IMAGE) }}
           tags: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.FFMPEG_VERSION }}
           cache-from: type=gha,scope=ffmpeg-image
           cache-to: type=gha,scope=ffmpeg-image,mode=min
