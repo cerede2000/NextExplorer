@@ -8,6 +8,7 @@ import SearchResultsView from '@/views/SearchResultsView.vue';
 import SettingsView from '@/views/settings/SettingsView.vue';
 import SettingsBranding from '@/views/settings/SettingsBranding.vue';
 import SettingsFilesThumbnails from '@/views/settings/SettingsFilesThumbnails.vue';
+import SettingsFfmpeg from '@/views/settings/SettingsFfmpeg.vue';
 import SettingsUploads from '@/views/settings/SettingsUploads.vue';
 import SettingsSearchIndex from '@/views/settings/SettingsSearchIndex.vue';
 import SettingsFolderSize from '@/views/settings/SettingsFolderSize.vue';
@@ -65,6 +66,11 @@ const router = createRouter({
             {
               path: 'files-thumbnails',
               component: SettingsFilesThumbnails,
+              meta: { requiresAdmin: true },
+            },
+            {
+              path: 'ffmpeg',
+              component: SettingsFfmpeg,
               meta: { requiresAdmin: true },
             },
             {

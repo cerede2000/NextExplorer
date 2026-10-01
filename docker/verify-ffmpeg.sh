@@ -1,15 +1,10 @@
 #!/bin/sh
-# Prove a freshly built ffmpeg can decode everything this application offers.
+# Prove the minimal FFmpeg artifact can decode everything this application offers.
 #
-# The build strips ffmpeg down, and the way that goes wrong is silent: a
+# The artifact strips FFmpeg down, and the way that goes wrong is silent: a
 # container or codec quietly stops being decodable and thumbnails for that
-# format simply never appear. Nothing errors, nothing logs, a folder of .wmv
-# files just looks empty of previews.
-#
-# So the build proves it instead of assuming it. Alpine's own ffmpeg — a build
-# dependency, never shipped — synthesises one short clip per format, and the
-# binary we just built has to get a frame out of each. Any failure fails the
-# image build, which is the only place this can be caught before a user is.
+# format simply never appear. Alpine's FFmpeg creates compact fixtures; the
+# candidate binaries must decode or probe each one before publication.
 #
 # Usage: verify-ffmpeg.sh <path-to-ffmpeg> <path-to-ffprobe>
 set -eu
@@ -135,9 +130,8 @@ check_audio "wma"   tone.wma  -c:a wmav2
 
 # A HEIC is HEVC inside an ISOBMFF container with an `heic` brand, but a
 # working hevc/mp4 above does not stand for it: reading one takes the HEIF
-# demuxer, which ffmpeg only has from 7.1, and an older build decodes the mp4
-# and cannot open the HEIC. It is checked on the finished image instead, for
-# both variants, in .github/workflows/build-image.yml.
+# demuxer, which FFmpeg only has from 7.1. A repository fixture can exercise
+# that path separately when one is available.
 # A subtitle track has to come out as WebVTT, because that is the only subtitle
 # format a browser will display. This exercises the two halves separately: a
 # file that is nothing but subtitles proves the demuxer and the WebVTT muxer,

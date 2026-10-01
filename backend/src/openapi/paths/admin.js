@@ -28,6 +28,10 @@ const settings = obj(
     user: section('This account’s own preferences: sorting and view per folder, hidden files.'),
     uploads: section('Chunked uploads.'),
     thumbnails: section('Whether, how large, how good, how many at once.'),
+    ffmpeg: obj({
+      ffmpegPath: nullable(str('Absolute executable path visible inside the container.')),
+      ffprobePath: nullable(str('Absolute executable path visible inside the container.')),
+    }),
     access: obj({
       rules: arrayOf(
         obj(

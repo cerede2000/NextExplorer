@@ -8,33 +8,22 @@ Deploy nextExplorer via Docker Compose for reproducible self-hosted workflows. T
 - **Host directories** for data volumes, `/config`, and `/cache` (make sure the Docker user can read/write these paths). `/cache` can be left out, but it holds the search index and the folder sizes: without a persistent mount, every new container reads the volumes again to rebuild them.
 - **TLS-capable reverse proxy** if you need HTTPS, custom domains, or sticky sessions.
 
-## Image variants
+## Image contents
 
-Two images are published, on both registries:
+The published application image supports both `linux/amd64` and `linux/arm64`.
+It includes a minimal software-decoding FFmpeg build and RAW-photo support.
+FFmpeg is built and verified in a separate versioned image, then copied into the
+application image; normal application releases do not compile it.
 
-| Tag                          | Contains                                                                         |
-| ---------------------------- | -------------------------------------------------------------------------------- |
-| `latest`, `3.11.0`           | Everything, including hardware video acceleration (VA-API) and RAW photo support |
-| `latest-lean`, `3.11.0-lean` | The same application without VA-API or RAW — a considerably smaller image        |
-
-Take the full image unless you know you need neither: VA-API only helps where the host exposes a render device to the container, and RAW support only matters if you keep camera files. Both variants are built for `linux/amd64` and `linux/arm64`.
-
-```
-ghcr.io/cerede2000/explorer:latest
-ghcr.io/cerede2000/explorer:latest-lean
+```text
+ghcr.io/nxzai/explorer:latest
+ghcr.io/nxzai/nextexplorer-ffmpeg:8.1.3
 ```
 
-They are also on Docker Hub under the same tags.
-
-`latest` and `latest-lean` follow `main`, so a fix reaches them without waiting
-for a release. Every build is also published under the version in
-`package.json` — `3.11.0`, `3.11.0-lean` — republished for as long as that
-version is current, and left alone once the next one is cut.
-
-Only the last two versions stay published: on Docker Hub the older one is
-removed as the next is published, and on GHCR a weekly job does the same. Pin a
-version you intend to keep running and move it forward deliberately rather than
-expecting an old tag to still be there.
+The FFmpeg artifact is an application build input, not a service users need to
+run. Hardware acceleration requires a compatible custom FFmpeg/FFprobe pair,
+the host's GPU device exposed to the container, and the matching
+`FFMPEG_HWACCEL` settings.
 
 ## Host folder layout
 
@@ -50,7 +39,7 @@ expecting an old tag to still be there.
 ```yaml
 services:
   nextexplorer:
-    image: ghcr.io/cerede2000/explorer:latest
+    image: ghcr.io/nxzai/explorer:latest
     container_name: nextexplorer
     restart: unless-stopped
     ports:
@@ -76,6 +65,26 @@ services:
 - `PUBLIC_URL` informs the backend's cookie settings, CORS, and default OIDC callback (see `backend/src/config/env.js`).
 - `SESSION_SECRET` sets the session secret yourself. Without it, one is generated at the first start and kept in `/config/session-secret`, so sessions survive restarts all the same; set it when several replicas share the sessions.
 - Optional first-run bootstrap: set `AUTH_ADMIN_EMAIL` and `AUTH_ADMIN_PASSWORD` to auto-create the first local admin on startup (skips the setup wizard).
+
+### Use FFmpeg binaries from the host
+
+Settings → FFmpeg accepts paths inside the container. Docker cannot execute an
+arbitrary host path until it is bind-mounted, and the binaries must match the
+host CPU architecture and run on Alpine Linux. Static binaries are the safest
+choice. Mount both files read-only, then save their container paths:
+
+```yaml
+services:
+  nextexplorer:
+    volumes:
+      - /opt/ffmpeg/ffmpeg:/host-tools/ffmpeg:ro
+      - /opt/ffmpeg/ffprobe:/host-tools/ffprobe:ro
+```
+
+Set **FFmpeg executable path** to `/host-tools/ffmpeg` and **FFprobe executable
+path** to `/host-tools/ffprobe`. The server verifies that each path is executable
+and applies the change immediately. Clearing a field returns to `FFMPEG_PATH` or
+`FFPROBE_PATH`, then to the binaries bundled with the image.
 
 ## Launching and validating
 

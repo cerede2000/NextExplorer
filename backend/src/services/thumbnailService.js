@@ -49,8 +49,6 @@ configureSharpCache();
 // ffprobe is only needed when the seek point is a percentage of the duration;
 // a fixed seek needs ffmpeg alone.
 const ffprobeRequired = env.THUMBNAIL_VIDEO_SEEK_PERCENT != null;
-const canProcessVideoThumbnails =
-  ffmpegRunner.hasFfmpeg() && (!ffprobeRequired || ffmpegRunner.hasFfprobe());
 
 if (ffprobeRequired && !ffmpegRunner.hasFfprobe()) {
   logger.warn('ffprobe binary not found. Video thumbnails will be skipped.');
@@ -651,6 +649,8 @@ const resolveVideoSeekSeconds = async (filePath) => {
 };
 
 const makeVideoThumb = async (srcPath, destPath) => {
+  const canProcessVideoThumbnails =
+    ffmpegRunner.hasFfmpeg() && (!ffprobeRequired || ffmpegRunner.hasFfprobe());
   if (!canProcessVideoThumbnails) {
     logger.warn({ srcPath }, 'Skipping video thumbnail (no ffmpeg/ffprobe)');
     return;

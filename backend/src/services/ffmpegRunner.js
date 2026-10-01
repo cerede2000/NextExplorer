@@ -14,12 +14,12 @@ const logger = require('../utils/logger');
  * dependency nobody maintains sitting on the path that produces every
  * thumbnail.
  *
- * Two things it does that the library did and are easy to lose: it resolves the
- * binaries once at startup rather than trusting `PATH`, and it hands back the
- * child process so a caller can register it, lower its priority and kill it.
+ * Two things it does that are easy to lose: it resolves only absolute paths
+ * rather than trusting `PATH`, and it hands back the child process so a caller
+ * can register it, lower its priority and kill it.
  */
 
-const CANDIDATES = {
+const DEFAULT_CANDIDATES = {
   ffmpeg: [env.FFMPEG_PATH, '/usr/local/bin/ffmpeg', '/usr/bin/ffmpeg', '/opt/homebrew/bin/ffmpeg'],
   ffprobe: [
     env.FFPROBE_PATH,
@@ -49,12 +49,19 @@ const resolveExecutable = (candidates) => {
   return null;
 };
 
-const ffmpegPath = resolveExecutable(CANDIDATES.ffmpeg);
-const ffprobePath = resolveExecutable(CANDIDATES.ffprobe);
+let ffmpegPath = resolveExecutable(DEFAULT_CANDIDATES.ffmpeg);
+let ffprobePath = resolveExecutable(DEFAULT_CANDIDATES.ffprobe);
 
 if (!ffmpegPath) {
   logger.warn('FFmpeg binary not found. Video thumbnails will be skipped.');
 }
+
+/** Apply persisted overrides. null means use the deployment/default candidates. */
+const configure = ({ ffmpegPath: configuredFfmpeg, ffprobePath: configuredFfprobe } = {}) => {
+  ffmpegPath = resolveExecutable([configuredFfmpeg, ...DEFAULT_CANDIDATES.ffmpeg]);
+  ffprobePath = resolveExecutable([configuredFfprobe, ...DEFAULT_CANDIDATES.ffprobe]);
+  return { ffmpegPath, ffprobePath };
+};
 
 /** Whether ffmpeg is available at all. */
 const hasFfmpeg = () => Boolean(ffmpegPath);
@@ -128,10 +135,16 @@ const run = (args) => {
 };
 
 module.exports = {
+  configure,
   hasFfmpeg,
   hasFfprobe,
   probe,
   run,
-  ffmpegPath,
-  ffprobePath,
+  resolveExecutable,
+  get ffmpegPath() {
+    return ffmpegPath;
+  },
+  get ffprobePath() {
+    return ffprobePath;
+  },
 };
