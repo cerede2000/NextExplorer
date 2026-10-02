@@ -153,23 +153,33 @@ const router = createRouter({
         },
       ],
     },
+    /**
+     * The two screens a pane holds most of the time, each a record of its own.
+     *
+     * They were children of `BrowserLayout`, which is now nothing but a
+     * `<RouterView />` — and that passthrough had a cost nobody could see: the pane
+     * the reader is in draws the router's own component, which was the *layout*,
+     * while the pane beside it resolves the deepest one, which is the screen. Two
+     * different components for the same address, so moving from one half to the
+     * other rebuilt both screens: the listing was read again, the reader was put
+     * back from memory, and a click that crossed into the other half was swallowed
+     * whole — the row it was pressed on had been replaced before the button came up.
+     *
+     * Flat, both panes draw the same component and crossing costs nothing. The
+     * addresses, the names and what each record allows are exactly as they were.
+     */
     {
       path: '/browse',
-      component: BrowserLayout,
+      name: 'HomeView',
+      component: HomeView,
       meta: { requiresAuth: true },
-      children: [
-        {
-          path: '',
-          name: 'HomeView',
-          component: HomeView,
-        },
-        {
-          path: ':path(.+)',
-          name: 'FolderView',
-          component: FolderView,
-          meta: { allowGuest: true }, // Allow guest access for share paths
-        },
-      ],
+    },
+    {
+      path: '/browse/:path(.+)',
+      name: 'FolderView',
+      component: FolderView,
+      // Allow guest access for share paths
+      meta: { requiresAuth: true, allowGuest: true },
     },
     {
       path: '/shares',

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, defineAsyncComponent, ref, shallowRef, watch } from 'vue';
+import { computed, defineAsyncComponent, ref, shallowRef, watch, watchEffect } from 'vue';
 import { useRouter } from 'vue-router';
 import { XMarkIcon } from '@heroicons/vue/24/outline';
 import FolderViewToolbar from '@/components/FolderViewToolbar.vue';
@@ -128,7 +128,39 @@ const drawn = computed(() => (focused.value ? props.routedComponent : resolved.v
  * all of that away.
  */
 const pathOf = (address) => String(address || '').split('?')[0];
-const drawnKey = computed(() => (focused.value ? pathOf(props.routedKey) : pathOf(address.value)));
+/**
+ * And the tab, because a pane given another tab is another *place* even when the
+ * address is the same word.
+ *
+ * Two tabs on one folder are two places: each has its own listing, its own
+ * selection, its own position in it and possibly its own rename half typed. Keyed
+ * on the address alone, a pane handed the second of them kept the screen built for
+ * the first — so the new tab was a dead panel saying the folder was empty, with
+ * nothing asked of the server and nothing to click. Duplicating a tab does exactly
+ * this, and so does dropping a tab into the half beside one already on that folder.
+ */
+const drawnAddress = computed(() =>
+  focused.value ? pathOf(props.routedKey) : pathOf(address.value)
+);
+
+/**
+ * Held still while this pane's tab and the address it draws are out of step.
+ *
+ * A tab coming forward is two moves: the store is told first and the address bar
+ * follows. For that one tick a pane names its new tab while the screen on it is
+ * still the old tab's — and a key made then would build the *old* screen for the
+ * *new* tab. A document page built in a folder tab's name opens its document into
+ * that folder tab, which then closes it again a tick later: a session on a document
+ * server opened and ended for nothing, in a tab that never asked for it.
+ *
+ * So the key waits for the two to agree, which they do on the very next tick. The
+ * pane beside the reader draws its own address and is never out of step.
+ */
+const drawnKey = ref(`${tabId.value}::${drawnAddress.value}`);
+watchEffect(() => {
+  if (focused.value && pathOf(props.routedKey) !== pathOf(address.value)) return;
+  drawnKey.value = `${tabId.value}::${drawnAddress.value}`;
+});
 
 /**
  * Clicking anywhere in a pane puts the reader in it.

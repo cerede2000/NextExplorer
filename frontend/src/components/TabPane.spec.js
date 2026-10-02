@@ -101,6 +101,63 @@ beforeEach(() => {
   routerPush.mockReset();
 });
 
+/**
+ * Two tabs on one folder are two places.
+ *
+ * The screen in a pane is built for a *tab*: its listing, what is selected in it,
+ * where the reader is in it and what they were half-way through renaming all belong
+ * to that tab. Keyed on the address alone, a pane handed another tab on the same
+ * folder kept the screen it had — so the second tab was a dead panel saying "this
+ * folder is empty", with nothing asked of the server and nothing to click.
+ * Duplicating a tab is exactly that gesture, and so is dropping a tab into the half
+ * beside one already showing the same folder.
+ */
+describe('a pane given another tab', () => {
+  it('draws the screen again, even at the same address', async () => {
+    const built = [];
+    const Counting = defineComponent({
+      setup() {
+        built.push('built');
+        return () => h('div', { 'data-test': 'drawn' });
+      },
+    });
+    appTabs.tabs = [
+      { id: 'tab-here', kind: 'folder', path: '/browse/Here' },
+      { id: 'tab-twin', kind: 'folder', path: '/browse/Here' },
+    ];
+    const pane = mount(TabPane, {
+      props: { tabId: 'tab-here', routedComponent: Counting, routedKey: '/browse/Here' },
+      global: { mocks: { $t: (key) => key } },
+    });
+    expect(built).toHaveLength(1);
+
+    // The copy comes forward in this very pane, on the same folder.
+    appTabs.activeId = 'tab-twin';
+    await pane.setProps({ tabId: 'tab-twin' });
+
+    expect(built).toHaveLength(2);
+  });
+
+  /** And the same tab at the same address is left exactly as it is. */
+  it('keeps the screen it has when nothing changed', async () => {
+    const built = [];
+    const Counting = defineComponent({
+      setup() {
+        built.push('built');
+        return () => h('div', { 'data-test': 'drawn' });
+      },
+    });
+    const pane = mount(TabPane, {
+      props: { tabId: 'tab-here', routedComponent: Counting, routedKey: '/browse/Here' },
+      global: { mocks: { $t: (key) => key } },
+    });
+
+    await pane.setProps({ split: true });
+
+    expect(built).toHaveLength(1);
+  });
+});
+
 describe('a pane', () => {
   it('has focus only when it holds the tab in front', () => {
     expect(paneFor('tab-here').attributes('data-focused')).toBe('true');

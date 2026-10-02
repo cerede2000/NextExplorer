@@ -2823,6 +2823,104 @@ test('a pair of documents is still the same two documents when the reader comes 
   }
 });
 
+/**
+ * Two tabs on one folder are two places.
+ *
+ * Which is the whole of what a tab is for, and none of it was true of the second
+ * one. The screen in a pane is built for a *tab* — its listing, what is selected in
+ * it, where the reader is in it — but the pane was keyed on the address alone, so a
+ * pane handed another tab on the same folder kept the screen built for the first.
+ * The second tab was a dead panel saying the folder was empty: nothing asked of the
+ * server, nothing to click. Duplicating a tab is exactly that gesture.
+ *
+ * And what was selected was asked of the *window* rather than of the pane, so one
+ * selection served both halves: choosing a file in one half moved the highlight in
+ * the other to somewhere else entirely in the list.
+ */
+test('two tabs on one folder keep their own listing and their own selection', async () => {
+  const dir = path.join(volume, 'Twin');
+  fs.mkdirSync(dir, { recursive: true });
+  for (const name of ['one.txt', 'two.md', 'three.pdf']) {
+    fs.writeFileSync(path.join(dir, name), 'twin\n');
+  }
+
+  const strip = page.locator('[data-test="tab-strip"]');
+  const entries = strip.locator('[data-test="tab"]');
+  const panes = page.locator('[data-test="tab-pane"]');
+  const chosenIn = (pane) => pane.locator('[data-selected="true"]');
+  const rowsIn = (pane) => pane.locator('[data-selected]');
+
+  await page.goto('/settings/user-preferences');
+  const preference = page.locator('[data-test="browse-in-tabs"]');
+  await preference.click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(preference).toHaveAttribute('aria-checked', 'true');
+
+  try {
+    await page.goto('/browse/Projects/Twin');
+    await expect(rowsIn(panes.first())).toHaveCount(3);
+
+    // The same folder in a second tab, which is the gesture the menu offers.
+    await entries.first().getByRole('tab').click({ button: 'right' });
+    await page.locator('[data-test="tab-duplicate"]').click();
+    await expect(entries).toHaveCount(2);
+
+    // It lists the folder itself rather than inheriting a screen built for its
+    // neighbour: this is where the dead panel was.
+    await expect(rowsIn(panes.first())).toHaveCount(3);
+    await expect(panes.first()).not.toContainText('This folder is empty');
+
+    // Each keeps its own selection, with only one of them on screen at a time.
+    await panes.first().locator('[title="one.txt"]').first().click();
+    await expect(chosenIn(panes.first())).toHaveCount(1);
+    await entries.first().getByRole('tab').click();
+    await expect(chosenIn(panes.first())).toHaveCount(0);
+    await panes.first().locator('[title="three.pdf"]').first().click();
+    await expect(chosenIn(panes.first())).toContainText('three.pdf');
+    await entries.last().getByRole('tab').click();
+    await expect(chosenIn(panes.first())).toContainText('one.txt');
+
+    // And side by side, where both are on screen at once.
+    await entries.first().getByRole('tab').click({ button: 'right' });
+    await page.locator('[data-test="tab-show-right"]').click();
+    await expect(panes).toHaveCount(2);
+    await expect(rowsIn(panes.first())).toHaveCount(3);
+    await expect(rowsIn(panes.last())).toHaveCount(3);
+
+    /**
+     * And crossing into the other half costs nothing — which is why the click below
+     * lands at all.
+     *
+     * The pane the reader is in drew the router's own component and the pane beside
+     * it resolved the deepest one; they were two different components for the same
+     * address, so moving from one half to the other rebuilt both screens. The row
+     * this clicks on was replaced between the button going down and coming up, so
+     * the click was swallowed whole: the first press in the other half selected
+     * nothing, and a listing the reader had scrolled was put back where the tab
+     * remembered it — the selection appearing somewhere else entirely in the list.
+     *
+     * Marked on the elements themselves: a screen that was rebuilt is a new node.
+     */
+    await page.evaluate(() => {
+      document.querySelectorAll('[data-test="tab-pane"] .upload-drop-target').forEach((node, i) => {
+        node.dataset.witness = `list-${i}`;
+      });
+    });
+
+    // One selection each, and choosing in one half leaves the other alone.
+    await panes.last().locator('[title="two.md"]').first().click();
+    await expect(page.locator('[data-test="tab-pane"] [data-witness]')).toHaveCount(2);
+    await expect(chosenIn(panes.last())).toContainText('two.md');
+    await expect(chosenIn(panes.first())).toHaveCount(1);
+    await expect(chosenIn(panes.first())).not.toContainText('two.md');
+  } finally {
+    await page.goto('/settings/user-preferences');
+    await preference.click();
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(preference).toHaveAttribute('aria-checked', 'false');
+  }
+});
+
 test('the search index and folder sizes switch on from Settings, and the About page lists the tools', async () => {
   await page.goto('/settings/search-index');
   const indexSwitch = page.locator('[data-testid="search-index-switch"]');
