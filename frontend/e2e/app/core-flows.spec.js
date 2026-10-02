@@ -2689,6 +2689,95 @@ test('a pane draws its own place, and keeps to its own half', async () => {
   }
 });
 
+/**
+ * Two documents side by side, and the reader looking at something else for a moment.
+ *
+ * What a pane costs is measured here, and it is the thing tabs were built to stop: a
+ * document is not a page, it is a connection — an ONLYOFFICE document has a session on
+ * a document server, a cursor, an undo history and possibly somebody else typing in it.
+ * Rebuilding it is not slow, it is *lossy*, and it happened every single time a pair
+ * went off the window: the right-hand half is destroyed when the pair stops being
+ * drawn, and on the way out it still named its own tab, so the page in it read "my tab
+ * is the one I speak for" as "the address changed under me" and ended the document.
+ *
+ * Only the right-hand half, which is what made it look like a mystery rather than a
+ * rule: the left-hand pane is reused for whatever is shown next and has already been
+ * told it holds another tab by the time its page goes.
+ *
+ * Marked on the element itself rather than counted: a document that was rebuilt is a
+ * new node, and a mark put on the old one is the only thing a browser cannot fake.
+ */
+test('a pair of documents is still the same two documents when the reader comes back', async () => {
+  fs.mkdirSync(path.join(volume, 'Berth'), { recursive: true });
+  fs.writeFileSync(path.join(volume, 'Berth', 'sheet.md'), '# A sheet\n\nin a pane.\n');
+  fs.writeFileSync(path.join(volume, 'Berth', 'note.md'), '# A note\n\nbeside it.\n');
+
+  const strip = page.locator('[data-test="tab-strip"]');
+  const panes = page.locator('[data-test="tab-pane"]');
+  const entries = strip.locator('[data-test="tab"]');
+  const named = (title) => entries.filter({ has: page.locator(`[role="tab"][title="${title}"]`) });
+  const surfaces = page.locator('[data-test="preview-surface"]');
+
+  /** Every document on screen, marked where it stands. */
+  const mark = () =>
+    surfaces.evaluateAll((nodes) => nodes.map((node) => (node.dataset.witness = 'yes')).length);
+  const stillMarked = () =>
+    page.locator('[data-test="preview-surface"][data-witness="yes"]').count();
+
+  await page.goto('/settings/user-preferences');
+  const preference = page.locator('[data-test="browse-in-tabs"]');
+  await preference.click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(preference).toHaveAttribute('aria-checked', 'true');
+
+  try {
+    // A folder, and both documents opened in tabs behind it.
+    await page.goto('/browse/Projects/Berth');
+    await expect(panes).toHaveCount(1);
+    for (const name of ['sheet.md', 'note.md']) {
+      await page
+        .locator(`[title="${name}"]:not([role="tab"])`)
+        .first()
+        .dblclick({ modifiers: ['ControlOrMeta'] });
+      await expect(named(name)).toHaveCount(1);
+    }
+
+    // The pair is the two documents, with the folder left as an ordinary tab beside
+    // them — which is the arrangement the reader described: a double tab of
+    // documents, and a normal one to go to.
+    await named('sheet.md').getByRole('tab').click();
+    await named('note.md').getByRole('tab').click({ button: 'right' });
+    await page.locator('[data-test="tab-show-right"]').click();
+    await expect(panes).toHaveCount(2);
+
+    // Both are really showing: this is a preview of each file, not an empty half.
+    await expect(surfaces).toHaveCount(2);
+    await expect(surfaces.first()).toContainText('A sheet');
+    await expect(surfaces.last()).toContainText('A note');
+    expect(await mark()).toBe(2);
+
+    // Away to the ordinary tab, which takes both halves off the window, and back.
+    // A pair is one entry in the strip, named after both its halves, so coming back
+    // is that entry rather than either document's own.
+    const pair = entries.filter({ has: page.locator('[role="tab"][title*="sheet.md"]') });
+    await named('Berth').getByRole('tab').click();
+    await expect(panes).toHaveCount(1);
+    await pair.getByRole('tab').click();
+    await expect(panes).toHaveCount(2);
+
+    // The same two documents, not two new ones: the right-hand half used to come
+    // back as a fresh node every time, and with it a fresh editor.
+    await expect(surfaces).toHaveCount(2);
+    expect(await stillMarked()).toBe(2);
+    await expect(surfaces.last()).toContainText('A note');
+  } finally {
+    await page.goto('/settings/user-preferences');
+    await preference.click();
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(preference).toHaveAttribute('aria-checked', 'false');
+  }
+});
+
 test('the search index and folder sizes switch on from Settings, and the About page lists the tools', async () => {
   await page.goto('/settings/search-index');
   const indexSwitch = page.locator('[data-testid="search-index-switch"]');

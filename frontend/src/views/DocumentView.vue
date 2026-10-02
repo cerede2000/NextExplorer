@@ -1,7 +1,7 @@
 <script setup>
 import { usePaneRoute, usePaneTabId } from '@/composables/paneTab';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { usePageTitle } from '@/composables/usePageTitle';
 
@@ -36,6 +36,12 @@ import { isEditableExtension } from '@/config/editor';
  */
 
 const route = usePaneRoute();
+/**
+ * And where the *window* is, which is not where this page is whenever this page
+ * is the half beside the reader. Read on the way out, and only then — see the
+ * unmount hook, which is the one question an address alone can answer.
+ */
+const windowAddress = useRoute();
 const router = useRouter();
 const { t } = useI18n();
 const previewManager = usePreviewManager();
@@ -88,6 +94,12 @@ const tabs = tabNavigation.tabs;
  */
 const paneTabId = usePaneTabId();
 const tabKey = ref(paneTabId.value);
+
+/**
+ * The address this page is drawing, kept so that leaving can be told from being
+ * taken off screen.
+ */
+const shownAddress = ref(route.fullPath);
 
 /** Back where closing the panel would have left you. */
 const leave = () => {
@@ -230,14 +242,32 @@ onBeforeUnmount(() => {
   // It is not, when another tab simply came forward: this page goes, the tab
   // stays on its document, and the document goes on living in the manager —
   // which is what makes coming back to the tab instant rather than a fresh
-  // ONLYOFFICE connection. It is, when this tab is still the one in front, which
-  // means the address changed underneath it and the document is not what this
-  // tab holds any more.
+  // ONLYOFFICE connection. It is, when the address changed underneath this page
+  // and the document is not what its tab holds any more.
   //
   // And when the tab itself has gone there is nothing to do: the manager ended
   // the session the moment the tab did, beacon and all.
   if (!tabs.tabs.some((entry) => entry.id === tabKey.value)) return;
-  if (paneTabId.value !== tabKey.value) return;
+
+  // Only a tab in front can have been navigated — the window has one address, and
+  // it belongs to the tab the reader is in. So a page speaking for any other tab
+  // is a page being taken off screen, whatever took it: another tab coming
+  // forward, or the half it was drawn in being removed from the window.
+  //
+  // Deliberately `activeId` and not this pane's own tab, which is what it asked
+  // until now. Inside a pane that question answers itself — a pane always names
+  // its own tab, and a pane destroyed still names it on the way out, props and
+  // all. So the guard never guarded, and the half beside the reader ended its
+  // document every time the pair went off the window.
+  if (tabs.activeId !== tabKey.value) return;
+
+  // And a tab in front may be in front *because the reader just crossed into this
+  // half*: its address did not change, the pane simply redrew this page as the
+  // router's own screen. The window's address says which of the two it was — the
+  // router's own, already changed by the time anything is unmounted, rather than
+  // what the tab has been told since.
+  if (windowAddress.fullPath === shownAddress.value) return;
+
   if (previewManager.isOpenIn(tabKey.value)) void previewManager.closeIn(tabKey.value);
 });
 
@@ -251,8 +281,9 @@ onBeforeUnmount(() => {
  */
 watch(
   () => route.fullPath,
-  () => {
+  (address) => {
     tabKey.value = paneTabId.value;
+    shownAddress.value = address;
     void openDocument();
   }
 );

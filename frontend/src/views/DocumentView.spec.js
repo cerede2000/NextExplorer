@@ -14,6 +14,15 @@ import { reactive, ref } from 'vue';
  */
 
 const routePath = ref('Docs/report.docx');
+/**
+ * Where the *window* is, which is not always where this page is.
+ *
+ * The pane beside the reader draws an address the address bar says nothing about,
+ * and the two part company in the one case that matters here: a page taken off
+ * screen while its tab is still on its document. Left null it follows the page,
+ * which is the ordinary single-pane window.
+ */
+const windowPath = ref(null);
 const replace = vi.fn();
 const fetchPathItems = vi.fn(async () => {});
 const pluginsReady = vi.fn(async () => {});
@@ -93,7 +102,7 @@ vi.mock('vue-router', () => ({
     // The address, which is what says this page has changed hands: two tabs can
     // hold the same document, and crossing between them changes nothing else.
     get fullPath() {
-      return `/open/${routePath.value}`;
+      return `/open/${windowPath.value ?? routePath.value}`;
     },
   }),
   useRouter: () => ({ replace }),
@@ -184,6 +193,7 @@ beforeEach(() => {
   appTabs.activeId = 'tab-1';
   appTabs.tabs = [{ id: 'tab-1', own: false }];
   appTabs.pane = null;
+  windowPath.value = null;
   for (const key of Object.keys(sessions)) delete sessions[key];
   closeOwn.mockClear();
   closeOwn.mockReturnValue(false);
@@ -434,11 +444,83 @@ describe('leaving the page, and leaving the document', () => {
   it('lets go of the document when its tab is taken somewhere else', async () => {
     const wrapper = await show('Docs/Reports/report.docx');
 
-    // Still the tab in front, so the address changed underneath it: the document
-    // is over, and the plugin gets the time it needs rather than a beacon.
+    // Still the tab in front, and the window has gone to the folder: the address
+    // changed underneath this page, so the document is over — and the plugin gets
+    // the time it needs rather than a beacon.
+    windowPath.value = 'Docs/Reports';
     wrapper.unmount();
 
     expect(closeIn).toHaveBeenCalledWith('tab-1');
+  });
+
+  /**
+   * A half taken off the window is not a document closed.
+   *
+   * The pair is drawn while the reader is in one of its two tabs; going to any
+   * other tab takes both halves off the window, and the right-hand one is
+   * *destroyed* — its props go with it, so on the way out it still names its own
+   * tab. Asking "is this page's tab the one I am speaking for" therefore always
+   * answered yes, and the half ended the document it was holding. Coming back,
+   * ONLYOFFICE was built again from nothing: a new connection, the cursor gone,
+   * the undo history gone — "the document on the right reloads every time",
+   * exactly, and the left-hand one did not because its pane is reused and had
+   * already been told it holds another tab.
+   */
+  it('keeps its document when the pane it is drawn in goes off screen', async () => {
+    appTabs.enabled = true;
+    appTabs.activeId = 'tab-2';
+    appTabs.pane = 'tab-9';
+    appTabs.tabs = [
+      { id: 'tab-2', own: true },
+      { id: 'tab-9', own: true },
+    ];
+    const wrapper = await show('Docs/Reports/report.docx');
+
+    // The reader is in another tab entirely, and this half is taken away.
+    windowPath.value = 'Media';
+    wrapper.unmount();
+
+    expect(closeIn).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Nor is crossing into this half. The pane the reader is in draws the router's
+   * own screen and the one beside it resolves its own, so moving from one half to
+   * the other unmounts both pages — on the very document each tab is still on.
+   */
+  it('keeps its document when the reader crosses into its pane', async () => {
+    appTabs.enabled = true;
+    appTabs.activeId = 'tab-2';
+    appTabs.pane = 'tab-9';
+    appTabs.tabs = [
+      { id: 'tab-2', own: true },
+      { id: 'tab-9', own: true },
+    ];
+    const wrapper = await show('Docs/Reports/report.docx');
+
+    // This half comes forward: its tab is in front now, and the window's address
+    // followed to this very document.
+    appTabs.activeId = 'tab-9';
+    wrapper.unmount();
+
+    expect(closeIn).not.toHaveBeenCalled();
+  });
+
+  /** And the document does end when the reader takes that half somewhere else. */
+  it('lets go of the document when its own pane is taken somewhere else', async () => {
+    appTabs.enabled = true;
+    appTabs.activeId = 'tab-9';
+    appTabs.pane = 'tab-9';
+    appTabs.tabs = [
+      { id: 'tab-2', own: true },
+      { id: 'tab-9', own: true },
+    ];
+    const wrapper = await show('Docs/Reports/report.docx');
+
+    windowPath.value = 'Docs/Reports';
+    wrapper.unmount();
+
+    expect(closeIn).toHaveBeenCalledWith('tab-9');
   });
 
   it('keeps the document when another tab comes forward', async () => {
