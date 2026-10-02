@@ -1075,6 +1075,49 @@ describe('tabs grouped two at a time', () => {
     expect(store.panes).toEqual([first.id, second.id]);
   });
 
+  /**
+   * And looks past a neighbour that is spoken for.
+   *
+   * A lone tab between two pairs has neighbours that are both in one. Greying
+   * the entry out there is the same fault as greying it out on the tab in
+   * front: there is a tab to group with, it is one further along.
+   */
+  it('groups with the nearest tab that is not already in a pair', () => {
+    const store = withTabsOn();
+    const a = store.activeTab;
+    const b = store.open('/browse/B');
+    const middle = store.open('/browse/Middle');
+    const c = store.open('/browse/C');
+    const d = store.open('/browse/D');
+    const spare = store.open('/browse/Spare');
+
+    store.activate(a.id);
+    store.pair(b.id);
+    store.activate(c.id);
+    store.pair(d.id);
+
+    // Both of its neighbours are spoken for; the spare is three along.
+    store.activate(middle.id);
+    expect(store.canPair(middle.id)).toBe(true);
+    store.pair(middle.id);
+
+    expect(store.panes).toEqual([middle.id, spare.id]);
+  });
+
+  /** And refuses when there is genuinely nobody free to group with. */
+  it('offers nothing when every other tab is already in a pair', () => {
+    const store = withTabsOn();
+    const a = store.activeTab;
+    const b = store.open('/browse/B');
+    const lone = store.open('/browse/Lone');
+    store.activate(a.id);
+    store.pair(b.id);
+
+    store.activate(lone.id);
+
+    expect(store.canPair(lone.id)).toBe(false);
+  });
+
   it('offers nothing for a tab that is already in a pair', () => {
     const { store, second, third } = three();
     store.pair(second.id);
@@ -1091,6 +1134,42 @@ describe('tabs grouped two at a time', () => {
 
     expect(store.canPair(store.activeId)).toBe(false);
     expect(store.pair(store.activeId)).toBe(null);
+  });
+
+  /**
+   * What has nowhere to be drawn in a pane is refused on both sides.
+   *
+   * The panes are the browser layout's; a document and a shell are in no layout
+   * at all, deliberately, because each is the whole of what its tab holds. An
+   * entry that was offered and did nothing when pressed would be worse than one
+   * greyed out, which is the fault this whole feature started with.
+   */
+  it('refuses a tab whose kind cannot be drawn in a pane', () => {
+    const store = withTabsOn();
+    const folder = store.activeTab;
+    const document = store.open('/open/Docs/notes.md');
+
+    expect(store.canPair(document.id)).toBe(false);
+    expect(store.pair(document.id)).toBe(null);
+    expect(store.showInPane('right', document.id)).toBe(null);
+
+    // And from the other side: the folder has nobody it may be grouped with.
+    store.activate(folder.id);
+    expect(store.canPair(folder.id)).toBe(false);
+  });
+
+  /** It is also skipped when looking for the nearest tab that is free. */
+  it('looks past a tab that cannot be drawn in a pane', () => {
+    const store = withTabsOn();
+    const first = store.activeTab;
+    store.open('/open/Docs/notes.md');
+    const folder = store.open('/browse/Reachable');
+    store.activate(first.id);
+
+    expect(store.canPair(first.id)).toBe(true);
+    store.pair(first.id);
+
+    expect(store.panes).toEqual([first.id, folder.id]);
   });
 
   /** Several pairs at once, which is what belonging to the tabs buys. */

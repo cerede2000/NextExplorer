@@ -37,10 +37,14 @@ import {
  * reader returns. A folder is; the settings are not — somebody who closes the
  * browser on a settings page was not in the middle of anything there.
  *
- * `inPane` says whether this kind can be drawn in one half of a split view.
- * Everything can, including a shell — what draws one lives above every layout so
- * that it survives its tab going behind another, and it is told which panes are
- * on screen rather than which tab is in front.
+ * `inPane` says whether this kind can be drawn in one half of a split view, and
+ * what decides it is which layout its address is in: the panes are drawn by the
+ * browser layout, so a kind whose route sits outside it has nowhere to be drawn
+ * when its tab is the one in front. The editor, an earlier version and a
+ * comparison are in the editor's layout; a document and a shell are in no layout
+ * at all, deliberately — each of those is the whole of what its tab holds. Giving
+ * them a pane means moving the panes, and the sidebar with them, above every
+ * layout.
  */
 const TAB_KINDS = [
   {
@@ -55,7 +59,7 @@ const TAB_KINDS = [
   },
   {
     id: 'document',
-    inPane: true,
+    inPane: false,
     match: /^\/open([/?#]|$)/,
     icon: DocumentTextIcon,
     singleton: false,
@@ -66,7 +70,7 @@ const TAB_KINDS = [
     // tabs, which is the point: the drawer belongs to the window and can only
     // ever show one.
     id: 'terminal',
-    inPane: true,
+    inPane: false,
     match: /^\/terminal([/?#]|$)/,
     icon: CommandLineIcon,
     titleKey: 'titles.terminal',
@@ -85,7 +89,7 @@ const TAB_KINDS = [
     // stop somebody comparing another, which is the usual way of reviewing a change
     // across several files.
     id: 'compare',
-    inPane: true,
+    inPane: false,
     match: /^\/compare([/?#]|$)/,
     icon: ArrowsRightLeftIcon,
     titleKey: 'compare.title',
@@ -97,7 +101,7 @@ const TAB_KINDS = [
   },
   {
     id: 'editor',
-    inPane: true,
+    inPane: false,
     match: /^\/editor([/?#]|$)/,
     icon: CodeBracketIcon,
     singleton: false,
@@ -123,7 +127,7 @@ const TAB_KINDS = [
   },
   {
     id: 'versions',
-    inPane: true,
+    inPane: false,
     match: /^\/versions([/?#]|$)/,
     icon: ClockIcon,
     titleKey: 'settings.fileVersions.title',

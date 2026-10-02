@@ -2324,10 +2324,11 @@ test('tabs keep two folders open, and the middle button opens one behind', async
  * to be told nothing, because with one pane the destination was never on screen.
  */
 test('two folders sit side by side, and a file is dragged across', async () => {
-  for (const name of ['Ship', 'Dock', 'Depot', 'Yard', 'Alone']) {
+  for (const name of ['Ship', 'Dock', 'Depot', 'Yard', 'Alone', 'Spare']) {
     fs.mkdirSync(path.join(volume, name), { recursive: true });
   }
   fs.writeFileSync(path.join(volume, 'Ship', 'crate.txt'), 'dragged across\n');
+  fs.writeFileSync(path.join(volume, 'leaflet.md'), '# A leaflet\n\nin a pane.\n');
 
   const strip = page.locator('[data-test="tab-strip"]');
   const panes = page.locator('[data-test="tab-pane"]');
@@ -2344,7 +2345,7 @@ test('two folders sit side by side, and a file is dragged across', async () => {
 
   // A tab for each folder, the extra ones opened behind so the reader stays put.
   await page.goto('/browse/Projects');
-  for (const name of ['Dock', 'Depot', 'Yard', 'Alone']) {
+  for (const name of ['Dock', 'Depot', 'Yard', 'Alone', 'Spare']) {
     await expect(page.locator(`[title="${name}"]:not([role="tab"])`).first()).toBeVisible();
     await page
       .locator(`[title="${name}"]:not([role="tab"])`)
@@ -2448,11 +2449,33 @@ test('two folders sit side by side, and a file is dragged across', async () => {
   // And whoever was there is an ordinary tab again rather than closed.
   await expect(entries.filter({ has: page.locator('[role="tab"][title="Dock"]') })).toHaveCount(1);
 
+  // What cannot be in a pane says so rather than being offered and doing
+  // nothing: the panes are drawn by the browser layout, and a document is in no
+  // layout at all — that is what makes it the whole of what its tab holds.
+  // Two folders that are both on their own, grouped from the menu.
+  await entryFor('Spare').getByRole('tab').click();
+  await expect(panes).toHaveCount(1);
+  await entryFor('Dock').getByRole('tab').click({ button: 'right' });
+  await page.locator('[data-test="tab-show-right"]').click();
+  await expect(panes).toHaveCount(2);
+
   // The cross on a pane closes that pane and leaves the other.
   await page.locator('[data-test="pane-close"]').last().click();
   await expect(panes).toHaveCount(1);
   await expect(page.locator('[data-test="pane-header"]')).toHaveCount(0);
-  await expect(page).toHaveURL(/\/browse\/Projects\/Ship$/);
+  // The pane that stays is the one the reader is left in, which is the whole of
+  // what a cross on a pane means.
+  await expect(page).toHaveURL(/\/browse\/Projects\/Spare$/);
+
+  // What cannot be in a pane says so rather than being offered and doing
+  // nothing: the panes are drawn by the browser layout, and a document is in no
+  // layout at all — which is what makes it the whole of what its tab holds.
+  await page.goto('/open/Projects/leaflet.md');
+  await expect(panes).toHaveCount(0);
+  const docEntry = entryFor('leaflet.md');
+  await expect(docEntry).toHaveCount(1);
+  await docEntry.getByRole('tab').click({ button: 'right' });
+  await expect(page.locator('[data-test="tab-show-right"]')).toBeDisabled();
 
   await page.goto('/settings/user-preferences');
   await preference.click();

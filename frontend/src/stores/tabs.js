@@ -375,6 +375,20 @@ export const useTabsStore = defineStore('tabs', () => {
   };
 
   /**
+   * Whether a tab can be drawn in a pane at all.
+   *
+   * Which is decided by the layout its address is in: the panes are the browser
+   * layout's, so a kind whose route sits outside it — a document, a shell, the
+   * editor, a comparison — has nowhere to be drawn when its tab is the one in
+   * front. Said here so that the entry offering it is greyed out rather than
+   * doing nothing when pressed.
+   */
+  const fitsInPane = (id) => {
+    const tab = tabs.value.find((one) => one.id === id);
+    return TAB_KINDS_BY_ID[tab?.kind]?.inPane === true;
+  };
+
+  /**
    * Who a tab would be grouped with, asked by the one entry that offers it.
    *
    * The tab in front, normally: "show this one beside where I am". And its
@@ -384,15 +398,34 @@ export const useTabsStore = defineStore('tabs', () => {
    */
   const partnerFor = (id) => {
     if (id !== activeId.value) return activeId.value;
+    // The nearest tab that is not already in a pair, looked for outwards from
+    // where this one sits. The immediate neighbour is not enough: a lone tab
+    // between two pairs has neighbours that are both spoken for, and greying the
+    // entry out there is the same fault as greying it out on the tab in front —
+    // there *is* a tab to group with, it is simply one further along.
     const at = tabs.value.findIndex((tab) => tab.id === id);
-    return (tabs.value[at + 1] || tabs.value[at - 1])?.id || '';
+    if (at < 0) return '';
+    for (let step = 1; step < tabs.value.length; step += 1) {
+      for (const candidate of [tabs.value[at + step], tabs.value[at - step]]) {
+        if (
+          candidate &&
+          candidate.id !== id &&
+          !isPaired(candidate.id) &&
+          fitsInPane(candidate.id)
+        ) {
+          return candidate.id;
+        }
+      }
+    }
+    return '';
   };
 
-  /** Whether this tab can be grouped: one pair each, and two different tabs. */
+  /** Whether this tab can be grouped: one pair each, and two that both fit. */
   const canPair = (id) => {
     if (!tabs.value.some((tab) => tab.id === id) || isPaired(id)) return false;
+    if (!fitsInPane(id)) return false;
     const partner = partnerFor(id);
-    return Boolean(partner) && partner !== id && !isPaired(partner);
+    return Boolean(partner) && partner !== id && !isPaired(partner) && fitsInPane(partner);
   };
 
   /**
@@ -430,7 +463,7 @@ export const useTabsStore = defineStore('tabs', () => {
    * the strip readable.
    */
   const showInPane = (side, id) => {
-    if (!tabs.value.some((tab) => tab.id === id)) return null;
+    if (!tabs.value.some((tab) => tab.id === id) || !fitsInPane(id)) return null;
     const here = pairOf(activeId.value);
     const keep = here ? (side === 'right' ? here.left : here.right) : activeId.value;
     if (!keep || keep === id) return null;
