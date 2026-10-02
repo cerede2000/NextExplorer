@@ -93,6 +93,22 @@ export const useFileStore = defineStore('fileStore', () => {
   const active = computed(() => ensureFolder(tabsStore.activeId));
 
   /**
+   * A named tab's folder, for a screen that is not the one in front.
+   *
+   * Everything above reads `active`, which is right for the window: the
+   * clipboard, the operations and the toolbar all act on whichever tab the
+   * reader is in. A pane in a split view is different — it draws a *place*, and
+   * the place it draws is its own tab whether or not that tab has focus. A pane
+   * reading `active` drew whichever tab had just been clicked, which is the same
+   * fault a folder's scroll position hit before tabs had folders of their own.
+   *
+   * Handed out as the folder itself rather than as copies of its refs: the pane
+   * wants the listing, the selection and the rename that belong to that tab, and
+   * they already live together.
+   */
+  const folderFor = (id) => ensureFolder(id || tabsStore.activeId);
+
+  /**
    * One of the folder's own refs, as the store has always exposed it.
    *
    * Writable, because it always was: `fileStore.currentPathItems = […]` is what
@@ -231,6 +247,7 @@ export const useFileStore = defineStore('fileStore', () => {
   }
 
   return {
+    folderFor,
     currentPath,
     getCurrentPath,
     setCurrentPath,
