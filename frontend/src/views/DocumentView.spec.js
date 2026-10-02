@@ -48,6 +48,9 @@ const appTabs = vi.hoisted(() => ({
   enabled: false,
   activeId: 'tab-1',
   tabs: [{ id: 'tab-1', own: false }],
+  // The tab of the pane this page is drawn in. Null is the ordinary case — one
+  // pane, which is the tab in front. Set by the tests about a pair.
+  pane: null,
 }));
 const closeOwn = vi.fn(() => false);
 vi.mock('@/composables/tabNavigation', () => ({
@@ -56,6 +59,29 @@ vi.mock('@/composables/tabNavigation', () => ({
       return appTabs;
     },
     closeOwn: (...args) => closeOwn(...args),
+  }),
+}));
+
+/**
+ * The pane's own address, which is where a screen reads its place from now: in a
+ * pair only one pane is the route, and a screen that read the window's address
+ * drew somebody else's place. The same route this spec already states.
+ */
+vi.mock('@/composables/paneTab', () => ({
+  // The tab of the pane this page is drawn in, which with one pane is the tab in
+  // front — and in a pair is this page's own half, whoever has focus.
+  usePaneTabId: () => ({
+    get value() {
+      return appTabs.pane || appTabs.activeId;
+    },
+  }),
+  usePaneRoute: () => ({
+    get params() {
+      return { path: routePath.value };
+    },
+    get fullPath() {
+      return `/open/${routePath.value}`;
+    },
   }),
 }));
 
@@ -157,6 +183,7 @@ beforeEach(() => {
   appTabs.enabled = false;
   appTabs.activeId = 'tab-1';
   appTabs.tabs = [{ id: 'tab-1', own: false }];
+  appTabs.pane = null;
   for (const key of Object.keys(sessions)) delete sessions[key];
   closeOwn.mockClear();
   closeOwn.mockReturnValue(false);
@@ -186,6 +213,30 @@ describe('opening a document at its own address', () => {
     await show('Docs/Reports/report.docx');
 
     expect(openIn).toHaveBeenCalledWith('tab-1', { name: 'report.docx', path: 'Docs/Reports' });
+  });
+
+  /**
+   * And it opens it in the tab of the pane it is drawn in, which is not always
+   * the tab in front.
+   *
+   * A document beside a folder is this page drawn in the half the reader is *not*
+   * in. Asking which tab is in front answered the neighbour: the document was
+   * opened into the folder tab's session, and the viewer — which is placed from
+   * the box of the tab it belongs to — drew it over the folder.
+   */
+  it('opens it in its own pane tab, not in the tab in front', async () => {
+    appTabs.enabled = true;
+    appTabs.activeId = 'tab-1';
+    appTabs.tabs = [
+      { id: 'tab-1', own: false },
+      { id: 'tab-2', own: false },
+    ];
+    appTabs.pane = 'tab-2';
+
+    await show('Docs/Reports/report.docx');
+
+    expect(openIn).toHaveBeenCalledWith('tab-2', { name: 'report.docx', path: 'Docs/Reports' });
+    expect(sessions['tab-1']).toBeUndefined();
   });
 
   it('names its browser tab after the document, and the instance', async () => {

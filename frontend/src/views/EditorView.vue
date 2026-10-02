@@ -193,8 +193,9 @@
 </template>
 
 <script setup>
+import { usePaneRoute, usePaneTabId } from '@/composables/paneTab';
 import { ref, shallowRef, watch, computed, nextTick, onBeforeUnmount } from 'vue';
-import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
+import { onBeforeRouteLeave, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { Compartment, EditorState } from '@codemirror/state';
 import CodeSurface from '@/components/editor/CodeSurface.vue';
@@ -229,7 +230,7 @@ import { useAsk } from '@/composables/useAsk';
 import { useEditorDraftsStore } from '@/stores/editorDrafts';
 import { useTabLoadingStore } from '@/stores/tabLoading';
 
-const route = useRoute();
+const route = usePaneRoute();
 const router = useRouter();
 const tabNavigation = useTabNavigation();
 const { ask } = useAsk();
@@ -248,8 +249,14 @@ const drafts = useEditorDraftsStore();
  *
  * So it changes hands when the address does, and only then: read on the way out it
  * would already name whichever tab had come forward.
+ *
+ * And it is the tab of the *pane* this page is drawn in, which is the tab in front
+ * only when there is one pane. In a pair this page can be the half beside the
+ * reader — a file open next to a folder — and "the tab in front" is then the
+ * neighbour, so what had been typed here was kept for the neighbour.
  */
-const tabKey = ref(tabs.activeId);
+const paneTabId = usePaneTabId();
+const tabKey = ref(paneTabId.value);
 const tabLoading = useTabLoadingStore();
 
 /**
@@ -485,9 +492,9 @@ const placeNow = () => ({
 const handOver = (key, address) => {
   // Gone with its tab: nothing to hold it for.
   if (!key || !tabs.tabs.some((entry) => entry.id === key)) return;
-  // Still the tab in front, so the address changed underneath it: this file is
-  // not what the tab is on any more.
-  if (tabs.activeId === key) {
+  // Still the tab this page speaks for, so the address changed underneath it: this
+  // file is not what the tab is on any more.
+  if (paneTabId.value === key) {
     drafts.forget(key);
     return;
   }
@@ -509,7 +516,7 @@ watch(
   () => route.fullPath,
   () => {
     handOver(tabKey.value, shownAddress.value);
-    tabKey.value = tabs.activeId;
+    tabKey.value = paneTabId.value;
   }
 );
 

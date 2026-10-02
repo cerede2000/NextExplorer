@@ -14,6 +14,28 @@ import { ref } from 'vue';
  */
 
 const routePath = ref('Docs/2026');
+
+/**
+ * The pane's own address, which is where a screen reads its place from now: in a
+ * pair only one pane is the route, and a screen that read the window's address
+ * drew somebody else's place. The same route this spec already states.
+ */
+const paneTab = vi.hoisted(() => ({ id: 'tab-1' }));
+vi.mock('@/composables/paneTab', () => ({
+  usePaneRoute: () => ({
+    get params() {
+      return { path: routePath.value };
+    },
+  }),
+  // And the tab of the pane it is drawn in, which is the tab in front only when
+  // there is one pane.
+  usePaneTabId: () => ({
+    get value() {
+      return paneTab.id;
+    },
+  }),
+}));
+
 vi.mock('vue-router', () => ({
   useRoute: () => ({
     get params() {
@@ -33,9 +55,6 @@ vi.mock('@/stores/appSettings', () => ({
   useAppSettings: () => ({ state: { branding: { appName: 'Chez Benjy' } } }),
 }));
 
-const tabsStore = vi.hoisted(() => ({ activeId: 'tab-1' }));
-vi.mock('@/stores/tabs', () => ({ useTabsStore: () => tabsStore }));
-
 const openIn = vi.hoisted(() => vi.fn());
 vi.mock('@/stores/terminal', () => ({ useTerminalStore: () => ({ openIn }) }));
 
@@ -48,7 +67,7 @@ const show = (path = 'Docs/2026') => {
 
 beforeEach(() => {
   openIn.mockClear();
-  tabsStore.activeId = 'tab-1';
+  paneTab.id = 'tab-1';
 });
 
 describe('a terminal that is a whole tab', () => {
@@ -84,6 +103,23 @@ describe('a terminal that is a whole tab', () => {
     await wrapper.vm.$nextTick();
 
     expect(openIn).toHaveBeenLastCalledWith('tab-1', 'Media', { mode: 'page' });
+  });
+
+  /**
+   * And it asks in the tab of the pane it is drawn in, not in the tab in front.
+   *
+   * A shell beside a folder is this page drawn in the half the reader is *not* in.
+   * Asking for the tab in front gave the session to the neighbour — the folder tab
+   * — so the folder tab owned a shell it never showed, and the half holding the
+   * shell drew this page's dark ground and nothing else. Which is "the terminal
+   * does not work in two tabs side by side", exactly.
+   */
+  it('asks in its own pane tab, not in the tab in front', () => {
+    paneTab.id = 'tab-2';
+
+    show('Docs/2026');
+
+    expect(openIn).toHaveBeenCalledWith('tab-2', 'Docs/2026', { mode: 'page' });
   });
 
   /** And it draws no terminal itself: that is what keeps the shell alive. */

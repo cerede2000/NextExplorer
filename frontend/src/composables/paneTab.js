@@ -1,4 +1,5 @@
 import { computed, inject, provide, reactive } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useTabsStore } from '@/stores/tabs';
 import { useFileStore } from '@/stores/fileStore';
 import { tabFolderPath } from '@/config/tabKinds';
@@ -102,4 +103,51 @@ export const usePaneFolder = () => {
     /** Whether the reader is in this pane, which is what makes it act. */
     focused: computed(() => tabId.value === tabsStore.activeId),
   };
+};
+
+/**
+ * The address this component's pane is on, in the shape the router hands over.
+ *
+ * A screen reads its own place from the router — `route.params.path` is how a
+ * folder, an editor and a document all know what they are showing. In a pair
+ * only one pane is the route, so the other read the window's address and drew
+ * somebody else's place: the editor opened the folder in the pane beside it and
+ * said it could not open a directory, and the shell beside a folder drew nothing
+ * because the window's address was not a shell's.
+ *
+ * Shaped like a route and `reactive`, so a screen swaps `useRoute()` for this and
+ * nothing else about it changes. Guards and navigation keep using the real
+ * router, which is right: only the pane the reader is in is the address.
+ */
+export const usePaneRoute = () => {
+  const provided = inject(PANE_TAB, null);
+  const route = useRoute();
+  const router = useRouter();
+  const tabsStore = useTabsStore();
+
+  const resolved = computed(() => {
+    const id = provided?.value;
+    // The pane the reader is in *is* the route: its own params, its own guards,
+    // and whatever the router knows that an address alone does not.
+    if (!id || id === tabsStore.activeId) return route;
+    const tab = tabsStore.tabs.find((one) => one.id === id);
+    if (!tab?.path) return route;
+    try {
+      return router.resolve(tab.path);
+    } catch (_) {
+      // An address no route claims leaves the screen reading the window's, which
+      // is what it did before panes existed.
+      return route;
+    }
+  });
+
+  return reactive({
+    path: computed(() => resolved.value.path),
+    fullPath: computed(() => resolved.value.fullPath),
+    params: computed(() => resolved.value.params),
+    query: computed(() => resolved.value.query),
+    hash: computed(() => resolved.value.hash),
+    name: computed(() => resolved.value.name),
+    meta: computed(() => resolved.value.meta),
+  });
 };

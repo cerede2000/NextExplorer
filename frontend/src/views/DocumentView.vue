@@ -1,6 +1,7 @@
 <script setup>
+import { usePaneRoute, usePaneTabId } from '@/composables/paneTab';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { usePageTitle } from '@/composables/usePageTitle';
 
@@ -34,7 +35,7 @@ import { isEditableExtension } from '@/config/editor';
  *   says when it is over.
  */
 
-const route = useRoute();
+const route = usePaneRoute();
 const router = useRouter();
 const { t } = useI18n();
 const previewManager = usePreviewManager();
@@ -78,8 +79,15 @@ const tabs = tabNavigation.tabs;
  * So it is re-read whenever the address changes, which is the only moment it can
  * change hands. Never in between: read on the way out it would already name
  * whichever tab had come forward, and the session ended would be somebody else's.
+ *
+ * And it is the tab of the *pane* this page is drawn in, which is the tab in front
+ * only when there is one pane. In a pair this page can be the half beside the
+ * reader — a document next to a folder — and "the tab in front" is then the
+ * neighbour: the document was opened into the neighbour's session and drawn over
+ * the neighbour's half of the window.
  */
-const tabKey = ref(tabs.activeId);
+const paneTabId = usePaneTabId();
+const tabKey = ref(paneTabId.value);
 
 /** Back where closing the panel would have left you. */
 const leave = () => {
@@ -207,7 +215,7 @@ watch(
     // document I was showing has gone" and sent the reader to a folder.
     if (key !== wasKey) return;
     if (!wasOpen || open) return;
-    if (tabs.activeId !== key) return;
+    if (paneTabId.value !== key) return;
     closeTabOrLeave();
   }
 );
@@ -229,7 +237,7 @@ onBeforeUnmount(() => {
   // And when the tab itself has gone there is nothing to do: the manager ended
   // the session the moment the tab did, beacon and all.
   if (!tabs.tabs.some((entry) => entry.id === tabKey.value)) return;
-  if (tabs.activeId !== tabKey.value) return;
+  if (paneTabId.value !== tabKey.value) return;
   if (previewManager.isOpenIn(tabKey.value)) void previewManager.closeIn(tabKey.value);
 });
 
@@ -244,7 +252,7 @@ onBeforeUnmount(() => {
 watch(
   () => route.fullPath,
   () => {
-    tabKey.value = tabs.activeId;
+    tabKey.value = paneTabId.value;
     void openDocument();
   }
 );

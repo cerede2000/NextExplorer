@@ -45,6 +45,23 @@ vi.mock('@/api', () => ({
 
 const router = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn() }));
 
+/**
+ * The pane's own address, which is where a screen reads its place from now.
+ *
+ * In a pair only one pane is the route, so a screen that read the window's
+ * address drew somebody else's place. Standing in for it with the same route
+ * this spec already states: what the pane decides is held in
+ * `composables/paneTab.spec.js`; what is exercised here is this screen.
+ */
+vi.mock('@/composables/paneTab', () => ({
+  usePaneRoute: () => shared.objects.route,
+  usePaneTabId: () => ({
+    get value() {
+      return appTabs.pane || appTabs.activeId;
+    },
+  }),
+}));
+
 vi.mock('vue-router', async () => {
   const { reactive } = await import('vue');
   shared.objects.route = reactive({
@@ -66,7 +83,9 @@ vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key) => key }) }));
 // may be closed is `tabNavigation`'s, with its own spec, so what is asked here is
 // that this view asks it, and asks it before offering the window to the browser.
 const closeOwn = vi.fn(() => false);
-const appTabs = vi.hoisted(() => ({ activeId: 'tab-1', tabs: [{ id: 'tab-1' }] }));
+// `pane` is the tab of the pane this page is drawn in: null for the ordinary case
+// of one pane, which is the tab in front.
+const appTabs = vi.hoisted(() => ({ activeId: 'tab-1', tabs: [{ id: 'tab-1' }], pane: null }));
 /**
  * What the application asks, in its own dialog rather than the browser's box. Answers
  * with a promise, as the real one does: it is part of the page, so it cannot answer
@@ -298,6 +317,7 @@ beforeEach(() => {
   closeOwn.mockClear();
   closeOwn.mockReturnValue(false);
   appTabs.activeId = 'tab-1';
+  appTabs.pane = null;
   appTabs.tabs = [{ id: 'tab-1' }];
   drafts.clear();
   vi.spyOn(window, 'close').mockImplementation(() => {});
@@ -1168,6 +1188,34 @@ describe('what a tab holds on to', () => {
       address: '/editor/Docs/notes.md',
       text: 'half a sentence',
     });
+  });
+
+  /**
+   * And keeps it for the tab of the pane it was drawn in, not for the tab in front.
+   *
+   * A file open beside a folder is this page drawn in the half the reader is *not*
+   * in. "The tab in front" is then the neighbour — so half a sentence typed in the
+   * editor pane was kept for the folder tab, and the editor's own tab came back to
+   * nothing.
+   */
+  it('keeps it for its own pane tab, not for the tab in front', async () => {
+    appTabs.tabs = [{ id: 'tab-1' }, { id: 'tab-9' }];
+    appTabs.activeId = 'tab-9';
+    appTabs.pane = 'tab-1';
+
+    const view = await mountEditor();
+    await type(view, 'half a sentence');
+
+    // The pane is given another tab: this page is not speaking for tab-1 any more,
+    // so what was typed is kept for it.
+    appTabs.pane = 'tab-9';
+    wrapper.unmount();
+
+    expect(drafts.get('tab-1')).toMatchObject({
+      address: '/editor/Docs/notes.md',
+      text: 'half a sentence',
+    });
+    expect(drafts.get('tab-9')).toBeFalsy();
   });
 
   /**

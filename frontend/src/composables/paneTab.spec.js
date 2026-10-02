@@ -3,7 +3,9 @@ import { createPinia, setActivePinia } from 'pinia';
 import { defineComponent, h, ref } from 'vue';
 import { mount } from '@vue/test-utils';
 
-import { providePaneTab, usePaneFolder, usePaneTabId } from './paneTab';
+import { createMemoryHistory, createRouter } from 'vue-router';
+
+import { providePaneTab, usePaneFolder, usePaneRoute, usePaneTabId } from './paneTab';
 import { useTabsStore } from '@/stores/tabs';
 import { useFileStore } from '@/stores/fileStore';
 
@@ -143,5 +145,120 @@ describe('the tab a pane draws', () => {
 
     expect(seen.pane.folder.value).toBe(fileStore.folderFor(second.id));
     expect(seen.pane.folder.value).not.toBe(fileStore.folderFor(first.id));
+  });
+});
+
+/**
+ * A window that has a router, because an address is what this one is about.
+ *
+ * The few addresses these panes are on, shaped as the application shapes them,
+ * so `params.path` means here what it means to a screen.
+ */
+const windowAt = async (address) => {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: ['/browse/:path(.*)*', '/editor/:path(.*)*', '/open/:path(.*)*'].map((path) => ({
+      path,
+      component: defineComponent({ setup: () => () => h('div') }),
+    })),
+  });
+  await router.push(address);
+  await router.isReady();
+  return router;
+};
+
+/** A pane with a child that reads its address, inside a window at `address`. */
+const paneReadingAddress = async (tabId, address) => {
+  const router = await windowAt(address);
+  const seen = {};
+  const Child = defineComponent({
+    setup() {
+      seen.route = usePaneRoute();
+      return () => h('div');
+    },
+  });
+  const Pane = defineComponent({
+    setup() {
+      providePaneTab(tabId);
+      return () => h(Child);
+    },
+  });
+  mount(Pane, { global: { plugins: [router] } });
+  return seen;
+};
+
+describe('the address a pane reads', () => {
+  /**
+   * The case the whole thing exists for: the pane beside the reader.
+   *
+   * A screen asks the router where it is, and in a pair only one pane is the
+   * router's answer — so the other one drew somebody else's place. With a folder
+   * in front and the editor beside it, the editor was handed the folder's address
+   * and refused it: "Cannot open a directory in the text editor", over a file it
+   * had been opened on.
+   */
+  it('is its own tab, while another tab is the window', async () => {
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    const folder = tabs.tabs[0];
+    const editing = tabs.open('/editor/Docs/notes.txt');
+    tabs.activate(folder.id);
+
+    const seen = await paneReadingAddress(ref(editing.id), '/browse/Docs');
+
+    expect(seen.route.path).toBe('/editor/Docs/notes.txt');
+    expect(seen.route.params.path).toEqual(['Docs', 'notes.txt']);
+  });
+
+  /** And follows its own tab, because a pane can be given another one. */
+  it('changes when the pane is given another tab', async () => {
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    const folder = tabs.tabs[0];
+    const editing = tabs.open('/editor/Docs/notes.txt');
+    const reading = tabs.open('/open/Docs/report.docx');
+    tabs.activate(folder.id);
+
+    const held = ref(editing.id);
+    const seen = await paneReadingAddress(held, '/browse/Docs');
+    expect(seen.route.path).toBe('/editor/Docs/notes.txt');
+
+    held.value = reading.id;
+    expect(seen.route.path).toBe('/open/Docs/report.docx');
+  });
+
+  /**
+   * The pane the reader is in is the router itself, and not a re-resolution of
+   * its address.
+   *
+   * That pane is where navigation lands, where a guard ran, and where anything
+   * the router knows beyond the address still holds.
+   */
+  it('is the window itself, in the pane the reader is in', async () => {
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    const editing = tabs.open('/editor/Docs/notes.txt');
+
+    const seen = await paneReadingAddress(ref(editing.id), '/browse/Elsewhere?sort=name');
+
+    expect(seen.route.path).toBe('/browse/Elsewhere');
+    expect(seen.route.query).toEqual({ sort: 'name' });
+  });
+
+  /** Outside any pane it is the window, which is every screen that is not one. */
+  it('is the window where no pane has said otherwise', async () => {
+    const router = await windowAt('/browse/Docs?sort=name');
+    const seen = {};
+    mount(
+      defineComponent({
+        setup() {
+          seen.route = usePaneRoute();
+          return () => h('div');
+        },
+      }),
+      { global: { plugins: [router] } }
+    );
+
+    expect(seen.route.fullPath).toBe('/browse/Docs?sort=name');
   });
 });

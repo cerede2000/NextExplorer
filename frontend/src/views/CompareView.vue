@@ -1,6 +1,7 @@
 <script setup>
+import { usePaneRoute, usePaneTabId } from '@/composables/paneTab';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
+import { onBeforeRouteLeave, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
   ArrowDownIcon,
@@ -55,7 +56,7 @@ import { useAsk } from '@/composables/useAsk';
  * exercise: replace those lines on that side, and every row, every difference, every
  * count and the position in the row of them is recomputed from that.
  */
-const route = useRoute();
+const route = usePaneRoute();
 const router = useRouter();
 const { t } = useI18n();
 const tabsStore = useTabsStore();
@@ -71,9 +72,15 @@ const { ask } = useAsk();
  * crossing between two comparison tabs never unmounts anything, because both
  * addresses match the same route, so a tab captured at setup goes stale the moment
  * the reader crosses from one comparison to another.
+ *
+ * And it is the tab of the *pane* this screen is drawn in. With one pane that is
+ * the tab in front; in a pair this screen can be the half beside the reader, and
+ * the tab in front is then the neighbour — so a comparison in the other half was
+ * kept for, and restored into, somebody else's tab.
  */
 const held = useCompareSessionsStore();
-const ownTabId = ref(tabsStore.activeId);
+const paneTabId = usePaneTabId();
+const ownTabId = ref(paneTabId.value);
 /** The address this screen is showing, which is what a kept comparison belongs to. */
 const shownAddress = ref('');
 const wantedSides = computed(() => comparedSides(route.query));
@@ -141,9 +148,9 @@ const mapPinned = ref(false);
 const handOver = (key, address) => {
   // Gone with its tab: nothing to hold it for.
   if (!key || !tabsStore.tabs.some((entry) => entry.id === key)) return;
-  // Still the tab in front, so the address changed underneath it: this comparison is
-  // not what the tab is on any more.
-  if (tabsStore.activeId === key) {
+  // Still the tab this screen speaks for, so the address changed underneath it:
+  // this comparison is not what the tab is on any more.
+  if (paneTabId.value === key) {
     held.forget(key);
     return;
   }
@@ -242,7 +249,7 @@ watch(
       return;
     }
     handOver(ownTabId.value, shownAddress.value);
-    ownTabId.value = tabsStore.activeId;
+    ownTabId.value = paneTabId.value;
     void load();
   }
 );
