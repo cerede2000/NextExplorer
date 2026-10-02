@@ -1077,6 +1077,8 @@
     "moveRight": "Mută la dreapta",
     "duplicate": "Duplică tabul",
     "showOnRight": "Afișează în dreapta",
+    "unfoldPair": "Afișează ambele jumătăți",
+    "ungroup": "Anulează gruparea",
     "closeSplit": "Închide acest panou",
     "resizeSplit": "Redimensionează panourile",
     "pin": "Fixează tabul",

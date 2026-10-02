@@ -1077,6 +1077,8 @@
     "moveRight": "Nach rechts verschieben",
     "duplicate": "Tab duplizieren",
     "showOnRight": "Rechts anzeigen",
+    "unfoldPair": "Beide Hälften anzeigen",
+    "ungroup": "Gruppierung aufheben",
     "closeSplit": "Diesen Bereich schließen",
     "resizeSplit": "Bereiche in der Größe ändern",
     "pin": "Tab anheften",

@@ -120,13 +120,14 @@ export const useTabsStore = defineStore('tabs', () => {
   };
   const ACTIVE_KEY = 'settings:tabs:active';
   /**
-   * Which two tabs were side by side, so a split view is still split next time.
+   * Which tabs were grouped two at a time, so a pair is still a pair next time.
    *
-   * Validated rather than trusted on the way back in: a pane naming a tab that
-   * did not come back — closed, or not kept — would be a pane with nothing in
-   * it, and the view would be split around an empty half.
+   * Validated rather than trusted on the way back in: a pair naming a tab that
+   * did not come back — closed, or not kept — would be half a screen with
+   * nothing to draw in it, and a tab named by two pairs would be in two places
+   * at once.
    */
-  const PANES_KEY = 'settings:tabs:panes';
+  const PAIRS_KEY = 'settings:tabs:pairs';
 
   const read = (key, fallback) => {
     try {
@@ -234,30 +235,33 @@ export const useTabsStore = defineStore('tabs', () => {
   );
 
   /**
-   * The two panes of a split view, named. '' in `rightId` means one pane.
+   * Tabs grouped two at a time, drawn side by side.
    *
-   * Declared here, above everything that reads them, rather than beside the rest
-   * of the split: `activate` reads them, and a `const` read before its line has
-   * run throws — the kind of fault that is swallowed whole when it happens
-   * inside a store being created.
+   * A pair belongs to the *tabs*, not to the window, which is what lets several
+   * of them exist at once: the strip holds one entry per pair beside as many
+   * lone tabs as somebody wants, and choosing an entry shows whatever that entry
+   * is. Nothing about a tab changes by being in one — it keeps its own listing,
+   * its own selection, its own trail — so everything already keyed by tab id
+   * stays keyed by tab id, and two tabs drawn at once is the only new idea.
+   *
+   * Declared above everything that reads them: a `const` read before its line
+   * has run throws, and a throw inside a store being created is swallowed whole.
    */
-  const leftId = ref('');
-  const rightId = ref('');
+  const pairs = ref([]);
 
-  const rememberedPanes = read(PANES_KEY, null);
-  if (
-    rememberedPanes &&
-    rememberedPanes.right &&
-    rememberedPanes.left !== rememberedPanes.right &&
-    tabs.value.some((tab) => tab.id === rememberedPanes.left) &&
-    tabs.value.some((tab) => tab.id === rememberedPanes.right)
-  ) {
-    leftId.value = rememberedPanes.left;
-    rightId.value = rememberedPanes.right;
-    // The reader comes back into one of the two panes, not beside them.
-    if (activeId.value !== leftId.value && activeId.value !== rightId.value) {
-      activeId.value = leftId.value;
-    }
+  // What was grouped last time, kept only where both halves came back and no tab
+  // is named twice.
+  {
+    const remembered = read(PAIRS_KEY, []);
+    const here = new Set(tabs.value.map((tab) => tab.id));
+    const taken = new Set();
+    pairs.value = (Array.isArray(remembered) ? remembered : []).filter((one) => {
+      if (!one || !here.has(one.left) || !here.has(one.right)) return false;
+      if (one.left === one.right || taken.has(one.left) || taken.has(one.right)) return false;
+      taken.add(one.left);
+      taken.add(one.right);
+      return true;
+    });
   }
 
   /** Whether this account asked for tabs at all. Set from the settings, not read. */
@@ -294,7 +298,7 @@ export const useTabsStore = defineStore('tabs', () => {
       }))
     );
     write(ACTIVE_KEY, activeId.value);
-    write(PANES_KEY, { left: leftId.value, right: rightId.value });
+    write(PAIRS_KEY, pairs.value);
   };
   persist();
 
@@ -322,14 +326,6 @@ export const useTabsStore = defineStore('tabs', () => {
 
   const activate = (id) => {
     if (!tabs.value.some((tab) => tab.id === id)) return null;
-    // Split, and this tab is in neither pane: it goes into the one the reader is
-    // in. Choosing a third tab from a strip that serves two panes has to mean
-    // something, and "show it where I am looking" is the only answer that leaves
-    // both panes on a tab and the reader where they were.
-    if (rightId.value !== '' && id !== leftId.value && id !== rightId.value) {
-      if (activeId.value === rightId.value) rightId.value = id;
-      else leftId.value = id;
-    }
     activeId.value = id;
     broughtForward.value = id;
     persist();
@@ -341,124 +337,141 @@ export const useTabsStore = defineStore('tabs', () => {
    *
    * Which is what a file manager is for: the folder you are taking things out of
    * and the folder you are putting them into, both visible, so a copy is a drag
-   * and not a journey. The strip stays one strip — these are the same tabs, two
-   * of them merely shown rather than one.
-   *
-   * Two slots rather than "the active one and another", because focus has to be
-   * able to move. With only `rightId` and `activeId`, clicking into the right
-   * pane made the active tab the right one, and the left pane then had nothing
-   * to show but itself. So the panes are named and `activeId` says which of them
-   * the reader is in — it is always one of them, which `activate` keeps true.
+   * and not a journey. A pair is a *grouping of two tabs* rather than a split of
+   * the window — so there can be as many pairs as there are tabs, with ordinary
+   * tabs beside them, and choosing an entry in the strip simply shows whatever
+   * that entry is.
    */
-  const isSplit = computed(() => rightId.value !== '');
+  const pairOf = (id) => pairs.value.find((one) => one.left === id || one.right === id) || null;
 
-  /** The tabs on screen, in the order they are drawn. One of them, or two. */
-  const panes = computed(() => (isSplit.value ? [leftId.value, rightId.value] : [activeId.value]));
+  const isPaired = (id) => Boolean(pairOf(id));
+
+  /**
+   * Pairs naming a tab that no longer exists, forgotten.
+   *
+   * Said after the list of tabs has been cut down rather than by each caller: a
+   * pair is about two tabs, and a sweep that takes several of them away at once
+   * cannot know which pairs it broke without looking.
+   */
+  const forgetPairsOfClosedTabs = () => {
+    const here = new Set(tabs.value.map((tab) => tab.id));
+    pairs.value = pairs.value.filter((one) => here.has(one.left) && here.has(one.right));
+  };
+
+  /** The tabs drawn right now: the pair the reader is in, or the tab they are on. */
+  const panes = computed(() => {
+    const pair = pairOf(activeId.value);
+    return pair ? [pair.left, pair.right] : [activeId.value];
+  });
+
+  const isSplit = computed(() => panes.value.length === 2);
 
   /** Which pane a tab is in, or '' for a tab that is not on screen. */
   const paneOf = (id) => {
-    if (!isSplit.value) return id === activeId.value ? 'left' : '';
-    if (id === leftId.value) return 'left';
-    if (id === rightId.value) return 'right';
-    return '';
+    const pair = pairOf(id);
+    if (!pair) return id === activeId.value ? 'left' : '';
+    if (pairOf(activeId.value) !== pair) return '';
+    return pair.left === id ? 'left' : 'right';
   };
 
   /**
-   * Show this tab in the pane beside the one in front.
+   * Who a tab would be grouped with, asked by the one entry that offers it.
    *
-   * The tab in front is refused: two panes on one tab are two views of one
-   * folder sharing one selection and one rename, which is not a comparison, it
-   * is a mirror. Duplicating the tab first is what somebody wanting that means,
-   * and the strip's own menu offers it.
-   *
-   * Focus stays where it is. Putting a folder over there is preparing to drag
-   * something into it, not going there.
+   * The tab in front, normally: "show this one beside where I am". And its
+   * neighbour when it *is* the tab in front, because that is the tab somebody
+   * right-clicks first and refusing them was the whole fault of the version
+   * before this — an entry that is always greyed out teaches nothing.
    */
-  /**
-   * Which tab the *other* pane would hold, for a tab put on the named side.
-   *
-   * Not split there is one pane, so whichever side is asked for, the tab in
-   * front is what ends up beside the new one.
-   */
-  const otherPane = (side) =>
-    isSplit.value ? (side === 'right' ? leftId.value : rightId.value) : activeId.value;
+  const partnerFor = (id) => {
+    if (id !== activeId.value) return activeId.value;
+    const at = tabs.value.findIndex((tab) => tab.id === id);
+    return (tabs.value[at + 1] || tabs.value[at - 1])?.id || '';
+  };
 
-  /**
-   * Whether a tab can be put in a pane, asked before it is offered.
-   *
-   * One truth for the menu entry and for a tab dragged into a pane, so a tab the
-   * menu greys out is a tab a drop refuses, and neither has its own idea of why.
-   */
-  const canShowBeside = (id, side = 'right') => {
-    const tab = tabs.value.find((one) => one.id === id);
-    if (!tab) return false;
-    // A shell is drawn above every layout rather than inside one, so a pane has
-    // nowhere to put it.
-    if (TAB_KINDS_BY_ID[tab.kind]?.inPane !== true) return false;
-    // Two panes on one tab share one listing, one selection and one rename: a
-    // mirror rather than a comparison. Duplicating the tab is what somebody
-    // wanting that means, and the strip already offers it.
-    return id !== otherPane(side);
+  /** Whether this tab can be grouped: one pair each, and two different tabs. */
+  const canPair = (id) => {
+    if (!tabs.value.some((tab) => tab.id === id) || isPaired(id)) return false;
+    const partner = partnerFor(id);
+    return Boolean(partner) && partner !== id && !isPaired(partner);
   };
 
   /**
-   * Put a tab in one of the two panes, splitting the view if it was whole.
+   * Group this tab with the one it belongs beside.
    *
-   * Focus stays where it is. Putting a folder over there is preparing to drag
-   * something into it, not going there.
+   * The reader's own tab goes on the left and stays there: their place does not
+   * move under them because they asked to see something next to it.
+   */
+  const pair = (id) => {
+    if (!canPair(id)) return null;
+    const partner = partnerFor(id);
+    const mine = id === activeId.value;
+    const made = { left: mine ? id : partner, right: mine ? partner : id };
+    pairs.value = [...pairs.value, made];
+    persist();
+    return made;
+  };
+
+  /** Ungrouped: both are ordinary tabs again, and neither is closed. */
+  const unpair = (id) => {
+    const pair = pairOf(id);
+    if (!pair) return null;
+    pairs.value = pairs.value.filter((one) => one !== pair);
+    persist();
+    return pair;
+  };
+
+  /**
+   * Put a tab in one of the panes on screen, which is what dropping it there
+   * means.
+   *
+   * Whoever was in that pane becomes an ordinary tab again rather than being
+   * closed: the reader moved something in, they did not throw anything away.
+   * A tab already in another pair leaves it, because one pair each is what makes
+   * the strip readable.
    */
   const showInPane = (side, id) => {
-    if (!canShowBeside(id, side)) return null;
-    // Worked out before anything is written, so a refusal leaves the panes
-    // exactly as they were.
-    const other = otherPane(side);
-    if (side === 'right') {
-      leftId.value = other;
-      rightId.value = id;
-    } else {
-      rightId.value = other;
-      leftId.value = id;
+    if (!tabs.value.some((tab) => tab.id === id)) return null;
+    const here = pairOf(activeId.value);
+    const keep = here ? (side === 'right' ? here.left : here.right) : activeId.value;
+    if (!keep || keep === id) return null;
+    const made = side === 'right' ? { left: keep, right: id } : { left: id, right: keep };
+    pairs.value = [
+      ...pairs.value.filter((one) => one !== here && one.left !== id && one.right !== id),
+      made,
+    ];
+    // The reader stays in the tab they were in, unless that is the one they just
+    // replaced — then they are in the pane they aimed at.
+    if (activeId.value !== made.left && activeId.value !== made.right) {
+      activeId.value = keep;
     }
     persist();
-    return tabs.value.find((tab) => tab.id === id) || null;
+    return made;
   };
-
-  const canShowOnRight = (id) => canShowBeside(id, 'right');
-  const showOnRight = (id) => showInPane('right', id);
 
   /**
-   * Close one of the two panes, leaving the other.
+   * Close one pane of the pair on screen, leaving the other.
    *
    * What the cross on a pane's own header means, and it has to be said this way
-   * round: the reader is left in the pane that *stays*, not in the one they just
-   * shut. Keeping whoever had focus made clicking a pane's cross keep that very
-   * pane, because pressing anything in a pane puts the reader in it first.
+   * round: the reader is left in the pane that *stays*. Keeping whoever had
+   * focus kept the very pane being shut, because pressing anything in a pane
+   * puts the reader in it first.
    */
   const closePane = (side) => {
-    if (!isSplit.value) return null;
-    const staying = side === 'right' ? leftId.value : rightId.value;
-    leftId.value = '';
-    rightId.value = '';
+    const here = pairOf(activeId.value);
+    if (!here) return null;
+    const staying = side === 'right' ? here.left : here.right;
+    pairs.value = pairs.value.filter((one) => one !== here);
     persist();
     return activate(staying);
   };
 
-  /** Back to one pane. The reader stays in the tab they were in. */
-  const closeSplit = () => {
-    if (!isSplit.value) return null;
-    const staying = activeId.value;
-    leftId.value = '';
-    rightId.value = '';
-    persist();
-    return activate(staying);
-  };
-
-  /** The two panes, the other way round, which is what a reader asks of a pair. */
+  /** The two panes the other way round, which is what a reader asks of a pair. */
   const swapPanes = () => {
-    if (!isSplit.value) return null;
-    const was = leftId.value;
-    leftId.value = rightId.value;
-    rightId.value = was;
+    const here = pairOf(activeId.value);
+    if (!here) return null;
+    pairs.value = pairs.value.map((one) =>
+      one === here ? { left: here.right, right: here.left } : one
+    );
     persist();
     return panes.value;
   };
@@ -607,8 +620,7 @@ export const useTabsStore = defineStore('tabs', () => {
     const kept = tabs.value.filter((tab) => tab.pinned);
     tabs.value = kept.length > 0 ? kept : [makeTab(HOME)];
     activeId.value = tabs.value[0].id;
-    leftId.value = '';
-    rightId.value = '';
+    forgetPairsOfClosedTabs();
     persist();
     return activeTab.value;
   };
@@ -627,19 +639,20 @@ export const useTabsStore = defineStore('tabs', () => {
     if (at < 0) return null;
 
     const wasActive = tabs.value[at].id === activeId.value;
-    const wasRight = id === rightId.value;
-    const wasLeft = id === leftId.value;
+    const was = pairOf(id);
     tabs.value.splice(at, 1);
     const next = tabs.value[at] || tabs.value[at - 1];
-    // A pane whose tab has gone cannot stay as it is. The right one simply goes,
-    // which is what closing the thing you had put beside you means; the left one
-    // takes over whatever the close itself landed on, so the reader is left with
-    // a pane holding a folder rather than a gap.
-    if (wasRight) {
-      rightId.value = '';
-      leftId.value = '';
-    } else if (wasLeft) {
-      leftId.value = next.id;
+    // A pair whose tab has gone is not a pair: the other one goes back to being
+    // an ordinary tab rather than being drawn beside a gap. And the reader lands
+    // on it rather than on whatever the row happened to put next, because that is
+    // what they were looking at a moment ago.
+    if (was) {
+      pairs.value = pairs.value.filter((one) => one !== was);
+      const other = was.left === id ? was.right : was.left;
+      if (wasActive) {
+        persist();
+        return activate(other);
+      }
     }
     persist();
     if (!wasActive) return null;
@@ -651,8 +664,7 @@ export const useTabsStore = defineStore('tabs', () => {
   const closeOthers = (id) => {
     if (!tabs.value.some((tab) => tab.id === id)) return null;
     tabs.value = tabs.value.filter((tab) => tab.id === id || tab.pinned);
-    leftId.value = '';
-    rightId.value = '';
+    forgetPairsOfClosedTabs();
     persist();
     return activate(id);
   };
@@ -873,17 +885,18 @@ export const useTabsStore = defineStore('tabs', () => {
     at,
     syncActive,
     retarget,
-    leftId,
-    rightId,
+    pairs,
     isSplit,
     panes,
     paneOf,
-    canShowBeside,
-    canShowOnRight,
+    pairOf,
+    isPaired,
+    partnerFor,
+    canPair,
+    pair,
+    unpair,
     showInPane,
-    showOnRight,
     closePane,
-    closeSplit,
     swapPanes,
     duplicate,
     pin,

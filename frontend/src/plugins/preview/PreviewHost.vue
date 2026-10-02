@@ -11,8 +11,8 @@
       v-for="surface in surfaces"
       :key="surface.key"
       :data-tab="surface.key"
-      :data-active="surface.key === activeKey ? 'true' : 'false'"
-      :class="surface.key === activeKey ? null : 'invisible pointer-events-none'"
+      :data-active="shownKeys.has(surface.key) ? 'true' : 'false'"
+      :class="shownKeys.has(surface.key) ? null : 'invisible pointer-events-none'"
     >
       <PreviewSurface :session="surface.session" />
     </div>
@@ -47,7 +47,14 @@ const manager = usePreviewManager();
 const tabs = useTabsStore();
 
 const surfaces = computed(() => manager.surfaces);
-const activeKey = computed(() => tabs.activeId);
+/**
+ * Which tabs are on screen, rather than which one is in front.
+ *
+ * A pair of tabs is drawn side by side, and a document in the pane beside the
+ * reader is as much on screen as the one they are in — keyed on the tab in
+ * front, that pane showed nothing at all.
+ */
+const shownKeys = computed(() => new Set(tabs.panes));
 
 /**
  * On the way out of the window, every document that is open in it.

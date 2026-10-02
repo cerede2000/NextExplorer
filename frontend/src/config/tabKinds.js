@@ -37,9 +37,10 @@ import {
  * reader returns. A folder is; the settings are not — somebody who closes the
  * browser on a settings page was not in the middle of anything there.
  *
- * `inPane` says whether this kind can be drawn in one half of a split view. A
- * shell cannot: what shows it lives above every layout, so that it survives its
- * tab going behind another, and a pane has nowhere to put it.
+ * `inPane` says whether this kind can be drawn in one half of a split view.
+ * Everything can, including a shell — what draws one lives above every layout so
+ * that it survives its tab going behind another, and it is told which panes are
+ * on screen rather than which tab is in front.
  */
 const TAB_KINDS = [
   {
@@ -65,7 +66,7 @@ const TAB_KINDS = [
     // tabs, which is the point: the drawer belongs to the window and can only
     // ever show one.
     id: 'terminal',
-    inPane: false,
+    inPane: true,
     match: /^\/terminal([/?#]|$)/,
     icon: CommandLineIcon,
     titleKey: 'titles.terminal',

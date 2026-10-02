@@ -1077,6 +1077,8 @@
     "moveRight": "Mover a la derecha",
     "duplicate": "Duplicar la pestaña",
     "showOnRight": "Mostrar a la derecha",
+    "unfoldPair": "Mostrar las dos mitades",
+    "ungroup": "Desagrupar",
     "closeSplit": "Cerrar este panel",
     "resizeSplit": "Redimensionar los paneles",
     "pin": "Fijar la pestaña",

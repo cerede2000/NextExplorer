@@ -1077,6 +1077,8 @@
     "moveRight": "Przenieś w prawo",
     "duplicate": "Powiel kartę",
     "showOnRight": "Pokaż po prawej",
+    "unfoldPair": "Pokaż obie połowy",
+    "ungroup": "Rozgrupuj",
     "closeSplit": "Zamknij ten panel",
     "resizeSplit": "Zmień rozmiar paneli",
     "pin": "Przypnij kartę",

@@ -51,13 +51,13 @@ const featuresStore = useFeaturesStore();
 const tabsStore = useTabsStore();
 
 /**
- * Which tab the left pane holds.
+ * The tabs on screen: the pair the reader is in, or the one tab they are on.
  *
- * Not split, there is one pane and it holds the tab in front — which is what
- * this layout drew before panes existed. Split, the panes are named and the
- * store keeps the tab in front in one of them.
+ * The store answers with one id or two, so this layout draws one pane or two
+ * without knowing anything about how a pair is made.
  */
-const leftPaneTab = computed(() => (tabsStore.isSplit ? tabsStore.leftId : tabsStore.activeId));
+const leftPaneTab = computed(() => tabsStore.panes[0]);
+const rightPaneTab = computed(() => tabsStore.panes[1] || '');
 
 /**
  * How the two panes share the width, remembered.
@@ -291,7 +291,7 @@ const handleGuestLogin = () => {
             </div>
             <TabPane
               v-if="tabsStore.isSplit"
-              :tab-id="tabsStore.rightId"
+              :tab-id="rightPaneTab"
               :routed-component="Component"
               :routed-key="viewRoute.fullPath"
               side="right"

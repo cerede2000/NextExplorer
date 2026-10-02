@@ -2324,15 +2324,17 @@ test('tabs keep two folders open, and the middle button opens one behind', async
  * to be told nothing, because with one pane the destination was never on screen.
  */
 test('two folders sit side by side, and a file is dragged across', async () => {
-  fs.mkdirSync(path.join(volume, 'Ship'), { recursive: true });
-  fs.mkdirSync(path.join(volume, 'Dock'), { recursive: true });
+  for (const name of ['Ship', 'Dock', 'Depot', 'Yard', 'Alone']) {
+    fs.mkdirSync(path.join(volume, name), { recursive: true });
+  }
   fs.writeFileSync(path.join(volume, 'Ship', 'crate.txt'), 'dragged across\n');
 
   const strip = page.locator('[data-test="tab-strip"]');
   const panes = page.locator('[data-test="tab-pane"]');
+  const entries = strip.locator('[data-test="tab"]');
 
-  // Tabs on: the journey before this one leaves the preference off, and panes
-  // are two tabs at once.
+  // Tabs on: the journey before this one leaves the preference off, and a pair
+  // is two tabs at once.
   await page.goto('/settings/user-preferences');
   const preference = page.locator('[data-test="browse-in-tabs"]');
   await expect(preference).toBeVisible();
@@ -2340,54 +2342,54 @@ test('two folders sit side by side, and a file is dragged across', async () => {
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(preference).toHaveAttribute('aria-checked', 'true');
 
-  // A tab for each folder: the other one opened behind, which is the gesture that
-  // leaves the reader where they are.
+  // A tab for each folder, the extra ones opened behind so the reader stays put.
   await page.goto('/browse/Projects');
-  await expect(page.locator('[title="Dock"]:not([role="tab"])').first()).toBeVisible();
-  await page
-    .locator('[title="Dock"]:not([role="tab"])')
-    .first()
-    .dblclick({ modifiers: ['ControlOrMeta'] });
-  const dockTab = strip.locator('[data-test="tab"]').filter({
-    has: page.locator('[role="tab"][title="Dock"]'),
-  });
-  await expect(dockTab).toHaveCount(1);
+  for (const name of ['Dock', 'Depot', 'Yard', 'Alone']) {
+    await expect(page.locator(`[title="${name}"]:not([role="tab"])`).first()).toBeVisible();
+    await page
+      .locator(`[title="${name}"]:not([role="tab"])`)
+      .first()
+      .dblclick({ modifiers: ['ControlOrMeta'] });
+  }
   await page.locator('[title="Ship"]:not([role="tab"])').first().dblclick();
   await expect(page).toHaveURL(/\/browse\/Projects\/Ship$/);
   await expect(page.locator('[title="crate.txt"]').first()).toBeVisible();
   await expect(panes).toHaveCount(1);
 
-  // Put it beside this one, from its own menu.
-  await dockTab.getByRole('tab').click({ button: 'right' });
+  const entryFor = (name) =>
+    entries.filter({ has: page.locator(`[role="tab"][title*="${name}"]`) });
+
+  // Grouped from the tab's own menu, with the reader's own tab on the left.
+  await entryFor('Dock').getByRole('tab').click({ button: 'right' });
   await page.locator('[data-test="tab-show-right"]').click();
 
   await expect(panes).toHaveCount(2);
   // One sidebar for the two of them, which is what was asked for.
   await expect(page.locator('[data-test="browser-aside"]')).toHaveCount(1);
-  // The strip says which two are on screen and which one the reader is in.
-  await expect(strip.locator('[data-test="tab"][data-pane="left"]')).toHaveCount(1);
-  await expect(strip.locator('[data-test="tab"][data-pane="right"]')).toHaveCount(1);
-  await expect(strip.locator('[data-test="tab"][data-active="true"]')).toHaveCount(1);
+  // And one entry in the strip carrying both names, not two entries.
+  const pairEntries = strip.locator('[data-test="tab"][data-paired="true"]');
 
-  // And each pane says where *it* is, rather than both saying the same place.
+  await expect(
+    entries.filter({ has: page.locator('[role="tab"][title="Ship ↔ Dock"]') })
+  ).toHaveCount(1);
+  await expect(entries.filter({ has: page.locator('[role="tab"][title="Dock"]') })).toHaveCount(0);
+
+  // Each pane says where *it* is, rather than both saying the same place.
   const headers = page.locator('[data-test="pane-header"]');
   await expect(headers).toHaveCount(2);
   await expect(headers.first()).toContainText('Ship');
   await expect(headers.last()).toContainText('Dock');
 
-  // Both are drawn: the one beside the reader is listing its own folder, not a
-  // second copy of the one in front.
   const right = panes.last();
   const rightSurface = right.locator('.upload-drop-target');
   await expect(rightSurface).toBeVisible();
   await expect(right.locator('[title="crate.txt"]')).toHaveCount(0);
 
-  // The drag the whole thing is for.
-  // Onto the empty space of the other pane, which is where a reader aims and
-  // where there was nothing to aim at until the scroller took the drop.
+  // The drag the whole thing is for, onto the empty space of the other pane —
+  // where a reader aims, and where there was nothing to aim at until the
+  // scroller took the drop.
   await panes.first().locator('[title="crate.txt"]').first().dragTo(rightSurface);
 
-  // It reached the disk, and left the folder it came from.
   await expect.poll(() => fs.existsSync(path.join(volume, 'Dock', 'crate.txt'))).toBe(true);
   expect(fs.existsSync(path.join(volume, 'Ship', 'crate.txt'))).toBe(false);
   // And the pane it arrived in shows it without being walked into.
@@ -2397,51 +2399,60 @@ test('two folders sit side by side, and a file is dragged across', async () => {
   // The divider moves, and the panes share the width the reader gave them.
   const widthOf = async (pane) => (await pane.boundingBox()).width;
   const before = await widthOf(panes.first());
-  const divider = page.locator('[data-test="pane-divider"]');
-  const bar = await divider.boundingBox();
+  const bar = await page.locator('[data-test="pane-divider"]').boundingBox();
   await page.mouse.move(bar.x + bar.width / 2, bar.y + bar.height / 2);
   await page.mouse.down();
   await page.mouse.move(bar.x - 160, bar.y + bar.height / 2, { steps: 8 });
   await page.mouse.up();
   await expect.poll(() => widthOf(panes.first())).toBeLessThan(before - 80);
 
-  // Clicking in a pane puts the reader in it, which is what makes the toolbar,
-  // the clipboard and the keyboard act on the one being looked at.
-  await rightSurface.click({ position: { x: 8, y: 8 } });
+  // Unfolded, either half is one press away.
+  await pairEntries.first().locator('[data-test="tab-unfold"]').click();
+  const members = page.locator('[data-test="tab-pair-member"]');
+  await expect(members).toHaveCount(2);
+  await members.last().click();
   await expect(page).toHaveURL(/\/browse\/Projects\/Dock$/);
   await expect(right).toHaveAttribute('data-focused', 'true');
 
-  // The tab the other pane is already on is refused: two panes on one tab share
-  // one listing and one selection, which is a mirror rather than a comparison.
-  const shipTab = strip.locator('[data-test="tab"]').filter({
-    has: page.locator('[role="tab"][title="Ship"]'),
-  });
-  const onTheLeft = strip.locator('[data-test="tab"][data-pane="left"] [role="tab"]');
-  const onTheRight = strip.locator('[data-test="tab"][data-pane="right"] [role="tab"]');
-  await shipTab.getByRole('tab').dragTo(rightSurface);
-  // Nothing moved at all, which is what a refusal has to mean — asserting only
-  // the right-hand title would pass just as well if the drop never arrived.
-  await expect(onTheLeft).toHaveAttribute('title', 'Ship');
-  await expect(onTheRight).toHaveAttribute('title', 'Dock');
+  // A second pair, in another entry, with an ordinary tab beside them both —
+  // which is the whole of what belonging to the tabs rather than to the window
+  // buys: the window is not "split", these two tabs are.
+  await entryFor('Depot').getByRole('tab').click();
+  await expect(panes).toHaveCount(1);
+  await entryFor('Yard').getByRole('tab').click({ button: 'right' });
+  await page.locator('[data-test="tab-show-right"]').click();
+  await expect(panes).toHaveCount(2);
+  await expect(pairEntries).toHaveCount(2);
 
-  // Back to one pane, and the reader stays in the tab they were in.
-  await page.locator('[data-test="pane-close"]').first().click();
+  // And the lone tab is still one pane.
+  await entryFor('Alone').getByRole('tab').click();
   await expect(panes).toHaveCount(1);
   await expect(page.locator('[data-test="pane-header"]')).toHaveCount(0);
-  await expect(page).toHaveURL(/\/browse\/Projects\/Dock$/);
 
-  // And the other way in: a tab dragged out of the strip and dropped in the
-  // pane, which splits the window and puts it beside what was there. Asserted
-  // in a browser rather than only in the store, because a target that forgets
-  // to refuse the default never takes a drop at all.
-  await shipTab.getByRole('tab').dragTo(panes.first().locator('.upload-drop-target'));
+  // Back to the first pair, which is still a pair.
+  await entryFor('Ship').getByRole('tab').click();
   await expect(panes).toHaveCount(2);
-  // Into the pane it was dropped on, with what was there moved across.
-  await expect(onTheLeft).toHaveAttribute('title', 'Ship');
-  await expect(onTheRight).toHaveAttribute('title', 'Dock');
 
-  await page.locator('[data-test="pane-close"]').first().click();
+  // The tab a pane is already on is refused: two panes on one tab would share
+  // one listing and one selection, a mirror rather than a comparison.
+  await entryFor('Ship').getByRole('tab').dragTo(panes.last().locator('.upload-drop-target'));
+  await expect(headers.first()).toContainText('Ship');
+  await expect(headers.last()).toContainText('Dock');
+
+  // The other way in: a tab dragged out of the strip and dropped in a pane,
+  // which takes that pane over. Asserted in a browser rather than only in the
+  // store, because a target that forgets to refuse the default never takes a
+  // drop at all.
+  await entryFor('Alone').getByRole('tab').dragTo(panes.last().locator('.upload-drop-target'));
+  await expect(headers.last()).toContainText('Alone');
+  // And whoever was there is an ordinary tab again rather than closed.
+  await expect(entries.filter({ has: page.locator('[role="tab"][title="Dock"]') })).toHaveCount(1);
+
+  // The cross on a pane closes that pane and leaves the other.
+  await page.locator('[data-test="pane-close"]').last().click();
   await expect(panes).toHaveCount(1);
+  await expect(page.locator('[data-test="pane-header"]')).toHaveCount(0);
+  await expect(page).toHaveURL(/\/browse\/Projects\/Ship$/);
 
   await page.goto('/settings/user-preferences');
   await preference.click();

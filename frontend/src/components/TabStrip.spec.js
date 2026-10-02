@@ -18,9 +18,8 @@ const state = {
   canClose: ref(true),
   atLimit: ref(false),
   limit: ref(10),
-  // Which two tabs are side by side, '' in `rightId` meaning one pane.
-  leftId: ref(''),
-  rightId: ref(''),
+  // Tabs grouped two at a time: [{ left, right }].
+  pairs: ref([]),
 };
 const actions = {
   activate: vi.fn(),
@@ -39,11 +38,11 @@ const store = {
   nudge: vi.fn(),
   duplicate: vi.fn(() => ({ id: 'copy' })),
   togglePinned: vi.fn(),
-  showOnRight: vi.fn(),
-  // Whether a tab may go beside the other pane is the store's rule — a shell
-  // cannot, and neither can the tab the other pane is already on. What is asked
-  // here is that the strip offers exactly what that rule allows.
-  canShowOnRight: vi.fn(() => true),
+  pair: vi.fn(),
+  unpair: vi.fn(),
+  // Whether a tab may be grouped is the store's rule. What is asked here is that
+  // the strip offers exactly what that rule allows, and nothing else.
+  canPair: vi.fn(() => true),
 };
 const indexOf = (id) => state.tabs.value.findIndex((tab) => tab.id === id);
 
@@ -75,25 +74,29 @@ vi.mock('@/composables/tabNavigation', () => ({
         const at = indexOf(id);
         return at >= 0 && at + step >= 0 && at + step < state.tabs.value.length;
       },
-      get leftId() {
-        return state.leftId.value;
+      get pairs() {
+        return state.pairs.value;
       },
-      get rightId() {
-        return state.rightId.value;
-      },
-      get isSplit() {
-        return state.rightId.value !== '';
-      },
-      // The same answer the store gives, so what the strip draws for a pair can
+      // The same answers the store gives, so what the strip draws for a pair can
       // be asserted rather than described.
-      paneOf: (id) => {
-        if (state.rightId.value === '') return id === state.activeId.value ? 'left' : '';
-        if (id === state.leftId.value) return 'left';
-        if (id === state.rightId.value) return 'right';
-        return '';
+      pairOf: (id) => state.pairs.value.find((one) => one.left === id || one.right === id) || null,
+      isPaired: (id) => state.pairs.value.some((one) => one.left === id || one.right === id),
+      get isSplit() {
+        const pair = state.pairs.value.find(
+          (one) => one.left === state.activeId.value || one.right === state.activeId.value
+        );
+        return Boolean(pair);
       },
-      canShowOnRight: (...args) => store.canShowOnRight(...args),
-      showOnRight: (...args) => store.showOnRight(...args),
+      paneOf: (id) => {
+        const pair = state.pairs.value.find((one) => one.left === id || one.right === id);
+        if (!pair) return id === state.activeId.value ? 'left' : '';
+        const shown = pair.left === state.activeId.value || pair.right === state.activeId.value;
+        if (!shown) return '';
+        return pair.left === id ? 'left' : 'right';
+      },
+      canPair: (...args) => store.canPair(...args),
+      pair: (...args) => store.pair(...args),
+      unpair: (...args) => store.unpair(...args),
     },
   }),
 }));
@@ -175,8 +178,7 @@ beforeEach(() => {
   state.canClose.value = true;
   state.atLimit.value = false;
   state.limit.value = 10;
-  state.leftId.value = '';
-  state.rightId.value = '';
+  state.pairs.value = [];
   userSettings.closeTabsOnDoubleClick = false;
   favorites.favorites = [];
   Object.values(actions).forEach((fn) => fn.mockReset());
@@ -639,23 +641,29 @@ describe('a tab shown beside the other pane', () => {
 
     await inBody('[data-test="tab-show-right"]').trigger('click');
 
-    expect(store.showOnRight).toHaveBeenCalledWith('b');
+    expect(store.pair).toHaveBeenCalledWith('b');
     expect(document.body.querySelector('[data-test="tab-menu"]')).toBe(null);
   });
 
   /** Offered exactly where the store allows it, and nowhere else. */
   it('is not offered for a tab the store refuses', async () => {
-    store.canShowOnRight.mockReturnValue(false);
+    store.canPair.mockReturnValue(false);
     const wrapper = withTabs([tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')]);
     await wrapper.findAll('[role="tab"]')[1].trigger('contextmenu');
 
     expect(inBody('[data-test="tab-show-right"]').attributes('disabled')).toBeDefined();
-    expect(store.canShowOnRight).toHaveBeenCalledWith('b');
+    expect(store.canPair).toHaveBeenCalledWith('b');
   });
 
-  it('marks both tabs that are on screen, and which of them is in front', () => {
-    state.leftId.value = 'a';
-    state.rightId.value = 'b';
+  /**
+   * A pair is one entry, not two.
+   *
+   * Drawing both members would fill the row twice as fast for something the
+   * reader thinks of as one place, so the left member carries the entry, both
+   * names are on it, and the right one is reachable through the chevron.
+   */
+  it('draws a pair as one entry carrying both names', () => {
+    state.pairs.value = [{ left: 'a', right: 'b' }];
     const wrapper = withTabs(
       [
         tab('a', 'folder', '/browse/A'),
@@ -665,19 +673,94 @@ describe('a tab shown beside the other pane', () => {
       'a'
     );
 
-    const panes = wrapper
+    const drawn = wrapper
       .findAll('[data-test="tab"]')
-      .map((one) => [
-        one.attributes('data-id'),
-        one.attributes('data-pane'),
-        one.attributes('data-active'),
-      ]);
+      .map((one) => [one.attributes('data-id'), one.attributes('data-paired')]);
 
-    expect(panes).toEqual([
-      ['a', 'left', 'true'],
-      ['b', 'right', 'false'],
-      ['c', 'none', 'false'],
+    expect(drawn).toEqual([
+      ['a', 'true'],
+      ['c', 'false'],
     ]);
+    expect(wrapper.find('[data-test="tab"] [role="tab"]').attributes('title')).toBe('A ↔ B');
+  });
+
+  it('marks the entry as on screen, and which half the reader is in', () => {
+    state.pairs.value = [{ left: 'a', right: 'b' }];
+    const wrapper = withTabs(
+      [tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')],
+      'b'
+    );
+
+    const entry = wrapper.find('[data-test="tab"]');
+    expect(entry.attributes('data-pane')).toBe('left');
+    // The reader is in the right half, so the entry itself is not the active tab.
+    expect(entry.attributes('data-active')).toBe('false');
+  });
+
+  /** Unfolded, either half is one press away rather than something to guess at. */
+  it('unfolds to its two halves, and goes to the one chosen', async () => {
+    state.pairs.value = [{ left: 'a', right: 'b' }];
+    const wrapper = withTabs(
+      [tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')],
+      'a'
+    );
+
+    await wrapper.find('[data-test="tab-unfold"]').trigger('click');
+
+    const members = document.body.querySelectorAll('[data-test="tab-pair-member"]');
+    expect([...members].map((one) => one.getAttribute('data-member'))).toEqual(['a', 'b']);
+
+    members[1].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(actions.activate).toHaveBeenCalledWith('b');
+  });
+
+  it('offers no chevron on a tab that is in no pair', () => {
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A')], 'a');
+
+    expect(wrapper.find('[data-test="tab-unfold"]').exists()).toBe(false);
+  });
+
+  /** One entry, one cross: closing it leaves no half of itself in the row. */
+  it('closes both halves from the entry’s cross', async () => {
+    state.pairs.value = [{ left: 'a', right: 'b' }];
+    const wrapper = withTabs(
+      [
+        tab('a', 'folder', '/browse/A'),
+        tab('b', 'folder', '/browse/B'),
+        tab('c', 'folder', '/browse/C'),
+      ],
+      'a'
+    );
+
+    await wrapper.find('[data-test="tab-close"]').trigger('click');
+
+    expect(store.unpair).toHaveBeenCalledWith('a');
+    expect(actions.close).toHaveBeenCalledWith('b');
+    expect(actions.close).toHaveBeenCalledWith('a');
+  });
+
+  it('ungroups from the menu, with neither of them closed', async () => {
+    state.pairs.value = [{ left: 'a', right: 'b' }];
+    const wrapper = withTabs(
+      [tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')],
+      'a'
+    );
+    await wrapper.find('[role="tab"]').trigger('contextmenu');
+
+    await inBody('[data-test="tab-ungroup"]').trigger('click');
+
+    expect(store.unpair).toHaveBeenCalledWith('a');
+    expect(actions.close).not.toHaveBeenCalled();
+  });
+
+  it('offers no ungrouping for a tab that is in no pair', async () => {
+    const wrapper = withTabs(
+      [tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')],
+      'a'
+    );
+    await wrapper.find('[role="tab"]').trigger('contextmenu');
+
+    expect(document.body.querySelector('[data-test="tab-ungroup"]')).toBe(null);
   });
 });
 

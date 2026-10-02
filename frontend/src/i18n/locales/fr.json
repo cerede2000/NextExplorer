@@ -1077,6 +1077,8 @@
     "moveRight": "Déplacer vers la droite",
     "duplicate": "Dupliquer l'onglet",
     "showOnRight": "Afficher à droite",
+    "unfoldPair": "Afficher les deux moitiés",
+    "ungroup": "Dégrouper",
     "closeSplit": "Fermer ce volet",
     "resizeSplit": "Redimensionner les volets",
     "pin": "Épingler l'onglet",

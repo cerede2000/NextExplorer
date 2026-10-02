@@ -1077,6 +1077,8 @@
     "moveRight": "Sposta a destra",
     "duplicate": "Duplica la scheda",
     "showOnRight": "Mostra a destra",
+    "unfoldPair": "Mostra le due metà",
+    "ungroup": "Separa",
     "closeSplit": "Chiudi questo riquadro",
     "resizeSplit": "Ridimensiona i riquadri",
     "pin": "Fissa la scheda",

@@ -32,6 +32,8 @@ vi.mock('@/plugins/preview/PreviewSurface.vue', () => ({
 
 const surfaces = ref([]);
 const activeId = ref('tab-1');
+// The tabs on screen: one, or the two halves of a pair.
+const panes = ref(['tab-1']);
 const endForUnload = vi.fn();
 vi.mock('@/plugins/preview/manager', () => ({
   usePreviewManager: () => ({
@@ -46,6 +48,9 @@ vi.mock('@/stores/tabs', () => ({
     get activeId() {
       return activeId.value;
     },
+    get panes() {
+      return panes.value;
+    },
   }),
 }));
 
@@ -57,9 +62,10 @@ import PreviewHost from './PreviewHost.vue';
  */
 let wrapper = null;
 
-const withTabs = (keys, active = keys[0]) => {
+const withTabs = (keys, active = keys[0], shown = [active]) => {
   surfaces.value = keys.map((key) => ({ key, session: { key } }));
   activeId.value = active;
+  panes.value = shown;
   wrapper = mount(PreviewHost);
   return wrapper;
 };
@@ -99,6 +105,20 @@ describe('the surfaces', () => {
   });
 
   /**
+   * And shows *both* when two tabs are drawn side by side.
+   *
+   * A document in the pane beside the reader is as much on screen as the one
+   * they are in. Keyed on the tab in front, that pane showed nothing at all.
+   */
+  it('shows every tab that is on screen, not only the one in front', () => {
+    withTabs(['tab-1', 'tab-2', 'tab-3'], 'tab-1', ['tab-1', 'tab-2']);
+
+    expect(surfaceFor('tab-1').parentElement.className).not.toContain('invisible');
+    expect(surfaceFor('tab-2').parentElement.className).not.toContain('invisible');
+    expect(surfaceFor('tab-3').parentElement.className).toContain('invisible');
+  });
+
+  /**
    * The one that matters. Bringing another tab forward must change which surface
    * is visible and nothing else: a surface built a second time is a document
    * opened a second time.
@@ -110,6 +130,7 @@ describe('the surfaces', () => {
     activeId.value = 'tab-2';
     await host.vm.$nextTick();
     activeId.value = 'tab-1';
+    panes.value = ['tab-1'];
     await host.vm.$nextTick();
 
     expect(builds).toHaveBeenCalledTimes(2);

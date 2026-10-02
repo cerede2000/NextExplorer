@@ -1077,6 +1077,8 @@
     "moveRight": "向右移动",
     "duplicate": "复制标签页",
     "showOnRight": "在右侧显示",
+    "unfoldPair": "显示两个半边",
+    "ungroup": "取消分组",
     "closeSplit": "关闭此窗格",
     "resizeSplit": "调整窗格大小",
     "pin": "固定标签页",

@@ -1077,6 +1077,8 @@
     "moveRight": "Flytta till höger",
     "duplicate": "Duplicera fliken",
     "showOnRight": "Visa till höger",
+    "unfoldPair": "Visa båda halvorna",
+    "ungroup": "Dela upp",
     "closeSplit": "Stäng den här rutan",
     "resizeSplit": "Ändra storlek på rutorna",
     "pin": "Fäst fliken",

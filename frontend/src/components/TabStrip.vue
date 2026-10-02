@@ -3,7 +3,7 @@ import { TAB_DRAG_TYPE } from '@/utils/tabDrag';
 import { computed, onUnmounted, ref, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { onClickOutside, useElementSize } from '@vueuse/core';
-import { PlusIcon, XMarkIcon } from '@heroicons/vue/20/solid';
+import { ChevronDownIcon, PlusIcon, XMarkIcon } from '@heroicons/vue/20/solid';
 import { TAB_KINDS_BY_ID, tabFolderPath, tabTitle } from '@/config/tabKinds';
 import { useFavoritesStore } from '@/stores/favorites';
 import { resolveFavoriteIcon } from '@/utils/favoriteIcons';
@@ -176,11 +176,84 @@ const runAndShut = (action, id) => {
 const held = ref('');
 const over = ref('');
 
-/** Beside the other pane, from the menu — the same rule the drop asks. */
-const canShowBeside = (tab) => Boolean(tab) && tabs.canShowOnRight(tab.id);
+/**
+ * Grouped with the tab it belongs beside, from the menu.
+ *
+ * The partner is the tab in front, or this tab's neighbour when this *is* the
+ * tab in front — so the entry works on the tab somebody right-clicks first
+ * instead of being greyed out on it, which is what the version before this did
+ * and what taught nobody anything.
+ */
+/**
+ * What the strip draws: one entry per lone tab, and one per pair.
+ *
+ * A pair is two tabs, and drawing both of them would fill the row twice as fast
+ * for something the reader thinks of as one place. So the pair's left member
+ * carries the entry and the right one is not drawn on its own — it is reachable
+ * through the chevron, which is the only thing the entry adds.
+ */
+const entries = computed(() => {
+  const inside = new Set(tabs.pairs.map((one) => one.right));
+  return tabs.tabs
+    .filter((tab) => !inside.has(tab.id))
+    .map((tab) => {
+      const pair = tabs.pairOf(tab.id);
+      const partner = pair ? tabs.tabs.find((one) => one.id === pair.right) : null;
+      return { tab, partner: partner || null };
+    });
+});
+
+/** Both names when there are two, which is what the comparison tab already does. */
+const labelFor = (tab, partner) =>
+  partner ? `${titleFor(tab)} ↔ ${titleFor(partner)}` : titleFor(tab);
+
+/** Which pair is unfolded, so the reader can go straight into one of its halves. */
+const openedPair = ref('');
+const pairAt = ref({ x: 0, y: 0 });
+
+const togglePair = (id, event) => {
+  if (openedPair.value === id) {
+    openedPair.value = '';
+    return;
+  }
+  const box = event.currentTarget?.getBoundingClientRect();
+  pairAt.value = {
+    x: Math.min(Math.max(8, (box?.left ?? 0) - 40), window.innerWidth - 232),
+    y: Math.min((box?.bottom ?? 0) + 4, window.innerHeight - 96),
+  };
+  openedPair.value = id;
+};
+
+const goToMember = (id) => {
+  openedPair.value = '';
+  activate(id);
+};
+
+/**
+ * The cross on an entry closes what the entry shows.
+ *
+ * Which for a pair is both of its tabs: it is one entry, and closing it leaving
+ * half of itself behind in the row is not what a cross means anywhere else.
+ * Ungrouping is in the menu, for whoever wants the two back.
+ */
+const closeEntry = (tab, partner) => {
+  openedPair.value = '';
+  if (partner) tabs.unpair(tab.id);
+  if (partner) close(partner.id);
+  close(tab.id);
+};
+
+const canShowBeside = (tab) => Boolean(tab) && tabs.canPair(tab.id);
 const showBeside = (id) => {
   menuFor.value = '';
-  tabs.showOnRight(id);
+  tabs.pair(id);
+};
+
+/** Ungrouped from the tab's own menu, with neither of them closed. */
+const canUngroup = (tab) => Boolean(tab) && tabs.isPaired(tab.id);
+const ungroup = (id) => {
+  menuFor.value = '';
+  tabs.unpair(id);
 };
 
 const startDrag = (id, event) => {
@@ -309,7 +382,7 @@ const duplicate = (id) => {
     data-test="tab-strip"
   >
     <div
-      v-for="tab in tabs.tabs"
+      v-for="{ tab, partner } in entries"
       :key="tab.id"
       class="group relative flex min-w-0 items-center rounded-t-md border border-b-0 text-sm"
       :class="[
@@ -332,6 +405,7 @@ const duplicate = (id) => {
       :data-kind="tab.kind"
       :data-active="tab.id === tabs.activeId ? 'true' : 'false'"
       :data-pane="tabs.paneOf(tab.id) || 'none'"
+      :data-paired="partner ? 'true' : 'false'"
       :data-pinned="tab.pinned ? 'true' : 'false'"
       :data-loading="isLoading(tab) ? 'true' : 'false'"
       :data-over="over === tab.id ? 'true' : 'false'"
@@ -355,7 +429,7 @@ const duplicate = (id) => {
         role="tab"
         draggable="true"
         :aria-selected="tab.id === tabs.activeId"
-        :title="titleFor(tab)"
+        :title="labelFor(tab, partner)"
         class="flex min-w-0 flex-1 items-center gap-1.5 py-1.5"
         :class="tab.pinned ? 'justify-center px-0' : 'px-2'"
         @click="activate(tab.id)"
@@ -376,7 +450,21 @@ const duplicate = (id) => {
         />
         <!-- A kept tab is its icon: it is there to be recognised, not read, and
              the room it gives back is room for the tabs that are being read. -->
-        <span v-if="!tab.pinned" class="truncate">{{ titleFor(tab) }}</span>
+        <span v-if="!tab.pinned" class="truncate">{{ labelFor(tab, partner) }}</span>
+      </button>
+      <!-- A pair unfolds, so either half is one press away rather than something
+           to be found by guessing which side of the screen it is on. -->
+      <button
+        v-if="partner && !tab.pinned"
+        type="button"
+        class="shrink-0 rounded p-0.5 hover:bg-black/10 dark:hover:bg-white/15"
+        :title="t('tabs.unfoldPair')"
+        :aria-label="t('tabs.unfoldPair')"
+        :aria-expanded="openedPair === tab.id"
+        data-test="tab-unfold"
+        @click.stop="togglePair(tab.id, $event)"
+      >
+        <ChevronDownIcon class="h-3.5 w-3.5" />
       </button>
       <button
         v-if="tabs.canClose && !tab.pinned"
@@ -385,7 +473,7 @@ const duplicate = (id) => {
         :title="t('tabs.closeTab')"
         :aria-label="t('tabs.closeTab')"
         data-test="tab-close"
-        @click.stop="close(tab.id)"
+        @click.stop="closeEntry(tab, partner)"
       >
         <XMarkIcon class="h-4 w-4" />
       </button>
@@ -411,6 +499,32 @@ const duplicate = (id) => {
       entirely, and there was no pinning a tab and no duplicating one because there was
       nothing on screen to press.
     -->
+    <!-- Unfolded beside the strip rather than inside it, and for the same reason
+         the menu is: the strip is `overflow-hidden` so that tabs share the room,
+         and anything drawn inside it is clipped away entirely. -->
+    <Teleport to="body">
+      <div
+        v-if="openedPair"
+        data-test="tab-pair-list"
+        class="fixed z-600 w-56 rounded-md border border-neutral-200 bg-white p-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
+        :style="{ left: pairAt.x + 'px', top: pairAt.y + 'px' }"
+      >
+        <button
+          v-for="member in tabs.pairOf(openedPair)
+            ? [tabs.pairOf(openedPair).left, tabs.pairOf(openedPair).right]
+            : []"
+          :key="member"
+          type="button"
+          class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 dark:hover:bg-neutral-600"
+          :data-member="member"
+          data-test="tab-pair-member"
+          @click="goToMember(member)"
+        >
+          <span class="truncate">{{ titleFor(tabs.tabs.find((one) => one.id === member)) }}</span>
+        </button>
+      </div>
+    </Teleport>
+
     <Teleport to="body">
       <div
         v-if="menuTab"
@@ -454,6 +568,15 @@ const duplicate = (id) => {
           @click="showBeside(menuTab.id)"
         >
           {{ t('tabs.showOnRight') }}
+        </button>
+        <button
+          v-if="canUngroup(menuTab)"
+          type="button"
+          class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 dark:hover:bg-neutral-600"
+          data-test="tab-ungroup"
+          @click="ungroup(menuTab.id)"
+        >
+          {{ t('tabs.ungroup') }}
         </button>
         <button
           type="button"

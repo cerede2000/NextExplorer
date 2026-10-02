@@ -1077,6 +1077,8 @@
     "moveRight": "Move right",
     "duplicate": "Duplicate tab",
     "showOnRight": "Show on the right",
+    "unfoldPair": "Show both halves",
+    "ungroup": "Ungroup",
     "closeSplit": "Close this pane",
     "resizeSplit": "Resize the panes",
     "pin": "Pin tab",

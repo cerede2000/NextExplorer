@@ -1077,6 +1077,8 @@
     "moveRight": "오른쪽으로 이동",
     "duplicate": "탭 복제",
     "showOnRight": "오른쪽에 표시",
+    "unfoldPair": "양쪽 모두 표시",
+    "ungroup": "그룹 해제",
     "closeSplit": "이 창 닫기",
     "resizeSplit": "창 크기 조정",
     "pin": "탭 고정",

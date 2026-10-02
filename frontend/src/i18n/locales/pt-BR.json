@@ -1077,6 +1077,8 @@
     "moveRight": "Mover para a direita",
     "duplicate": "Duplicar a aba",
     "showOnRight": "Mostrar à direita",
+    "unfoldPair": "Mostrar as duas metades",
+    "ungroup": "Desagrupar",
     "closeSplit": "Fechar este painel",
     "resizeSplit": "Redimensionar os painéis",
     "pin": "Fixar a aba",
