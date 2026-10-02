@@ -18,6 +18,9 @@ const state = {
   canClose: ref(true),
   atLimit: ref(false),
   limit: ref(10),
+  // Which two tabs are side by side, '' in `rightId` meaning one pane.
+  leftId: ref(''),
+  rightId: ref(''),
 };
 const actions = {
   activate: vi.fn(),
@@ -36,6 +39,11 @@ const store = {
   nudge: vi.fn(),
   duplicate: vi.fn(() => ({ id: 'copy' })),
   togglePinned: vi.fn(),
+  showOnRight: vi.fn(),
+  // Whether a tab may go beside the other pane is the store's rule — a shell
+  // cannot, and neither can the tab the other pane is already on. What is asked
+  // here is that the strip offers exactly what that rule allows.
+  canShowOnRight: vi.fn(() => true),
 };
 const indexOf = (id) => state.tabs.value.findIndex((tab) => tab.id === id);
 
@@ -67,6 +75,25 @@ vi.mock('@/composables/tabNavigation', () => ({
         const at = indexOf(id);
         return at >= 0 && at + step >= 0 && at + step < state.tabs.value.length;
       },
+      get leftId() {
+        return state.leftId.value;
+      },
+      get rightId() {
+        return state.rightId.value;
+      },
+      get isSplit() {
+        return state.rightId.value !== '';
+      },
+      // The same answer the store gives, so what the strip draws for a pair can
+      // be asserted rather than described.
+      paneOf: (id) => {
+        if (state.rightId.value === '') return id === state.activeId.value ? 'left' : '';
+        if (id === state.leftId.value) return 'left';
+        if (id === state.rightId.value) return 'right';
+        return '';
+      },
+      canShowOnRight: (...args) => store.canShowOnRight(...args),
+      showOnRight: (...args) => store.showOnRight(...args),
     },
   }),
 }));
@@ -148,6 +175,8 @@ beforeEach(() => {
   state.canClose.value = true;
   state.atLimit.value = false;
   state.limit.value = 10;
+  state.leftId.value = '';
+  state.rightId.value = '';
   userSettings.closeTabsOnDoubleClick = false;
   favorites.favorites = [];
   Object.values(actions).forEach((fn) => fn.mockReset());
@@ -592,6 +621,63 @@ describe('the same place again, beside itself', () => {
     await wrapper.findAll('[role="tab"]')[0].trigger('contextmenu');
 
     expect(inBody('[data-test="tab-duplicate"]').attributes('disabled')).toBeDefined();
+  });
+});
+
+/**
+ * Two tabs at once, as the strip says it.
+ *
+ * The strip stays one strip — these are the same tabs, two of them merely shown.
+ * What it has to say is which of them are on screen and which one the reader is
+ * in, because a pane that is drawn while its tab looks closed is a tab nobody
+ * believes.
+ */
+describe('a tab shown beside the other pane', () => {
+  it('is asked for from the tab’s own menu', async () => {
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')]);
+    await wrapper.findAll('[role="tab"]')[1].trigger('contextmenu');
+
+    await inBody('[data-test="tab-show-right"]').trigger('click');
+
+    expect(store.showOnRight).toHaveBeenCalledWith('b');
+    expect(document.body.querySelector('[data-test="tab-menu"]')).toBe(null);
+  });
+
+  /** Offered exactly where the store allows it, and nowhere else. */
+  it('is not offered for a tab the store refuses', async () => {
+    store.canShowOnRight.mockReturnValue(false);
+    const wrapper = withTabs([tab('a', 'folder', '/browse/A'), tab('b', 'folder', '/browse/B')]);
+    await wrapper.findAll('[role="tab"]')[1].trigger('contextmenu');
+
+    expect(inBody('[data-test="tab-show-right"]').attributes('disabled')).toBeDefined();
+    expect(store.canShowOnRight).toHaveBeenCalledWith('b');
+  });
+
+  it('marks both tabs that are on screen, and which of them is in front', () => {
+    state.leftId.value = 'a';
+    state.rightId.value = 'b';
+    const wrapper = withTabs(
+      [
+        tab('a', 'folder', '/browse/A'),
+        tab('b', 'folder', '/browse/B'),
+        tab('c', 'folder', '/browse/C'),
+      ],
+      'a'
+    );
+
+    const panes = wrapper
+      .findAll('[data-test="tab"]')
+      .map((one) => [
+        one.attributes('data-id'),
+        one.attributes('data-pane'),
+        one.attributes('data-active'),
+      ]);
+
+    expect(panes).toEqual([
+      ['a', 'left', 'true'],
+      ['b', 'right', 'false'],
+      ['c', 'none', 'false'],
+    ]);
   });
 });
 

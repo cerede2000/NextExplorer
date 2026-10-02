@@ -1,6 +1,7 @@
-import { computed, inject, provide } from 'vue';
+import { computed, inject, provide, reactive } from 'vue';
 import { useTabsStore } from '@/stores/tabs';
 import { useFileStore } from '@/stores/fileStore';
+import { tabFolderPath } from '@/config/tabKinds';
 
 /**
  * Which tab a pane is drawing.
@@ -51,8 +52,54 @@ export const usePaneTabId = () => {
 export const usePaneFolder = () => {
   const fileStore = useFileStore();
   const tabId = usePaneTabId();
+  const folder = computed(() => fileStore.folderFor(tabId.value));
+  const tabsStore = useTabsStore();
+
+  /** The address this pane's tab is on, which is what the strip shows for it. */
+  const address = computed(() => tabsStore.tabs.find((tab) => tab.id === tabId.value)?.path || '');
+
+  /** One of the folder's own refs, readable and writable through the pane. */
+  const asRef = (pick) =>
+    computed({
+      get: () => pick(folder.value).value,
+      set: (value) => {
+        pick(folder.value).value = value;
+      },
+    });
+
+  /**
+   * The pane's own folder under the names the store already uses for the one in
+   * front, and `reactive` so a ref unwraps on access exactly as a store's does.
+   *
+   * Which is the point: a screen that read `fileStore.selectedItems` reads
+   * `pane.selectedItems` and nothing else about it changes — same shape, same
+   * assignment, same template. A facade with different ergonomics would have
+   * turned a rename into a rewrite of the largest view in the application, and
+   * every `.value` forgotten along the way into a silent no-op.
+   */
+  const view = reactive({
+    currentPath: computed(() => folder.value.path.value),
+    currentPathData: computed(() => folder.value.data.value),
+    getCurrentPathItems: computed(() => fileStore.arrange(folder.value.items.value)),
+    selectedItems: asRef((one) => one.selection.selectedItems),
+    selectedItemKeys: computed(() => folder.value.selection.selectedItemKeys.value),
+    renameState: asRef((one) => one.rename.renameState),
+    setKeyboardActionItem: (...args) => folder.value.selection.setKeyboardActionItem(...args),
+    clearKeyboardActionItem: () => folder.value.selection.clearKeyboardActionItem(),
+    prefetchItemThumbnail: (...args) => folder.value.thumbnails.prefetchItemThumbnail(...args),
+    fetchPathItems: (...args) => folder.value.fetchItems(...args),
+  });
+
   return {
     tabId,
-    folder: computed(() => fileStore.folderFor(tabId.value)),
+    folder,
+    address,
+    view,
+    /** Where the pane is, as the application names folders: `Docs/2026`. */
+    folderPath: computed(() => tabFolderPath({ kind: 'folder', path: address.value })),
+    /** Its listing, ordered the way the reader asked for. */
+    items: computed(() => fileStore.arrange(folder.value.items.value)),
+    /** Whether the reader is in this pane, which is what makes it act. */
+    focused: computed(() => tabId.value === tabsStore.activeId),
   };
 };

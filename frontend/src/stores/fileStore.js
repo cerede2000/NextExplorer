@@ -236,11 +236,18 @@ export const useFileStore = defineStore('fileStore', () => {
 
   const getCurrentPath = computed(() => currentPath.value);
 
-  const getCurrentPathItems = computed(() =>
-    sortItems(currentPathItems.value, useSettingsStore().sortBy, (full) =>
-      folderSizeStore.sizeFor(full)
-    )
-  );
+  /**
+   * A listing in the order the reader asked for, with the sizes it knows.
+   *
+   * Named rather than inlined into the computed below because a pane that is not
+   * the one in front needs the same arrangement of its own listing, and two
+   * copies of "how a folder is ordered" would drift the first time somebody
+   * added a sort key.
+   */
+  const arrange = (items) =>
+    sortItems(items, useSettingsStore().sortBy, (full) => folderSizeStore.sizeFor(full));
+
+  const getCurrentPathItems = computed(() => arrange(currentPathItems.value));
 
   function setCurrentPath(path) {
     currentPath.value = normalizePath(path);
@@ -248,6 +255,7 @@ export const useFileStore = defineStore('fileStore', () => {
 
   return {
     folderFor,
+    arrange,
     currentPath,
     getCurrentPath,
     setCurrentPath,

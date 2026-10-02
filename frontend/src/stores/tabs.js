@@ -374,17 +374,73 @@ export const useTabsStore = defineStore('tabs', () => {
    * Focus stays where it is. Putting a folder over there is preparing to drag
    * something into it, not going there.
    */
-  const showOnRight = (id) => {
-    if (!tabs.value.some((tab) => tab.id === id)) return null;
-    // What the other pane will be holding: the tab in front, or the one already
-    // on the left when the view is split. Worked out before anything is written,
-    // so a refusal leaves the panes exactly as they were.
-    const other = isSplit.value ? leftId.value : activeId.value;
-    if (id === other) return null;
-    leftId.value = other;
-    rightId.value = id;
+  /**
+   * Which tab the *other* pane would hold, for a tab put on the named side.
+   *
+   * Not split there is one pane, so whichever side is asked for, the tab in
+   * front is what ends up beside the new one.
+   */
+  const otherPane = (side) =>
+    isSplit.value ? (side === 'right' ? leftId.value : rightId.value) : activeId.value;
+
+  /**
+   * Whether a tab can be put in a pane, asked before it is offered.
+   *
+   * One truth for the menu entry and for a tab dragged into a pane, so a tab the
+   * menu greys out is a tab a drop refuses, and neither has its own idea of why.
+   */
+  const canShowBeside = (id, side = 'right') => {
+    const tab = tabs.value.find((one) => one.id === id);
+    if (!tab) return false;
+    // A shell is drawn above every layout rather than inside one, so a pane has
+    // nowhere to put it.
+    if (TAB_KINDS_BY_ID[tab.kind]?.inPane !== true) return false;
+    // Two panes on one tab share one listing, one selection and one rename: a
+    // mirror rather than a comparison. Duplicating the tab is what somebody
+    // wanting that means, and the strip already offers it.
+    return id !== otherPane(side);
+  };
+
+  /**
+   * Put a tab in one of the two panes, splitting the view if it was whole.
+   *
+   * Focus stays where it is. Putting a folder over there is preparing to drag
+   * something into it, not going there.
+   */
+  const showInPane = (side, id) => {
+    if (!canShowBeside(id, side)) return null;
+    // Worked out before anything is written, so a refusal leaves the panes
+    // exactly as they were.
+    const other = otherPane(side);
+    if (side === 'right') {
+      leftId.value = other;
+      rightId.value = id;
+    } else {
+      rightId.value = other;
+      leftId.value = id;
+    }
     persist();
     return tabs.value.find((tab) => tab.id === id) || null;
+  };
+
+  const canShowOnRight = (id) => canShowBeside(id, 'right');
+  const showOnRight = (id) => showInPane('right', id);
+
+  /**
+   * Close one of the two panes, leaving the other.
+   *
+   * What the cross on a pane's own header means, and it has to be said this way
+   * round: the reader is left in the pane that *stays*, not in the one they just
+   * shut. Keeping whoever had focus made clicking a pane's cross keep that very
+   * pane, because pressing anything in a pane puts the reader in it first.
+   */
+  const closePane = (side) => {
+    if (!isSplit.value) return null;
+    const staying = side === 'right' ? leftId.value : rightId.value;
+    leftId.value = '';
+    rightId.value = '';
+    persist();
+    return activate(staying);
   };
 
   /** Back to one pane. The reader stays in the tab they were in. */
@@ -822,7 +878,11 @@ export const useTabsStore = defineStore('tabs', () => {
     isSplit,
     panes,
     paneOf,
+    canShowBeside,
+    canShowOnRight,
+    showInPane,
     showOnRight,
+    closePane,
     closeSplit,
     swapPanes,
     duplicate,

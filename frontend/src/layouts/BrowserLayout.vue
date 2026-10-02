@@ -40,12 +40,59 @@ import {
   InformationCircleIcon,
 } from '@heroicons/vue/24/outline';
 import FolderViewToolbar from '@/components/FolderViewToolbar.vue';
+import TabPane from '@/components/TabPane.vue';
+import { useTabsStore } from '@/stores/tabs';
 
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
 const appSettings = useAppSettings();
 const featuresStore = useFeaturesStore();
+const tabsStore = useTabsStore();
+
+/**
+ * Which tab the left pane holds.
+ *
+ * Not split, there is one pane and it holds the tab in front — which is what
+ * this layout drew before panes existed. Split, the panes are named and the
+ * store keeps the tab in front in one of them.
+ */
+const leftPaneTab = computed(() => (tabsStore.isSplit ? tabsStore.leftId : tabsStore.activeId));
+
+/**
+ * How the two panes share the width, remembered.
+ *
+ * Half and half to begin with, which is what being asked for two panes means,
+ * and then wherever the reader put the divider — the same bargain the sidebar's
+ * own width strikes just above.
+ */
+const splitRatio = useStorage('browser-split-ratio', 0.5);
+const MIN_SPLIT = 0.2;
+const MAX_SPLIT = 0.8;
+const splittingPanes = ref(false);
+let splitRow = null;
+
+const onSplitPointerDown = (event) => {
+  splittingPanes.value = true;
+  splitRow = event.currentTarget?.parentElement || null;
+  document.body.classList.add('select-none');
+};
+
+useEventListener(window, 'pointermove', (event) => {
+  if (!splittingPanes.value || !splitRow) return;
+  const box = splitRow.getBoundingClientRect();
+  if (box.width <= 0) return;
+  const asked = (event.clientX - box.left) / box.width;
+  splitRatio.value = Math.min(MAX_SPLIT, Math.max(MIN_SPLIT, asked));
+  event.preventDefault();
+});
+
+useEventListener(window, 'pointerup', () => {
+  if (!splittingPanes.value) return;
+  splittingPanes.value = false;
+  splitRow = null;
+  document.body.classList.remove('select-none');
+});
 
 // Resizable aside state
 const asideWidth = useStorage('browser-aside-width', 230);
@@ -218,11 +265,40 @@ const handleGuestLogin = () => {
       </button>
 
       <ExplorerContextMenu>
-        <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <RouterView v-slot="{ Component, route: viewRoute }">
-            <component :is="Component" :key="viewRoute.fullPath" class="min-h-0 flex-1" />
-          </RouterView>
-        </div>
+        <RouterView v-slot="{ Component, route: viewRoute }">
+          <div class="flex min-h-0 flex-1 overflow-hidden">
+            <!-- Both panes are handed the router's component; each draws it only
+                 while it is the pane the reader is in, and resolves its own
+                 screen otherwise. -->
+            <TabPane
+              :tab-id="leftPaneTab"
+              :routed-component="Component"
+              :routed-key="viewRoute.fullPath"
+              side="left"
+              :split="tabsStore.isSplit"
+              :style="tabsStore.isSplit ? { flex: `0 0 ${splitRatio * 100}%` } : undefined"
+            />
+            <div
+              v-if="tabsStore.isSplit"
+              data-test="pane-divider"
+              class="group relative z-30 -mx-1 w-2 shrink-0 cursor-col-resize select-none bg-transparent"
+              :aria-label="$t('tabs.resizeSplit')"
+              @pointerdown="onSplitPointerDown"
+            >
+              <div
+                class="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-neutral-300 group-hover:bg-neutral-500 dark:bg-neutral-700"
+              ></div>
+            </div>
+            <TabPane
+              v-if="tabsStore.isSplit"
+              :tab-id="tabsStore.rightId"
+              :routed-component="Component"
+              :routed-key="viewRoute.fullPath"
+              side="right"
+              :split="true"
+            />
+          </div>
+        </RouterView>
       </ExplorerContextMenu>
 
       <!-- Beside what a tab holds rather than over the window: the sidebar and

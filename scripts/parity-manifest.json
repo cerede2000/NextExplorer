@@ -1597,10 +1597,17 @@
     },
     {
       "axis": "*",
-      "match": "^(frontend/src/stores/tabs\\.js|frontend/src/config/tabKinds\\.js|frontend/src/composables/tabNavigation\\.js|frontend/src/components/TabStrip\\.vue|frontend/src/composables/itemAddress\\.js|frontend/src/layouts/EditorLayout\\.vue|frontend/src/views/DocumentView\\.vue)",
+      "match": "^(frontend/src/stores/tabs\\.js|frontend/src/config/tabKinds\\.js|frontend/src/composables/tabNavigation\\.js|frontend/src/components/TabStrip\\.vue|frontend/src/composables/itemAddress\\.js|frontend/src/layouts/EditorLayout\\.vue|frontend/src/views/DocumentView\\.vue|frontend/src/utils/tabDrag\\.js)",
       "verdict": "PORT",
       "batch": "P3-59",
-      "note": "tabs, lot 1: a folder per tab, the kinds a tab can hold, the strip, and the switch that offers any of it — P3-59 when it goes, and where an entry opens, which three of them ask"
+      "note": "tabs, lot 1: a folder per tab, the kinds a tab can hold, the strip, and the switch that offers any of it — P3-59 when it goes, and where an entry opens, which three of them ask. `utils/tabDrag.js` travels with the strip: a tab being dragged says so under a name of its own, rather than as text that happens to look like an id, and a drop target has to decide during `dragover` — when a browser refuses to hand the data over"
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/src/components/TabPane\\.vue|frontend/src/composables/paneTab\\.js|frontend/src/components/BreadCrumb\\.vue|frontend/src/layouts/BrowserLayout\\.vue|frontend/src/views/FolderView\\.vue|frontend/src/composables/useFileDragDrop\\.js|frontend/src/stores/fileStore\\.js)",
+      "verdict": "PORT",
+      "batch": "P3-61",
+      "note": "two tabs at once, side by side, with one sidebar — the next batch after the comparison. What belongs to a place is the pane's own and what belongs to a person stays one to the window, which is the line `files/folderTab.js` already drew: `paneTab.js` is how a screen on the far side of it asks which side it is on, `TabPane.vue` is a pane. The rest is the panes' own state in the store, the two of them drawn by the layout, the entry in the strip's menu, the folder view and the breadcrumb reading their pane instead of the tab in front, and the drag that now reads the folder the files arrived in"
     }
   ],
   "residue": [
@@ -1683,6 +1690,22 @@
     {
       "match": "^README-development\\.md$",
       "note": "the batches sit on upstream main, which now tells a contributor that FFmpeg comes from a separately published image and is not compiled while the application image is built. This fork still compiles it: that package answers 403 to anyone outside the organisation, and the build time it saves is time this fork does not spend, because its images are built one job per architecture on a runner of that architecture. So the development notes describe the build that is actually here, and will differ for as long as that holds"
+    },
+    {
+      "match": "^frontend/src/stores/tabs\\.js$",
+      "note": "the split view changes files earlier batches already sent: the panes' own state and the rule that says what may go in one (`stores/tabs.js`, `config/tabKinds.js`), the breadcrumb reading its pane instead of the router (`BreadCrumb.vue`), and the drag reading the folder the files arrived in rather than only the one they left (`useFileDragDrop.js`). The difference stands until P3-61 goes, which is the batch that carries it — see the rule of that batch above"
+    },
+    {
+      "match": "^frontend/src/config/tabKinds\\.js$",
+      "note": "the split view changes files earlier batches already sent: the panes' own state and the rule that says what may go in one (`stores/tabs.js`, `config/tabKinds.js`), the breadcrumb reading its pane instead of the router (`BreadCrumb.vue`), and the drag reading the folder the files arrived in rather than only the one they left (`useFileDragDrop.js`). The difference stands until P3-61 goes, which is the batch that carries it — see the rule of that batch above"
+    },
+    {
+      "match": "^frontend/src/components/BreadCrumb\\.vue$",
+      "note": "the split view changes files earlier batches already sent: the panes' own state and the rule that says what may go in one (`stores/tabs.js`, `config/tabKinds.js`), the breadcrumb reading its pane instead of the router (`BreadCrumb.vue`), and the drag reading the folder the files arrived in rather than only the one they left (`useFileDragDrop.js`). The difference stands until P3-61 goes, which is the batch that carries it — see the rule of that batch above"
+    },
+    {
+      "match": "^frontend/src/composables/useFileDragDrop\\.js$",
+      "note": "the split view changes files earlier batches already sent: the panes' own state and the rule that says what may go in one (`stores/tabs.js`, `config/tabKinds.js`), the breadcrumb reading its pane instead of the router (`BreadCrumb.vue`), and the drag reading the folder the files arrived in rather than only the one they left (`useFileDragDrop.js`). The difference stands until P3-61 goes, which is the batch that carries it — see the rule of that batch above"
     }
   ],
   "controls": [
@@ -1697,6 +1720,10 @@
     {
       "match": "^common\\.confirm$",
       "note": "the word on the button of a question the application asks, which had no button of its own while the browser drew it — it goes with the dialog, P3-58"
+    },
+    {
+      "match": "^tabs\\.(showOnRight|closeSplit|resizeSplit)$",
+      "note": "two tabs at once, side by side, with one sidebar — the next batch after the comparison. What belongs to a place is the pane's own and what belongs to a person stays one to the window, which is the line `files/folderTab.js` already drew: `paneTab.js` is how a screen on the far side of it asks which side it is on, `TabPane.vue` is a pane, `tabDrag.js` names a tab being dragged so a pane can tell it from a file. The rest is the panes' own state in the store, the two of them drawn by the layout, the entry in the strip's menu, the folder view and the breadcrumb reading their pane instead of the tab in front, and the drag that now reads the folder the files arrived in"
     }
   ],
   "literals": [

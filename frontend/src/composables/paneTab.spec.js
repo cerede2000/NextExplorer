@@ -89,6 +89,45 @@ describe('the tab a pane draws', () => {
   });
 
   /**
+   * The facade reads and writes the pane's own folder, under the names the store
+   * uses for the tab in front — which is what lets a screen move onto it by
+   * renaming rather than by being rewritten.
+   *
+   * The assertion that matters is the write: a pane selecting something must not
+   * select it in whichever tab happens to have focus.
+   */
+  it('selects in its own tab, not in the one in front', () => {
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    const fileStore = useFileStore();
+    const first = tabs.tabs[0];
+    const second = tabs.open('/browse/Beta');
+    tabs.activate(first.id);
+
+    const seen = paneHolding(ref(second.id));
+    const chosen = [{ name: 'notes.txt' }];
+    seen.pane.view.selectedItems = chosen;
+
+    expect(fileStore.folderFor(second.id).selection.selectedItems.value).toEqual(chosen);
+    expect(fileStore.folderFor(first.id).selection.selectedItems.value).toEqual([]);
+    // And the store's own surface, which follows focus, is untouched.
+    expect(fileStore.selectedItems).toEqual([]);
+  });
+
+  /** A ref reached through the facade unwraps, as it does through a store. */
+  it('reads a path without anybody remembering a .value', () => {
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    const fileStore = useFileStore();
+    const second = tabs.open('/browse/Beta');
+    fileStore.folderFor(second.id).path.value = 'Beta';
+
+    const seen = paneHolding(ref(second.id));
+
+    expect(seen.pane.view.currentPath).toBe('Beta');
+  });
+
+  /**
    * And the folder it hands over is that tab's own — the listing, the selection
    * and the rename that belong to the place, not to whoever has focus.
    */

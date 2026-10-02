@@ -36,10 +36,15 @@ import {
  * `restores` says whether a tab of this kind is worth bringing back when the
  * reader returns. A folder is; the settings are not — somebody who closes the
  * browser on a settings page was not in the middle of anything there.
+ *
+ * `inPane` says whether this kind can be drawn in one half of a split view. A
+ * shell cannot: what shows it lives above every layout, so that it survives its
+ * tab going behind another, and a pane has nowhere to put it.
  */
 const TAB_KINDS = [
   {
     id: 'folder',
+    inPane: true,
     match: /^\/browse([/?#]|$)/,
     icon: FolderIcon,
     // Nothing to name it from at `/browse/`, which is the list of volumes.
@@ -49,6 +54,7 @@ const TAB_KINDS = [
   },
   {
     id: 'document',
+    inPane: true,
     match: /^\/open([/?#]|$)/,
     icon: DocumentTextIcon,
     singleton: false,
@@ -59,6 +65,7 @@ const TAB_KINDS = [
     // tabs, which is the point: the drawer belongs to the window and can only
     // ever show one.
     id: 'terminal',
+    inPane: false,
     match: /^\/terminal([/?#]|$)/,
     icon: CommandLineIcon,
     titleKey: 'titles.terminal',
@@ -77,6 +84,7 @@ const TAB_KINDS = [
     // stop somebody comparing another, which is the usual way of reviewing a change
     // across several files.
     id: 'compare',
+    inPane: true,
     match: /^\/compare([/?#]|$)/,
     icon: ArrowsRightLeftIcon,
     titleKey: 'compare.title',
@@ -88,6 +96,7 @@ const TAB_KINDS = [
   },
   {
     id: 'editor',
+    inPane: true,
     match: /^\/editor([/?#]|$)/,
     icon: CodeBracketIcon,
     singleton: false,
@@ -95,6 +104,7 @@ const TAB_KINDS = [
   },
   {
     id: 'search',
+    inPane: true,
     match: /^\/search([/?#]|$)/,
     icon: MagnifyingGlassIcon,
     titleKey: 'actions.search',
@@ -103,6 +113,7 @@ const TAB_KINDS = [
   },
   {
     id: 'trash',
+    inPane: true,
     match: /^\/trash([/?#]|$)/,
     icon: TrashIcon,
     titleKey: 'trash.title',
@@ -111,6 +122,7 @@ const TAB_KINDS = [
   },
   {
     id: 'versions',
+    inPane: true,
     match: /^\/versions([/?#]|$)/,
     icon: ClockIcon,
     titleKey: 'settings.fileVersions.title',
@@ -119,6 +131,7 @@ const TAB_KINDS = [
   },
   {
     id: 'shares',
+    inPane: true,
     match: /^\/shares([/?#]|$)/,
     icon: ShareIcon,
     titleKey: 'common.shares',
@@ -127,6 +140,7 @@ const TAB_KINDS = [
   },
   {
     id: 'settings',
+    inPane: true,
     match: /^\/settings([/?#]|$)/,
     icon: Cog6ToothIcon,
     titleKey: 'common.settings',

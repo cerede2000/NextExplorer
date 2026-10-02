@@ -1141,6 +1141,36 @@ describe('two tabs side by side', () => {
     expect(store.panes).toEqual([second.id]);
   });
 
+  /**
+   * The cross on a pane's own header, which has to be said this way round: the
+   * reader is left in the pane that stays, not in the one they just shut.
+   * Keeping whoever had focus kept the very pane being closed, because pressing
+   * anything in a pane puts the reader in it first.
+   */
+  it('closes the pane it is told to, leaving the reader in the other', () => {
+    const { store, first, second } = two();
+    store.showOnRight(second.id);
+
+    store.closePane('left');
+
+    expect(store.isSplit).toBe(false);
+    expect(store.activeId).toBe(second.id);
+
+    // And the other way round.
+    store.showOnRight(first.id);
+    expect(store.panes).toEqual([second.id, first.id]);
+    store.closePane('right');
+    expect(store.isSplit).toBe(false);
+    expect(store.activeId).toBe(second.id);
+  });
+
+  it('closes no pane when there is only one', () => {
+    const { store } = two();
+
+    expect(store.closePane('right')).toBe(null);
+    expect(store.isSplit).toBe(false);
+  });
+
   it('exchanges the two panes', () => {
     const { store, first, second } = two();
     store.showOnRight(second.id);

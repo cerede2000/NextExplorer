@@ -93,8 +93,47 @@ vi.mock('@/stores/operationTasks', async () => {
 });
 // The tab this listing is in, which is half the key its place is remembered
 // under: two tabs can be on one folder and be in different places in it.
-const appTabs = vi.hoisted(() => ({ activeId: 'tab-1', takeBroughtForward: vi.fn(() => false) }));
+const appTabs = vi.hoisted(() => ({
+  activeId: 'tab-1',
+  // Which tab the pane draws, when that is not the one in front.
+  paneId: '',
+  takeBroughtForward: vi.fn(() => false),
+}));
 vi.mock('@/stores/tabs', () => ({ useTabsStore: () => appTabs }));
+
+/**
+ * The pane this view is drawing, which is where it now reads its place from.
+ *
+ * Composed from the same stand-ins the tests already drive: the folder on screen
+ * is `stores.file`, and where the pane is comes from the route — so every
+ * assertion below still states its situation the way it did, and still asserts
+ * the same thing. What the pane itself decides is held in
+ * `composables/paneTab.spec.js`; what is exercised here is this view.
+ */
+vi.mock('@/composables/paneTab', async () => {
+  const { computed } = await import('vue');
+  const file = await shared.make('file');
+  const route = await shared.make('route', { params: { path: 'Docs' }, query: {} });
+  const folderPath = computed(() => String(route.params?.path || ''));
+  const address = computed(() => {
+    const select = route.query?.select;
+    const query = typeof select === 'string' ? `?select=${encodeURIComponent(select)}` : '';
+    return `/browse/${folderPath.value}${query}`;
+  });
+  return {
+    usePaneFolder: () => ({
+      tabId: computed(() => appTabs.paneId || appTabs.activeId),
+      folder: computed(() => file),
+      address,
+      folderPath,
+      view: file,
+      items: computed(() => file.getCurrentPathItems),
+      focused: computed(() => true),
+    }),
+    usePaneTabId: () => computed(() => appTabs.paneId || appTabs.activeId),
+    providePaneTab: () => {},
+  };
+});
 
 const composables = vi.hoisted(() => ({
   clearSelection: vi.fn(),
@@ -279,6 +318,7 @@ beforeEach(() => {
     get: vi.fn(() => 0),
   });
   appTabs.activeId = 'tab-1';
+  appTabs.paneId = '';
   appTabs.takeBroughtForward.mockClear();
   appTabs.takeBroughtForward.mockReturnValue(false);
   Object.assign(stores.operationTasks, { operationCount: 0 });
@@ -1332,6 +1372,23 @@ describe('a folder tab coming back', () => {
     await mountFolder();
 
     expect(stores.file.fetchPathItems).not.toHaveBeenCalledWith('Docs');
+  });
+
+  /**
+   * And it asks about its *own* tab.
+   *
+   * A pane beside the reader draws a tab that does not have focus, so a view
+   * that asked "was the tab in front just brought forward" asked about somebody
+   * else's tab — and would have thrown away the listing of a pane nobody had
+   * touched, or kept a stale one for the pane they had.
+   */
+  it('asks about its own pane tab, not the one in front', async () => {
+    appTabs.paneId = 'tab-beside';
+
+    await mountFolder();
+
+    expect(appTabs.takeBroughtForward).toHaveBeenCalledWith('tab-beside');
+    expect(appTabs.takeBroughtForward).not.toHaveBeenCalledWith('tab-1');
   });
 
   it('asks for it again quietly, under whatever was on screen', async () => {

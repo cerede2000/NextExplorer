@@ -1,4 +1,5 @@
 <script setup>
+import { TAB_DRAG_TYPE } from '@/utils/tabDrag';
 import { computed, onUnmounted, ref, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { onClickOutside, useElementSize } from '@vueuse/core';
@@ -175,11 +176,21 @@ const runAndShut = (action, id) => {
 const held = ref('');
 const over = ref('');
 
+/** Beside the other pane, from the menu — the same rule the drop asks. */
+const canShowBeside = (tab) => Boolean(tab) && tabs.canShowOnRight(tab.id);
+const showBeside = (id) => {
+  menuFor.value = '';
+  tabs.showOnRight(id);
+};
+
 const startDrag = (id, event) => {
   held.value = id;
   // Firefox starts no drag at all without something on the transfer, and `move`
   // is what this is — no copy of a tab exists.
   event.dataTransfer?.setData('text/plain', id);
+  // Named as well as written in plain text: a pane takes drops of files *and* of
+  // tabs, and "some text that happens to be an id" is not something to act on.
+  event.dataTransfer?.setData(TAB_DRAG_TYPE, id);
   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
 };
 
@@ -303,9 +314,13 @@ const duplicate = (id) => {
       class="group relative flex min-w-0 items-center rounded-t-md border border-b-0 text-sm"
       :class="[
         tab.pinned ? 'w-11 shrink-0 justify-center' : 'max-w-44 flex-1 basis-0',
-        tab.id === tabs.activeId
+        tabs.paneOf(tab.id)
           ? 'border-neutral-200 bg-white dark:border-neutral-700 dark:bg-default'
           : 'border-transparent bg-transparent hover:bg-zinc-200/70 dark:hover:bg-neutral-700/70',
+        // Both panes are on screen; which of them the reader is in is said by the
+        // underline rather than by the tab looking unselected, because a pane
+        // that is drawn and looks closed is a tab nobody believes.
+        tabs.isSplit && tabs.paneOf(tab.id) && tab.id !== tabs.activeId ? 'opacity-80' : '',
         isCopyTarget(tab)
           ? 'ring-2 ring-emerald-500'
           : isFileTarget(tab)
@@ -316,6 +331,7 @@ const duplicate = (id) => {
       :data-id="tab.id"
       :data-kind="tab.kind"
       :data-active="tab.id === tabs.activeId ? 'true' : 'false'"
+      :data-pane="tabs.paneOf(tab.id) || 'none'"
       :data-pinned="tab.pinned ? 'true' : 'false'"
       :data-loading="isLoading(tab) ? 'true' : 'false'"
       :data-over="over === tab.id ? 'true' : 'false'"
@@ -429,6 +445,15 @@ const duplicate = (id) => {
           @click="duplicate(menuTab.id)"
         >
           {{ t('tabs.duplicate') }}
+        </button>
+        <button
+          type="button"
+          class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 disabled:opacity-50 dark:hover:bg-neutral-600"
+          :disabled="!canShowBeside(menuTab)"
+          data-test="tab-show-right"
+          @click="showBeside(menuTab.id)"
+        >
+          {{ t('tabs.showOnRight') }}
         </button>
         <button
           type="button"
