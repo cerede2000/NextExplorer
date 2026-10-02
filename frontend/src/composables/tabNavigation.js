@@ -269,15 +269,40 @@ export function useTabNavigation() {
    * while somebody was browsing (`own` stops being true the moment it is), and the
    * last tab, because there would be nowhere left to be.
    */
-  const closeOwn = async () => {
+  const closeOwn = async (id) => {
     if (!tabs.enabled) return false;
-    const tab = tabs.activeTab;
+    // The tab the screen pressing this speaks for, which is the tab in front only
+    // when there is one pane. A document or an editor drawn in the half beside the
+    // reader was closing *their* tab instead of its own — the wrong half went, and
+    // the half the cross was pressed in stayed on an address with nothing left to
+    // draw, which is the black panel.
+    const tab = id ? tabs.tabs.find((one) => one.id === id) : tabs.activeTab;
     if (!tab?.own || !tabs.canClose) return false;
     // Awaited rather than let go of: the answer is what decides whether the tab is
     // still there, and a caller told "yes, this was your tab" while the question was
     // still on screen would go on to do the rest of its closing behind the dialog.
     await close(tab.id);
     return true;
+  };
+
+  /**
+   * Where a screen goes when it has finished with itself — its own half, not the
+   * window.
+   *
+   * A screen drawn in the pane beside the reader is not the address bar: sending the
+   * window somewhere takes the reader's own half there and leaves this one showing
+   * an address nothing draws. So the tab this screen speaks for is retargeted, and
+   * the pane redraws from the address it now has.
+   *
+   * `replace` by default, because a screen that has closed itself is not a place to
+   * come back to.
+   */
+  const leaveFrom = (id, location, { replace = true } = {}) => {
+    if (!id || id === tabs.activeId) {
+      return replace ? router.replace(location) : router.push(location);
+    }
+    const resolved = router.resolve(location);
+    return tabs.retarget(id, resolved.fullPath);
   };
 
   /** Whether the strip belongs on screen at all: the mode, and a place to be. */
@@ -295,5 +320,6 @@ export function useTabNavigation() {
     closeOthers,
     closeAll,
     closeOwn,
+    leaveFrom,
   };
 }

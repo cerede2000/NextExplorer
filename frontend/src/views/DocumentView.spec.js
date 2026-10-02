@@ -62,12 +62,29 @@ const appTabs = vi.hoisted(() => ({
   pane: null,
 }));
 const closeOwn = vi.fn(() => false);
+/**
+ * The navigation, as faithful as it needs to be: where a screen goes when it has
+ * finished is the *window* only while its tab is the one in front. In the half
+ * beside the reader it is that tab that is taken somewhere, and the address bar is
+ * not touched — which is the difference between a pane going back to its folder and
+ * the reader's own half being taken there instead.
+ */
+const retargeted = vi.hoisted(() => []);
+const leaveFrom = vi.hoisted(() => vi.fn());
 vi.mock('@/composables/tabNavigation', () => ({
   useTabNavigation: () => ({
     get tabs() {
       return appTabs;
     },
     closeOwn: (...args) => closeOwn(...args),
+    leaveFrom: (id, location, options) => {
+      leaveFrom(id, location, options);
+      if (!id || id === appTabs.activeId) {
+        replace(location);
+        return;
+      }
+      retargeted.push({ id, location });
+    },
   }),
 }));
 
@@ -194,6 +211,8 @@ beforeEach(() => {
   appTabs.tabs = [{ id: 'tab-1', own: false }];
   appTabs.pane = null;
   windowPath.value = null;
+  retargeted.length = 0;
+  leaveFrom.mockClear();
   for (const key of Object.keys(sessions)) delete sessions[key];
   closeOwn.mockClear();
   closeOwn.mockReturnValue(false);
@@ -626,6 +645,36 @@ describe('the close button, with this application own tabs', () => {
    * the same event. Acted on, it would close whichever tab had just come
    * forward — somebody else's tab, taken away by a document they never touched.
    */
+  /**
+   * A document closed in the half beside the reader goes back to its folder *in
+   * that half*.
+   *
+   * It used to send the window: the reader's own half was taken to the folder the
+   * document was in, and the half the cross was pressed in stayed on an address
+   * nothing draws any more — a black panel with its tab still in the strip.
+   */
+  it('takes its own half back to the folder, not the window', async () => {
+    appTabs.enabled = true;
+    appTabs.activeId = 'tab-2';
+    appTabs.pane = 'tab-9';
+    appTabs.tabs = [
+      { id: 'tab-2', own: false },
+      { id: 'tab-9', own: false },
+    ];
+    await show('Docs/Reports/report.docx');
+
+    // The cross in the document's own header: its session ends.
+    sessions['tab-9'].open = false;
+    await flushPromises();
+
+    expect(retargeted).toHaveLength(1);
+    expect(retargeted[0].id).toBe('tab-9');
+    expect(retargeted[0].location).toMatchObject({ query: { select: 'report.docx' } });
+    // And the reader's own half was not taken anywhere.
+    expect(replace).not.toHaveBeenCalled();
+    expect(window.close).not.toHaveBeenCalled();
+  });
+
   it('does nothing when a session ends behind whatever is in front', async () => {
     appTabs.enabled = true;
     appTabs.activeId = 'tab-2';

@@ -1422,8 +1422,10 @@ window.addEventListener('keydown', onKey);
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
 const close = async () => {
-  if (await tabNavigation.closeOwn()) return;
-  void router.push('/browse/');
+  if (await tabNavigation.closeOwn(ownTabId.value)) return;
+  // Its own half, not the window: a comparison closed in the pane beside the reader
+  // used to take the reader's own pane to the volumes with it.
+  void tabNavigation.leaveFrom(ownTabId.value, '/browse/', { replace: false });
 };
 </script>
 

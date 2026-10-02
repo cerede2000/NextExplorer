@@ -195,7 +195,7 @@
 <script setup>
 import { usePaneRoute, usePaneTabId } from '@/composables/paneTab';
 import { ref, shallowRef, watch, computed, nextTick, onBeforeUnmount } from 'vue';
-import { onBeforeRouteLeave, useRouter } from 'vue-router';
+import { onBeforeRouteLeave } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { Compartment, EditorState } from '@codemirror/state';
 import CodeSurface from '@/components/editor/CodeSurface.vue';
@@ -231,7 +231,6 @@ import { useEditorDraftsStore } from '@/stores/editorDrafts';
 import { useTabLoadingStore } from '@/stores/tabLoading';
 
 const route = usePaneRoute();
-const router = useRouter();
 const tabNavigation = useTabNavigation();
 const { ask } = useAsk();
 const tabs = tabNavigation.tabs;
@@ -752,7 +751,7 @@ const requestClose = async () => {
   // `tabNavigation`. A `.txt` and a `.md` come here rather than to the preview,
   // so without this the cross of half the documents a reader opens in a tab left
   // that tab sitting on a folder.
-  if (await tabNavigation.closeOwn()) return;
+  if (await tabNavigation.closeOwn(tabKey.value)) return;
 
   // A tab opened for this file alone is closed rather than sent somewhere: the
   // preference that opens documents in their own tab sends editable files here
@@ -763,7 +762,9 @@ const requestClose = async () => {
   // "created by web content", and closing that because they shut a file would
   // take the rest of their session with it. Closing is asynchronous, so the
   // ordinary way out still runs if the browser refuses.
-  if (window.history.length === 1) {
+  // And a half of a split window is not the browser's window: closing it because
+  // the file in one pane was closed would take the other pane with it.
+  if (tabKey.value === tabs.activeId && window.history.length === 1) {
     window.close();
     setTimeout(() => {
       if (!window.closed) leaveTheOrdinaryWay();
@@ -777,9 +778,19 @@ const requestClose = async () => {
 const CLOSE_REFUSED_AFTER_MS = 150;
 
 /** Where closing lands when this tab has somewhere to go back to. */
+/**
+ * Out of here, in this page's own half.
+ *
+ * Every one of these used to send the *window*, which is right while there is one
+ * pane and wrong the moment there are two: an editor closed in the half beside the
+ * reader took the reader's own half to a folder and left this one on an address it
+ * no longer draws anything for.
+ */
+const goBackTo = (location) => tabNavigation.leaveFrom(tabKey.value, location);
+
 const leaveTheOrdinaryWay = () => {
   if (isSharedEditor.value) {
-    router.replace(`/share/${encodeURIComponent(sharedToken.value)}`);
+    goBackTo(`/share/${encodeURIComponent(sharedToken.value)}`);
     return;
   }
 
@@ -787,7 +798,7 @@ const leaveTheOrdinaryWay = () => {
     // Back to the folder, with the file's history open where it was read from.
     versionsPanel.openPath(normalizedPath.value);
     const parent = parentFolderPath();
-    router.replace(`/browse${parent ? '/' + parent : ''}`);
+    goBackTo(`/browse${parent ? '/' + parent : ''}`);
     return;
   }
 
@@ -798,12 +809,12 @@ const leaveTheOrdinaryWay = () => {
     const query = {};
     if (trashEntryPath.value) query.item = trashItemId.value;
     if (segments.length) query.path = segments.join('/');
-    router.replace({ name: 'Trash', query });
+    goBackTo({ name: 'Trash', query });
     return;
   }
 
   const parent = parentFolderPath();
-  router.replace(`/browse${parent ? '/' + parent : ''}`);
+  goBackTo(`/browse${parent ? '/' + parent : ''}`);
 };
 
 /**

@@ -65,8 +65,21 @@ vi.mock('vue-i18n', () => ({
   }),
 }));
 vi.mock('@/composables/usePageTitle', () => ({ usePageTitle: () => {} }));
+const retargeted = vi.hoisted(() => []);
 vi.mock('@/composables/tabNavigation', () => ({
-  useTabNavigation: () => ({ tabs: { enabled: true }, closeOwn: () => false }),
+  useTabNavigation: () => ({
+    tabs: { enabled: true },
+    closeOwn: () => false,
+    // Its own half: a comparison closed beside the reader must not take the
+    // reader's pane to the volumes with it.
+    leaveFrom: (id, location) => {
+      if (!id || id === appTabs.activeId) {
+        push(location);
+        return;
+      }
+      retargeted.push({ id, location });
+    },
+  }),
 }));
 const appTabs = vi.hoisted(() => ({
   activeId: 'tab-1',

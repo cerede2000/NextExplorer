@@ -94,12 +94,22 @@ const appTabs = vi.hoisted(() => ({ activeId: 'tab-1', tabs: [{ id: 'tab-1' }], 
 const asked = vi.hoisted(() => ({ ask: vi.fn(async () => false), askFor: vi.fn() }));
 vi.mock('@/composables/useAsk', () => ({ useAsk: () => asked }));
 
+const retargeted = vi.hoisted(() => []);
 vi.mock('@/composables/tabNavigation', () => ({
   useTabNavigation: () => ({
     get tabs() {
       return appTabs;
     },
     closeOwn: (...args) => closeOwn(...args),
+    // The window only while this page's tab is the one in front; otherwise that
+    // tab alone is taken somewhere, and the address bar is left where it is.
+    leaveFrom: (id, location) => {
+      if (!id || id === appTabs.activeId) {
+        router.replace(location);
+        return;
+      }
+      retargeted.push({ id, location });
+    },
   }),
 }));
 

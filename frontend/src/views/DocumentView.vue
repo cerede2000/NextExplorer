@@ -101,9 +101,19 @@ const tabKey = ref(paneTabId.value);
  */
 const shownAddress = ref(route.fullPath);
 
-/** Back where closing the panel would have left you. */
+/**
+ * Back where closing the panel would have left you — in this page's own half.
+ *
+ * The window when this page's tab is the one in front, and that tab alone when it
+ * is not: a document closed in the half beside the reader used to send the *window*
+ * to the folder, which took the reader's own half there and left this one on an
+ * address with nothing behind it. A black panel with a tab still on it.
+ */
 const leave = () => {
-  router.replace(folderRoute(parentPath.value, name.value ? { select: name.value } : undefined));
+  tabNavigation.leaveFrom(
+    tabKey.value,
+    folderRoute(parentPath.value, name.value ? { select: name.value } : undefined)
+  );
 };
 
 /**
@@ -142,13 +152,16 @@ const CLOSE_REFUSED_AFTER_MS = 150;
 const tabIsThisDocument = () => window.history.length === 1;
 
 const closeTabOrLeave = async () => {
-  // In one of this application's own tabs, the thing to close is that tab. The
-  // rule itself is in `tabNavigation`, because the text editor's cross means
-  // exactly the same thing and a rule kept in two places is a rule that will
+  // In one of this application's own tabs, the thing to close is that tab — this
+  // page's own, which is not the tab in front when this page is the half beside the
+  // reader. The rule itself is in `tabNavigation`, because the text editor's cross
+  // means exactly the same thing and a rule kept in two places is a rule that will
   // disagree with itself.
-  if (await tabNavigation.closeOwn()) return;
+  if (await tabNavigation.closeOwn(tabKey.value)) return;
 
-  if (!tabIsThisDocument()) {
+  // And a half is not the browser's window: closing the window because a document
+  // in one of two panes was closed would take the other half with it.
+  if (tabs.activeId !== tabKey.value || !tabIsThisDocument()) {
     leave();
     return;
   }
