@@ -978,8 +978,13 @@ const returnToFolder = async () => {
    * is there — and when it is not, for any of the reasons a tab place can be
    * missing, the reader still lands where they were instead of at the top.
    */
-  const savedScrollTop =
-    folderScrollStore.tabPlace(placeKey()) || folderScrollStore.get(scrollKey());
+  // Asked as "has this tab a place here", not as a number: the top is an answer,
+  // and as a number it is zero, which reads as no answer at all. A tab left at the
+  // top therefore fell through to the folder's memory — shared by every tab on that
+  // folder — and came back wherever another tab had last been left in it.
+  const savedScrollTop = folderScrollStore.hasTabPlace(placeKey())
+    ? folderScrollStore.tabPlace(placeKey())
+    : folderScrollStore.get(scrollKey());
   if (savedScrollTop > 0) {
     await waitForScrollLayout();
     // Asked for over several frames: a folder of two thousand files is not as

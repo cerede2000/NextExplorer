@@ -63,6 +63,35 @@ describe('folder scroll positions', () => {
     });
   });
 
+  /**
+   * A tab's own place, and the difference between "at the top" and "nowhere".
+   *
+   * The folder's memory is shared by every tab on it and is only the fallback. A
+   * tab whose place was the top answered zero, which reads as no answer at all —
+   * so it fell through to the folder's and came back wherever another tab had last
+   * been left. Three tabs on one folder, one of them scrolled to the bottom to open
+   * a document, and the other two landed down there beside it.
+   */
+  it('tells a place at the top from no place at all', () => {
+    const store = useFolderScrollStore();
+
+    expect(store.hasTabPlace('tab-1::volume/parent::list')).toBe(false);
+
+    store.rememberTabPlace('tab-1::volume/parent::list', 0);
+
+    expect(store.hasTabPlace('tab-1::volume/parent::list')).toBe(true);
+    expect(store.tabPlace('tab-1::volume/parent::list')).toBe(0);
+  });
+
+  it('forgets a tab place when it is told to', () => {
+    const store = useFolderScrollStore();
+    store.rememberTabPlace('tab-1::volume/parent::list', 900);
+
+    store.forgetTabPlace('tab-1::volume/parent::list');
+
+    expect(store.hasTabPlace('tab-1::volume/parent::list')).toBe(false);
+  });
+
   it('preserves an editor return through the generic navigation guard', () => {
     const store = useFolderScrollStore();
 

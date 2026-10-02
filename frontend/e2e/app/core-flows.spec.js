@@ -2794,8 +2794,44 @@ test('a pair of documents is still the same two documents when the reader comes 
     const pair = entries.filter({ has: page.locator('[role="tab"][title*="sheet.md"]') });
     await named('Berth').getByRole('tab').click();
     await expect(panes).toHaveCount(1);
+
+    /**
+     * And neither of them is drawn across the whole window on the way back.
+     *
+     * The half on the right is destroyed when the pair leaves the window, and its
+     * box went with it — so the document in it came back placed over the *whole*
+     * window and was put into its half a frame later. Measured here before the fix:
+     * `0+1280`, then `756+525`. A document that is only a preview redraws; an
+     * ONLYOFFICE editor lays itself out for the size it is given and then lays
+     * itself out again, which is the jump that looks like it reloading.
+     *
+     * Watched *while* the switch happens, because it lasts a frame or two.
+     */
+    const watching = page.evaluate(
+      () =>
+        new Promise((resolve) => {
+          const seen = new Set();
+          let frames = 0;
+          const look = () => {
+            for (const surface of document.querySelectorAll('[data-test="preview-surface"]')) {
+              const box = surface.getBoundingClientRect();
+              seen.add(`${Math.round(box.x)}+${Math.round(box.width)}`);
+            }
+            frames += 1;
+            if (frames >= 40) resolve([...seen]);
+            else requestAnimationFrame(look);
+          };
+          requestAnimationFrame(look);
+        })
+    );
     await pair.getByRole('tab').click();
     await expect(panes).toHaveCount(2);
+    const widths = await watching;
+    const whole = await page.evaluate(() => window.innerWidth);
+    expect(
+      widths.filter((box) => Number(box.split('+')[1]) >= whole - 2),
+      `a document was drawn across the whole window at some point: ${widths.join(', ')}`
+    ).toEqual([]);
 
     // The same two documents, not two new ones: the right-hand half used to come
     // back as a fresh node every time, and with it a fresh editor.
@@ -3034,7 +3070,9 @@ test('three tabs on one folder each keep their own place and selection', async (
     await page.locator('[data-test="tab-show-right"]').click();
     await expect(panes).toHaveCount(2);
     await expect(panes.last().locator('[data-selected="true"]')).toContainText(second);
-    expect((await places())[1].top).toBe(secondAt.top);
+    // Polled: putting a tab back where it was is asked for over several frames, since
+    // a long list is not as tall as it will be on the frame it is asked.
+    await expect.poll(async () => (await places())[1].top).toBe(secondAt.top);
 
     // Each half moves on its own.
     await scrollPane(1, 2400);
@@ -3048,17 +3086,151 @@ test('three tabs on one folder each keep their own place and selection', async (
     // Away to the tab that is on its own, which is exactly as it was left.
     await entries.first().getByRole('tab').click();
     await expect(panes).toHaveCount(1);
-    const [backAlone] = await places();
-    expect(backAlone.selected).toEqual([alone]);
-    expect(backAlone.top).toBe(aloneAt.top);
+    await expect.poll(async () => (await places())[0].top).toBe(aloneAt.top);
+    expect((await places())[0].selected).toEqual([alone]);
 
     // And back to the pair, where both halves are exactly as they were left.
     await entries.last().getByRole('tab').click();
     await expect(panes).toHaveCount(2);
     await expect(panes.first().locator('[data-selected="true"]')).toContainText(left);
-    const again = await places();
-    expect(again.map((half) => half.selected)).toEqual([[left], [right]]);
-    expect(again.map((half) => half.top)).toEqual(inThePair.map((half) => half.top));
+    await expect
+      .poll(async () => (await places()).map((half) => half.top))
+      .toEqual(inThePair.map((half) => half.top));
+    expect((await places()).map((half) => half.selected)).toEqual([[left], [right]]);
+  } finally {
+    await page.goto('/settings/user-preferences');
+    await preference.click();
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(preference).toHaveAttribute('aria-checked', 'false');
+  }
+});
+
+/**
+ * A document opened from the bottom of a folder does not take the other tabs down
+ * with it.
+ *
+ * The reader's own path: the same folder in three tabs, two of them side by side.
+ * One half is scrolled to the bottom and a document opened from down there; coming
+ * back, the other half — which had never been moved from the top — was at the
+ * bottom too, on the document's own row. So was the third tab.
+ *
+ * Two memories answer "where was I": this tab's, and the folder's, which every tab
+ * on that folder shares and which is only meant as the fallback. A tab's place was
+ * asked for as a number, so a tab sitting at the top answered zero — which reads as
+ * no answer at all, and the folder's memory was taken instead. And a tab nobody had
+ * scrolled had never written a place of its own in the first place, so even asking
+ * the question properly would not have helped it.
+ */
+test('a document opened from the bottom leaves the other tabs where they were', async () => {
+  // Three listings of two hundred files, scrolled and clicked in.
+  test.slow();
+
+  const dir = path.join(volume, 'Walk');
+  fs.mkdirSync(dir, { recursive: true });
+  for (let i = 1; i <= 200; i += 1) {
+    fs.writeFileSync(path.join(dir, `file-${String(i).padStart(3, '0')}.txt`), 'walk\n');
+  }
+  // Sorts last, so it can only be reached by going to the bottom.
+  fs.writeFileSync(path.join(dir, 'zz-note.md'), '# A note\n\nat the bottom\n');
+
+  const strip = page.locator('[data-test="tab-strip"]');
+  const entries = strip.locator('[data-test="tab"]');
+  const panes = page.locator('[data-test="tab-pane"]');
+  const places = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll('[data-test="tab-pane"]')].map((pane) => ({
+        top: Math.round(pane.querySelector('.upload-drop-target')?.scrollTop ?? -1),
+        selected: [...pane.querySelectorAll('[data-selected="true"]')]
+          .map((row) => row.getAttribute('title'))
+          .filter(Boolean),
+      }))
+    );
+  const scrollPane = async (index, amount) => {
+    const box = await panes.nth(index).locator('.upload-drop-target').boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.wheel(0, amount);
+    await page.waitForTimeout(600);
+  };
+  const clickRow = async (index) => {
+    const aim = await page.evaluate((half) => {
+      const pane = document.querySelectorAll('[data-test="tab-pane"]')[half];
+      const area = pane.querySelector('.upload-drop-target').getBoundingClientRect();
+      const row = [...pane.querySelectorAll('[data-selected]')].find((node) => {
+        const box = node.getBoundingClientRect();
+        return box.top > area.top + 150 && box.bottom < area.bottom - 80;
+      });
+      const box = row.getBoundingClientRect();
+      return { title: row.getAttribute('title'), x: box.x + 80, y: box.y + box.height / 2 };
+    }, index);
+    await page.mouse.click(aim.x, aim.y);
+    await page.waitForTimeout(400);
+    return aim.title;
+  };
+
+  await page.goto('/settings/user-preferences');
+  const preference = page.locator('[data-test="browse-in-tabs"]');
+  await preference.click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(preference).toHaveAttribute('aria-checked', 'true');
+  const inNewTab = page.locator('[data-test="documents-in-new-tab"]');
+  if ((await inNewTab.getAttribute('aria-checked')) !== 'true') {
+    await inNewTab.click();
+    await page.getByRole('button', { name: 'Save' }).click();
+  }
+
+  try {
+    await page.goto('/browse/Projects');
+    const closeEvery = page.locator('[data-test="tab-close-all"]');
+    if ((await closeEvery.count()) > 0) await closeEvery.click();
+    await expect(entries).toHaveCount(1);
+
+    // The same folder three times over, the last two side by side.
+    await page.goto('/browse/Projects/Walk');
+    await expect(page.locator('[title="file-001.txt"]').first()).toBeVisible();
+    for (const copy of [1, 2]) {
+      const before = await entries.count();
+      expect(before, `copy ${copy} of the folder`).toBeGreaterThan(0);
+      await entries.last().getByRole('tab').click({ button: 'right' });
+      await page.locator('[data-test="tab-duplicate"]').click();
+      await expect(entries).toHaveCount(before + 1);
+      await expect(panes.first().locator('[data-selected]')).toHaveCount(201);
+    }
+    await entries.last().getByRole('tab').click({ button: 'right' });
+    await page.locator('[data-test="tab-show-right"]').click();
+    await expect(panes).toHaveCount(2);
+    await expect(panes.last().locator('[data-selected]')).toHaveCount(201);
+
+    // One half taken to the bottom, and the document down there opened in a tab
+    // of its own.
+    await scrollPane(0, 20000);
+    const atTheBottom = (await places())[0].top;
+    expect(atTheBottom).toBeGreaterThan(1000);
+    await panes.first().locator('[title="zz-note.md"]').first().dblclick();
+    await expect(page).toHaveURL(/\/(open|editor)\/Projects\/Walk\/zz-note\.md$/);
+
+    // Back to the pair: the half that opened it is where it was, on the document's
+    // own row — and the half beside it has not moved from the top.
+    await entries
+      .filter({ has: page.locator('[role="tab"][title*="↔"]') })
+      .getByRole('tab')
+      .click();
+    await expect(panes).toHaveCount(2);
+    const back = await places();
+    expect(back[0].top).toBe(atTheBottom);
+    expect(back[0].selected).toEqual(['zz-note.md']);
+    expect(back[1].top, 'the half nobody moved is still at the top').toBe(0);
+
+    // And selecting in that half selects what was pressed, where it was pressed.
+    const chosen = await clickRow(1);
+    const after = await places();
+    expect(after[1].selected).toEqual([chosen]);
+    expect(after[1].top).toBe(0);
+    expect(after[0].top).toBe(atTheBottom);
+
+    // The third tab, which never left the top either.
+    await entries.first().getByRole('tab').click();
+    await expect(panes).toHaveCount(1);
+    expect((await places())[0].top).toBe(0);
   } finally {
     await page.goto('/settings/user-preferences');
     await preference.click();

@@ -316,6 +316,9 @@ beforeEach(() => {
     consumeRestoreState: vi.fn(() => ({ permitted: false, scrollTop: 0, activeItemKey: '' })),
     rememberTabPlace: vi.fn(),
     tabPlace: vi.fn(() => 0),
+    // Whether this tab has a place in this folder at all, which is a different
+    // question from where it is: the top is an answer, and as a number it is zero.
+    hasTabPlace: vi.fn(() => false),
     // The folder's own memory, which a tab coming back falls back to: it is what
     // a walk back up the path reads, and it has been putting readers back where
     // they were since long before tabs existed.
@@ -1425,12 +1428,32 @@ describe('a folder tab coming back', () => {
   });
 
   it('prefers the tab’s own place when there is one', async () => {
+    stores.folderScroll.hasTabPlace.mockReturnValue(true);
     stores.folderScroll.tabPlace.mockReturnValue(120);
     stores.folderScroll.get = vi.fn(() => 540);
 
     await mountFolder();
 
     expect(stores.folderScroll.tabPlace).toHaveBeenCalledWith('tab-1::Docs::list');
+    expect(stores.folderScroll.get).not.toHaveBeenCalledWith('Docs::list');
+  });
+
+  /**
+   * And the top is one of those places.
+   *
+   * Asked as a number, a tab sitting at the top answers zero — which reads as no
+   * answer, and the folder's own memory was taken instead. That memory is shared by
+   * every tab on the folder: three tabs on one, one of them scrolled to the bottom
+   * to open a document there, and the other two came back down beside it, hundreds
+   * of pixels from where their own readers had left them.
+   */
+  it('comes back to the top when that is where the tab was', async () => {
+    stores.folderScroll.hasTabPlace.mockReturnValue(true);
+    stores.folderScroll.tabPlace.mockReturnValue(0);
+    stores.folderScroll.get = vi.fn(() => 540);
+
+    await mountFolder();
+
     expect(stores.folderScroll.get).not.toHaveBeenCalledWith('Docs::list');
   });
 
@@ -1457,6 +1480,7 @@ describe('a folder tab coming back', () => {
       // As the real one does when this folder's own preference is the grid.
       stores.settings.view = 'grid';
     });
+    stores.folderScroll.hasTabPlace.mockReturnValue(true);
     stores.folderScroll.tabPlace.mockReturnValue(540);
 
     await mountFolder();
@@ -1465,6 +1489,7 @@ describe('a folder tab coming back', () => {
   });
 
   it('puts the tab back where it was in the folder', async () => {
+    stores.folderScroll.hasTabPlace.mockReturnValue(true);
     stores.folderScroll.tabPlace.mockReturnValue(540);
 
     await mountFolder();
@@ -1586,6 +1611,7 @@ describe('a folder tab coming back', () => {
    * did, reading a virtual list redrawing itself as a hand on the wheel.
    */
   it('keeps asking until a list long enough to hold the place has drawn itself', async () => {
+    stores.folderScroll.hasTabPlace.mockReturnValue(true);
     stores.folderScroll.tabPlace.mockReturnValue(900);
 
     await mountFolder();

@@ -100,6 +100,17 @@ export const useFolderScrollStore = defineStore('folderScroll', () => {
 
   const tabPlace = (key) => tabPlaces.get(key) ?? 0;
 
+  /**
+   * Whether this tab has a place in this folder at all, which is not the same
+   * question as where it is.
+   *
+   * The top is an answer: a tab that has been drawn in a folder and left at the top
+   * belongs at the top. Asked as a number, that answer is zero and reads as "no
+   * answer", and the caller falls through to the folder's own memory — which every
+   * tab on that folder shares.
+   */
+  const hasTabPlace = (key) => tabPlaces.has(key);
+
   const forgetTabPlace = (key) => {
     tabPlaces.delete(key);
   };
@@ -133,6 +144,7 @@ export const useFolderScrollStore = defineStore('folderScroll', () => {
   return {
     rememberTabPlace,
     tabPlace,
+    hasTabPlace,
     forgetTabPlace,
     remember,
     get,
