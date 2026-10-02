@@ -1128,9 +1128,38 @@ test('a long comparison shows where the reader is, and the scrollbar is not cove
     parseFloat(
       await page.locator('[data-test="compare-map-view"]').evaluate((node) => node.style.top)
     );
-  // Near the top rather than exactly at it: pressing a mark above set a smooth scroll
-  // going, and a number a still-running animation is allowed to nudge is a test that
-  // fails for no reason somebody will have to look into later.
+  /**
+   * Near the top rather than exactly at it, and let the box come to rest before telling it where to be.
+   *
+   * Pressing a mark above set a smooth scroll going, and it is still running when the
+   * walk across the lane and these measurements are done — the box was seen moving from
+   * 22 px to 67 px over two frames here. A position forced into a box while an animation
+   * runs is not kept: forced to 0, it was back at 35 px two frames later, and the lane
+   * then says where the reader really is, which is not the top. So the animation is
+   * waited out — three frames at the same number — and only then is the box told where
+   * to be. What is being measured is the lane, not whether a scroll can be interrupted.
+   */
+  const atRest = () =>
+    box.evaluate(
+      (node) =>
+        new Promise((resolve) => {
+          let last = node.scrollTop;
+          let still = 0;
+          let frames = 0;
+          const look = () => {
+            still = node.scrollTop === last ? still + 1 : 0;
+            last = node.scrollTop;
+            frames += 1;
+            // Capped: a box that never settles is a fault of its own, and the
+            // assertion below is the one that should say so.
+            if (still >= 3 || frames > 180) resolve(last);
+            else requestAnimationFrame(look);
+          };
+          requestAnimationFrame(look);
+        })
+    );
+
+  await atRest();
   await box.evaluate((node) => {
     node.scrollTop = 0;
   });
