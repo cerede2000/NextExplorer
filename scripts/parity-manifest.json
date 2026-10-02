@@ -1597,17 +1597,17 @@
     },
     {
       "axis": "*",
-      "match": "^(frontend/src/stores/tabs\\.js|frontend/src/config/tabKinds\\.js|frontend/src/composables/tabNavigation\\.js|frontend/src/components/TabStrip\\.vue|frontend/src/composables/itemAddress\\.js|frontend/src/layouts/EditorLayout\\.vue|frontend/src/views/DocumentView\\.vue|frontend/src/utils/tabDrag\\.js)",
+      "match": "^(frontend/src/stores/tabs\\.js|frontend/src/config/tabKinds\\.js|frontend/src/composables/tabNavigation\\.js|frontend/src/components/TabStrip\\.vue|frontend/src/composables/itemAddress\\.js|frontend/src/layouts/EditorLayout\\.vue|frontend/src/views/DocumentView\\.vue|frontend/src/utils/tabDrag\\.js|frontend/src/composables/paneBoxes\\.js)",
       "verdict": "PORT",
       "batch": "P3-59",
-      "note": "tabs, lot 1: a folder per tab, the kinds a tab can hold, the strip, and the switch that offers any of it — P3-59 when it goes, and where an entry opens, which three of them ask. `utils/tabDrag.js` travels with the strip: a tab being dragged says so under a name of its own, rather than as text that happens to look like an id, and a drop target has to decide during `dragover` — when a browser refuses to hand the data over"
+      "note": "tabs, lot 1: a folder per tab, the kinds a tab can hold, the strip, and the switch that offers any of it — P3-59 when it goes, and where an entry opens, which three of them ask. `utils/tabDrag.js` travels with the strip: a tab being dragged says so under a name of its own, rather than as text that happens to look like an id, and a drop target has to decide during `dragover` — when a browser refuses to hand the data over. `composables/paneBoxes.js` travels with the terminal host, which is the first thing that has to know where its tab's box is: what draws a shell lives above every layout so that it survives its tab going behind another, and it therefore cannot be positioned by nesting. One pane and the answer is the content area, which is what it assumed; said out loud here, and the one place a second pane later has to change"
     },
     {
       "axis": "*",
-      "match": "^(frontend/src/components/TabPane\\.vue|frontend/src/composables/paneTab\\.js|frontend/src/components/BreadCrumb\\.vue|frontend/src/layouts/BrowserLayout\\.vue|frontend/src/views/FolderView\\.vue|frontend/src/composables/useFileDragDrop\\.js|frontend/src/stores/fileStore\\.js)",
+      "match": "^(frontend/src/components/TabPane\\.vue|frontend/src/composables/paneTab\\.js|frontend/src/components/BreadCrumb\\.vue|frontend/src/layouts/BrowserLayout\\.vue|frontend/src/views/FolderView\\.vue|frontend/src/composables/useFileDragDrop\\.js|frontend/src/stores/fileStore\\.js|frontend/src/plugins/preview/PreviewHost\\.vue|frontend/src/plugins/preview/PreviewSurface\\.vue|frontend/src/plugins/preview/MediaPreview\\.vue|frontend/src/components/TerminalHost\\.vue)",
       "verdict": "PORT",
       "batch": "P3-61",
-      "note": "two tabs at once, side by side, with one sidebar — the next batch after the comparison. What belongs to a place is the pane's own and what belongs to a person stays one to the window, which is the line `files/folderTab.js` already drew: `paneTab.js` is how a screen on the far side of it asks which side it is on, `TabPane.vue` is a pane. The rest is the panes' own state in the store, the two of them drawn by the layout, the entry in the strip's menu, the folder view and the breadcrumb reading their pane instead of the tab in front, and the drag that now reads the folder the files arrived in"
+      "note": "two tabs at once, side by side, with one sidebar — the next batch after the comparison. What belongs to a place is the pane's own and what belongs to a person stays one to the window, which is the line `files/folderTab.js` already drew: `paneTab.js` is how a screen on the far side of it asks which side it is on, `TabPane.vue` is a pane. The rest is the panes' own state in the store, the two of them drawn by the layout, the entry in the strip's menu, the folder view and the breadcrumb reading their pane instead of the tab in front, and the drag that now reads the folder the files arrived in. A pair is a grouping of two *tabs* rather than a split of the window, so there can be as many as there are tabs: `paneBoxes.js` measures where each pane is, for the two things drawn outside the page that have to sit on it anyway — a document in its viewer and a shell. Both are told which panes are on screen instead of which tab is in front, and both take their box from there rather than from the window"
     }
   ],
   "residue": [
@@ -1706,6 +1706,22 @@
     {
       "match": "^frontend/src/composables/useFileDragDrop\\.js$",
       "note": "the split view changes files earlier batches already sent: the panes' own state and the rule that says what may go in one (`stores/tabs.js`, `config/tabKinds.js`), the breadcrumb reading its pane instead of the router (`BreadCrumb.vue`), and the drag reading the folder the files arrived in rather than only the one they left (`useFileDragDrop.js`). The difference stands until P3-61 goes, which is the batch that carries it — see the rule of that batch above"
+    },
+    {
+      "match": "^frontend/src/components/TerminalHost\\.vue$",
+      "note": "the pane work changes what these two draw for: a document's viewer and a shell are told which panes are on screen rather than which tab is in front, and each takes its box from its pane rather than from the window. The difference stands until P3-61 goes, which is the batch that carries it"
+    },
+    {
+      "match": "^frontend/src/plugins/preview/PreviewSurface\\.vue$",
+      "note": "the pane work changes what these two draw for: a document's viewer and a shell are told which panes are on screen rather than which tab is in front, and each takes its box from its pane rather than from the window. The difference stands until P3-61 goes, which is the batch that carries it"
+    },
+    {
+      "match": "^frontend/src/plugins/preview/MediaPreview\\.vue$",
+      "note": "the pane work changes what these two draw for: a document's viewer and a shell are told which panes are on screen rather than which tab is in front, and each takes its box from its pane rather than from the window. The difference stands until P3-61 goes, which is the batch that carries it"
+    },
+    {
+      "match": "^frontend/src/plugins/preview/PreviewHost\\.vue$",
+      "note": "the pane work changes what these two draw for: a document's viewer and a shell are told which panes are on screen rather than which tab is in front, and each takes its box from its pane rather than from the window. The difference stands until P3-61 goes, which is the batch that carries it"
     }
   ],
   "controls": [
@@ -1724,6 +1740,14 @@
     {
       "match": "^tabs\\.(showOnRight|closeSplit|resizeSplit)$",
       "note": "two tabs at once, side by side, with one sidebar — the next batch after the comparison. What belongs to a place is the pane's own and what belongs to a person stays one to the window, which is the line `files/folderTab.js` already drew: `paneTab.js` is how a screen on the far side of it asks which side it is on, `TabPane.vue` is a pane, `tabDrag.js` names a tab being dragged so a pane can tell it from a file. The rest is the panes' own state in the store, the two of them drawn by the layout, the entry in the strip's menu, the folder view and the breadcrumb reading their pane instead of the tab in front, and the drag that now reads the folder the files arrived in"
+    },
+    {
+      "match": "^tabs\\.(unfoldPair|ungroup)$",
+      "note": "the strip draws one entry per pair, unfolding to either half, and the menu takes a pair apart without closing anything — part of the same batch as the panes"
+    },
+    {
+      "match": "^\\\"labelFor\\(tab, partner\\)\\\"$",
+      "note": "what the strip writes on an entry: one name, or both when the entry is a pair — the same thing `titleFor(tab)` already accounts for, one batch later"
     }
   ],
   "literals": [

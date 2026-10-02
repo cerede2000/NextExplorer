@@ -1,4 +1,5 @@
 <script setup>
+import { usePaneBoxes } from '@/composables/paneBoxes';
 import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { XMarkIcon } from '@heroicons/vue/24/outline';
@@ -68,8 +69,24 @@ watch(
  */
 const route = useRoute();
 
+const { boxFor } = usePaneBoxes();
+
+/**
+ * Where a surface sits before any pane has been measured: the content area, as
+ * `absolute inset-0` gave it when there was only ever one pane.
+ */
+const wholeContentArea = {
+  top: 'var(--tab-strip-height)',
+  left: '0px',
+  right: '0px',
+  bottom: '0px',
+};
+
 const isShowing = (id) => {
-  if (id !== tabsStore.activeId) return false;
+  // On screen, which with a pair of tabs is two of them rather than the one in
+  // front: a shell in the pane beside the reader is as much on screen as the
+  // one they are in, and keyed on the tab in front that pane showed nothing.
+  if (!tabsStore.panes.includes(id)) return false;
   const session = terminalStore.sessionFor(id);
   // A shut drawer is drawn hidden: the shell keeps running behind the folder.
   if (!session?.open) return false;
@@ -101,8 +118,9 @@ const close = (id) => {
   <div
     v-for="surface in surfaces"
     :key="surface.id"
-    class="absolute inset-0 z-[1200]"
+    class="fixed z-[1200]"
     :class="isShowing(surface.id) ? '' : 'invisible pointer-events-none'"
+    :style="boxFor(surface.id) || wholeContentArea"
     :data-tab="surface.id"
     :data-mode="surface.session.mode"
     :data-active="isShowing(surface.id) ? 'true' : 'false'"

@@ -39,6 +39,14 @@ const tabsStore = reactive({
   tabs: [{ id: 'tab-1' }, { id: 'tab-2' }],
   activeId: 'tab-1',
   canClose: true,
+  // The tabs on screen: one, or the two halves of a pair. A shell is shown for
+  // every pane rather than for the tab in front, which is what lets one sit in
+  // the half beside the reader.
+  // Set by a test that wants a pair; otherwise the tab in front, alone.
+  shown: null,
+  get panes() {
+    return this.shown || [this.activeId];
+  },
 });
 vi.mock('@/stores/tabs', async () => {
   const actual = await vi.importActual('@/stores/tabs');
@@ -66,6 +74,7 @@ beforeEach(() => {
   closeTab.mockClear();
   tabsStore.tabs = [{ id: 'tab-1' }, { id: 'tab-2' }];
   tabsStore.activeId = 'tab-1';
+  tabsStore.shown = null;
   tabsStore.canClose = true;
 });
 
@@ -167,6 +176,24 @@ describe('the terminals on screen', () => {
     await flushPromises();
 
     expect(wrapper.findAllComponents({ name: 'TerminalSurface' })).toHaveLength(before);
+    expect(boxes(wrapper)[1].attributes('data-active')).toBe('true');
+  });
+
+  /**
+   * And a shell in the pane *beside* the reader is shown too.
+   *
+   * Keyed on the tab in front, that half of the screen had a running shell and
+   * drew nothing at all.
+   */
+  it('are shown for every pane, not only for the tab in front', async () => {
+    terminals.openIn('tab-1', 'Docs');
+    terminals.openIn('tab-2', 'Media');
+    const wrapper = show();
+
+    tabsStore.shown = ['tab-1', 'tab-2'];
+    await flushPromises();
+
+    expect(boxes(wrapper)[0].attributes('data-active')).toBe('true');
     expect(boxes(wrapper)[1].attributes('data-active')).toBe('true');
   });
 

@@ -13,6 +13,7 @@
       :data-tab="surface.key"
       :data-active="shownKeys.has(surface.key) ? 'true' : 'false'"
       :class="shownKeys.has(surface.key) ? null : 'invisible pointer-events-none'"
+      :style="paneVars(surface.key)"
     >
       <PreviewSurface :session="surface.session" />
     </div>
@@ -22,6 +23,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted } from 'vue';
 import { usePreviewManager } from '@/plugins/preview/manager';
+import { usePaneBoxes } from '@/composables/paneBoxes';
 import { useTabsStore } from '@/stores/tabs';
 import PreviewSurface from '@/plugins/preview/PreviewSurface.vue';
 
@@ -55,6 +57,31 @@ const surfaces = computed(() => manager.surfaces);
  * front, that pane showed nothing at all.
  */
 const shownKeys = computed(() => new Set(tabs.panes));
+
+const { boxFor } = usePaneBoxes();
+
+/**
+ * Where its pane is, handed down as four custom properties.
+ *
+ * Not as positioning on this element: a wrapper with a box of its own covers the
+ * content area whether or not the surface inside it is drawing anything, and a
+ * transparent sheet over the whole application swallows every click. It was
+ * nothing before panes existed — the surface positioned itself — so it stays
+ * nothing, and the surface is told where to go.
+ *
+ * The window below the strip until a pane has been measured, which is what every
+ * one of these was positioned against until now: the first paint is what it
+ * always was, and a measurement only ever moves it into a smaller box.
+ */
+const paneVars = (key) => {
+  const box = boxFor(key);
+  return {
+    '--pane-top': box ? box.top : 'var(--tab-strip-height)',
+    '--pane-left': box ? box.left : '0px',
+    '--pane-width': box ? box.width : '100vw',
+    '--pane-height': box ? box.height : 'calc(100vh - var(--tab-strip-height))',
+  };
+};
 
 /**
  * On the way out of the window, every document that is open in it.

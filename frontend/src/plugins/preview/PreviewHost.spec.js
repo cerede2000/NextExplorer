@@ -119,6 +119,39 @@ describe('the surfaces', () => {
   });
 
   /**
+   * The wrapper positions nothing itself.
+   *
+   * It carries where its pane is, as custom properties, and the surface inside
+   * it goes there. Giving the wrapper the box instead put a transparent sheet
+   * over the content area for every open document whether or not it was drawing
+   * anything — and a sheet over the application swallows every click in it,
+   * which is what it did: the sign-in button could not be pressed.
+   */
+  it('positions nothing itself, and says where its pane is', () => {
+    withTabs(['tab-1']);
+
+    const wrapper = surfaceFor('tab-1').parentElement;
+    expect(wrapper.className).not.toContain('fixed');
+    expect(wrapper.className).not.toContain('absolute');
+    // And the box is handed down rather than applied.
+    expect(wrapper.style.getPropertyValue('--pane-top')).toBeTruthy();
+    expect(wrapper.style.getPropertyValue('--pane-height')).toBeTruthy();
+  });
+
+  /**
+   * Before any pane has been measured it is the window below the strip, which is
+   * what every one of these was positioned against until panes existed: the
+   * first paint is what it always was, and a measurement only moves it inwards.
+   */
+  it('falls back to the content area for a pane it has not measured', () => {
+    withTabs(['tab-1']);
+
+    const wrapper = surfaceFor('tab-1').parentElement;
+    expect(wrapper.style.getPropertyValue('--pane-top')).toBe('var(--tab-strip-height)');
+    expect(wrapper.style.getPropertyValue('--pane-left')).toBe('0px');
+  });
+
+  /**
    * The one that matters. Bringing another tab forward must change which surface
    * is visible and nothing else: a surface built a second time is a document
    * opened a second time.

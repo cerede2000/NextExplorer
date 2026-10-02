@@ -5,7 +5,7 @@
     <!-- Lightweight fallback while standalone plugin component loads -->
     <div
       v-else
-      class="fixed inset-x-0 bottom-0 top-[var(--tab-strip-height)] z-2000 flex items-center justify-center text-sm text-neutral-200"
+      class="fixed left-[var(--pane-left)] top-[var(--pane-top)] h-[var(--pane-height)] w-[var(--pane-width)] z-2000 flex items-center justify-center text-sm text-neutral-200"
     >
       <div class="flex items-center pr-4 bg-neutral-300 dark:bg-black bg-opacity-20 rounded-lg">
         <LoadingIcon /> {{ $t('common.loading') }}
@@ -18,7 +18,7 @@
     <div
       v-if="isOpen"
       data-test="preview-surface"
-      class="fixed inset-x-0 bottom-0 top-[var(--tab-strip-height)] z-2000 flex items-center justify-center bg-black/70"
+      class="fixed left-[var(--pane-left)] top-[var(--pane-top)] h-[var(--pane-height)] w-[var(--pane-width)] z-2000 flex items-center justify-center bg-black/70"
       @click.self="handleClose"
       @keydown.esc="handleClose"
     >
