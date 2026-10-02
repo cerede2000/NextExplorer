@@ -241,7 +241,17 @@ const getScrollTarget = () => {
  * still its own. After that it has nothing to say about where anybody is.
  */
 const stillOurs = () =>
-  ownTabId === tabsStore.activeId && normalizePath(paneFolderPath.value) === ownFolderPath;
+  // On screen, rather than in front. The two are the same question while there is
+  // one pane, and they stop being the same in a pair: the half the reader is not in
+  // is as drawn as the other, and it was writing nothing down — so coming back it
+  // had no place of its own and fell back to the folder's, which every tab on that
+  // folder shares. It landed where another tab had been left.
+  //
+  // What the guard is for is unchanged: a listing on its way off the screen is
+  // clamped to a container that can no longer hold it, and the last scroll events
+  // it sends would write that clamped number over a position hundreds of pixels
+  // down. A tab that has left the panes is exactly that listing.
+  tabsStore.panes.includes(ownTabId) && normalizePath(paneFolderPath.value) === ownFolderPath;
 
 const rememberScrollPosition = () => {
   if (!stillOurs()) return;

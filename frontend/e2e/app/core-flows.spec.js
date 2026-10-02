@@ -2921,6 +2921,152 @@ test('two tabs on one folder keep their own listing and their own selection', as
   }
 });
 
+/**
+ * One folder, three tabs on it, two of them side by side — and each of the three
+ * stays where its reader left it.
+ *
+ * Both halves of this were the same mistake said twice: a pane asked about the tab
+ * in *front* rather than about itself.
+ *
+ * A listing wrote down where the reader was only while its own tab was the one in
+ * front, so the half beside them never wrote anything at all. Coming back to the
+ * pair, that half had no place of its own and fell back to the folder's — which
+ * every tab on that folder shares — and landed where some other tab had been left.
+ *
+ * And a tab was told it had "come forward" only if it was the one activated, so the
+ * other half was built as though the reader had just walked into the folder: read
+ * again from the server, selection cleared, back to the top. Every time the pair
+ * was drawn.
+ */
+test('three tabs on one folder each keep their own place and selection', async () => {
+  // Three listings of a hundred and twenty files, each scrolled by the wheel and
+  // clicked in: more gestures than any other journey here, and none of them quick.
+  test.slow();
+
+  const dir = path.join(volume, 'Trio');
+  fs.mkdirSync(dir, { recursive: true });
+  for (let i = 1; i <= 120; i += 1) {
+    fs.writeFileSync(path.join(dir, `file-${String(i).padStart(3, '0')}.txt`), 'deep\n');
+  }
+
+  const strip = page.locator('[data-test="tab-strip"]');
+  const entries = strip.locator('[data-test="tab"]');
+  const panes = page.locator('[data-test="tab-pane"]');
+
+  /** Where each pane is, and what it is holding. */
+  const places = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll('[data-test="tab-pane"]')].map((pane) => ({
+        top: Math.round(pane.querySelector('.upload-drop-target')?.scrollTop ?? -1),
+        selected: [...pane.querySelectorAll('[data-selected="true"]')]
+          .map((row) => row.getAttribute('title'))
+          .filter(Boolean),
+      }))
+    );
+
+  /** The wheel over a pane, which is how a reader moves in a listing. */
+  const scrollPane = async (index, amount) => {
+    const box = await panes.nth(index).locator('.upload-drop-target').boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.wheel(0, amount);
+    await page.waitForTimeout(600);
+  };
+
+  /** A row that is really on screen in that pane, pressed where it is. */
+  const clickRow = async (index) => {
+    const aim = await page.evaluate((half) => {
+      const pane = document.querySelectorAll('[data-test="tab-pane"]')[half];
+      const area = pane.querySelector('.upload-drop-target').getBoundingClientRect();
+      const row = [...pane.querySelectorAll('[data-selected]')].find((node) => {
+        const box = node.getBoundingClientRect();
+        return box.top > area.top + 100 && box.bottom < area.bottom - 40;
+      });
+      const box = row.getBoundingClientRect();
+      return { title: row.getAttribute('title'), x: box.x + 80, y: box.y + box.height / 2 };
+    }, index);
+    await page.mouse.click(aim.x, aim.y);
+    await page.waitForTimeout(400);
+    return aim.title;
+  };
+
+  const duplicateLast = async () => {
+    const before = await entries.count();
+    await entries.last().getByRole('tab').click({ button: 'right' });
+    await page.locator('[data-test="tab-duplicate"]').click();
+    await expect(entries).toHaveCount(before + 1);
+    await expect(panes.first().locator('[data-selected]')).toHaveCount(120);
+  };
+
+  await page.goto('/settings/user-preferences');
+  const preference = page.locator('[data-test="browse-in-tabs"]');
+  await preference.click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(preference).toHaveAttribute('aria-checked', 'true');
+
+  try {
+    // One tab, and only one: the journeys before this one leave their own in the
+    // strip, and what is asked here is about three tabs in particular.
+    await page.goto('/browse/Projects');
+    // "Close every tab" is not drawn when there is only one: a window with no tabs
+    // has nowhere to be, so the last one has no cross either.
+    const closeEvery = page.locator('[data-test="tab-close-all"]');
+    if ((await closeEvery.count()) > 0) await closeEvery.click();
+    await expect(entries).toHaveCount(1);
+
+    // One tab on the folder, well down it, holding a file.
+    await page.goto('/browse/Projects/Trio');
+    await expect(page.locator('[title="file-001.txt"]').first()).toBeVisible();
+    await scrollPane(0, 1600);
+    const alone = await clickRow(0);
+    const [aloneAt] = await places();
+    expect(aloneAt.top).toBeGreaterThan(500);
+
+    // A second tab on the same folder, somewhere else in it.
+    await duplicateLast();
+    await scrollPane(0, 600);
+    const second = await clickRow(0);
+    const [secondAt] = await places();
+
+    // A third, and the last two side by side on that same folder. Forming the pair
+    // used to read both halves again from the server: selection gone, back to the top.
+    await duplicateLast();
+    await entries.last().getByRole('tab').click({ button: 'right' });
+    await page.locator('[data-test="tab-show-right"]').click();
+    await expect(panes).toHaveCount(2);
+    await expect(panes.last().locator('[data-selected="true"]')).toContainText(second);
+    expect((await places())[1].top).toBe(secondAt.top);
+
+    // Each half moves on its own.
+    await scrollPane(1, 2400);
+    const right = await clickRow(1);
+    await scrollPane(0, 300);
+    const left = await clickRow(0);
+    const inThePair = await places();
+    expect(inThePair[0].selected).toEqual([left]);
+    expect(inThePair[1].selected).toEqual([right]);
+
+    // Away to the tab that is on its own, which is exactly as it was left.
+    await entries.first().getByRole('tab').click();
+    await expect(panes).toHaveCount(1);
+    const [backAlone] = await places();
+    expect(backAlone.selected).toEqual([alone]);
+    expect(backAlone.top).toBe(aloneAt.top);
+
+    // And back to the pair, where both halves are exactly as they were left.
+    await entries.last().getByRole('tab').click();
+    await expect(panes).toHaveCount(2);
+    await expect(panes.first().locator('[data-selected="true"]')).toContainText(left);
+    const again = await places();
+    expect(again.map((half) => half.selected)).toEqual([[left], [right]]);
+    expect(again.map((half) => half.top)).toEqual(inThePair.map((half) => half.top));
+  } finally {
+    await page.goto('/settings/user-preferences');
+    await preference.click();
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(preference).toHaveAttribute('aria-checked', 'false');
+  }
+});
+
 test('the search index and folder sizes switch on from Settings, and the About page lists the tools', async () => {
   await page.goto('/settings/search-index');
   const indexSwitch = page.locator('[data-testid="search-index-switch"]');

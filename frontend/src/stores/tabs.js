@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { defineStore } from 'pinia';
 import { TAB_KINDS_BY_ID, tabKindForPath } from '@/config/tabKinds';
 
@@ -315,19 +315,28 @@ export const useTabsStore = defineStore('tabs', () => {
    * store happens to be holding: a store already on a folder is also what somebody
    * walking back up to it, or landing on a search result in it, looks like.
    */
-  const broughtForward = ref('');
+  /**
+   * The tabs just put on screen, which is a pair when the tab activated is in one.
+   *
+   * A list rather than a single tab, and that is the whole of what panes changed
+   * here: both halves of a pair are drawn by the same gesture, and the half the
+   * reader did not activate is not a folder being opened — nobody navigated it. Told
+   * it had not come forward, it read its folder again from the server, which clears
+   * what was selected in it and puts it back at the top, every time the pair is
+   * drawn.
+   */
+  const broughtForward = ref([]);
 
-  /** Whether this tab is the one just brought forward. Asking clears it. */
+  /** Whether this tab is one of those just brought forward. Asking clears it. */
   const takeBroughtForward = (id) => {
-    if (!id || broughtForward.value !== id) return false;
-    broughtForward.value = '';
+    if (!id || !broughtForward.value.includes(id)) return false;
+    broughtForward.value = broughtForward.value.filter((one) => one !== id);
     return true;
   };
 
   const activate = (id) => {
     if (!tabs.value.some((tab) => tab.id === id)) return null;
     activeId.value = id;
-    broughtForward.value = id;
     persist();
     return activeTab.value;
   };
@@ -365,6 +374,29 @@ export const useTabsStore = defineStore('tabs', () => {
   });
 
   const isSplit = computed(() => panes.value.length === 2);
+
+  /**
+   * Whatever is drawn right now has just been put on screen.
+   *
+   * Said here rather than by each gesture, because every one of them means the same
+   * thing: bringing a tab forward, grouping two, dropping one into a half, closing
+   * a half, swapping the two over. None of them is anybody navigating — the tab was
+   * already where it is — so the screen that is built for it is a tab coming back,
+   * and reads what that tab already holds instead of the folder again.
+   *
+   * Which is the difference between coming back to a listing and being handed a new
+   * one: the second clears what was selected and puts the reader at the top.
+   */
+  watch(
+    panes,
+    (drawn) => {
+      broughtForward.value = [...drawn];
+    },
+    // The moment the panes change, not the tick after: whoever asks next is a
+    // screen being built for one of them, and a mark that arrives later is a mark
+    // that arrives too late.
+    { flush: 'sync' }
+  );
 
   /**
    * Whether the window's own chrome — the sidebar, and the few controls that

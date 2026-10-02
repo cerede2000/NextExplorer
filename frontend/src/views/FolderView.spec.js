@@ -97,6 +97,10 @@ const appTabs = vi.hoisted(() => ({
   activeId: 'tab-1',
   // Which tab the pane draws, when that is not the one in front.
   paneId: '',
+  // The tabs drawn right now: one of them, or the two halves of a pair. What says
+  // whether this listing is on screen at all, which is not the same question as
+  // whether the reader is in it.
+  panes: ['tab-1'],
   takeBroughtForward: vi.fn(() => false),
 }));
 vi.mock('@/stores/tabs', () => ({ useTabsStore: () => appTabs }));
@@ -319,6 +323,7 @@ beforeEach(() => {
   });
   appTabs.activeId = 'tab-1';
   appTabs.paneId = '';
+  appTabs.panes = ['tab-1'];
   appTabs.takeBroughtForward.mockClear();
   appTabs.takeBroughtForward.mockReturnValue(false);
   Object.assign(stores.operationTasks, { operationCount: 0 });
@@ -1507,6 +1512,7 @@ describe('a folder tab coming back', () => {
 
     // Another tab comes forward, and the listing is clamped to what is left.
     appTabs.activeId = 'tab-9';
+    appTabs.panes = ['tab-9'];
     listing.scrollTop = 212;
     listing.dispatchEvent(new Event('scroll'));
     await flushPromises();
@@ -1532,6 +1538,36 @@ describe('a folder tab coming back', () => {
     wrapper = null;
 
     expect(stores.folderScroll.remember).not.toHaveBeenCalled();
+  });
+
+  /**
+   * But the half beside the reader writes down where it is, because it is on screen.
+   *
+   * The question this guard asks had been "is my tab the one in front", which is
+   * the same question as "am I on screen" only while there is one pane. In a pair
+   * the half the reader is not in never wrote down anything — so coming back to the
+   * pair it had no place of its own and fell back to the folder's, which is shared
+   * by every tab on that folder: it landed where another tab had been left, several
+   * hundred pixels from where its own reader had left it.
+   */
+  it('writes down where the half beside the reader is', async () => {
+    appTabs.paneId = 'tab-9';
+    appTabs.panes = ['tab-1', 'tab-9'];
+    await mountFolder();
+    const listing = wrapper.find('.upload-drop-target').element;
+    Object.defineProperty(listing, 'scrollHeight', { value: 4000, configurable: true });
+    Object.defineProperty(listing, 'clientHeight', { value: 800, configurable: true });
+    stores.folderScroll.remember.mockClear();
+    stores.folderScroll.rememberTabPlace.mockClear();
+
+    listing.scrollTop = 1355;
+    listing.dispatchEvent(new Event('scroll'));
+    await flushPromises();
+
+    // Its own place above all, which is what makes two tabs on one folder two
+    // places; the folder's own is written as well, as it always was.
+    expect(stores.folderScroll.rememberTabPlace).toHaveBeenCalledWith('tab-9::Docs::list', 1355);
+    expect(stores.folderScroll.remember).toHaveBeenCalledWith('Docs::list', 1355);
   });
 
   /**

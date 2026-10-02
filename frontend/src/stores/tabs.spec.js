@@ -641,6 +641,28 @@ describe('the tab just brought forward', () => {
     expect(tabs.takeBroughtForward(first)).toBe(false);
   });
 
+  /**
+   * A pair comes forward together, because both halves are drawn together.
+   *
+   * One slot was enough while a tab was one screen. In a pair the reader's own
+   * half is the one activated and the other is drawn beside it, with nobody having
+   * navigated it — so it asked the store whether it had come forward, was told no,
+   * and read its folder again from the server as if the reader had just walked into
+   * it. Which clears what was selected in it and puts it back at the top, every
+   * time the pair is drawn again.
+   */
+  it('is both halves of a pair, each taken once', () => {
+    const { tabs, first, second } = twoTabs();
+    tabs.activate(first);
+    tabs.pair(second);
+
+    tabs.activate(first);
+
+    expect(tabs.takeBroughtForward(first)).toBe(true);
+    expect(tabs.takeBroughtForward(second)).toBe(true);
+    expect(tabs.takeBroughtForward(second)).toBe(false);
+  });
+
   /** A tab taking over because its neighbour closed also came forward. */
   it('is the tab that takes over when one is closed', () => {
     const { tabs, first, second } = twoTabs();
