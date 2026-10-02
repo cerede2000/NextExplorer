@@ -4,6 +4,7 @@ import { computed, onUnmounted, ref, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { onClickOutside, useElementSize } from '@vueuse/core';
 import { ChevronDownIcon, PlusIcon, XMarkIcon } from '@heroicons/vue/20/solid';
+import { Bars3Icon } from '@heroicons/vue/24/outline';
 import { TAB_KINDS_BY_ID, tabFolderPath, tabTitle } from '@/config/tabKinds';
 import { useFavoritesStore } from '@/stores/favorites';
 import { resolveFavoriteIcon } from '@/utils/favoriteIcons';
@@ -11,6 +12,9 @@ import { useTabNavigation } from '@/composables/tabNavigation';
 import { useAppSettings } from '@/stores/appSettings';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
 import { useTabLoadingStore } from '@/stores/tabLoading';
+import { useSidebar } from '@/composables/sidebar';
+import NotificationBell from '@/components/NotificationBell.vue';
+import SearchBar from '@/components/SearchBar.vue';
 import SpinnerIcon from '@/icons/SpinnerIcon.vue';
 import { normalizePath } from '@/api';
 
@@ -26,6 +30,19 @@ import { normalizePath } from '@/api';
  * something a screen reader can read.
  */
 const { tabs, visible, activate, openHome, close, closeOthers, closeAll } = useTabNavigation();
+
+/**
+ * The window's own controls, at the end of the row.
+ *
+ * They had a row to themselves — a bell and a magnifying glass, the height of a
+ * strip, above every folder for the whole life of the window. Here they cost
+ * nothing: the row is already drawn, and the end of it was empty.
+ *
+ * Drawn only where the window's chrome is drawn at all, which is the store's
+ * answer: beside a lone document or shell there is no sidebar to open and nothing
+ * for them to sit above.
+ */
+const { toggle: toggleSidebar } = useSidebar();
 const { t } = useI18n();
 
 /**
@@ -629,5 +646,29 @@ const duplicate = (id) => {
     >
       <XMarkIcon class="h-4 w-4" />
     </button>
+
+    <!--
+      The window's own controls: what it has to tell you, and searching.
+
+      At the end of the strip rather than on a row below it. `ml-auto` pushes them
+      to the far edge, and the tabs themselves still share whatever is left.
+    -->
+    <div
+      v-if="tabs.wantsChrome"
+      data-test="window-controls"
+      class="mb-0.5 ml-auto flex shrink-0 items-center"
+    >
+      <button
+        type="button"
+        class="rounded-md p-1.5 hover:bg-zinc-200 dark:hover:bg-neutral-700 lg:hidden"
+        :aria-label="t('browser.openSidebar')"
+        data-test="strip-sidebar"
+        @click="toggleSidebar"
+      >
+        <Bars3Icon class="h-5 w-5" />
+      </button>
+      <NotificationBell />
+      <SearchBar />
+    </div>
   </div>
 </template>

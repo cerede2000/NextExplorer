@@ -2510,10 +2510,10 @@ test('two folders sit side by side, and a file is dragged across', async () => {
   // panes were drawn by the browser layout and a document sat outside it.
   await page.goto('/open/Projects/leaflet.md');
   await expect(panes).toHaveCount(1);
-  // Alone it keeps the window to itself — no sidebar, no bar above it — because a
-  // document opened in its own tab is the document.
+  // Alone it keeps the window to itself — no sidebar, and none of the window's own
+  // controls above it — because a document opened in its own tab is the document.
   await expect(page.locator('[data-test="browser-aside"]')).toHaveCount(0);
-  await expect(page.locator('[data-test="window-bar"]')).toHaveCount(0);
+  await expect(page.locator('[data-test="window-controls"]')).toHaveCount(0);
 
   // Side by side with a folder it is a pane, and the window's chrome comes back
   // because the other half needs it.
@@ -2523,12 +2523,44 @@ test('two folders sit side by side, and a file is dragged across', async () => {
   await page.locator('[data-test="tab-show-right"]').click();
   await expect(panes).toHaveCount(2);
   await expect(page.locator('[data-test="browser-aside"]')).toHaveCount(1);
-  await expect(page.locator('[data-test="window-bar"]')).toHaveCount(1);
+
+  /**
+   * And it comes back *in the strip*, not on a row of its own.
+   *
+   * What the reader saw was a bell and a magnifying glass alone on a full row,
+   * above every folder, for the whole life of the window — a strip's worth of
+   * height spent on two buttons. The row is gone while there is a strip to carry
+   * them, and the folder's own toolbar starts where the strip ends.
+   */
+  const controls = page.locator('[data-test="window-controls"]');
+  await expect(controls).toHaveCount(1);
+  await expect(page.locator('[data-test="tab-strip"] [data-test="window-controls"]')).toHaveCount(
+    1
+  );
+  await expect(page.locator('[data-test="window-bar"]')).toHaveCount(0);
+  const [stripBox, paneBox] = [
+    await page.locator('[data-test="tab-strip"]').boundingBox(),
+    await panes.first().boundingBox(),
+  ];
+  expect(
+    Math.round(paneBox.y - (stripBox.y + stripBox.height)),
+    'what a tab holds starts right under the strip'
+  ).toBeLessThan(8);
 
   await page.goto('/settings/user-preferences');
   await preference.click();
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(preference).toHaveAttribute('aria-checked', 'false');
+
+  // And with no strip to carry them, the window's controls have their row back:
+  // the point was never to take them away, it was to stop spending a row on them
+  // when there is already one on screen.
+  await page.goto('/browse/Projects');
+  await expect(page.locator('[data-test="tab-strip"]')).toHaveCount(0);
+  await expect(page.locator('[data-test="window-bar"]')).toHaveCount(1);
+  await expect(
+    page.locator('[data-test="window-bar"]').getByRole('button', { name: 'Open notifications' })
+  ).toHaveCount(1);
 });
 
 /**

@@ -366,6 +366,26 @@ export const useTabsStore = defineStore('tabs', () => {
 
   const isSplit = computed(() => panes.value.length === 2);
 
+  /**
+   * Whether the window's own chrome — the sidebar, and the few controls that
+   * belong to the window rather than to what is being looked at — is drawn.
+   *
+   * A single tab of a kind that wants the whole thing, a shell or a document, gets
+   * it: the sidebar's only answer beside a shell is to leave the shell, which is
+   * easy to confuse with a `cd` a keystroke away, and a document opened in its own
+   * tab is the document. Side by side with something else the chrome comes back,
+   * because the other half needs it.
+   *
+   * Asked by the window and by the strip, so it is said once here: the strip now
+   * carries the window's controls at its end, and the two disagreeing would mean a
+   * bell with no sidebar under it or a sidebar nobody can open.
+   */
+  const wantsChrome = computed(() => {
+    if (isSplit.value) return true;
+    const only = tabs.value.find((tab) => tab.id === panes.value[0]);
+    return TAB_KINDS_BY_ID[only?.kind]?.fullTab !== true;
+  });
+
   /** Which pane a tab is in, or '' for a tab that is not on screen. */
   const paneOf = (id) => {
     const pair = pairOf(id);
@@ -898,6 +918,7 @@ export const useTabsStore = defineStore('tabs', () => {
     retarget,
     pairs,
     isSplit,
+    wantsChrome,
     panes,
     paneOf,
     pairOf,

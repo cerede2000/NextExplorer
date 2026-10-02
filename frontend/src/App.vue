@@ -5,7 +5,7 @@ import { useEventListener, useStorage } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 import { useAccountLanguage } from '@/composables/useAccountLanguage';
 import { useConfigErrorGate } from '@/composables/useConfigErrorGate';
-import { useTabRouteSync } from '@/composables/tabNavigation';
+import { useTabNavigation, useTabRouteSync } from '@/composables/tabNavigation';
 import ConfigErrorScreen from '@/components/ConfigErrorScreen.vue';
 import ConfigWarningNotice from '@/components/ConfigWarningNotice.vue';
 import TabStrip from '@/components/TabStrip.vue';
@@ -48,6 +48,8 @@ useAccountLanguage();
 // strip is only drawn where a tab can be, and the tabs have to keep up with the
 // address wherever it goes.
 useTabRouteSync();
+/** The same answer the strip draws itself by, asked once. */
+const { visible: stripIsOnScreen } = useTabNavigation();
 
 const route = useRoute();
 const featuresStore = useFeaturesStore();
@@ -66,19 +68,20 @@ const fileStore = useFileStore();
 const isPlace = computed(() => tabKindForPath(route.path) !== null);
 
 /**
- * Whether the window's own chrome is drawn.
- *
- * A single tab of a kind that wants the whole thing — a shell, a document — gets
- * it: the sidebar's only answer beside a shell is to leave the shell, which is
- * easy to confuse with a `cd` a keystroke away, and a document opened in its own
- * tab is the document. Side by side with something else the chrome comes back,
- * because the other half needs it.
+ * Whether the window's own chrome is drawn — the store's own answer, because the
+ * strip asks it too now that it carries the window's controls.
  */
-const showChrome = computed(() => {
-  if (tabsStore.isSplit) return true;
-  const only = tabsStore.tabs.find((tab) => tab.id === tabsStore.panes[0]);
-  return TAB_KINDS_BY_ID[only?.kind]?.fullTab !== true;
-});
+const showChrome = computed(() => tabsStore.wantsChrome);
+
+/**
+ * And whether those controls need a row of their own.
+ *
+ * They do not when there is a strip: a bell and a magnifying glass on a row to
+ * themselves was a strip's worth of height spent on two buttons, above every
+ * folder, for the whole life of the window. In the strip they sit at the end of a
+ * row that is already there, and the folder starts where the row above it ends.
+ */
+const showBar = computed(() => showChrome.value && !stripIsOnScreen.value);
 
 const { isOpen: isSidebarOpen, isDesktop, close: closeSidebar } = useSidebar();
 
@@ -195,7 +198,7 @@ const configWarning = computed(() =>
           <main
             class="relative flex min-h-0 min-w-0 grow flex-col overflow-hidden bg-default shadow-lg"
           >
-            <WindowBar v-if="showChrome" />
+            <WindowBar v-if="showBar" />
             <ExplorerContextMenu>
               <div class="flex min-h-0 flex-1 overflow-hidden">
                 <!-- Both panes are handed the router's screen; each draws it only
