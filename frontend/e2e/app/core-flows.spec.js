@@ -2770,6 +2770,19 @@ test('a pair of documents is still the same two documents when the reader comes 
     await expect(surfaces).toHaveCount(2);
     expect(await stillMarked()).toBe(2);
     await expect(surfaces.last()).toContainText('A note');
+    // And crossing from one half to the other is not a rebuild either: the pane the
+    // reader is in draws the router's own screen and the one beside it resolves its
+    // own, so the crossing unmounts both pages while both tabs stay on their document.
+    //
+    // From the strip, where the pair unfolds into its two halves — a document covers
+    // its pane without being inside it, so there is nothing of the pane left to
+    // click. Which is also why this list is pressed here at all: it was drawn below
+    // the very documents it crosses between, visible and unpressable, and that left a
+    // pair of documents with no way of changing which half the reader is in.
+    await pair.locator('[data-test="tab-unfold"]').click();
+    await page.locator('[data-test="tab-pair-member"]').last().click();
+    await expect(panes).toHaveCount(2);
+    expect(await stillMarked()).toBe(2);
   } finally {
     await page.goto('/settings/user-preferences');
     await preference.click();

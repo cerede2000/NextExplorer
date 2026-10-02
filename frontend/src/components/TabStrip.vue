@@ -505,12 +505,17 @@ const duplicate = (id) => {
     -->
     <!-- Unfolded beside the strip rather than inside it, and for the same reason
          the menu is: the strip is `overflow-hidden` so that tabs share the room,
-         and anything drawn inside it is clipped away entirely. -->
+         and anything drawn inside it is clipped away entirely.
+
+         At the menu's own level, which is above the surfaces a tab can hold. Below
+         them it was there and unreachable: a document is drawn over the window from
+         outside the page, so the one control that crosses from one half of a pair to
+         the other was covered by the very documents it is for. -->
     <Teleport to="body">
       <div
         v-if="openedPair"
         data-test="tab-pair-list"
-        class="fixed z-600 w-56 rounded-md border border-neutral-200 bg-white p-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
+        class="fixed z-2200 w-56 rounded-md border border-neutral-200 bg-white p-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
         :style="{ left: pairAt.x + 'px', top: pairAt.y + 'px' }"
       >
         <button
