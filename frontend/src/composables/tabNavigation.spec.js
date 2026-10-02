@@ -298,6 +298,65 @@ describe('closing a tab that has something to say', () => {
  * came back on the volumes: kept tabs sit at the front of the row, so the front tab is
  * very often the kept one, and the landing quietly took away the folder it was kept on.
  */
+/**
+ * The halves of a pair, and the one address the window has.
+ *
+ * Giving a pane another tab can move the reader: the half they were in is the half
+ * that was taken over. The address belongs to the tab they are in, so these two
+ * things are one action — the store's move and the router's push — and this is the
+ * one place that knows it. Done in halves, the window stayed on the address of a
+ * tab that was nobody's half any more, and the pane the reader was in drew *that*
+ * place instead of its own.
+ */
+describe('a pane given another tab', () => {
+  const pairOfFolders = () => {
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    const here = tabs.tabs[0];
+    const beside = tabs.open('/browse/Beside');
+    const spare = tabs.open('/browse/Spare');
+    tabs.activate(here.id);
+    tabs.pair(beside.id);
+    return { tabs, here, beside, spare };
+  };
+
+  it('takes the window to the tab the reader is left in', () => {
+    const { tabs, here, spare } = pairOfFolders();
+    const navigation = useTabNavigation();
+    push.mockClear();
+
+    // The reader's own half is the one replaced, so they are moved into the half
+    // they were not in.
+    navigation.showInPane('left', spare.id);
+
+    expect(tabs.activeId).not.toBe(here.id);
+    expect(push).toHaveBeenCalledWith(tabs.tabs.find((one) => one.id === tabs.activeId).path);
+  });
+
+  it('leaves the window where it is when the reader has not moved', () => {
+    const { spare } = pairOfFolders();
+    const navigation = useTabNavigation();
+    push.mockClear();
+
+    // The far half is replaced; the reader stays where they are.
+    navigation.showInPane('right', spare.id);
+
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  /** And the cross on a pane leaves the reader in the half that stays. */
+  it('takes the window along when a pane is closed', () => {
+    const { tabs, beside } = pairOfFolders();
+    const navigation = useTabNavigation();
+    push.mockClear();
+
+    navigation.closePane('left');
+
+    expect(tabs.activeId).toBe(beside.id);
+    expect(push).toHaveBeenCalledWith('/browse/Beside');
+  });
+});
+
 describe('landing on the application', () => {
   const landOn = (where, tabPath) => {
     const tabs = useTabsStore();

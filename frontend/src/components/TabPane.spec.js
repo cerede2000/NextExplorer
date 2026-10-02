@@ -24,11 +24,23 @@ const appTabs = vi.hoisted(() => ({
     { id: 'tab-beside', kind: 'folder', path: '/browse/Beside' },
   ],
   activeId: 'tab-here',
+}));
+vi.mock('@/stores/tabs', () => ({ useTabsStore: () => appTabs }));
+
+/**
+ * Moving the reader goes through the navigation, not through the store.
+ *
+ * Both of these gestures can change which tab the reader is in, and the window's
+ * address belongs to that tab — so the store's move and the router's push are one
+ * action, held in one place with its own spec. What is asked here is that the pane
+ * asks for it rather than doing half of it itself.
+ */
+const navigation = vi.hoisted(() => ({
   activate: vi.fn(),
   showInPane: vi.fn(),
   closePane: vi.fn(),
 }));
-vi.mock('@/stores/tabs', () => ({ useTabsStore: () => appTabs }));
+vi.mock('@/composables/tabNavigation', () => ({ useTabNavigation: () => navigation }));
 
 const routerPush = vi.hoisted(() => vi.fn());
 vi.mock('vue-router', () => ({
@@ -83,9 +95,9 @@ beforeEach(() => {
     { id: 'tab-beside', kind: 'folder', path: '/browse/Beside' },
   ];
   appTabs.activeId = 'tab-here';
-  appTabs.activate.mockReset();
-  appTabs.showInPane.mockReset();
-  appTabs.closePane.mockReset();
+  navigation.activate.mockReset();
+  navigation.showInPane.mockReset();
+  navigation.closePane.mockReset();
   routerPush.mockReset();
 });
 
@@ -114,8 +126,7 @@ describe('a pane', () => {
 
     await pane.trigger('pointerdown');
 
-    expect(appTabs.activate).toHaveBeenCalledWith('tab-beside');
-    expect(routerPush).toHaveBeenCalledWith('/browse/Beside');
+    expect(navigation.activate).toHaveBeenCalledWith('tab-beside');
   });
 
   it('does not move the reader when they are already in it', async () => {
@@ -123,7 +134,7 @@ describe('a pane', () => {
 
     await pane.trigger('pointerdown');
 
-    expect(appTabs.activate).not.toHaveBeenCalled();
+    expect(navigation.activate).not.toHaveBeenCalled();
     expect(routerPush).not.toHaveBeenCalled();
   });
 
@@ -154,7 +165,7 @@ describe('a pane', () => {
 
     await pane.find('[data-test="pane-close"]').trigger('click');
 
-    expect(appTabs.closePane).toHaveBeenCalledWith('right');
+    expect(navigation.closePane).toHaveBeenCalledWith('right');
   });
 });
 
@@ -172,7 +183,7 @@ describe('a tab dropped into a pane', () => {
       })
     );
 
-    expect(appTabs.showInPane).toHaveBeenCalledWith('right', 'tab-beside');
+    expect(navigation.showInPane).toHaveBeenCalledWith('right', 'tab-beside');
   });
 
   /** A file drag falls straight through, so nothing below loses a drop it wanted. */
@@ -185,6 +196,6 @@ describe('a tab dropped into a pane', () => {
       })
     );
 
-    expect(appTabs.showInPane).not.toHaveBeenCalled();
+    expect(navigation.showInPane).not.toHaveBeenCalled();
   });
 });

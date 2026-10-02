@@ -5,7 +5,9 @@ import { XMarkIcon } from '@heroicons/vue/24/outline';
 import FolderViewToolbar from '@/components/FolderViewToolbar.vue';
 import { tabTitle } from '@/config/tabKinds';
 import { useI18n } from 'vue-i18n';
+import { useReportsPaneBox } from '@/composables/paneBoxes';
 import { providePaneTab } from '@/composables/paneTab';
+import { useTabNavigation } from '@/composables/tabNavigation';
 import { useTabsStore } from '@/stores/tabs';
 import { draggedTabId, isTabDrag } from '@/utils/tabDrag';
 
@@ -36,6 +38,7 @@ const props = defineProps({
 });
 
 const tabsStore = useTabsStore();
+const tabNavigation = useTabNavigation();
 const tabId = computed(() => props.tabId);
 providePaneTab(tabId);
 
@@ -48,6 +51,18 @@ providePaneTab(tabId);
  * and both panes said they had focus. The screens below are the ones that ask,
  * and they are children.
  */
+/**
+ * And where it is, for the surfaces drawn over it.
+ *
+ * A document and a shell are drawn outside the page — above every layout, so that
+ * they outlive their tab going behind another — and `fixed`, so nesting cannot
+ * tell them where to stop. The pane that knows is this one, and it says so rather
+ * than being hunted for: a surface that went looking found nothing on a window
+ * that opened split, and covered the whole of it.
+ */
+const root = ref(null);
+useReportsPaneBox(tabId, root);
+
 const address = computed(() => tabsStore.tabs.find((one) => one.id === tabId.value)?.path || '');
 const focused = computed(() => tabId.value === tabsStore.activeId);
 
@@ -160,19 +175,22 @@ const onTabDrop = (event) => {
   event.preventDefault();
   tabOver.value = false;
   const id = draggedTabId(event);
-  if (id) tabsStore.showInPane(props.side, id);
+  // Through the navigation rather than the store, because taking this pane over
+  // can move the reader, and the window's address belongs to the tab they are in.
+  if (id) tabNavigation.showInPane(props.side, id);
 };
 
 const takeFocus = () => {
   if (focused.value) return;
-  const tab = tabsStore.tabs.find((one) => one.id === tabId.value);
-  tabsStore.activate(tabId.value);
-  if (tab?.path) void router.push(tab.path);
+  // One scribe for the address: the navigation activates the tab and takes the
+  // window there, rather than this pane doing half of it itself.
+  tabNavigation.activate(tabId.value);
 };
 </script>
 
 <template>
   <section
+    ref="root"
     data-test="tab-pane"
     :data-pane-tab="tabId"
     :data-focused="focused ? 'true' : 'false'"
@@ -213,7 +231,7 @@ const takeFocus = () => {
         :aria-label="$t('tabs.closeSplit')"
         :title="$t('tabs.closeSplit')"
         @pointerdown.stop
-        @click.stop="tabsStore.closePane(side)"
+        @click.stop="tabNavigation.closePane(side)"
       >
         <XMarkIcon class="h-4 w-4" />
       </button>

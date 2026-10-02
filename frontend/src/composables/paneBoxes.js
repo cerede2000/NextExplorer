@@ -2,7 +2,7 @@ import { onUnmounted, ref, watch } from 'vue';
 import { useTabsStore } from '@/stores/tabs';
 
 /**
- * Where each pane is on the screen, in pixels.
+ * Where each pane is on the screen, in pixels, said by the pane itself.
  *
  * For the two things that are drawn *outside* the page and have to sit on top of
  * it anyway: a document in its viewer, and a shell. Both live above every layout
@@ -13,68 +13,108 @@ import { useTabsStore } from '@/stores/tabs';
  * neighbour.
  *
  * Measured rather than computed: the divider is somewhere the reader put it, the
- * sidebar is a width they chose, and the strip is there or it is not. The panes
- * themselves know all of that because the layout already laid them out.
+ * sidebar is a width they chose, and the strip is there or it is not. The pane
+ * knows all of that, because the layout has already laid it out.
+ *
+ * Said by the pane and not asked for by the surface, which is the correction
+ * that matters here. The surfaces used to go looking for `[data-pane-tab]`
+ * elements when the panes changed — and on a window that *opens* split, they
+ * looked before the page existed, found nothing, and nothing ever looked again:
+ * every document and every shell covered the whole window, over the screen
+ * beside it, for as long as the page lived. A pane cannot exist without
+ * reporting, so there is no longer a moment to miss.
  */
-export const usePaneBoxes = () => {
-  const tabsStore = useTabsStore();
-  const boxes = ref({});
+const boxes = ref({});
 
+/** In the shape they are read in, which is four CSS lengths. */
+const measure = (element) => {
+  const box = element.getBoundingClientRect();
+  // A pane with no area is a pane that is not laid out yet, mid-swap or
+  // mid-mount: what it had stands, rather than a nought-by-nought box that some
+  // editors never measure their way out of.
+  if (box.width <= 0 || box.height <= 0) return null;
+  return {
+    top: `${box.top}px`,
+    left: `${box.left}px`,
+    width: `${box.width}px`,
+    height: `${box.height}px`,
+  };
+};
+
+const unchanged = (before, now) =>
+  Boolean(before) &&
+  before.top === now.top &&
+  before.left === now.left &&
+  before.width === now.width &&
+  before.height === now.height;
+
+/**
+ * A pane saying where it is: when it is laid out, and whenever it moves or is
+ * resized.
+ *
+ * @param {import('vue').Ref<string>} tabId the tab this pane is holding
+ * @param {import('vue').Ref<HTMLElement|null>} element the pane itself
+ */
+export const useReportsPaneBox = (tabId, element) => {
+  const tabsStore = useTabsStore();
   let observer = null;
 
-  const measure = () => {
-    const next = {};
-    for (const element of document.querySelectorAll('[data-pane-tab]')) {
-      const id = element.getAttribute('data-pane-tab');
-      if (!id) continue;
-      const box = element.getBoundingClientRect();
-      // A pane with no area is a pane that is not laid out yet; saying nothing
-      // leaves whoever asks to fall back rather than drawing a nought-by-nought
-      // iframe that some editors never measure again.
-      if (box.width <= 0 || box.height <= 0) continue;
-      next[id] = {
-        top: `${box.top}px`,
-        left: `${box.left}px`,
-        width: `${box.width}px`,
-        height: `${box.height}px`,
-      };
-    }
-    boxes.value = next;
+  const tell = () => {
+    const node = element.value;
+    if (!node) return;
+    const box = measure(node);
+    if (!box) return;
+    const id = tabId.value;
+    if (!id || unchanged(boxes.value[id], box)) return;
+    boxes.value = { ...boxes.value, [id]: box };
   };
 
-  const watchPanes = () => {
-    observer?.disconnect();
-    if (typeof ResizeObserver !== 'function') return;
-    observer = new ResizeObserver(measure);
-    for (const element of document.querySelectorAll('[data-pane-tab]')) {
-      observer.observe(element);
-    }
-  };
+  watch(
+    element,
+    (node) => {
+      observer?.disconnect();
+      observer = null;
+      if (!node) return;
+      tell();
+      if (typeof ResizeObserver !== 'function') return;
+      observer = new ResizeObserver(tell);
+      observer.observe(node);
+    },
+    { immediate: true, flush: 'post' }
+  );
 
-  const refresh = () => {
-    watchPanes();
-    measure();
-  };
+  // The same element can be given another tab — that is what swapping the halves
+  // of a pair is — and the box then belongs to the tab it holds now.
+  watch(tabId, tell, { flush: 'post' });
 
-  // Which panes exist changes with the pair the reader is in, and the elements
-  // are replaced when it does — so the observer is pointed at the new ones.
-  watch(() => tabsStore.panes.join('|'), refresh, { immediate: true, flush: 'post' });
-
-  if (typeof window !== 'undefined') window.addEventListener('resize', measure);
+  // A pane can be moved without being resized, and a resize observer says nothing
+  // about that.
+  if (typeof window !== 'undefined') window.addEventListener('resize', tell);
 
   onUnmounted(() => {
     observer?.disconnect();
     observer = null;
-    if (typeof window !== 'undefined') window.removeEventListener('resize', measure);
+    if (typeof window !== 'undefined') window.removeEventListener('resize', tell);
+    // Only what has left the screen is forgotten. Mid-swap this element is
+    // replaced by another one holding the same tab, and a box dropped for that
+    // frame leaves a document with nowhere to be — the whole window is the only
+    // placement left to it, and it stays there.
+    const id = tabId.value;
+    if (!id || tabsStore.panes.includes(id)) return;
+    const next = { ...boxes.value };
+    delete next[id];
+    boxes.value = next;
   });
-
-  /**
-   * The box for a tab, or null when it is not on screen.
-   *
-   * Null rather than a guess: a surface for a tab in no pane is hidden anyway,
-   * and a box invented for it would be a box to move it back from later.
-   */
-  const boxFor = (id) => boxes.value[id] || null;
-
-  return { boxes, boxFor, refresh };
 };
+
+/**
+ * Where the panes are, for whatever is drawn over them.
+ *
+ * `boxFor` answers null for a tab that has no pane: a surface for a tab in no
+ * pane is hidden anyway, and a box invented for it would be a box to move it
+ * back from later.
+ */
+export const usePaneBoxes = () => ({
+  boxes,
+  boxFor: (id) => boxes.value[id] || null,
+});

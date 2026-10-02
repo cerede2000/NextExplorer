@@ -2502,6 +2502,164 @@ test('two folders sit side by side, and a file is dragged across', async () => {
   await expect(preference).toHaveAttribute('aria-checked', 'false');
 });
 
+/**
+ * What a pane draws, and where it draws it.
+ *
+ * Three faults of one shape: a pane told about the *window* rather than about its
+ * own tab. A screen asks the router where it is, and in a pair only one pane is
+ * the router's answer — so the editor beside a folder was handed the folder's
+ * address and refused it, "Cannot open a directory in the text editor", over the
+ * file it had been opened on; and a shell beside a folder asked whether the window
+ * was at a terminal, was told no, and drew nothing at all. The third is the same
+ * mistake about pixels: the surfaces drawn outside the page are placed from a
+ * measurement of their pane, and the frame in which a pane is given another tab
+ * measures nothing — which left a document with no box, and the whole window as
+ * the only placement left to it, over its neighbour, for good.
+ *
+ * All three are about what is on the screen and where, so all three need a
+ * browser.
+ */
+test('a pane draws its own place, and keeps to its own half', async () => {
+  fs.mkdirSync(path.join(volume, 'Berth'), { recursive: true });
+  fs.writeFileSync(path.join(volume, 'Berth', 'log.txt'), 'beside a folder\n');
+  fs.writeFileSync(path.join(volume, 'Berth', 'sheet.md'), '# A sheet\n\nin a pane.\n');
+
+  const strip = page.locator('[data-test="tab-strip"]');
+  const panes = page.locator('[data-test="tab-pane"]');
+  const entries = strip.locator('[data-test="tab"]');
+  const headers = page.locator('[data-test="pane-header"]');
+  const named = (title) => entries.filter({ has: page.locator(`[role="tab"][title="${title}"]`) });
+  const shellEntry = strip.locator('[data-test="tab"][data-kind="terminal"]');
+  /**
+   * A tab dragged onto a pane, pressed and moved and let go rather than handed to
+   * `dragTo`.
+   *
+   * `dragTo` asks whether the target takes pointers *before* anything is in the
+   * air, and a pane holding a document or a shell does not: the surface over it
+   * steps aside when a tab starts moving, which is in time for a reader and too
+   * late for that question. So the gesture is made the way a person makes it.
+   */
+  const dragOnto = async (tab, pane) => {
+    await tab.hover();
+    await page.mouse.down();
+    const box = await pane.boundingBox();
+    const [x, y] = [box.x + box.width / 2, box.y + box.height / 2];
+    await page.mouse.move(x, y, { steps: 12 });
+    await page.mouse.move(x, y + 4, { steps: 4 });
+    await page.mouse.up();
+  };
+
+  /** Opened in a tab behind, which is how the reader gets a second one. */
+  const openBehind = async (name) => {
+    await page
+      .locator(`[title="${name}"]:not([role="tab"])`)
+      .first()
+      .dblclick({ modifiers: ['ControlOrMeta'] });
+    await expect(named(name)).toHaveCount(1);
+  };
+
+  /**
+   * Whether a surface drawn outside the page is sitting over that pane.
+   *
+   * Measured rather than eyeballed, and the left edge with the width is what says
+   * it: a surface that has lost its box covers the window, which starts at the
+   * same place and is twice as wide.
+   */
+  const over = async (surface, pane) => {
+    const [above, below] = [await surface.boundingBox(), await pane.boundingBox()];
+    if (!above || !below) return 'nothing to measure';
+    const near = (one, other) => Math.abs(one - other) <= 2;
+    if (!near(above.x, below.x) || !near(above.width, below.width)) {
+      return `at ${Math.round(above.x)}+${Math.round(above.width)} over a pane at ${Math.round(below.x)}+${Math.round(below.width)}`;
+    }
+    return 'over its pane';
+  };
+
+  await page.goto('/settings/user-preferences');
+  const preference = page.locator('[data-test="browse-in-tabs"]');
+  await preference.click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(preference).toHaveAttribute('aria-checked', 'true');
+
+  try {
+    // A folder, and the editor on a file inside it in a tab behind it.
+    await page.goto('/browse/Projects/Berth');
+    await expect(panes).toHaveCount(1);
+    await openBehind('log.txt');
+    await expect(page).toHaveURL(/\/browse\/Projects\/Berth$/);
+
+    // Grouped from the editor's own entry, so the reader's tab — the folder —
+    // takes the left and the editor the right. The window is at the folder, which
+    // is the whole of what broke the pane beside it.
+    await named('log.txt').getByRole('tab').click({ button: 'right' });
+    await page.locator('[data-test="tab-show-right"]').click();
+    await expect(panes).toHaveCount(2);
+    await expect(headers.first()).toContainText('Berth');
+    await expect(headers.last()).toContainText('log.txt');
+    await expect(page).toHaveURL(/\/browse\/Projects\/Berth$/);
+
+    // And the editor is on its own file rather than on the folder next door, which
+    // it was handed and refused: "Cannot open a directory in the text editor."
+    await expect(panes.last().locator('.cm-content')).toContainText('beside a folder');
+    await expect(page.locator('body')).not.toContainText('Cannot open a directory');
+
+    // A shell for the folder the reader is in, opened behind and dropped into the
+    // half beside them — where the window's address is a folder's and not a
+    // shell's, and where it drew nothing at all.
+    const before = await entries.count();
+    await page.getByRole('button', { name: 'Terminal', exact: true }).click({ button: 'middle' });
+    await expect(entries).toHaveCount(before + 1);
+    await dragOnto(shellEntry.getByRole('tab'), panes.last());
+    await expect(page).toHaveURL(/\/browse\/Projects\/Berth$/);
+
+    const shell = page.locator('[data-test="terminal-surface-host"][data-active="true"]');
+    await expect(shell).toHaveCount(1);
+    await expect(shell).toBeVisible();
+    await expect.poll(() => over(shell, panes.last())).toBe('over its pane');
+
+    // A document in a pane, which is placed from the same measurement.
+    await openBehind('sheet.md');
+    await dragOnto(named('sheet.md').getByRole('tab'), panes.last());
+    const sheet = page.locator('[data-active="true"] [data-test="preview-surface"]');
+    await expect(sheet).toBeVisible();
+    await expect.poll(() => over(sheet, panes.last())).toBe('over its pane');
+
+    // The gesture that lost it: the other half is given another tab, both panes
+    // are drawn again, and for one frame there is nothing on the page to measure.
+    // The document keeps its own half instead of taking the window over its
+    // neighbour, where it stayed until the tab was closed.
+    await dragOnto(named('log.txt').getByRole('tab'), panes.first());
+    await expect(headers.first()).toContainText('log.txt');
+    await expect(sheet).toBeVisible();
+    await expect.poll(() => over(sheet, panes.last())).toBe('over its pane');
+
+    // And the halves the other way round: the shell on the left of the document,
+    // with the window now at the document's address.
+    await dragOnto(shellEntry.getByRole('tab'), panes.first());
+    await expect(headers.first()).toContainText('Berth');
+    await expect(shell).toBeVisible();
+    await expect.poll(() => over(shell, panes.first())).toBe('over its pane');
+    await expect(sheet).toBeVisible();
+    await expect.poll(() => over(sheet, panes.last())).toBe('over its pane');
+
+    // And on a window that *opens* split, which is what a reload of a pair is.
+    // This is where it was worst: the boxes used to be gone looking for when the
+    // panes changed, that look happened before the page existed, it found nothing,
+    // and nothing ever looked again — so the document was placed over the whole
+    // window, across its neighbour's half, and stayed there. The screen beside it
+    // could not even be clicked.
+    await page.reload();
+    await expect(panes).toHaveCount(2);
+    await expect(sheet).toBeVisible();
+    await expect.poll(() => over(sheet, panes.last())).toBe('over its pane');
+  } finally {
+    await page.goto('/settings/user-preferences');
+    await preference.click();
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(preference).toHaveAttribute('aria-checked', 'false');
+  }
+});
+
 test('the search index and folder sizes switch on from Settings, and the About page lists the tools', async () => {
   await page.goto('/settings/search-index');
   const indexSwitch = page.locator('[data-testid="search-index-switch"]');
