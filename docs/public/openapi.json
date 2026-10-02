@@ -8904,6 +8904,19 @@
                       "additionalProperties": true,
                       "description": "Whether, how large, how good, how many at once."
                     },
+                    "ffmpeg": {
+                      "type": "object",
+                      "properties": {
+                        "ffmpegPath": {
+                          "type": ["string", "null"],
+                          "description": "Absolute executable path visible inside the container."
+                        },
+                        "ffprobePath": {
+                          "type": ["string", "null"],
+                          "description": "Absolute executable path visible inside the container."
+                        }
+                      }
+                    },
                     "access": {
                       "type": "object",
                       "properties": {
@@ -9036,6 +9049,19 @@
                     "additionalProperties": true,
                     "description": "Whether, how large, how good, how many at once."
                   },
+                  "ffmpeg": {
+                    "type": "object",
+                    "properties": {
+                      "ffmpegPath": {
+                        "type": ["string", "null"],
+                        "description": "Absolute executable path visible inside the container."
+                      },
+                      "ffprobePath": {
+                        "type": ["string", "null"],
+                        "description": "Absolute executable path visible inside the container."
+                      }
+                    }
+                  },
                   "access": {
                     "type": "object",
                     "properties": {
@@ -9149,6 +9175,19 @@
                       "properties": {},
                       "additionalProperties": true,
                       "description": "Whether, how large, how good, how many at once."
+                    },
+                    "ffmpeg": {
+                      "type": "object",
+                      "properties": {
+                        "ffmpegPath": {
+                          "type": ["string", "null"],
+                          "description": "Absolute executable path visible inside the container."
+                        },
+                        "ffprobePath": {
+                          "type": ["string", "null"],
+                          "description": "Absolute executable path visible inside the container."
+                        }
+                      }
                     },
                     "access": {
                       "type": "object",
@@ -9310,6 +9349,19 @@
                           "properties": {},
                           "additionalProperties": true,
                           "description": "Whether, how large, how good, how many at once."
+                        },
+                        "ffmpeg": {
+                          "type": "object",
+                          "properties": {
+                            "ffmpegPath": {
+                              "type": ["string", "null"],
+                              "description": "Absolute executable path visible inside the container."
+                            },
+                            "ffprobePath": {
+                              "type": ["string", "null"],
+                              "description": "Absolute executable path visible inside the container."
+                            }
+                          }
                         },
                         "access": {
                           "type": "object",

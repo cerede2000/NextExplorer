@@ -515,7 +515,8 @@
       "accountApiTokens": "API tokens",
       "folderSize": "Folder sizes",
       "tabs": "Tabs",
-      "searchIndex": "Search index"
+      "searchIndex": "Search index",
+      "ffmpeg": "FFmpeg"
     },
     "about": {
       "subtitle": "View build information for this application.",
@@ -634,6 +635,15 @@
       "concurrency": "Parallel generation",
       "concurrencyHelp": "Number of thumbnails to generate simultaneously (1–50). Default is 10.",
       "invalid": "Check the values: quality from 1 to 100, max dimension from 64 to 1024 px, parallel generation from 1 to 50."
+    },
+    "ffmpeg": {
+      "title": "FFmpeg",
+      "subtitle": "Choose the FFmpeg and FFprobe executables used for media previews and metadata.",
+      "containerPathHelp": "Enter absolute paths visible inside the application container. To use host binaries, bind-mount them into the container first.",
+      "ffmpegPath": "FFmpeg executable path",
+      "ffprobePath": "FFprobe executable path",
+      "invalid": "Both paths must be absolute container paths beginning with /.",
+      "defaultHelp": "Leave a path empty to use FFMPEG_PATH or FFPROBE_PATH from the environment, then the bundled executable. Changes apply immediately."
     },
     "security": {
       "subtitle": "Control access to the app.",

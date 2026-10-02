@@ -22,7 +22,7 @@
     "regular expression unless `exact` is true. There is deliberately no catch-all:",
     "anything new is unclassified, and unclassified is a failure."
   ],
-  "batchTip": "p3-58",
+  "batchTip": "p3-60",
   "rules": [
     {
       "axis": "*",
@@ -1679,6 +1679,10 @@
     {
       "match": "^frontend/src/views/settings/(AdminUsers\\.vue|components/UserDetail\\.vue)$",
       "note": "the two accounts screens stopped asking the browser: fifteen `alert` calls became notifications, and the question before an account or a volume is removed became the application's own dialog. The batch stack predates that — it is P3-58 that carries it — so the two versions differ until the stack is built again. Nothing the reader is told changes; where they are told it does."
+    },
+    {
+      "match": "^README-development\\.md$",
+      "note": "the batches sit on upstream main, which now tells a contributor that FFmpeg comes from a separately published image and is not compiled while the application image is built. This fork still compiles it: that package answers 403 to anyone outside the organisation, and the build time it saves is time this fork does not spend, because its images are built one job per architecture on a runner of that architecture. So the development notes describe the build that is actually here, and will differ for as long as that holds"
     }
   ],
   "controls": [

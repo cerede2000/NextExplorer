@@ -121,6 +121,8 @@ const bootstrap = async () => {
   );
 
   await ensureEnvAdminUser();
+  const { ffmpeg } = await require('../services/settingsService').getSystemSettings();
+  require('../services/ffmpegRunner').configure(ffmpeg);
   logger.debug('Bootstrap complete');
 };
 

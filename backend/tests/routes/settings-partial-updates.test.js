@@ -150,6 +150,33 @@ describe('a field sent in a shape it does not take', () => {
   });
 });
 
+describe('FFmpeg executable paths', () => {
+  it('applies executable container paths and clears an override', async () => {
+    await seed();
+
+    const saved = await patch(['admin'], {
+      ffmpeg: { ffmpegPath: '/bin/sh', ffprobePath: '/bin/sh' },
+    });
+    expect(saved.status).toBe(200);
+    expect(saved.body.ffmpeg).toEqual({ ffmpegPath: '/bin/sh', ffprobePath: '/bin/sh' });
+
+    const cleared = await patch(['admin'], { ffmpeg: { ffmpegPath: null } });
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.ffmpeg.ffmpegPath).toBeNull();
+    expect(cleared.body.ffmpeg.ffprobePath).toBe('/bin/sh');
+  });
+
+  it('refuses relative and non-executable paths before storing them', async () => {
+    await seed();
+
+    for (const ffmpegPath of ['usr/bin/ffmpeg', '/path/that/does/not/exist']) {
+      const response = await patch(['admin'], { ffmpeg: { ffmpegPath } });
+      expect(response.status).toBe(400);
+    }
+    expect((await readAsAdmin()).ffmpeg.ffmpegPath).toBeNull();
+  });
+});
+
 /**
  * A number, but not one anybody chose: what an emptied or mistyped field sends.
  *

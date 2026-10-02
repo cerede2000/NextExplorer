@@ -96,6 +96,22 @@ describe('loading', () => {
     expect(settings.publicSettings.branding.appName).toBe('NextExplorer');
   });
 
+  it('loads administrator FFmpeg paths', async () => {
+    authStore.currentUser = { id: 'admin', roles: ['admin'] };
+    getSettingsApi.mockResolvedValue({
+      user: {},
+      ffmpeg: { ffmpegPath: '/host-tools/ffmpeg', ffprobePath: '/host-tools/ffprobe' },
+    });
+    const settings = useAppSettings();
+
+    await settings.load();
+
+    expect(settings.systemSettings.ffmpeg).toEqual({
+      ffmpegPath: '/host-tools/ffmpeg',
+      ffprobePath: '/host-tools/ffprobe',
+    });
+  });
+
   it('does not read them again for the same person', async () => {
     const settings = useAppSettings();
     await settings.ensureLoaded();
@@ -193,6 +209,18 @@ describe('saving', () => {
 
     expect(settings.publicSettings.branding.appName).toBe('Renamed');
   });
+});
+
+it('keeps saved FFmpeg paths returned by the server', async () => {
+  authStore.currentUser = { id: 'admin', roles: ['admin'] };
+  patchSettingsApi.mockResolvedValue({
+    ffmpeg: { ffmpegPath: '/tools/ffmpeg', ffprobePath: '/tools/ffprobe' },
+  });
+  const settings = useAppSettings();
+
+  await settings.save({ ffmpeg: { ffmpegPath: '/tools/ffmpeg' } });
+
+  expect(settings.systemSettings.ffmpeg.ffmpegPath).toBe('/tools/ffmpeg');
 });
 
 describe('saving a logo', () => {

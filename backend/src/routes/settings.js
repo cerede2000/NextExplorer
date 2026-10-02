@@ -1,4 +1,6 @@
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const {
   getPublicSettings,
   getSettingsForUser,
@@ -21,6 +23,7 @@ const folderSizeManager = require('../services/folderSizeManager');
 const searchIndexManager = require('../services/searchIndexManager');
 const featureSwitches = require('../services/featureSwitches');
 const { checkRulePath } = require('../services/accessControlService');
+const ffmpegRunner = require('../services/ffmpegRunner');
 
 const router = express.Router();
 
@@ -269,6 +272,45 @@ const activitySection = merging('activity', {
   retentionDays: isPositiveNumber,
 });
 
+const executablePath = (label) => (value) => {
+  if (value === null || value === '') return null;
+  if (typeof value !== 'string') return undefined;
+  const candidate = value.trim();
+  if (!path.isAbsolute(candidate)) {
+    throw new ValidationError(`${label} path must be absolute inside the application container.`);
+  }
+  try {
+    fs.accessSync(candidate, fs.constants.X_OK);
+    if (!fs.statSync(candidate).isFile()) throw new Error('not a file');
+  } catch (_) {
+    throw new ValidationError(
+      `${label} path is not an executable file inside the application container.`
+    );
+  }
+  return candidate;
+};
+
+const ffmpegSection = {
+  check: (section) => {
+    const update = {};
+    for (const [key, label] of [
+      ['ffmpegPath', 'FFmpeg'],
+      ['ffprobePath', 'FFprobe'],
+    ]) {
+      if (!Object.prototype.hasOwnProperty.call(section, key)) continue;
+      const value = executablePath(label)(section[key]);
+      if (value !== undefined) update[key] = value;
+    }
+    return Object.keys(update).length ? update : null;
+  },
+  write: async (update) => {
+    const saved = await mergeSection('system', 'ffmpeg', update);
+    if (!saved) return false;
+    ffmpegRunner.configure(saved);
+    return true;
+  },
+};
+
 /**
  * Branding is read and written in one step rather than merged over the
  * settings read at the start of the request, because a logo it replaces is
@@ -394,6 +436,7 @@ const SYSTEM_SECTIONS = {
   branding: brandingSection,
   folderSize: folderSizeSection,
   searchIndex: searchIndexSection,
+  ffmpeg: ffmpegSection,
 };
 
 router.patch(

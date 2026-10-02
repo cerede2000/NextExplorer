@@ -31,6 +31,22 @@ describe('Settings Service', () => {
         await envContext.cleanup();
       }
     });
+
+    it('stores administrator FFmpeg executable overrides', async () => {
+      const { envContext, settingsService } = await createSettingsContext();
+      try {
+        await settingsService.setSettings({
+          ffmpeg: { ffmpegPath: ' /opt/tools/ffmpeg ', ffprobePath: '/opt/tools/ffprobe' },
+        });
+
+        expect((await settingsService.getSystemSettings()).ffmpeg).toEqual({
+          ffmpegPath: '/opt/tools/ffmpeg',
+          ffprobePath: '/opt/tools/ffprobe',
+        });
+      } finally {
+        await envContext.cleanup();
+      }
+    });
   });
 
   describe('setSettings', () => {

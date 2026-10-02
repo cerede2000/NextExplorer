@@ -147,6 +147,17 @@ const sanitizeThumbnails = (thumbnails = {}) => {
   };
 };
 
+const sanitizeFfmpeg = (ffmpeg = {}) => ({
+  ffmpegPath:
+    typeof ffmpeg.ffmpegPath === 'string' && ffmpeg.ffmpegPath.trim()
+      ? ffmpeg.ffmpegPath.trim()
+      : null,
+  ffprobePath:
+    typeof ffmpeg.ffprobePath === 'string' && ffmpeg.ffprobePath.trim()
+      ? ffmpeg.ffprobePath.trim()
+      : null,
+});
+
 const FOLDER_SIZE_MODES = ['off', 'shallow', 'full'];
 
 /**
@@ -512,6 +523,7 @@ const getSystemSettings = async () => {
   const trash = {};
   const versions = {};
   const activity = {};
+  const ffmpeg = {};
   const tabs = {};
 
   for (const row of rows) {
@@ -532,6 +544,8 @@ const getSystemSettings = async () => {
         Object.assign(versions, JSON.parse(row.value));
       } else if (row.key === 'activity') {
         Object.assign(activity, JSON.parse(row.value));
+      } else if (row.key === 'ffmpeg') {
+        Object.assign(ffmpeg, JSON.parse(row.value));
       } else if (row.key === 'tabs') {
         Object.assign(tabs, JSON.parse(row.value));
       }
@@ -547,6 +561,7 @@ const getSystemSettings = async () => {
     trash: sanitizeTrash(trash),
     versions: sanitizeVersions(versions),
     activity: sanitizeActivity(activity),
+    ffmpeg: sanitizeFfmpeg(ffmpeg),
     tabs: sanitizeTabs(tabs),
     folderSize: {
       ...sanitizeFolderSize(folderSize),
@@ -586,6 +601,7 @@ const getSettingsForUser = async (user) => {
       result.trash = systemSettings.trash;
       result.versions = systemSettings.versions;
       result.activity = systemSettings.activity;
+      result.ffmpeg = systemSettings.ffmpeg;
     }
   }
 
@@ -865,6 +881,7 @@ const sanitizeSystemSetting = (key, value) => {
   if (key === 'activity') return sanitizeActivity(value);
   if (key === 'tabs') return sanitizeTabs(value);
   if (key === 'versions') return sanitizeVersions(value);
+  if (key === 'ffmpeg') return sanitizeFfmpeg(value);
   return value;
 };
 
@@ -1031,6 +1048,7 @@ const setSettings = async (partial) => {
     trash: { ...current.trash, ...(partial.trash || {}) },
     versions: { ...current.versions, ...(partial.versions || {}) },
     activity: { ...current.activity, ...(partial.activity || {}) },
+    ffmpeg: { ...current.ffmpeg, ...(partial.ffmpeg || {}) },
     folderSize: {
       excludedPaths:
         partial.folderSize?.excludedPaths !== undefined
@@ -1065,6 +1083,9 @@ const setSettings = async (partial) => {
   if (partial.activity) {
     merged.activity = await setSystemSetting('system', 'activity', merged.activity);
   }
+  if (partial.ffmpeg) {
+    merged.ffmpeg = await setSystemSetting('system', 'ffmpeg', merged.ffmpeg);
+  }
 
   return merged;
 };
@@ -1077,6 +1098,7 @@ module.exports = {
   sanitizeTrash,
   sanitizeVersions,
   sanitizeActivity,
+  sanitizeFfmpeg,
   sanitizeTabs,
   TAB_LIMIT_CHOICES,
   DEFAULT_TAB_LIMIT,

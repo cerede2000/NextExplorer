@@ -106,6 +106,12 @@ const adminCategories = [
     icon: PhotoIcon,
   },
   {
+    key: 'ffmpeg',
+    i18nKey: 'ffmpeg',
+    name: 'FFmpeg',
+    icon: CommandLineIcon,
+  },
+  {
     key: 'uploads',
     i18nKey: 'uploads',
     name: 'Uploads',
