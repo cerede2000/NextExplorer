@@ -1,5 +1,5 @@
 <script setup>
-import { TAB_DRAG_TYPE } from '@/utils/tabDrag';
+import { beginTabDrag, endTabDrag, TAB_DRAG_TYPE } from '@/utils/tabDrag';
 import { computed, onUnmounted, ref, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { onClickOutside, useElementSize } from '@vueuse/core';
@@ -258,6 +258,9 @@ const ungroup = (id) => {
 
 const startDrag = (id, event) => {
   held.value = id;
+  // Said to the window, so that a document or a shell drawn over a pane stops
+  // taking pointers and the pane underneath can be dropped on.
+  beginTabDrag();
   // Firefox starts no drag at all without something on the transfer, and `move`
   // is what this is — no copy of a tab exists.
   event.dataTransfer?.setData('text/plain', id);
@@ -276,6 +279,7 @@ const dragOver = (id, event) => {
 const endDrag = () => {
   held.value = '';
   over.value = '';
+  endTabDrag();
 };
 
 /** Dropped on a tab: take the place of the one underneath. */

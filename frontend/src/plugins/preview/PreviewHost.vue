@@ -12,7 +12,13 @@
       :key="surface.key"
       :data-tab="surface.key"
       :data-active="shownKeys.has(surface.key) ? 'true' : 'false'"
-      :class="shownKeys.has(surface.key) ? null : 'invisible pointer-events-none'"
+      :class="[
+        shownKeys.has(surface.key) ? null : 'invisible pointer-events-none',
+        // Out of the way while a tab is being dragged: the surface covers the
+        // pane it belongs to without being inside it, so a tab dropped on that
+        // half landed on the document and the pane never heard about it.
+        tabDragging ? 'pointer-events-none' : '',
+      ]"
       :style="paneVars(surface.key)"
     >
       <PreviewSurface :session="surface.session" />
@@ -25,6 +31,7 @@ import { computed, onMounted, onUnmounted } from 'vue';
 import { usePreviewManager } from '@/plugins/preview/manager';
 import { usePaneBoxes } from '@/composables/paneBoxes';
 import { useTabsStore } from '@/stores/tabs';
+import { tabDragging } from '@/utils/tabDrag';
 import PreviewSurface from '@/plugins/preview/PreviewSurface.vue';
 
 /**

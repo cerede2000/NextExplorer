@@ -1,12 +1,13 @@
 <script setup>
 import { usePaneBoxes } from '@/composables/paneBoxes';
 import { computed, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
 import { XMarkIcon } from '@heroicons/vue/24/outline';
 import { useI18n } from 'vue-i18n';
 import { HOME, useTabsStore } from '@/stores/tabs';
 import { useTerminalStore } from '@/stores/terminal';
 import { useTabNavigation } from '@/composables/tabNavigation';
+import { tabDragging } from '@/utils/tabDrag';
 import TerminalSurface from '@/components/TerminalSurface.vue';
 
 /**
@@ -67,7 +68,6 @@ watch(
  * A drawer is the other case and keeps the old rule: it floats over whatever the tab is
  * on, which is what a drawer is for.
  */
-const route = useRoute();
 
 const { boxFor } = usePaneBoxes();
 
@@ -91,7 +91,11 @@ const isShowing = (id) => {
   // A shut drawer is drawn hidden: the shell keeps running behind the folder.
   if (!session?.open) return false;
   if (session.mode !== 'page') return true;
-  return route.path.startsWith('/terminal');
+  // Its own tab's address, not the window's. In a pair the window is on the
+  // address of whichever pane the reader is in, so a shell beside a folder was
+  // asked whether the *folder* was a terminal — and drew nothing at all.
+  const tab = tabsStore.tabs.find((one) => one.id === id);
+  return String(tab?.path || '').startsWith('/terminal');
 };
 
 const router = useRouter();
@@ -119,7 +123,13 @@ const close = (id) => {
     v-for="surface in surfaces"
     :key="surface.id"
     class="fixed z-[1200]"
-    :class="isShowing(surface.id) ? '' : 'invisible pointer-events-none'"
+    :class="[
+      isShowing(surface.id) ? '' : 'invisible pointer-events-none',
+      // Out of the way while a tab is being dragged: this sits over the pane it
+      // belongs to without being inside it, so a tab dropped on that half landed
+      // here and the pane never heard about it.
+      tabDragging ? 'pointer-events-none' : '',
+    ]"
     :style="boxFor(surface.id) || wholeContentArea"
     :data-tab="surface.id"
     :data-mode="surface.session.mode"

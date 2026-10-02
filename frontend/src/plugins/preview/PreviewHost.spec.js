@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
-import { ref } from 'vue';
+import { nextTick, ref } from 'vue';
 
 /**
  * Every tab's document, and the one in front.
@@ -54,6 +54,7 @@ vi.mock('@/stores/tabs', () => ({
   }),
 }));
 
+import { beginTabDrag, endTabDrag } from '@/utils/tabDrag';
 import PreviewHost from './PreviewHost.vue';
 
 /**
@@ -79,6 +80,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  endTabDrag();
   // Each of these listens for `pagehide` on the window; one left mounted answers
   // the next test's events too.
   wrapper?.unmount();
@@ -116,6 +118,29 @@ describe('the surfaces', () => {
     expect(surfaceFor('tab-1').parentElement.className).not.toContain('invisible');
     expect(surfaceFor('tab-2').parentElement.className).not.toContain('invisible');
     expect(surfaceFor('tab-3').parentElement.className).toContain('invisible');
+  });
+
+  /**
+   * And steps out of the way while a tab is being dragged.
+   *
+   * A document is drawn over the pane it belongs to without being inside it —
+   * it has to be, or it would be unmounted every time its tab went behind
+   * another. So a tab dropped on the half holding a document landed on the
+   * document, the pane never heard a word about it, and the gesture did nothing:
+   * the one half a reader could not replace was the one with something in it.
+   */
+  it('takes no pointers while a tab is being dragged', async () => {
+    withTabs(['tab-1']);
+    const shown = () => surfaceFor('tab-1').parentElement.className;
+    expect(shown()).not.toContain('pointer-events-none');
+
+    beginTabDrag();
+    await nextTick();
+    expect(shown()).toContain('pointer-events-none');
+
+    endTabDrag();
+    await nextTick();
+    expect(shown()).not.toContain('pointer-events-none');
   });
 
   /**

@@ -27,16 +27,18 @@ vi.mock('@/components/TerminalSurface.vue', () => ({
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key) => key }) }));
 
 const push = vi.hoisted(() => vi.fn());
-/**
- * Where the tab is, which a terminal that *is* the tab now asks before drawing itself:
- * it used to cover whatever the tab held for as long as the tab was in front, so
- * leaving it did nothing at all.
- */
-const where = reactive({ path: '/terminal/Projects' });
-vi.mock('vue-router', () => ({ useRouter: () => ({ push }), useRoute: () => where }));
+// Only to take a tab home when the last one shuts its shell.
+vi.mock('vue-router', () => ({ useRouter: () => ({ push }) }));
 
 const tabsStore = reactive({
-  tabs: [{ id: 'tab-1' }, { id: 'tab-2' }],
+  // Each tab's own address, which is what a terminal that *is* the tab asks
+  // before drawing itself. Its own and not the window's: in a pair the window is
+  // at whichever pane the reader is in, so a shell beside a folder that asked the
+  // window was asking about the folder.
+  tabs: [
+    { id: 'tab-1', path: '/terminal/Projects' },
+    { id: 'tab-2', path: '/browse/Media' },
+  ],
   activeId: 'tab-1',
   canClose: true,
   // The tabs on screen: one, or the two halves of a pair. A shell is shown for
@@ -58,6 +60,7 @@ vi.mock('@/composables/tabNavigation', () => ({
   useTabNavigation: () => ({ close: closeTab }),
 }));
 
+import { beginTabDrag, endTabDrag } from '@/utils/tabDrag';
 import { useTerminalStore } from '@/stores/terminal';
 import { createPinia, setActivePinia } from 'pinia';
 import TerminalHost from './TerminalHost.vue';
@@ -72,10 +75,14 @@ beforeEach(() => {
   terminals = useTerminalStore();
   push.mockClear();
   closeTab.mockClear();
-  tabsStore.tabs = [{ id: 'tab-1' }, { id: 'tab-2' }];
+  tabsStore.tabs = [
+    { id: 'tab-1', path: '/terminal/Projects' },
+    { id: 'tab-2', path: '/browse/Media' },
+  ];
   tabsStore.activeId = 'tab-1';
   tabsStore.shown = null;
   tabsStore.canClose = true;
+  endTabDrag();
 });
 
 describe('the terminals on screen', () => {
@@ -95,14 +102,37 @@ describe('the terminals on screen', () => {
     const surface = () => wrapper.get('[data-tab="tab-1"]');
     expect(surface().classes()).not.toContain('invisible');
 
-    where.path = '/browse/Projects';
+    tabsStore.tabs[0].path = '/browse/Projects';
     await nextTick();
     expect(surface().classes()).toContain('invisible');
 
     // And the session is not ended by leaving: stepping back finds the shell.
-    where.path = '/terminal/Projects';
+    tabsStore.tabs[0].path = '/terminal/Projects';
     await nextTick();
     expect(surface().classes()).not.toContain('invisible');
+  });
+
+  /**
+   * And it steps out of the way while a tab is being dragged.
+   *
+   * A shell is drawn over the pane it belongs to without being inside it, so a
+   * tab dropped on the half holding a shell landed on the shell and the pane
+   * never heard a word about it — the one half a reader could not replace was the
+   * one with something in it.
+   */
+  it('takes no pointers while a tab is being dragged', async () => {
+    terminals.openIn('tab-1', 'Projects', { mode: 'page' });
+    const wrapper = show();
+    const surface = () => wrapper.get('[data-tab="tab-1"]');
+    expect(surface().classes()).not.toContain('pointer-events-none');
+
+    beginTabDrag();
+    await nextTick();
+    expect(surface().classes()).toContain('pointer-events-none');
+
+    endTabDrag();
+    await nextTick();
+    expect(surface().classes()).not.toContain('pointer-events-none');
   });
 
   /**
@@ -134,7 +164,7 @@ describe('the terminals on screen', () => {
     terminals.openIn('tab-1', 'Projects', { mode: 'drawer' });
     const wrapper = show();
 
-    where.path = '/browse/Projects';
+    tabsStore.tabs[0].path = '/browse/Projects';
     await nextTick();
 
     expect(wrapper.get('[data-tab="tab-1"]').classes()).not.toContain('invisible');
@@ -195,6 +225,28 @@ describe('the terminals on screen', () => {
 
     expect(boxes(wrapper)[0].attributes('data-active')).toBe('true');
     expect(boxes(wrapper)[1].attributes('data-active')).toBe('true');
+  });
+
+  /**
+   * A shell that *is* its tab, in the pane beside the reader, with the reader in a
+   * folder.
+   *
+   * It drew nothing. Whether a terminal that is the tab is on screen was decided by
+   * asking the *window* where it was, and in a pair the window is at whichever pane
+   * the reader is in — so the half holding the shell was asked whether the folder in
+   * the other half was a terminal, and hid itself. A black rectangle beside a folder,
+   * for the whole point of putting a shell next to one.
+   */
+  it('show a shell beside a folder, asking its own tab where it is', async () => {
+    terminals.openIn('tab-1', 'Projects', { mode: 'page' });
+    const wrapper = show();
+
+    // The reader is in the folder; the shell is the other half of the pair.
+    tabsStore.shown = ['tab-1', 'tab-2'];
+    tabsStore.activeId = 'tab-2';
+    await flushPromises();
+
+    expect(wrapper.get('[data-tab="tab-1"]').classes()).not.toContain('invisible');
   });
 
   it('go when their tab does', async () => {
