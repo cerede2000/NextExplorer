@@ -95,12 +95,21 @@ export const useReportsPaneBox = (tabId, element) => {
     observer?.disconnect();
     observer = null;
     if (typeof window !== 'undefined') window.removeEventListener('resize', tell);
-    // Only what has left the screen is forgotten. Mid-swap this element is
-    // replaced by another one holding the same tab, and a box dropped for that
-    // frame leaves a document with nowhere to be — the whole window is the only
-    // placement left to it, and it stays there.
+    // Only a tab that has *gone* is forgotten — not one that is merely off screen.
+    //
+    // A box dropped leaves whatever is drawn over that pane with the whole window
+    // as its only placement. Mid-swap, that is a frame with a document across both
+    // halves. Coming back to a pair, it is worse: the right-hand pane is destroyed
+    // when the pair leaves the window, so the document in it returned placed over
+    // the whole window and was put back in its half a frame later — measured at
+    // 0+1280 and then 756+525. An editor handed a window-wide box lays itself out
+    // for it and lays itself out again immediately after, which is the jump that
+    // looks like the document reloading.
+    //
+    // A box for a tab nobody is looking at costs four strings, and the pane says
+    // where it is again the moment it is drawn.
     const id = tabId.value;
-    if (!id || tabsStore.panes.includes(id)) return;
+    if (!id || tabsStore.tabs.some((tab) => tab.id === id)) return;
     const next = { ...boxes.value };
     delete next[id];
     boxes.value = next;
