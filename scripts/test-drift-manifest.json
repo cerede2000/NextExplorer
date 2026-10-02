@@ -88,6 +88,14 @@
         "^is loaded on demand by the layout, not imported into it$"
       ],
       "note": "renamed twice as xterm moved house. A terminal became a place, so what a terminal *is* came out of the drawer into `components/TerminalSurface.vue`; then a terminal became the tab’s rather than the window’s, and the drawer became `components/TerminalHost.vue`, which draws every open terminal and outlives every page — a page is unmounted the moment another tab comes forward, and an unmounted terminal is a killed shell. The case is `is where xterm lives, so it travels with whatever shows a terminal`, and it is now five of them rather than one: the host is loaded on demand, it is not even on the page until a terminal is open, the surface holds xterm, the host reaches it, and the page behind a terminal tab reaches nothing at all. What it guards is unchanged: nothing a page loads eagerly may reach 289 kB of terminal The second of theirs, `is loaded on demand by the layout, not imported into it`, is `is loaded on demand by the shell of the application, not imported into it` here, and the rename is the point: the host stopped belonging to a layout. `/browse` and `/terminal` are two route records, so crossing between them destroyed the browser layout and every shell in it — an unmounted terminal is a killed shell — and the host is mounted in the shell of the application now, above every layout. A fifth case says so and would fail if it were put back."
+    },
+    {
+      "file": "^frontend/src/composables/itemSelection\\.spec\\.js$",
+      "cases": [
+        "^uses the store’s own clear when it has one$",
+        "^empties the list itself when the store offers nothing$"
+      ],
+      "note": "one case now, because the question the two of them split no longer exists. What is selected belongs to a *place*: every row asks on a click, and asking the window meant one selection for both halves of a split view — choosing a file in one half moved the highlight in the other. It asks its pane's folder now, and every folder has a selection of its own with its own way of letting go, so there is no longer a store that offers one and a store that does not. What the two guarded — that clearing really empties the list — is `asks the folder to let go of what it was holding` here, and a second case beside it says the thing that was missing: `clears its own pane and leaves the other alone`."
     }
   ]
 }
