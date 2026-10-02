@@ -1604,10 +1604,10 @@
     },
     {
       "axis": "*",
-      "match": "^(frontend/src/components/TabPane\\.vue|frontend/src/composables/paneTab\\.js|frontend/src/components/BreadCrumb\\.vue|frontend/src/layouts/BrowserLayout\\.vue|frontend/src/views/FolderView\\.vue|frontend/src/composables/useFileDragDrop\\.js|frontend/src/stores/fileStore\\.js|frontend/src/plugins/preview/PreviewHost\\.vue|frontend/src/plugins/preview/PreviewSurface\\.vue|frontend/src/plugins/preview/MediaPreview\\.vue|frontend/src/components/TerminalHost\\.vue)",
+      "match": "^(frontend/src/components/TabPane\\.vue|frontend/src/composables/paneTab\\.js|frontend/src/components/BreadCrumb\\.vue|frontend/src/layouts/BrowserLayout\\.vue|frontend/src/views/FolderView\\.vue|frontend/src/composables/useFileDragDrop\\.js|frontend/src/stores/fileStore\\.js|frontend/src/plugins/preview/PreviewHost\\.vue|frontend/src/plugins/preview/PreviewSurface\\.vue|frontend/src/plugins/preview/MediaPreview\\.vue|frontend/src/components/TerminalHost\\.vue|frontend/src/components/WindowBar\\.vue|frontend/src/components/WindowSidebar\\.vue|frontend/src/composables/sidebar\\.js)",
       "verdict": "PORT",
       "batch": "P3-61",
-      "note": "two tabs at once, side by side, with one sidebar — the next batch after the comparison. What belongs to a place is the pane's own and what belongs to a person stays one to the window, which is the line `files/folderTab.js` already drew: `paneTab.js` is how a screen on the far side of it asks which side it is on, `TabPane.vue` is a pane. The rest is the panes' own state in the store, the two of them drawn by the layout, the entry in the strip's menu, the folder view and the breadcrumb reading their pane instead of the tab in front, and the drag that now reads the folder the files arrived in. A pair is a grouping of two *tabs* rather than a split of the window, so there can be as many as there are tabs: `paneBoxes.js` measures where each pane is, for the two things drawn outside the page that have to sit on it anyway — a document in its viewer and a shell. Both are told which panes are on screen instead of which tab is in front, and both take their box from there rather than from the window"
+      "note": "two tabs at once, side by side, with one sidebar — the next batch after the comparison. What belongs to a place is the pane's own and what belongs to a person stays one to the window, which is the line `files/folderTab.js` already drew: `paneTab.js` is how a screen on the far side of it asks which side it is on, `TabPane.vue` is a pane. The rest is the panes' own state in the store, the two of them drawn by the layout, the entry in the strip's menu, the folder view and the breadcrumb reading their pane instead of the tab in front, and the drag that now reads the folder the files arrived in. A pair is a grouping of two *tabs* rather than a split of the window, so there can be as many as there are tabs: `paneBoxes.js` measures where each pane is, for the two things drawn outside the page that have to sit on it anyway — a document in its viewer and a shell. Both are told which panes are on screen instead of which tab is in front, and both take their box from there rather than from the window. The window is the window: `WindowSidebar.vue` and `WindowBar.vue` are what the browser layout used to hold, drawn once above every layout so that a pane can hold anything — a document and a shell are outside that layout on purpose, and the editor and a comparison are in another. `composables/sidebar.js` is a module-level singleton because the toolbar above a pane has to open the same sidebar the window draws"
     }
   ],
   "residue": [
@@ -1722,6 +1722,10 @@
     {
       "match": "^frontend/src/plugins/preview/PreviewHost\\.vue$",
       "note": "the pane work changes what these two draw for: a document's viewer and a shell are told which panes are on screen rather than which tab is in front, and each takes its box from its pane rather than from the window. The difference stands until P3-61 goes, which is the batch that carries it"
+    },
+    {
+      "match": "^frontend/src/components/NotificationToast\\.vue$",
+      "note": "one `data-test` on the dismiss button. The toasts are the window's now rather than the browser layout's, so they are drawn over a comparison too and stack up the side the map's own edge is on — a journey that measures the map has to be able to clear them first. Goes with P3-61"
     }
   ],
   "controls": [

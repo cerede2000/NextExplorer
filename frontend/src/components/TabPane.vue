@@ -2,7 +2,9 @@
 import { computed, defineAsyncComponent, ref, shallowRef, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { XMarkIcon } from '@heroicons/vue/24/outline';
-import BreadCrumb from '@/components/BreadCrumb.vue';
+import FolderViewToolbar from '@/components/FolderViewToolbar.vue';
+import { tabTitle } from '@/config/tabKinds';
+import { useI18n } from 'vue-i18n';
 import { providePaneTab } from '@/composables/paneTab';
 import { useTabsStore } from '@/stores/tabs';
 import { draggedTabId, isTabDrag } from '@/utils/tabDrag';
@@ -48,6 +50,24 @@ providePaneTab(tabId);
  */
 const address = computed(() => tabsStore.tabs.find((one) => one.id === tabId.value)?.path || '');
 const focused = computed(() => tabId.value === tabsStore.activeId);
+
+/**
+ * The folder's own toolbar, for a pane that holds one.
+ *
+ * All of it is about a folder — where it is, how it is sorted, how it is shown,
+ * what can be made in it — so it belongs to the pane rather than to the window,
+ * and two panes on two folders are two of them. What *is* the window's went to
+ * `WindowBar.vue`: searching and what the application has to tell you, of which
+ * two side by side was absurd.
+ */
+const paneKind = computed(() => tabsStore.tabs.find((one) => one.id === tabId.value)?.kind || '');
+const showsFolderToolbar = computed(() => paneKind.value === 'folder');
+
+const { t } = useI18n();
+const paneName = computed(() => {
+  const tab = tabsStore.tabs.find((one) => one.id === tabId.value);
+  return tab ? tabTitle(tab, t) : '';
+});
 const router = useRouter();
 
 /**
@@ -81,7 +101,19 @@ watch(
 );
 
 const drawn = computed(() => (focused.value ? props.routedComponent : resolved.value));
-const drawnKey = computed(() => (focused.value ? props.routedKey : address.value));
+/**
+ * The key that decides when the screen is replaced rather than reused.
+ *
+ * The *path*, not the whole address. Walking into another folder changes the
+ * path, and the folder view wants a new instance for it — it captures where it
+ * is on the way in. A screen rewriting its own query does not: a comparison
+ * whose two sides are swapped over is the same comparison, saying itself the
+ * other way round, and it has lines taken across and not yet saved that exist
+ * nowhere else. Keyed on the full address it was rebuilt from the file and threw
+ * all of that away.
+ */
+const pathOf = (address) => String(address || '').split('?')[0];
+const drawnKey = computed(() => (focused.value ? pathOf(props.routedKey) : pathOf(address.value)));
 
 /**
  * Clicking anywhere in a pane puts the reader in it.
@@ -171,7 +203,9 @@ const takeFocus = () => {
           : 'border-neutral-200 bg-default-muted/50 text-neutral-500 dark:border-neutral-800 dark:text-neutral-400'
       "
     >
-      <BreadCrumb class="min-w-0 flex-1" />
+      <!-- Its name, not a second breadcrumb: a folder pane has one of those in
+           its own toolbar just below, and saying where it is twice is noise. -->
+      <span class="min-w-0 flex-1 truncate">{{ paneName }}</span>
       <button
         type="button"
         data-test="pane-close"
@@ -184,6 +218,8 @@ const takeFocus = () => {
         <XMarkIcon class="h-4 w-4" />
       </button>
     </header>
+
+    <FolderViewToolbar v-if="showsFolderToolbar" />
 
     <component :is="drawn" v-if="drawn" :key="drawnKey" class="min-h-0 flex-1" />
   </section>

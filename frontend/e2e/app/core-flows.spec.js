@@ -1067,6 +1067,16 @@ test('a long comparison shows where the reader is, and the scrollbar is not cove
    * crossing a real boundary shows that, so the mouse is walked across it here and a
    * mark is pressed at the end of the walk.
    */
+  // The toasts belong to the window now rather than to the browser layout, so
+  // they are over a comparison too — and they stack up the right-hand side,
+  // which is where the map's own edge is. Cleared first: what is being measured
+  // is the map, not whether something transient is in front of it.
+  const toasts = page.locator('[data-test="toast-close"]');
+  for (let left = await toasts.count(); left > 0; left -= 1) {
+    await toasts.first().click();
+  }
+  await expect(toasts).toHaveCount(0);
+
   const surface = await page.locator('[data-test="compare-rows"]').boundingBox();
   const middle = surface.y + surface.height / 2;
   await expect(page.locator('[data-test="compare-map"]')).toHaveCount(0);
@@ -2467,15 +2477,24 @@ test('two folders sit side by side, and a file is dragged across', async () => {
   // what a cross on a pane means.
   await expect(page).toHaveURL(/\/browse\/Projects\/Spare$/);
 
-  // What cannot be in a pane says so rather than being offered and doing
-  // nothing: the panes are drawn by the browser layout, and a document is in no
-  // layout at all — which is what makes it the whole of what its tab holds.
+  // A document is a pane like any other now, which it could not be while the
+  // panes were drawn by the browser layout and a document sat outside it.
   await page.goto('/open/Projects/leaflet.md');
-  await expect(panes).toHaveCount(0);
+  await expect(panes).toHaveCount(1);
+  // Alone it keeps the window to itself — no sidebar, no bar above it — because a
+  // document opened in its own tab is the document.
+  await expect(page.locator('[data-test="browser-aside"]')).toHaveCount(0);
+  await expect(page.locator('[data-test="window-bar"]')).toHaveCount(0);
+
+  // Side by side with a folder it is a pane, and the window's chrome comes back
+  // because the other half needs it.
   const docEntry = entryFor('leaflet.md');
   await expect(docEntry).toHaveCount(1);
   await docEntry.getByRole('tab').click({ button: 'right' });
-  await expect(page.locator('[data-test="tab-show-right"]')).toBeDisabled();
+  await page.locator('[data-test="tab-show-right"]').click();
+  await expect(panes).toHaveCount(2);
+  await expect(page.locator('[data-test="browser-aside"]')).toHaveCount(1);
+  await expect(page.locator('[data-test="window-bar"]')).toHaveCount(1);
 
   await page.goto('/settings/user-preferences');
   await preference.click();

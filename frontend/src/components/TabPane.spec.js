@@ -41,10 +41,16 @@ vi.mock('vue-router', () => ({
   RouterLink: { template: '<a><slot /></a>' },
 }));
 
-// What a pane draws is a screen of its own; the breadcrumb reaches further than
-// this component and is held in its own place.
-vi.mock('@/components/BreadCrumb.vue', () => ({
-  default: defineComponent({ setup: () => () => h('div', { class: 'breadcrumb' }) }),
+// A pane writes its tab's name in its header, which asks the catalogue.
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({ t: (key) => key, te: () => false }),
+  createI18n: () => ({ install: () => {}, global: { t: (key) => key } }),
+}));
+
+// The folder's own toolbar is held in its own place; what is asked here is
+// whether a pane draws one at all.
+vi.mock('@/components/FolderViewToolbar.vue', () => ({
+  default: defineComponent({ setup: () => () => h('div', { 'data-test': 'folder-toolbar' }) }),
 }));
 
 import TabPane from './TabPane.vue';
@@ -72,6 +78,10 @@ const tabDrag = (id) => ({
 });
 
 beforeEach(() => {
+  appTabs.tabs = [
+    { id: 'tab-here', kind: 'folder', path: '/browse/Here' },
+    { id: 'tab-beside', kind: 'folder', path: '/browse/Beside' },
+  ];
   appTabs.activeId = 'tab-here';
   appTabs.activate.mockReset();
   appTabs.showInPane.mockReset();
@@ -123,6 +133,20 @@ describe('a pane', () => {
     expect(paneFor('tab-here', { split: true }).find('[data-test="pane-header"]').exists()).toBe(
       true
     );
+  });
+
+  /**
+   * The folder's own toolbar, for a pane that holds a folder and for no other.
+   *
+   * All of it is about a folder, so two panes on two folders are two of them —
+   * and a pane showing a document or a shell has nothing to put in one.
+   */
+  it('draws the folder’s own toolbar only for a folder', () => {
+    expect(paneFor('tab-here').find('[data-test="folder-toolbar"]').exists()).toBe(true);
+
+    appTabs.tabs = [{ id: 'tab-doc', kind: 'document', path: '/open/Docs/notes.md' }];
+    appTabs.activeId = 'tab-doc';
+    expect(paneFor('tab-doc').find('[data-test="folder-toolbar"]').exists()).toBe(false);
   });
 
   it('closes its own side, not whichever pane has focus', async () => {

@@ -1137,39 +1137,22 @@ describe('tabs grouped two at a time', () => {
   });
 
   /**
-   * What has nowhere to be drawn in a pane is refused on both sides.
+   * Any kind may be grouped now, a document and a shell included.
    *
-   * The panes are the browser layout's; a document and a shell are in no layout
-   * at all, deliberately, because each is the whole of what its tab holds. An
-   * entry that was offered and did nothing when pressed would be worse than one
-   * greyed out, which is the fault this whole feature started with.
+   * They could not before: the panes were drawn by the browser layout, and both
+   * of those sit outside it on purpose. The panes are above every layout now, so
+   * what a pane draws is simply the screen for its tab's address.
    */
-  it('refuses a tab whose kind cannot be drawn in a pane', () => {
+  it('groups a document and a shell as readily as a folder', () => {
     const store = withTabsOn();
     const folder = store.activeTab;
     const document = store.open('/open/Docs/notes.md');
 
-    expect(store.canPair(document.id)).toBe(false);
-    expect(store.pair(document.id)).toBe(null);
-    expect(store.showInPane('right', document.id)).toBe(null);
-
-    // And from the other side: the folder has nobody it may be grouped with.
     store.activate(folder.id);
-    expect(store.canPair(folder.id)).toBe(false);
-  });
+    expect(store.canPair(document.id)).toBe(true);
+    store.pair(document.id);
 
-  /** It is also skipped when looking for the nearest tab that is free. */
-  it('looks past a tab that cannot be drawn in a pane', () => {
-    const store = withTabsOn();
-    const first = store.activeTab;
-    store.open('/open/Docs/notes.md');
-    const folder = store.open('/browse/Reachable');
-    store.activate(first.id);
-
-    expect(store.canPair(first.id)).toBe(true);
-    store.pair(first.id);
-
-    expect(store.panes).toEqual([first.id, folder.id]);
+    expect(store.panes).toEqual([folder.id, document.id]);
   });
 
   /** Several pairs at once, which is what belonging to the tabs buys. */

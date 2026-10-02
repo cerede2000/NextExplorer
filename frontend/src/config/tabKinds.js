@@ -37,19 +37,27 @@ import {
  * reader returns. A folder is; the settings are not — somebody who closes the
  * browser on a settings page was not in the middle of anything there.
  *
- * `inPane` says whether this kind can be drawn in one half of a split view, and
- * what decides it is which layout its address is in: the panes are drawn by the
- * browser layout, so a kind whose route sits outside it has nowhere to be drawn
- * when its tab is the one in front. The editor, an earlier version and a
- * comparison are in the editor's layout; a document and a shell are in no layout
- * at all, deliberately — each of those is the whole of what its tab holds. Giving
- * them a pane means moving the panes, and the sidebar with them, above every
- * layout.
+ * `folderPanels` says that the window's own panels about an item — its details,
+ * its earlier versions — belong beside this screen. It is the membership the
+ * browser layout used to carry: those panels were drawn by it, so a comparison
+ * or the editor never had one over it. Said per kind now that there is no layout
+ * to belong to.
+ *
+ * `fullTab` says that a *lone* tab of this kind wants the window to itself: no
+ * sidebar, no bar above it. A shell, because the sidebar's only answer beside one
+ * is to leave it — easy to confuse with a `cd` a keystroke away; and a document,
+ * because a document opened in its own tab is the document. Side by side with
+ * something else the window's chrome comes back, since the other half needs it.
+ *
+ * Every kind can sit in a pane. That is new: the panes used to be drawn by the
+ * browser layout, so a kind whose address sat outside it — a document, a shell,
+ * the editor, a comparison — had nowhere to be drawn. They are above every layout
+ * now, with the sidebar.
  */
 const TAB_KINDS = [
   {
     id: 'folder',
-    inPane: true,
+    folderPanels: true,
     match: /^\/browse([/?#]|$)/,
     icon: FolderIcon,
     // Nothing to name it from at `/browse/`, which is the list of volumes.
@@ -59,7 +67,7 @@ const TAB_KINDS = [
   },
   {
     id: 'document',
-    inPane: false,
+    fullTab: true,
     match: /^\/open([/?#]|$)/,
     icon: DocumentTextIcon,
     singleton: false,
@@ -70,7 +78,7 @@ const TAB_KINDS = [
     // tabs, which is the point: the drawer belongs to the window and can only
     // ever show one.
     id: 'terminal',
-    inPane: false,
+    fullTab: true,
     match: /^\/terminal([/?#]|$)/,
     icon: CommandLineIcon,
     titleKey: 'titles.terminal',
@@ -89,7 +97,6 @@ const TAB_KINDS = [
     // stop somebody comparing another, which is the usual way of reviewing a change
     // across several files.
     id: 'compare',
-    inPane: false,
     match: /^\/compare([/?#]|$)/,
     icon: ArrowsRightLeftIcon,
     titleKey: 'compare.title',
@@ -101,7 +108,6 @@ const TAB_KINDS = [
   },
   {
     id: 'editor',
-    inPane: false,
     match: /^\/editor([/?#]|$)/,
     icon: CodeBracketIcon,
     singleton: false,
@@ -109,7 +115,7 @@ const TAB_KINDS = [
   },
   {
     id: 'search',
-    inPane: true,
+    folderPanels: true,
     match: /^\/search([/?#]|$)/,
     icon: MagnifyingGlassIcon,
     titleKey: 'actions.search',
@@ -118,7 +124,7 @@ const TAB_KINDS = [
   },
   {
     id: 'trash',
-    inPane: true,
+    folderPanels: true,
     match: /^\/trash([/?#]|$)/,
     icon: TrashIcon,
     titleKey: 'trash.title',
@@ -127,7 +133,6 @@ const TAB_KINDS = [
   },
   {
     id: 'versions',
-    inPane: false,
     match: /^\/versions([/?#]|$)/,
     icon: ClockIcon,
     titleKey: 'settings.fileVersions.title',
@@ -136,7 +141,7 @@ const TAB_KINDS = [
   },
   {
     id: 'shares',
-    inPane: true,
+    folderPanels: true,
     match: /^\/shares([/?#]|$)/,
     icon: ShareIcon,
     titleKey: 'common.shares',
@@ -145,7 +150,7 @@ const TAB_KINDS = [
   },
   {
     id: 'settings',
-    inPane: true,
+    folderPanels: true,
     match: /^\/settings([/?#]|$)/,
     icon: Cog6ToothIcon,
     titleKey: 'common.settings',
