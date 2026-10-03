@@ -3274,14 +3274,27 @@ test('a document opened from the bottom leaves the other tabs where they were', 
   const strip = page.locator('[data-test="tab-strip"]');
   const entries = strip.locator('[data-test="tab"]');
   const panes = page.locator('[data-test="tab-pane"]');
+  /**
+   * Where each half is, said as the row the reader is looking at and as the pixels
+   * it took to get there. The row is the place: a pane that comes back a different
+   * width re-flows its listing, so the number moves while the row does not.
+   */
   const places = () =>
     page.evaluate(() =>
-      [...document.querySelectorAll('[data-test="tab-pane"]')].map((pane) => ({
-        top: Math.round(pane.querySelector('.upload-drop-target')?.scrollTop ?? -1),
-        selected: [...pane.querySelectorAll('[data-selected="true"]')]
-          .map((row) => row.getAttribute('title'))
-          .filter(Boolean),
-      }))
+      [...document.querySelectorAll('[data-test="tab-pane"]')].map((pane) => {
+        const list = pane.querySelector('.upload-drop-target');
+        const edge = list.getBoundingClientRect().top;
+        const first = [...pane.querySelectorAll('[data-selected]')].find(
+          (row) => row.getBoundingClientRect().bottom > edge + 4
+        );
+        return {
+          top: first?.getAttribute('title') ?? '',
+          pixels: Math.round(list?.scrollTop ?? -1),
+          selected: [...pane.querySelectorAll('[data-selected="true"]')]
+            .map((row) => row.getAttribute('title'))
+            .filter(Boolean),
+        };
+      })
     );
   const scrollPane = async (index, amount) => {
     const box = await panes.nth(index).locator('.upload-drop-target').boundingBox();
@@ -3341,8 +3354,8 @@ test('a document opened from the bottom leaves the other tabs where they were', 
     // One half taken to the bottom, and the document down there opened in a tab
     // of its own.
     await scrollPane(0, 20000);
-    const atTheBottom = (await places())[0].top;
-    expect(atTheBottom).toBeGreaterThan(1000);
+    const atTheBottom = (await places())[0];
+    expect(atTheBottom.pixels).toBeGreaterThan(1000);
     await panes.first().locator('[title="zz-note.md"]').first().dblclick();
     await expect(page).toHaveURL(/\/(open|editor)\/Projects\/Walk\/zz-note\.md$/);
 
@@ -3354,21 +3367,21 @@ test('a document opened from the bottom leaves the other tabs where they were', 
       .click();
     await expect(panes).toHaveCount(2);
     const back = await places();
-    expect(back[0].top).toBe(atTheBottom);
+    expect(back[0].top).toBe(atTheBottom.top);
     expect(back[0].selected).toEqual(['zz-note.md']);
-    expect(back[1].top, 'the half nobody moved is still at the top').toBe(0);
+    expect(back[1].pixels, 'the half nobody moved is still at the top').toBe(0);
 
     // And selecting in that half selects what was pressed, where it was pressed.
     const chosen = await clickRow(1);
     const after = await places();
     expect(after[1].selected).toEqual([chosen]);
-    expect(after[1].top).toBe(0);
-    expect(after[0].top).toBe(atTheBottom);
+    expect(after[1].pixels).toBe(0);
+    expect(after[0].top).toBe(atTheBottom.top);
 
     // The third tab, which never left the top either.
     await entries.first().getByRole('tab').click();
     await expect(panes).toHaveCount(1);
-    expect((await places())[0].top).toBe(0);
+    expect((await places())[0].pixels).toBe(0);
   } finally {
     await page.goto('/settings/user-preferences');
     await preference.click();
@@ -3392,6 +3405,86 @@ test('a document opened from the bottom leaves the other tabs where they were', 
  * no care: walking somewhere changes the address, and the tab in front is told in a
  * watcher that runs before anything is drawn.
  */
+/**
+ * A click into the half beside a document is taken, on the first press.
+ *
+ * With a document in one half, pressing a row in the other selected nothing: the
+ * reader had to click twice. Bringing a tab forward is two moves — the store first,
+ * the address bar after — and the pane drew the router's own screen the moment it
+ * had focus, which for that tick was still the screen for the half being *left*. So
+ * the listing was replaced by a document and replaced back a frame later, and the
+ * row the click was pressed on no longer existed when the button came up.
+ */
+test('a click in the half beside a document selects on the first press', async () => {
+  test.slow();
+
+  const dir = path.join(volume, 'Beside');
+  fs.mkdirSync(dir, { recursive: true });
+  for (let i = 1; i <= 60; i += 1) {
+    fs.writeFileSync(path.join(dir, `file-${String(i).padStart(2, '0')}.txt`), 'beside\n');
+  }
+  fs.writeFileSync(path.join(dir, 'zz-doc.md'), '# A document\n\nin the other half\n');
+
+  const strip = page.locator('[data-test="tab-strip"]');
+  const entries = strip.locator('[data-test="tab"]');
+  const panes = page.locator('[data-test="tab-pane"]');
+  const chosenIn = (half) =>
+    page.evaluate((index) => {
+      const pane = document.querySelectorAll('[data-test="tab-pane"]')[index];
+      return [...pane.querySelectorAll('[data-keyboard-item-key]')]
+        .filter(
+          (row) =>
+            row.matches('[data-selected="true"]') || !!row.querySelector('[data-selected="true"]')
+        )
+        .map((row) => row.getAttribute('data-keyboard-item-key').split('::').pop())
+        .join(',');
+    }, half);
+
+  await page.goto('/settings/user-preferences');
+  const preference = page.locator('[data-test="browse-in-tabs"]');
+  await preference.click();
+  await page.locator('[data-test="preferences-save"]').click();
+  await expect(preference).toHaveAttribute('aria-checked', 'true');
+  const inNewTab = page.locator('[data-test="documents-in-new-tab"]');
+  if ((await inNewTab.getAttribute('aria-checked')) === 'true') {
+    await inNewTab.click();
+    await page.locator('[data-test="preferences-save"]').click();
+  }
+
+  try {
+    await page.goto('/browse/Projects');
+    const closeEvery = page.locator('[data-test="tab-close-all"]');
+    if ((await closeEvery.count()) > 0) await closeEvery.click();
+    await expect(entries).toHaveCount(1);
+
+    // The same folder in two halves, and a document opened in the right one —
+    // which is the half the reader is in.
+    await page.goto('/browse/Projects/Beside');
+    await expect(page.locator('[title="file-01.txt"]').first()).toBeVisible();
+    await entries.last().getByRole('tab').click({ button: 'right' });
+    await page.locator('[data-test="tab-duplicate"]').click();
+    await expect(entries).toHaveCount(2);
+    await entries.last().getByRole('tab').click({ button: 'right' });
+    await page.locator('[data-test="tab-show-right"]').click();
+    await expect(panes).toHaveCount(2);
+    await panes.last().locator('[title="zz-doc.md"]').first().dblclick();
+    await expect(page).toHaveURL(/\/open\/Projects\/Beside\/zz-doc\.md$/);
+    await expect(page.locator('[data-test="preview-surface"]')).toBeVisible();
+
+    // One press on a row in the other half, as a reader makes it.
+    const row = panes.first().locator('[data-keyboard-item-key]').nth(6);
+    const name = (await row.getAttribute('data-keyboard-item-key')).split('::').pop();
+    await row.click();
+
+    await expect.poll(() => chosenIn(0)).toBe(name);
+  } finally {
+    await page.goto('/settings/user-preferences');
+    await preference.click();
+    await page.locator('[data-test="preferences-save"]').click();
+    await expect(preference).toHaveAttribute('aria-checked', 'false');
+  }
+});
+
 test('crossing between two editors does not build them again', async () => {
   test.slow();
 
@@ -3414,9 +3507,16 @@ test('crossing between two editors does not build them again', async () => {
     page.evaluate(() =>
       [...document.querySelectorAll('[data-test="tab-pane"]')].map((pane) => {
         const scroller = pane.querySelector('.cm-scroller');
+        const edge = scroller?.getBoundingClientRect().top ?? 0;
+        const first = [...pane.querySelectorAll('.cm-line')].find(
+          (line) => line.getBoundingClientRect().bottom > edge + 4
+        );
         return {
           witness: scroller?.dataset.witness ?? 'none',
           top: Math.round(scroller?.scrollTop ?? -1),
+          // The line at the top, which is where the reader is: a pixel is only how
+          // far down that line happens to be.
+          line: first?.textContent?.slice(0, 32) ?? '',
           text: pane.querySelector('.cm-content')?.textContent?.slice(0, 48) ?? '',
         };
       })
@@ -3480,6 +3580,34 @@ test('crossing between two editors does not build them again', async () => {
     expect(after[0].top).toBe(scrolled);
     expect(after[0].text).toContain('of the first file');
     expect(after[1].text).toContain('of the second file');
+
+    /**
+     * And both halves come back where they were left, after a look at another tab.
+     *
+     * The pair is not drawn while the reader is elsewhere, so both editors are
+     * taken down and built again from what their tabs kept. The half on the right
+     * kept nothing: destroyed with the pair, it still named its own tab on the way
+     * out, and the page read that as "the address changed under me" and threw away
+     * where its reader was. It came back at the top of its file, every time, while
+     * the half on the left came back where it had been left.
+     */
+    const otherHalf = await panes.last().locator('.cm-scroller').boundingBox();
+    await page.mouse.move(otherHalf.x + otherHalf.width / 2, otherHalf.y + otherHalf.height / 2);
+    await page.mouse.wheel(0, 2000);
+    await page.waitForTimeout(600);
+    const placed = await editors();
+    expect(placed[1].top).toBeGreaterThan(500);
+
+    await entries.first().getByRole('tab').click();
+    await expect(panes).toHaveCount(1);
+    await entries
+      .filter({ has: page.locator('[role="tab"][title*="↔"]') })
+      .getByRole('tab')
+      .click();
+    await expect(panes).toHaveCount(2);
+    // Both of them on the line they were on, which is what a place in a file is.
+    await expect.poll(async () => (await editors())[1].line).toBe(placed[1].line);
+    await expect.poll(async () => (await editors())[0].line).toBe(placed[0].line);
   } finally {
     await page.goto('/settings/user-preferences');
     await preference.click();

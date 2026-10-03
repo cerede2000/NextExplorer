@@ -93,6 +93,13 @@ vi.mock('@/stores/operationTasks', async () => {
 });
 // The tab this listing is in, which is half the key its place is remembered
 // under: two tabs can be on one folder and be in different places in it.
+/** What kind of place the pane's address names — a folder, unless a test says so. */
+const addressKind = vi.hoisted(() => ({ value: 'folder' }));
+vi.mock('@/config/tabKinds', async (importOriginal) => ({
+  ...(await importOriginal()),
+  tabKindForPath: () => ({ id: addressKind.value }),
+}));
+
 const appTabs = vi.hoisted(() => ({
   activeId: 'tab-1',
   // Which tab the pane draws, when that is not the one in front.
@@ -132,7 +139,9 @@ vi.mock('@/composables/paneTab', async () => {
       folderPath,
       view: file,
       items: computed(() => file.getCurrentPathItems),
-      focused: computed(() => true),
+      // Whether the reader is in this pane, which is what makes it act: with one
+      // pane that is always true, and in a pair it is true of one of the two.
+      focused: computed(() => (appTabs.paneId || appTabs.activeId) === appTabs.activeId),
     }),
     usePaneTabId: () => computed(() => appTabs.paneId || appTabs.activeId),
     providePaneTab: () => {},
@@ -330,6 +339,7 @@ beforeEach(() => {
   appTabs.activeId = 'tab-1';
   appTabs.paneId = '';
   appTabs.panes = ['tab-1'];
+  addressKind.value = 'folder';
   appTabs.takeBroughtForward.mockClear();
   appTabs.takeBroughtForward.mockReturnValue(false);
   Object.assign(stores.operationTasks, { operationCount: 0 });
@@ -521,6 +531,71 @@ describe('coming back to a folder', () => {
     wrapper = null;
 
     expect(stores.folderScroll.remember).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The keyboard belongs to the pane the reader is in.
+ *
+ * Every listing listens to the *window* for its keys, because a folder has no
+ * focus of its own to hang them on. With two panes that is two listeners, and both
+ * of them acted: pressing Enter in the half the reader was in opened the file
+ * chosen in the half they were not — measured in a browser, the reader's own half
+ * became an editor on the neighbour's file.
+ */
+/**
+ * A listing drawn for an address that is not a folder's.
+ *
+ * A pane can be handed another tab, and that tab may hold a file: for the tick
+ * before that tab's own screen replaces this one, this listing's address is the
+ * file's. Reading it asks the server to list a file as a folder — `ENOTDIR: not a
+ * directory`, a 500, and nothing on screen to explain it.
+ */
+describe('an address that is not a folder', () => {
+  it('reads nothing at all', async () => {
+    const route = await shared.make('route');
+    route.params.path = 'Docs/notes.ps1';
+    addressKind.value = 'editor';
+
+    await mountFolder();
+
+    expect(stores.file.fetchPathItems).not.toHaveBeenCalled();
+  });
+});
+
+describe('a pane the reader is not in', () => {
+  const pressIn = async (key) => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+    await flushPromises();
+  };
+
+  beforeEach(() => {
+    stores.file.items = [file('a.txt'), file('b.txt'), file('c.txt')];
+  });
+
+  it('does nothing when a key is pressed', async () => {
+    appTabs.activeId = 'tab-1';
+    appTabs.paneId = 'tab-9';
+    const view = await mountFolder();
+    stores.file.selectedItems = [file('b.txt')];
+
+    await pressIn('Enter');
+    await pressIn('ArrowDown');
+
+    expect(composables.openItem).not.toHaveBeenCalled();
+    expect(view.keyboardActiveItemKey).toBe('');
+  });
+
+  it('acts when the reader is in it', async () => {
+    appTabs.activeId = 'tab-9';
+    appTabs.paneId = 'tab-9';
+    const view = await mountFolder();
+    stores.file.selectedItems = [file('b.txt')];
+
+    await pressIn('Enter');
+
+    expect(composables.openItem).toHaveBeenCalled();
+    expect(view).toBeTruthy();
   });
 });
 

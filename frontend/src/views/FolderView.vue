@@ -9,6 +9,7 @@ import { useVolumeUsageStore } from '@/stores/volumeUsage';
 import { useFeaturesStore } from '@/stores/features';
 import { useFolderScrollStore } from '@/stores/folderScroll';
 import { useTabsStore } from '@/stores/tabs';
+import { tabKindForPath } from '@/config/tabKinds';
 import { useTabLoadingStore } from '@/stores/tabLoading';
 import { revealOffset } from '@/utils/revealOffset';
 import LoadingIcon from '@/icons/LoadingIcon.vue';
@@ -53,6 +54,7 @@ const {
   tabId: paneTabId,
   address: paneAddress,
   folderPath: paneFolderPath,
+  focused: readerIsHere,
   view: pane,
 } = usePaneFolder();
 const { gridClasses, gridStyle } = useViewConfig();
@@ -698,6 +700,12 @@ const toggleSelectAll = () => {
 };
 
 const isKeyboardNavigationBlocked = () => {
+  // A listing has no focus of its own to hang its keys on, so it listens to the
+  // window — and in a pair that is two listings listening. Both of them acted:
+  // pressing Enter in the half the reader was in opened the file chosen in the
+  // half they were not, over the half they were. The keyboard belongs to the pane
+  // the reader is in; with one pane that is always this one.
+  if (!readerIsHere.value) return true;
   if (loading.value || pane.renameState || isDeleteConfirmOpen.value) return true;
   const active = document.activeElement;
   return actions.isEditableElement ? actions.isEditableElement(active) : false;
@@ -1088,7 +1096,21 @@ const returnToFolder = async () => {
     .catch(() => {});
 };
 
-onMounted(() => (comingBack() ? returnToFolder() : loadFiles()));
+/**
+ * Whether the address this listing is drawn for is a folder's at all.
+ *
+ * A pane can be handed another tab, and that tab may hold a file: for the tick
+ * before that tab's own screen replaces this one, this listing's address is the
+ * file's. Reading it asks the server to list a file as a folder, which is an error
+ * with a 500 on it — `ENOTDIR: not a directory` — and nothing on screen to explain
+ * it. The other screens ask the same question before speaking; this is the fourth.
+ */
+const isAFolderAddress = () => tabKindForPath(paneAddress.value)?.id === 'folder';
+
+onMounted(() => {
+  if (!isAFolderAddress()) return;
+  return comingBack() ? returnToFolder() : loadFiles();
+});
 
 // Populate folder sizes for the directories currently in view (one batch
 // request; O(1) index reads server-side). Re-runs whenever the listing changes.

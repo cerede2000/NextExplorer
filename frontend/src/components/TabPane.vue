@@ -1,5 +1,5 @@
 <script setup>
-import { computed, defineAsyncComponent, ref, shallowRef, watch, watchEffect } from 'vue';
+import { computed, defineAsyncComponent, ref, shallowRef, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { XMarkIcon } from '@heroicons/vue/24/outline';
 import FolderViewToolbar from '@/components/FolderViewToolbar.vue';
@@ -107,15 +107,39 @@ const resolveFor = (path) => {
   }
 };
 
+// Always, not only while this pane is beside the reader: the pane the reader is in
+// falls back to this one for the tick in which its tab and the window's address
+// disagree, and a screen it has not resolved is a screen it cannot fall back to.
 watch(
-  () => (focused.value ? '' : address.value),
+  address,
   (path) => {
     resolved.value = resolveFor(path);
   },
   { immediate: true }
 );
 
-const drawn = computed(() => (focused.value ? props.routedComponent : resolved.value));
+/**
+ * Whether this pane's tab and the window's address are saying the same thing.
+ *
+ * They do, except for the tick after a tab is brought forward: the store is told
+ * first and the address bar follows. The pane the reader is in draws the router's
+ * own screen — which is still the screen for the tab they are *leaving*.
+ */
+const inStep = computed(() => pathOf(props.routedKey) === pathOf(address.value));
+
+/**
+ * The router's own screen for the pane the reader is in, and this pane's own
+ * everywhere else — including in that one tick.
+ *
+ * Without the second half, clicking into the other half drew the neighbour's
+ * screen in this one for a frame: a document over a folder, under the folder's own
+ * key, so Vue replaced the listing with it and replaced it back a frame later. The
+ * click that crossed was swallowed whole — the row it was pressed on no longer
+ * existed when the button came up — and the reader had to click twice.
+ */
+const drawn = computed(() =>
+  focused.value && inStep.value ? props.routedComponent : resolved.value
+);
 /**
  * The key that decides when the screen is replaced rather than reused.
  *
@@ -139,9 +163,7 @@ const pathOf = (address) => String(address || '').split('?')[0];
  * nothing asked of the server and nothing to click. Duplicating a tab does exactly
  * this, and so does dropping a tab into the half beside one already on that folder.
  */
-const drawnAddress = computed(() =>
-  focused.value ? pathOf(props.routedKey) : pathOf(address.value)
-);
+const drawnAddress = computed(() => pathOf(address.value));
 
 /**
  * Held still while this pane's tab and the address it draws are out of step.
@@ -156,11 +178,7 @@ const drawnAddress = computed(() =>
  * So the key waits for the two to agree, which they do on the very next tick. The
  * pane beside the reader draws its own address and is never out of step.
  */
-const drawnKey = ref(`${tabId.value}::${drawnAddress.value}`);
-watchEffect(() => {
-  if (focused.value && pathOf(props.routedKey) !== pathOf(address.value)) return;
-  drawnKey.value = `${tabId.value}::${drawnAddress.value}`;
-});
+const drawnKey = computed(() => `${tabId.value}::${drawnAddress.value}`);
 
 /**
  * Clicking anywhere in a pane puts the reader in it.
