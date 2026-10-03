@@ -2990,17 +2990,49 @@ test('three tabs on one folder each keep their own place and selection', async (
   const panes = page.locator('[data-test="tab-pane"]');
 
   /** Where each pane is, and what it is holding. */
+  /**
+   * Where each half is, said as the row the reader is looking at.
+   *
+   * Not as pixels: a pane that changes width — one of a pair, or a pair becoming
+   * one — re-flows its listing, so the same number is a different place in the
+   * folder. The row is the place; the number is how far down it happens to be.
+   */
   const places = () =>
     page.evaluate(() =>
-      [...document.querySelectorAll('[data-test="tab-pane"]')].map((pane) => ({
-        top: Math.round(pane.querySelector('.upload-drop-target')?.scrollTop ?? -1),
-        selected: [...pane.querySelectorAll('[data-selected="true"]')]
-          .map((row) => row.getAttribute('title'))
-          .filter(Boolean),
-      }))
+      [...document.querySelectorAll('[data-test="tab-pane"]')].map((pane) => {
+        const list = pane.querySelector('.upload-drop-target');
+        const edge = list.getBoundingClientRect().top;
+        const first = [...pane.querySelectorAll('[data-selected]')].find(
+          (row) => row.getBoundingClientRect().bottom > edge + 4
+        );
+        return {
+          top: first?.getAttribute('title') ?? '',
+          pixels: Math.round(list?.scrollTop ?? -1),
+          selected: [...pane.querySelectorAll('[data-selected="true"]')]
+            .map((row) => row.getAttribute('title'))
+            .filter(Boolean),
+        };
+      })
     );
 
   /** The wheel over a pane, which is how a reader moves in a listing. */
+  /** Whether that row is on screen in that half, which is what a place really is. */
+  const inView = (half, title) =>
+    page.evaluate(
+      ([index, name]) => {
+        const pane = document.querySelectorAll('[data-test="tab-pane"]')[index];
+        const list = pane.querySelector('.upload-drop-target');
+        const area = list.getBoundingClientRect();
+        const row = [...pane.querySelectorAll('[data-selected]')].find(
+          (node) => node.getAttribute('title') === name
+        );
+        if (!row) return false;
+        const box = row.getBoundingClientRect();
+        return box.bottom > area.top && box.top < area.bottom;
+      },
+      [half, title]
+    );
+
   const scrollPane = async (index, amount) => {
     const box = await panes.nth(index).locator('.upload-drop-target').boundingBox();
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -3055,11 +3087,13 @@ test('three tabs on one folder each keep their own place and selection', async (
     await scrollPane(0, 1600);
     const alone = await clickRow(0);
     const [aloneAt] = await places();
-    expect(aloneAt.top).toBeGreaterThan(500);
+    expect(aloneAt.pixels).toBeGreaterThan(500);
 
-    // A second tab on the same folder, somewhere else in it.
+    // A second tab on the same folder, a long way down it: far enough that coming
+    // back by the number of pixels rather than by the row lands somewhere else
+    // entirely once the pane is half as wide.
     await duplicateLast();
-    await scrollPane(0, 600);
+    await scrollPane(0, 6000);
     const second = await clickRow(0);
     const [secondAt] = await places();
 
@@ -3070,9 +3104,19 @@ test('three tabs on one folder each keep their own place and selection', async (
     await page.locator('[data-test="tab-show-right"]').click();
     await expect(panes).toHaveCount(2);
     await expect(panes.last().locator('[data-selected="true"]')).toContainText(second);
-    // Polled: putting a tab back where it was is asked for over several frames, since
-    // a long list is not as tall as it will be on the frame it is asked.
-    await expect.poll(async () => (await places())[1].top).toBe(secondAt.top);
+    /**
+     * Still looking at what it was looking at.
+     *
+     * Asked as "is that row still on screen" rather than "is it still the first
+     * one": the pane is half the width it was, so the listing has re-flowed under
+     * it — in a grid the row that was at the top is now beside two others. What
+     * went wrong was of another order altogether: kept as a number of pixels, the
+     * reader came back a hundred files away.
+     *
+     * Polled, because putting a tab back where it was is asked for over several
+     * frames: a long list is not as tall as it will be on the frame it is asked.
+     */
+    await expect.poll(async () => inView(1, secondAt.top)).toBe(true);
 
     // Each half moves on its own.
     await scrollPane(1, 2400);
@@ -3088,14 +3132,15 @@ test('three tabs on one folder each keep their own place and selection', async (
     await expect(panes).toHaveCount(1);
     await expect.poll(async () => (await places())[0].top).toBe(aloneAt.top);
     expect((await places())[0].selected).toEqual([alone]);
+    expect((await places())[0].pixels).toBe(aloneAt.pixels);
 
     // And back to the pair, where both halves are exactly as they were left.
     await entries.last().getByRole('tab').click();
     await expect(panes).toHaveCount(2);
     await expect(panes.first().locator('[data-selected="true"]')).toContainText(left);
     await expect
-      .poll(async () => (await places()).map((half) => half.top))
-      .toEqual(inThePair.map((half) => half.top));
+      .poll(async () => (await places()).map((half) => half.pixels))
+      .toEqual(inThePair.map((half) => half.pixels));
     expect((await places()).map((half) => half.selected)).toEqual([[left], [right]]);
   } finally {
     await page.goto('/settings/user-preferences');
@@ -3121,6 +3166,99 @@ test('three tabs on one folder each keep their own place and selection', async (
  * scrolled had never written a place of its own in the first place, so even asking
  * the question properly would not have helped it.
  */
+/**
+ * A half keeps the row it was on when a pair is formed.
+ *
+ * Where a reader is in a folder was kept as a number of pixels, and a pane that
+ * joins a pair is half the width it was: the listing re-flows under that number,
+ * so the same number is a different place. Measured here before: a tab left with
+ * `file-190` at the top came back showing `file-085` — a hundred files away, and
+ * every click after that landed somewhere the reader had not chosen.
+ *
+ * The row is the place; the pixels are only how far down it happened to be.
+ */
+test('a half joining a pair keeps the row its reader was on', async () => {
+  test.slow();
+
+  const dir = path.join(volume, 'Deepen');
+  fs.mkdirSync(dir, { recursive: true });
+  for (let i = 1; i <= 300; i += 1) {
+    fs.writeFileSync(path.join(dir, `file-${String(i).padStart(3, '0')}.txt`), 'deep\n');
+  }
+
+  const strip = page.locator('[data-test="tab-strip"]');
+  const entries = strip.locator('[data-test="tab"]');
+  const panes = page.locator('[data-test="tab-pane"]');
+  /** The row at the top of a half, and whether a given row is on screen in it. */
+  const topRow = (half) =>
+    page.evaluate((index) => {
+      const pane = document.querySelectorAll('[data-test="tab-pane"]')[index];
+      const list = pane.querySelector('.upload-drop-target');
+      const edge = list.getBoundingClientRect().top;
+      const row = [...pane.querySelectorAll('[data-selected]')].find(
+        (node) => node.getBoundingClientRect().bottom > edge + 4
+      );
+      return row?.getAttribute('title') ?? '';
+    }, half);
+  const onScreen = (half, title) =>
+    page.evaluate(
+      ([index, name]) => {
+        const pane = document.querySelectorAll('[data-test="tab-pane"]')[index];
+        const list = pane.querySelector('.upload-drop-target').getBoundingClientRect();
+        const row = [...pane.querySelectorAll('[data-selected]')].find(
+          (node) => node.getAttribute('title') === name
+        );
+        if (!row) return false;
+        const box = row.getBoundingClientRect();
+        return box.bottom > list.top && box.top < list.bottom;
+      },
+      [half, title]
+    );
+
+  await page.goto('/settings/user-preferences');
+  const preference = page.locator('[data-test="browse-in-tabs"]');
+  await preference.click();
+  await page.locator('[data-test="preferences-save"]').click();
+  await expect(preference).toHaveAttribute('aria-checked', 'true');
+
+  try {
+    await page.goto('/browse/Projects');
+    const closeEvery = page.locator('[data-test="tab-close-all"]');
+    if ((await closeEvery.count()) > 0) await closeEvery.click();
+    await expect(entries).toHaveCount(1);
+
+    // One tab, taken a long way down the folder.
+    await page.goto('/browse/Projects/Deepen');
+    await expect(page.locator('[title="file-001.txt"]').first()).toBeVisible();
+    const box = await panes.first().locator('.upload-drop-target').boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.wheel(0, 2600);
+    await page.waitForTimeout(700);
+    const wasOn = await topRow(0);
+    expect(wasOn).not.toBe('file-001.txt');
+
+    // A second tab on the same folder, and the two of them side by side — which
+    // makes each half half as wide as the window was.
+    await entries.last().getByRole('tab').click({ button: 'right' });
+    await page.locator('[data-test="tab-duplicate"]').click();
+    await expect(entries).toHaveCount(2);
+    await expect(panes.first().locator('[data-selected]')).toHaveCount(300);
+    await entries.last().getByRole('tab').click({ button: 'right' });
+    await page.locator('[data-test="tab-show-right"]').click();
+    await expect(panes).toHaveCount(2);
+
+    // The half that was taken down there is still looking at the same row.
+    await expect.poll(() => onScreen(1, wasOn)).toBe(true);
+    // And the half that never moved is still at the top of the folder.
+    await expect.poll(() => topRow(0)).toBe('file-001.txt');
+  } finally {
+    await page.goto('/settings/user-preferences');
+    await preference.click();
+    await page.locator('[data-test="preferences-save"]').click();
+    await expect(preference).toHaveAttribute('aria-checked', 'false');
+  }
+});
+
 test('a document opened from the bottom leaves the other tabs where they were', async () => {
   // Three listings of two hundred files, scrolled and clicked in.
   test.slow();

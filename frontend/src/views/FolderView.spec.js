@@ -319,6 +319,9 @@ beforeEach(() => {
     // Whether this tab has a place in this folder at all, which is a different
     // question from where it is: the top is an answer, and as a number it is zero.
     hasTabPlace: vi.fn(() => false),
+    // The row the reader was on, which is what a place in a folder really is: a
+    // pane that comes back a different width has re-flowed under the same pixels.
+    tabAnchor: vi.fn(() => ''),
     // The folder's own memory, which a tab coming back falls back to: it is what
     // a walk back up the path reads, and it has been putting readers back where
     // they were since long before tabs existed.
@@ -1591,7 +1594,14 @@ describe('a folder tab coming back', () => {
 
     // Its own place above all, which is what makes two tabs on one folder two
     // places; the folder's own is written as well, as it always was.
-    expect(stores.folderScroll.rememberTabPlace).toHaveBeenCalledWith('tab-9::Docs::list', 1355);
+    // With the row that was at the top of it, which jsdom lays out nowhere — so
+    // there is none to name here. That it is the row rather than the number that
+    // puts a reader back is asked in a browser, where a listing has a height.
+    expect(stores.folderScroll.rememberTabPlace).toHaveBeenCalledWith(
+      'tab-9::Docs::list',
+      1355,
+      ''
+    );
     expect(stores.folderScroll.remember).toHaveBeenCalledWith('Docs::list', 1355);
   });
 

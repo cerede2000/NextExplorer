@@ -260,8 +260,10 @@ const rememberScrollPosition = () => {
     folderScrollStore.remember(scrollKey(), target.scrollTop);
     // And for this tab, which is a different question with a different answer:
     // the tab never left this folder, another one simply came in front of it, so
-    // where it was is always worth putting back.
-    folderScrollStore.rememberTabPlace(placeKey(), target.scrollTop);
+    // where it was is always worth putting back. With the row that was at the top
+    // of it, because a pane can come back a different width — one of a pair, or a
+    // pair becoming one — and the listing re-flows under the same number of pixels.
+    folderScrollStore.rememberTabPlace(placeKey(), target.scrollTop, rowAtTheTop());
   }
   rememberActiveItem();
 };
@@ -273,6 +275,67 @@ const rememberScrollPosition = () => {
  * screen produces a few last ones. Freezing costs nothing and says what is meant:
  * after this, where the reader was is settled.
  */
+/**
+ * The row the reader is looking at, which is what a place in a folder really is.
+ *
+ * Read from the rows on screen rather than worked out from the number: a listing
+ * draws what it must and the arithmetic differs per view, but whatever is drawn is
+ * at a measurable height.
+ */
+const rowAtTheTop = () => {
+  const target = getScrollTarget();
+  if (!target || target !== dropTargetRef.value) return '';
+  const edge = target.getBoundingClientRect().top;
+  const rows = target.querySelectorAll('[data-keyboard-item-key]');
+  for (const row of rows) {
+    if (row.getBoundingClientRect().bottom > edge + 4) {
+      return row.getAttribute('data-keyboard-item-key') || '';
+    }
+  }
+  return '';
+};
+
+/**
+ * Put this tab back on the row it was on.
+ *
+ * Tried before the number, and the number is the fallback. A pane that comes back
+ * a different width has re-flowed its listing: the row the reader was on is still
+ * the row they were on, while the pixels that took them there are now somewhere
+ * else entirely — a hundred files away, measured, when a pair was formed.
+ */
+const placeAtRow = async (anchorKey) => {
+  if (!anchorKey) return false;
+  const index = sortedItems.value.findIndex((item) => getItemKey(item) === anchorKey);
+  if (index < 0) return false;
+  const target = getScrollTarget();
+  if (!target || target !== dropTargetRef.value) return false;
+
+  // Roughly first, so the rows around that place are drawn at all: a virtual list
+  // holds only what is in view, and a progressive one only what it has reached.
+  if (useVirtualList.value) {
+    const maxScrollTop = Math.max(0, target.scrollHeight - target.clientHeight);
+    target.scrollTop = Math.min(index * LIST_ROW_HEIGHT, maxScrollTop);
+    await waitForScrollLayout();
+  } else if (visibleLimit.value <= index) {
+    visibleLimit.value = sortedItems.value.length;
+    await nextTick();
+    await waitForScrollLayout();
+  }
+
+  const row = target.querySelector(`[data-keyboard-item-key="${CSS.escape(anchorKey)}"]`);
+  if (!row) return false;
+  // Moved by the distance between the row and the top of the listing, rather than
+  // asked to scroll itself into view: `scrollIntoView` keeps clear of whatever is
+  // sticky above it, which lands the reader a few rows earlier than where they were.
+  const shift = row.getBoundingClientRect().top - target.getBoundingClientRect().top;
+  target.scrollTop = Math.max(
+    0,
+    Math.min(target.scrollTop + shift, target.scrollHeight - target.clientHeight)
+  );
+  updateScrollState();
+  return true;
+};
+
 const freezeWhereItIs = () => {
   if (!canRememberScroll.value) return;
   rememberScrollPosition();
@@ -985,7 +1048,9 @@ const returnToFolder = async () => {
   const savedScrollTop = folderScrollStore.hasTabPlace(placeKey())
     ? folderScrollStore.tabPlace(placeKey())
     : folderScrollStore.get(scrollKey());
-  if (savedScrollTop > 0) {
+  // The row it was on first, and the number only when there is no row to go to.
+  const anchor = folderScrollStore.tabAnchor(placeKey());
+  if (!(await placeAtRow(anchor)) && savedScrollTop > 0) {
     await waitForScrollLayout();
     // Asked for over several frames: a folder of two thousand files is not as
     // tall as it will be on the frame it is asked, and a place the container

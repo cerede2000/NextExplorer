@@ -83,6 +83,30 @@ describe('folder scroll positions', () => {
     expect(store.tabPlace('tab-1::volume/parent::list')).toBe(0);
   });
 
+  /**
+   * And the row it was on, which answers the same question better.
+   *
+   * A pane that changes width re-flows its listing — one of a pair, or a pair
+   * becoming one — and the same number of pixels is then a different place in the
+   * folder: a reader put back by the number alone came back a hundred files away.
+   */
+  it('keeps the row the reader was on beside the number', () => {
+    const store = useFolderScrollStore();
+
+    store.rememberTabPlace('tab-1::volume/parent::list', 1200, 'volume/parent::file-082.txt');
+
+    expect(store.tabPlace('tab-1::volume/parent::list')).toBe(1200);
+    expect(store.tabAnchor('tab-1::volume/parent::list')).toBe('volume/parent::file-082.txt');
+  });
+
+  it('says there is no row when none was given', () => {
+    const store = useFolderScrollStore();
+    store.rememberTabPlace('tab-1::volume/parent::list', 1200);
+
+    expect(store.tabAnchor('tab-1::volume/parent::list')).toBe('');
+    expect(store.tabAnchor('tab-9::volume/parent::list')).toBe('');
+  });
+
   it('forgets a tab place when it is told to', () => {
     const store = useFolderScrollStore();
     store.rememberTabPlace('tab-1::volume/parent::list', 900);
