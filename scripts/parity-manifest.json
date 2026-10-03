@@ -1612,6 +1612,14 @@
   ],
   "residue": [
     {
+      "match": "^frontend/src/components/ShareDialog\\.vue$",
+      "note": "a share link is built from the name the instance is published under rather than from the address bar — `PUBLIC_URL`, which the server has always used for the link it builds and the browser was not using for any of the others. The dialog showed the server's link and its copy button built a fresh one from the address bar, so an administrator on a local network copied `http://192.168.1.250:3017/...` while reading the published name. The rule is in `api/shares.api.js`, the dialog reads the link it will copy, and `/api/features` already carried the origin. It goes with the batches that send these files."
+    },
+    {
+      "match": "^frontend/src/api/shares\\.api\\.js$",
+      "note": "a share link is built from the name the instance is published under rather than from the address bar — `PUBLIC_URL`, which the server has always used for the link it builds and the browser was not using for any of the others. The dialog showed the server's link and its copy button built a fresh one from the address bar, so an administrator on a local network copied `http://192.168.1.250:3017/...` while reading the published name. The rule is in `api/shares.api.js`, the dialog reads the link it will copy, and `/api/features` already carried the origin. It goes with the batches that send these files."
+    },
+    {
       "match": "^backend/src/services/db\\.js$",
       "note": "the migration numbers diverged before this phase began — 24 here against 19 there — so the schema is compared by table and by column instead, and the two files will not read alike until long after they describe the same database"
     },
