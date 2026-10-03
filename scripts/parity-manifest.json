@@ -26,6 +26,13 @@
   "rules": [
     {
       "axis": "*",
+      "match": "^frontend/src/api/(auth|features|settings)\\.api\\.js(:|$)|^frontend/src/stores/(favorites|volumeUsage)\\.js(:|$)",
+      "verdict": "PORT",
+      "batch": "a-share-asks-for-less",
+      "note": "opening a share from outside a network where an authentication proxy sits in front of the application produced five refusals and five banners, and then the share appeared anyway. Three are read by every page before anybody has done anything and the application already answers for their failure, so they are asked quietly — the features, the branding and whether there is a session. The other two are asked on behalf of somebody who cannot have them: a visitor with a share link has no account, so no favourites and no volumes, and they are not asked at all. Nothing changes for an account."
+    },
+    {
+      "axis": "*",
       "match": "^frontend/src/utils/(editorRoute|routeFolderPath)\\.js(:|$)|^frontend/src/utils/(folderRoute|pageTitle)\\.js(:|$)",
       "verdict": "PORT",
       "batch": "share-its-own-prefix",
@@ -1618,6 +1625,34 @@
     }
   ],
   "residue": [
+    {
+      "match": "^frontend/src/stores/volumeUsage\\.js$",
+      "note": "a share asks for less on its visitor's behalf: the three calls every page makes before anybody has done anything are asked quietly, because the application already answers for their failure, and the two that only an account can answer — favourites and volumes — are not asked of a visitor at all. Measured behind an authentication proxy letting the share through and nothing else: five refusals and five banners, and then the share appeared anyway."
+    },
+    {
+      "match": "^frontend/src/stores/favorites\\.js$",
+      "note": "a share asks for less on its visitor's behalf: the three calls every page makes before anybody has done anything are asked quietly, because the application already answers for their failure, and the two that only an account can answer — favourites and volumes — are not asked of a visitor at all. Measured behind an authentication proxy letting the share through and nothing else: five refusals and five banners, and then the share appeared anyway."
+    },
+    {
+      "match": "^frontend/src/api/settings\\.api\\.js$",
+      "note": "a share asks for less on its visitor's behalf: the three calls every page makes before anybody has done anything are asked quietly, because the application already answers for their failure, and the two that only an account can answer — favourites and volumes — are not asked of a visitor at all. Measured behind an authentication proxy letting the share through and nothing else: five refusals and five banners, and then the share appeared anyway."
+    },
+    {
+      "match": "^frontend/src/api/features\\.api\\.js$",
+      "note": "a share asks for less on its visitor's behalf: the three calls every page makes before anybody has done anything are asked quietly, because the application already answers for their failure, and the two that only an account can answer — favourites and volumes — are not asked of a visitor at all. Measured behind an authentication proxy letting the share through and nothing else: five refusals and five banners, and then the share appeared anyway."
+    },
+    {
+      "match": "^frontend/src/api/auth\\.api\\.js$",
+      "note": "a share asks for less on its visitor's behalf: the three calls every page makes before anybody has done anything are asked quietly, because the application already answers for their failure, and the two that only an account can answer — favourites and volumes — are not asked of a visitor at all. Measured behind an authentication proxy letting the share through and nothing else: five refusals and five banners, and then the share appeared anyway."
+    },
+    {
+      "match": "^frontend/src/stores/settings\\.js$",
+      "note": "a per-user choice of whether folders are bucketed ahead of files, which is nxzai#495 as proposed in nxzai#496: the same option, the same name, the same default. Wired here through `fileStore.arrange`, the one place this tree arranges a listing, because a pane that is not the one in front needs the same ordering of its own listing."
+    },
+    {
+      "match": "^frontend/src/stores/files/sorting\\.js$",
+      "note": "a per-user choice of whether folders are bucketed ahead of files, which is nxzai#495 as proposed in nxzai#496: the same option, the same name, the same default. Wired here through `fileStore.arrange`, the one place this tree arranges a listing, because a pane that is not the one in front needs the same ordering of its own listing."
+    },
     {
       "match": "^frontend/src/views/ShareLoginView\\.vue$",
       "note": "a share keeps to its own prefix: everything a visitor with no account touches is `/share/<token>/…`, so one rule in front of the application can let a public link through without naming half of it. These are the files that build or read such an address — where a folder route points, where a file in the editor points, what a page is called, and the screen that lets a visitor in, which also stopped reloading the page to do it. It goes with the batches that send them."
