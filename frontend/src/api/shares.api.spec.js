@@ -312,3 +312,70 @@ describe('copying a link', () => {
     expect(document.querySelector('textarea')).toBeNull();
   });
 });
+
+/**
+ * Two origins, and they are not interchangeable.
+ *
+ * The one in the address bar is wherever this browser reached the application; on a
+ * local network that is a name only that network resolves. The other is what the
+ * instance is published under, which the server knows and `/api/features` tells every
+ * client. A link somebody will paste into a message has to carry the published one —
+ * the dialog showed it and copied the other, so you copied what you had not read.
+ */
+describe('a link that leaves this session', () => {
+  const published = 'https://files.example.com';
+
+  beforeEach(() => {
+    api.setPublishedOrigin('');
+  });
+
+  it('carries the name the instance is published under', () => {
+    api.setPublishedOrigin(published);
+
+    expect(api.getShareableDirectFileUrl('tok123')).toBe(`${published}/api/share/tok123`);
+    expect(api.getShareableDirectFileUrl('tok123', 'a b.txt', 'download')).toBe(
+      `${published}/api/share/tok123/file/a%20b.txt?mode=download`
+    );
+    expect(api.getShareableDirectFileUrl('tok123', 'a.md', 'editor')).toBe(
+      `${published}/editor/share/tok123/a.md`
+    );
+  });
+
+  it('is what the copy button puts on the clipboard', async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(window.navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+    api.setPublishedOrigin(published);
+
+    await expect(api.copyShareUrl('tok123')).resolves.toBe(true);
+    expect(writeText).toHaveBeenCalledWith(`${published}/share/tok123`);
+
+    await expect(api.copyDirectShareFileUrl('tok123')).resolves.toBe(true);
+    expect(writeText).toHaveBeenCalledWith(`${published}/api/share/tok123`);
+  });
+
+  it('falls back to this browser’s own origin when the instance publishes none', () => {
+    expect(api.getShareableDirectFileUrl('tok123')).toBe(`${origin}/api/share/tok123`);
+  });
+
+  it('ignores a trailing slash on the published name', () => {
+    api.setPublishedOrigin(`${published}/`);
+
+    expect(api.getShareableDirectFileUrl('tok123')).toBe(`${published}/api/share/tok123`);
+  });
+
+  /**
+   * And what this session opens for itself is the opposite: a window opened on the
+   * local network must not be sent to a name that network may not resolve.
+   */
+  it('is not what this session opens for itself', () => {
+    api.setPublishedOrigin(published);
+
+    expect(api.getDirectShareFileUrl('tok123')).toBe(`${origin}/api/share/tok123`);
+    expect(api.getDirectShareFileUrl('tok123', 'a.md', 'editor')).toBe(
+      `${origin}/editor/share/tok123/a.md`
+    );
+  });
+});

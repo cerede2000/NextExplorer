@@ -134,11 +134,39 @@ function getGuestSessionShareToken() {
 }
 
 /**
+ * Where a link that leaves this session has to point.
+ *
+ * Two origins are in play and they are not interchangeable. The one in the address
+ * bar is wherever this browser happens to have reached the application — which on a
+ * local network is an address only that network can resolve. The other is the name
+ * the instance is published under, which the server knows as `PUBLIC_URL` and tells
+ * every client in `/api/features`.
+ *
+ * A link somebody is going to paste into a message must carry the published name: a
+ * share link built from the address bar of an administrator sitting on the local
+ * network reads `http://192.168.1.250:3017/...`, which is a link nobody outside that
+ * network can open. The share dialog made that mistake while *showing* the right
+ * address, because the server builds the one on screen and the browser rebuilt the
+ * one it copied — so you copied something you had not read.
+ *
+ * An address this session opens for itself is the opposite: it must stay on the
+ * origin this browser is already on, or a window opened on the local network would
+ * be sent to a name that network may not resolve.
+ */
+let publishedOrigin = '';
+
+const setPublishedOrigin = (origin) => {
+  publishedOrigin = typeof origin === 'string' ? origin.replace(/\/+$/, '') : '';
+};
+
+/** For a link to hand out. */
+const originToHandOut = () => publishedOrigin || window.location.origin;
+
+/**
  * Generate share URL for a token
  */
 function getShareUrl(shareToken) {
-  const baseUrl = window.location.origin;
-  return `${baseUrl}/share/${shareToken}`;
+  return `${originToHandOut()}/share/${shareToken}`;
 }
 
 const DIRECT_SHARE_FILE_MODES = [
@@ -157,8 +185,7 @@ function normalizeDirectShareFileMode(mode) {
 /**
  * Generate direct shared file URL for a token and optional inner path
  */
-function getDirectShareFileUrl(shareToken, innerPath = '', mode = 'auto') {
-  const baseUrl = window.location.origin;
+function buildDirectShareFileUrl(baseUrl, shareToken, innerPath = '', mode = 'auto') {
   const encodedToken = encodeURIComponent(shareToken);
   const normalizedInnerPath = normalizePath(innerPath);
   const encodedInnerPath = encodePath(normalizedInnerPath);
@@ -167,18 +194,27 @@ function getDirectShareFileUrl(shareToken, innerPath = '', mode = 'auto') {
     : `${baseUrl}/api/share/${encodedToken}`;
   const normalizedMode = normalizeDirectShareFileMode(mode);
   if (normalizedMode === 'editor') {
-    return getDirectShareEditorUrl(shareToken, normalizedInnerPath);
+    return buildDirectShareEditorUrl(baseUrl, shareToken, normalizedInnerPath);
   }
   return normalizedMode === 'auto' ? url : `${url}?mode=${encodeURIComponent(normalizedMode)}`;
 }
 
-function getDirectShareEditorUrl(shareToken, innerPath = '') {
-  const baseUrl = window.location.origin;
+function buildDirectShareEditorUrl(baseUrl, shareToken, innerPath = '') {
   const encodedToken = encodeURIComponent(shareToken);
   const encodedInnerPath = encodePath(normalizePath(innerPath));
   return encodedInnerPath
     ? `${baseUrl}/editor/share/${encodedToken}/${encodedInnerPath}`
     : `${baseUrl}/editor/share/${encodedToken}`;
+}
+
+/** What this session opens for itself: the origin it is already on. */
+function getDirectShareFileUrl(shareToken, innerPath = '', mode = 'auto') {
+  return buildDirectShareFileUrl(window.location.origin, shareToken, innerPath, mode);
+}
+
+/** What somebody is going to paste somewhere else: the name the instance is published under. */
+function getShareableDirectFileUrl(shareToken, innerPath = '', mode = 'auto') {
+  return buildDirectShareFileUrl(originToHandOut(), shareToken, innerPath, mode);
 }
 
 const writeToClipboard = async (value) => {
@@ -211,8 +247,7 @@ async function copyShareUrl(shareToken) {
  * Copy direct shared file URL to clipboard
  */
 async function copyDirectShareFileUrl(shareToken, innerPath = '', mode = 'auto') {
-  const url = getDirectShareFileUrl(shareToken, innerPath, mode);
-  return writeToClipboard(url);
+  return writeToClipboard(getShareableDirectFileUrl(shareToken, innerPath, mode));
 }
 
 export {
@@ -228,7 +263,9 @@ export {
   setGuestSession,
   getGuestSessionShareToken,
   DIRECT_SHARE_FILE_MODES,
+  setPublishedOrigin,
   getDirectShareFileUrl,
+  getShareableDirectFileUrl,
   copyShareUrl,
   copyDirectShareFileUrl,
 };

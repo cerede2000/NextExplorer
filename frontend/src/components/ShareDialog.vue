@@ -11,7 +11,7 @@ import {
   copyDirectShareFileUrl,
   copyShareUrl,
   DIRECT_SHARE_FILE_MODES,
-  getDirectShareFileUrl,
+  getShareableDirectFileUrl,
 } from '@/api/shares.api';
 import { fetchShareableUsers } from '@/api/users.api';
 import flatpickr from 'flatpickr';
@@ -107,7 +107,7 @@ const directLinkModeOptions = computed(() =>
 );
 const directShareUrl = computed(() => {
   if (!shareResult.value?.shareToken) return '';
-  return getDirectShareFileUrl(shareResult.value.shareToken, '', directLinkMode.value);
+  return getShareableDirectFileUrl(shareResult.value.shareToken, '', directLinkMode.value);
 });
 
 // Reset form when dialog opens/closes

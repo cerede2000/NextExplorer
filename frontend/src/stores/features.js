@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { setPublishedOrigin } from '@/api/shares.api';
 import { ref } from 'vue';
 import { fetchFeatures } from '@/api';
 import { DEFAULT_TAB_LIMIT } from '@/stores/tabs';
@@ -80,6 +81,11 @@ export const useFeaturesStore = defineStore('features', () => {
         publicOrigins.value = Array.isArray(features?.public?.origins)
           ? features.public.origins.filter((o) => typeof o === 'string' && o)
           : [];
+        // Told to whoever builds a link somebody will paste elsewhere. The address
+        // bar is wherever this browser reached the application, which on a local
+        // network is a name only that network resolves; a share link has to carry
+        // the one the instance is published under.
+        setPublishedOrigin(publicOrigin.value);
         maxUploadChunkSizeBytes.value = Number.isFinite(features?.uploads?.maxChunkSizeBytes)
           ? features.uploads.maxChunkSizeBytes
           : 0;
@@ -174,6 +180,7 @@ export const useFeaturesStore = defineStore('features', () => {
         publicUrl.value = '';
         publicOrigin.value = '';
         publicOrigins.value = [];
+        setPublishedOrigin('');
         maxUploadChunkSizeBytes.value = 0;
         editorExtensions.value = [];
         editorMaxFileSizeBytes.value = null;
