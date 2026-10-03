@@ -638,7 +638,7 @@ const restoreScrollPosition = async () => {
   // Landing on a named item wins over coming back to where this folder was
   // last left: one is what the reader just asked for, the other is where they
   // happened to be some time ago.
-  const restoreState = folderScrollStore.consumeRestoreState(scrollKey());
+  const restoreState = folderScrollStore.consumeRestoreState(scrollKey(), ownTabId);
   if (await revealPendingItem()) return;
   if (!restoreState.permitted) return;
 

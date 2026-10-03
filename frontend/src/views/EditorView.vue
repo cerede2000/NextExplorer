@@ -543,7 +543,9 @@ watch(
 onBeforeRouteLeave((to) => {
   const parent = parentFolderPath();
   if (parent && routeFolderPath(to) === parent) {
-    folderScrollStore.permitExplicitRestore(parent);
+    // For this tab alone: the folder's memory is shared by every tab on it, and a
+    // permission left lying about is a permission another tab consumes.
+    folderScrollStore.permitExplicitRestore(parent, tabKey.value);
   }
 });
 

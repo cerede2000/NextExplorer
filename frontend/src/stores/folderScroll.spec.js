@@ -116,13 +116,43 @@ describe('folder scroll positions', () => {
     expect(store.hasTabPlace('tab-1::volume/parent::list')).toBe(false);
   });
 
+  /**
+   * A permission to be put back belongs to the tab that was promised it.
+   *
+   * The folder's own memory is shared by every tab on that folder, and so was the
+   * permission to use it: a tab that walked up into a folder, or came back out of a
+   * file in it, left one lying about — and the next tab on that same folder
+   * consumed it and jumped to where the first one had been. Three tabs on one
+   * folder and one of them opening a document was enough to move the other two.
+   */
+  it('gives a return to the tab that was promised it, and to no other', () => {
+    const store = useFolderScrollStore();
+    store.remember('volume/parent::list', 420);
+    store.permitExplicitRestore('volume/parent', 'tab-1');
+
+    expect(store.consumeRestoreState('volume/parent::list', 'tab-9').permitted).toBe(false);
+    expect(store.consumeRestoreState('volume/parent::list', 'tab-1')).toMatchObject({
+      permitted: true,
+      scrollTop: 420,
+    });
+  });
+
+  it('keeps a walk back up to the tab that walked', () => {
+    const store = useFolderScrollStore();
+    store.remember('volume/parent::list', 900);
+    store.permitRestore('volume/parent', 'tab-1');
+
+    expect(store.consumeRestoreState('volume/parent::list', 'tab-9').permitted).toBe(false);
+    expect(store.consumeRestoreState('volume/parent::list', 'tab-1').permitted).toBe(true);
+  });
+
   it('preserves an editor return through the generic navigation guard', () => {
     const store = useFolderScrollStore();
 
     store.remember('volume/parent::list', 420);
-    store.permitExplicitRestore('volume/parent');
-    store.preventRestore('volume/parent');
+    store.permitExplicitRestore('volume/parent', 'tab-1');
+    store.preventRestore('volume/parent', 'tab-1');
 
-    expect(store.consumeRestore('volume/parent::list')).toBe(420);
+    expect(store.consumeRestore('volume/parent::list', 'tab-1')).toBe(420);
   });
 });

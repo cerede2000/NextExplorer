@@ -35,6 +35,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useFeaturesStore } from '@/stores/features';
 import { useAppSettings } from '@/stores/appSettings';
 import { useFolderScrollStore } from '@/stores/folderScroll';
+import { useTabsStore } from '@/stores/tabs';
 import { getVolumes } from '@/api';
 import { readGuestSession, resolveShareAccess } from '@/router/shareGuard';
 import { loadAccountSettings } from '@/router/settingsGuard';
@@ -302,10 +303,14 @@ router.beforeEach(async (to, from) => {
   const destinationPath = folderPathFromRoute(to);
   const sourcePath = folderPathFromRoute(from);
   if (destinationPath) {
+    // The tab this walk belongs to: the window has one address and it is the tab in
+    // front's. A permission keyed by the folder alone is one any other tab on that
+    // folder would consume, and jump to where this one had been.
+    const walking = useTabsStore().activeId;
     if (isAncestorFolder(destinationPath, sourcePath)) {
-      folderScrollStore.permitRestore(destinationPath);
+      folderScrollStore.permitRestore(destinationPath, walking);
     } else {
-      folderScrollStore.preventRestore(destinationPath);
+      folderScrollStore.preventRestore(destinationPath, walking);
     }
   }
 

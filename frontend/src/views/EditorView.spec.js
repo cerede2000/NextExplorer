@@ -756,7 +756,10 @@ describe('leaving the editor', () => {
 
     shared.guards.forEach((guard) => guard({ name: 'FolderView', params: { path: 'Docs' } }));
 
-    expect(folderScroll.permitExplicitRestore).toHaveBeenCalledWith('Docs');
+    // For this tab alone: the folder's own memory is shared by every tab on it, so
+    // a permission left under the folder's name is one another tab consumes — and
+    // that tab then jumps to where this one had been.
+    expect(folderScroll.permitExplicitRestore).toHaveBeenCalledWith('Docs', 'tab-1');
   });
 
   it('says nothing to a folder it was not editing inside', async () => {
