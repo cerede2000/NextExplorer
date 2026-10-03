@@ -36,6 +36,7 @@ import { useFeaturesStore } from '@/stores/features';
 import { useAppSettings } from '@/stores/appSettings';
 import { useFolderScrollStore } from '@/stores/folderScroll';
 import { useTabsStore } from '@/stores/tabs';
+import { restorePermission } from './restorePermission';
 import { getVolumes } from '@/api';
 import { readGuestSession, resolveShareAccess } from '@/router/shareGuard';
 import { loadAccountSettings } from '@/router/settingsGuard';
@@ -295,22 +296,23 @@ const folderPathFromRoute = (route) => {
   return String(raw).replace(/^\/+|\/+$/g, '');
 };
 
-const isAncestorFolder = (candidate, current) =>
-  Boolean(candidate && current && current.startsWith(`${candidate}/`));
-
 router.beforeEach(async (to, from) => {
   const folderScrollStore = useFolderScrollStore();
   const destinationPath = folderPathFromRoute(to);
   const sourcePath = folderPathFromRoute(from);
-  if (destinationPath) {
+  const restore = restorePermission({
+    destination: destinationPath,
+    source: sourcePath,
     // The tab this walk belongs to: the window has one address and it is the tab in
     // front's. A permission keyed by the folder alone is one any other tab on that
     // folder would consume, and jump to where this one had been.
-    const walking = useTabsStore().activeId;
-    if (isAncestorFolder(destinationPath, sourcePath)) {
-      folderScrollStore.permitRestore(destinationPath, walking);
+    travelling: useTabsStore().activeId,
+  });
+  if (restore) {
+    if (restore.permitted) {
+      folderScrollStore.permitRestore(restore.path, restore.tabId);
     } else {
-      folderScrollStore.preventRestore(destinationPath, walking);
+      folderScrollStore.preventRestore(restore.path, restore.tabId);
     }
   }
 
