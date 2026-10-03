@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { getUsage, getVolumes, normalizePath } from '@/api';
 import { useFeaturesStore } from '@/stores/features';
+import { useAuthStore } from '@/stores/auth';
 
 const REFRESH_THROTTLE_MS = 2500;
 
@@ -99,6 +100,18 @@ export const useVolumeUsageStore = defineStore('volumeUsage', () => {
   };
 
   const loadVolumes = async ({ force = false } = {}) => {
+    /**
+     * A visitor holding a share link is not asked.
+     *
+     * They have no account and therefore no volumes: the answer is always a
+     * refusal, and behind an authentication proxy that lets the share through and
+     * nothing else it is a refusal the reader is then shown.
+     */
+    if (useAuthStore().isGuest) {
+      volumes.value = [];
+      hasLoadedVolumes.value = true;
+      return;
+    }
     if (loadPromise) {
       return loadPromise;
     }

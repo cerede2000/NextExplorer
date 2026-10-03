@@ -3,7 +3,7 @@
 import { requestJson } from './http';
 
 export async function getBranding() {
-  return requestJson('/api/branding', { method: 'GET' });
+  return requestJson('/api/branding', { method: 'GET', suppressErrorHandler: true });
 }
 
 export async function getSettings() {

@@ -8,6 +8,7 @@ import {
   reorderFavorites as reorderFavoritesRequest,
   removeFavorite as removeFavoriteRequest,
 } from '@/api';
+import { useAuthStore } from '@/stores/auth';
 
 export const useFavoritesStore = defineStore('favorites', () => {
   const favorites = ref([]);
@@ -18,7 +19,20 @@ export const useFavoritesStore = defineStore('favorites', () => {
   const favoritePaths = computed(() => favorites.value.map((favorite) => favorite.path));
   const favoriteSet = computed(() => new Set(favoritePaths.value));
 
+  /**
+   * A visitor holding a share link is not asked.
+   *
+   * They have no account, so they have none of these — the answer is always the
+   * empty list, and asking for it behind an authentication proxy that refuses
+   * everything but the share is a refusal the reader is then shown. Five of them
+   * arrive on one page load; this is two.
+   */
   const loadFavorites = async () => {
+    if (useAuthStore().isGuest) {
+      favorites.value = [];
+      hasLoaded.value = true;
+      return;
+    }
     if (isLoading.value) return;
     isLoading.value = true;
     lastError.value = null;

@@ -4374,6 +4374,20 @@ test('a shared folder is browsed, read and edited without ever leaving the share
       if (frame === visitor.mainFrame()) visited.push(new URL(frame.url()).pathname);
     });
 
+    /**
+     * Everything the application asks the server for on this visitor's behalf.
+     *
+     * A visitor with no account has no favourites, no volumes, and no session —
+     * so asking is at best wasted and at worst shown to them: behind an
+     * authentication proxy that lets the share through and nothing else, each of
+     * those is a refusal the reader is handed. Five arrived on one page load.
+     */
+    const asked = [];
+    visitor.on('request', (request) => {
+      const { pathname } = new URL(request.url());
+      if (pathname.startsWith('/api/')) asked.push(pathname);
+    });
+
     await visitor.goto(link);
 
     // The listing of the shared folder, under the share's own prefix.
@@ -4428,6 +4442,12 @@ test('a shared folder is browsed, read and edited without ever leaving the share
     // Not one address outside the share, at any point.
     const strayed = visited.filter((address) => !address.startsWith(`/share/${token}`));
     expect(strayed, `addresses outside the share: ${strayed.join(', ')}`).toEqual([]);
+
+    // And nothing was asked of the server that only an account could answer.
+    const forAnAccountOnly = asked.filter((p) => p === '/api/favorites' || p === '/api/volumes');
+    expect(forAnAccountOnly, `asked on a guest's behalf: ${forAnAccountOnly.join(', ')}`).toEqual(
+      []
+    );
 
     // And the address a share used to have still arrives, for links already sent.
     await visitor.goto(`/browse/share/${token}/Deeper`);
@@ -4562,6 +4582,67 @@ test('a share lets nobody in without a reason, whatever address they walk at', a
     await expect(visitor.locator('[title="secret.txt"]')).toHaveCount(0);
   } finally {
     await stranger.close();
+  }
+});
+
+/**
+ * Folders ahead of files, or one list — the reader's own choice (nxzai#495).
+ *
+ * Bucketing folders first is what a listing program has always done, and it is
+ * wrong for somebody whose new work arrives as both: sorted by date with the
+ * newest first, today's files sit below folders from months ago, under a heading
+ * that says they are sorted newest first.
+ *
+ * Walked rather than only unit-tested because the chain is long — a switch in
+ * the settings, a value stored on the account, a store that reads it, and the one
+ * place a listing is arranged — and every link of it is somewhere else.
+ */
+test('folders can be mixed into the listing instead of bucketed ahead of it', async () => {
+  test.slow();
+
+  const dir = path.join(volume, 'Mixed');
+  fs.mkdirSync(path.join(dir, 'bbb'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'aaa.txt'), 'first by name\n');
+  fs.writeFileSync(path.join(dir, 'ccc.txt'), 'last by name\n');
+
+  const namesInOrder = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll('[data-keyboard-item-key]')]
+        .map(
+          (row) =>
+            row.getAttribute('title') || row.querySelector('[title]')?.getAttribute('title') || ''
+        )
+        .filter(Boolean)
+    );
+
+  const setFoldersFirst = async (on) => {
+    await page.goto('/settings/user-preferences');
+    const toggle = page.locator('[data-test="folders-first"]');
+    if ((await toggle.getAttribute('aria-checked')) !== String(on)) {
+      await toggle.click();
+      await page.locator('[data-test="preferences-save"]').click();
+    }
+    await expect(toggle).toHaveAttribute('aria-checked', String(on));
+  };
+
+  try {
+    // As every listing has always looked: the folder first, whatever its name.
+    await page.goto('/browse/Projects/Mixed');
+    await expect(page.locator('[title="aaa.txt"]').first()).toBeVisible();
+    expect(await namesInOrder()).toEqual(['bbb', 'aaa.txt', 'ccc.txt']);
+
+    // Turned off, the folder takes its place by name like anything else.
+    await setFoldersFirst(false);
+    await page.goto('/browse/Projects/Mixed');
+    await expect(page.locator('[title="aaa.txt"]').first()).toBeVisible();
+    expect(await namesInOrder()).toEqual(['aaa.txt', 'bbb', 'ccc.txt']);
+
+    // And the choice is the account's: it is still there on the next visit.
+    await page.reload();
+    await expect(page.locator('[title="aaa.txt"]').first()).toBeVisible();
+    expect(await namesInOrder()).toEqual(['aaa.txt', 'bbb', 'ccc.txt']);
+  } finally {
+    await setFoldersFirst(true);
   }
 });
 

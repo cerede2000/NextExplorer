@@ -2,7 +2,10 @@
 
 import { requestJson } from './http';
 
-const fetchAuthStatus = () => requestJson('/api/auth/status', { method: 'GET' });
+// Asked quietly, like the other two a page reads before anybody has done
+// anything: the store keeps what went wrong and the screens read it from there.
+const fetchAuthStatus = () =>
+  requestJson('/api/auth/status', { method: 'GET', suppressErrorHandler: true });
 
 const setupAccount = ({ email, username, password }) =>
   requestJson('/api/auth/setup', {

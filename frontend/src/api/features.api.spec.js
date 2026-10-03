@@ -22,6 +22,11 @@ describe('the features API', () => {
     await expect(api.fetchFeatures()).resolves.toEqual({ onlyoffice: true });
 
     expect(requestJson).toHaveBeenCalledTimes(1);
-    expect(requestJson).toHaveBeenCalledWith('/api/features', { method: 'GET' });
+    // Quietly: the store answers for its own failure with the defaults, so a
+    // reader cannot be told anything useful about this one going wrong.
+    expect(requestJson).toHaveBeenCalledWith('/api/features', {
+      method: 'GET',
+      suppressErrorHandler: true,
+    });
   });
 });
