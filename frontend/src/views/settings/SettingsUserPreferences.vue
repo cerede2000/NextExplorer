@@ -31,6 +31,7 @@ const local = reactive({
   defaultShareExpirationUnit: 'weeks',
   skipHome: null, // null = use env, true/false = override
   defaultView: null, // null = the built-in default, otherwise a view mode
+  foldersFirst: true,
   markdownOpensInEditor: false,
   documentsOpenInNewTab: false,
   showVersionMarks: true,
@@ -61,6 +62,7 @@ const dirty = computed(() => {
     JSON.stringify(localExpiration) !== JSON.stringify(origExpiration) ||
     local.skipHome !== orig.skipHome ||
     local.defaultView !== orig.defaultView ||
+    local.foldersFirst !== (orig.foldersFirst ?? true) ||
     local.markdownOpensInEditor !== (orig.markdownOpensInEditor ?? false) ||
     local.documentsOpenInNewTab !== (orig.documentsOpenInNewTab ?? false) ||
     local.showVersionMarks !== (orig.showVersionMarks ?? true) ||
@@ -135,6 +137,7 @@ watch(
 
     local.skipHome = userSettings.skipHome ?? null;
     local.defaultView = userSettings.defaultView ?? null;
+    local.foldersFirst = userSettings.foldersFirst ?? true;
     local.markdownOpensInEditor = userSettings.markdownOpensInEditor ?? false;
     local.documentsOpenInNewTab = userSettings.documentsOpenInNewTab ?? false;
     local.showVersionMarks = userSettings.showVersionMarks ?? true;
@@ -167,6 +170,7 @@ const reset = () => {
 
   local.skipHome = userSettings.skipHome ?? null;
   local.defaultView = userSettings.defaultView ?? null;
+  local.foldersFirst = userSettings.foldersFirst ?? true;
   local.markdownOpensInEditor = userSettings.markdownOpensInEditor ?? false;
   local.documentsOpenInNewTab = userSettings.documentsOpenInNewTab ?? false;
   local.showVersionMarks = userSettings.showVersionMarks ?? true;
@@ -191,6 +195,7 @@ const save = async () => {
       defaultShareExpiration,
       skipHome: local.skipHome,
       defaultView: local.defaultView,
+      foldersFirst: local.foldersFirst,
       markdownOpensInEditor: local.markdownOpensInEditor,
       documentsOpenInNewTab: local.documentsOpenInNewTab,
       showVersionMarks: local.showVersionMarks,
@@ -511,6 +516,20 @@ const save = async () => {
               <option value="photos">{{ t('settings.userPreferences.viewPhotos') }}</option>
             </select>
           </div>
+        </div>
+
+        <div
+          class="flex items-center justify-between py-3 border-b border-zinc-100 dark:border-zinc-800"
+        >
+          <div>
+            <div class="font-medium text-zinc-900 dark:text-zinc-100">
+              {{ t('settings.userPreferences.foldersFirst') }}
+            </div>
+            <div class="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
+              {{ t('settings.userPreferences.foldersFirstHelp') }}
+            </div>
+          </div>
+          <ToggleSwitch v-model="local.foldersFirst" data-test="folders-first" />
         </div>
 
         <div class="flex items-center justify-between py-3">

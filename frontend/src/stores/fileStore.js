@@ -245,7 +245,10 @@ export const useFileStore = defineStore('fileStore', () => {
    * added a sort key.
    */
   const arrange = (items) =>
-    sortItems(items, useSettingsStore().sortBy, (full) => folderSizeStore.sizeFor(full));
+    sortItems(items, useSettingsStore().sortBy, (full) => folderSizeStore.sizeFor(full), {
+      // One list, or folders first: the person's own preference (nxzai#495).
+      foldersFirst: useSettingsStore().foldersFirst,
+    });
 
   const getCurrentPathItems = computed(() => arrange(currentPathItems.value));
 

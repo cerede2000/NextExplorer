@@ -29,6 +29,9 @@ export const useSettingsStore = defineStore('settings', () => {
    * follows them between machines and does not leak to whoever signs in next on
    * a shared one.
    */
+  /** The list is one mixed ordering or folders first, per the person (nxzai#495). */
+  const foldersFirst = computed(() => appSettings.userSettings?.foldersFirst !== false);
+
   const defaultView = computed(() => {
     const preferred = appSettings.userSettings?.defaultView;
     return VIEW_MODES.includes(preferred) ? preferred : 'grid';
@@ -251,6 +254,7 @@ export const useSettingsStore = defineStore('settings', () => {
     restoreFolderPreferences,
     folderViews,
     defaultView,
+    foldersFirst,
     sortOptions,
     terminalHeight,
     listViewColumnWidths,

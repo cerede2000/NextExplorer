@@ -43,6 +43,7 @@ const STORED = {
   folderSorts: { Docs: { by: 'name', order: 'asc', updatedAt: 1 } },
   folderViews: { Photos: { mode: 'photos', updatedAt: 1 } },
   defaultView: 'list',
+  foldersFirst: false,
   markdownOpensInEditor: true,
   documentsOpenInNewTab: true,
   downloadMode: 'separate',
@@ -80,6 +81,9 @@ const SWITCHES = [
   'showSidebarFavorites',
   'showSidebarShares',
   'showSidebarTools',
+  // Between the sidebar rows and the quick actions, which is where the screen
+  // puts it: this list is read by position.
+  'foldersFirst',
   'quickActions',
 ];
 
@@ -186,6 +190,8 @@ describe('the preferences', () => {
         defaultShareExpiration: { value: 2, unit: 'weeks' },
         skipHome: false,
         defaultView: 'list',
+        // Carried through as stored: off here, and the default is on.
+        foldersFirst: false,
         markdownOpensInEditor: true,
         documentsOpenInNewTab: true,
         showVersionMarks: true,

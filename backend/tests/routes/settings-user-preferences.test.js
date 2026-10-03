@@ -61,6 +61,9 @@ const NON_DEFAULT = {
   defaultShareExpiration: { value: 3, unit: 'days' },
   skipHome: true,
   defaultView: 'list',
+  // On by default, as every listing program has always shown a folder: off is the
+  // value that has to survive a round trip (nxzai#495).
+  foldersFirst: false,
   // Null by default, which means "follow the browser".
   locale: 'nl',
   // `zip` by default, which is what every version before this one did.

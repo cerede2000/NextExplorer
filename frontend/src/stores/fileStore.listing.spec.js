@@ -44,6 +44,8 @@ vi.mock('@/api', () => ({
 // back the first order it worked out, whatever the settings said afterwards.
 const settings = reactive({
   sortBy: { by: 'name', order: 'asc' },
+  // Folders ahead of files unless the reader asked for one list (nxzai#495).
+  foldersFirst: true,
   restoreFolderPreferences: vi.fn(),
 });
 const appSettings = { thumbnailsEnabledForSession: true };
@@ -104,6 +106,7 @@ beforeEach(() => {
   browse.mockResolvedValue({ items: [], path: '' });
   sizeFor.mockReturnValue(null);
   settings.sortBy = { by: 'name', order: 'asc' };
+  settings.foldersFirst = true;
   appSettings.thumbnailsEnabledForSession = true;
 });
 
@@ -153,6 +156,41 @@ describe('the order a folder is shown in', () => {
    * characters every capital sorts before every lowercase letter, which puts a
    * name in a place its reader will not look for it.
    */
+  /**
+   * Unless the reader asked for one list.
+   *
+   * Folders bucketed ahead of files is what a listing program has always done, and
+   * it is wrong for somebody whose new work arrives as both: sorted by date, newest
+   * first, today's files sit below folders from months ago — under the heading that
+   * says they are sorted newest first (nxzai#495).
+   */
+  it('mixes them into one list when the reader asked for that', async () => {
+    settings.foldersFirst = false;
+    const store = await storeInDocs([file('a.txt'), dir('zzz'), file('b.txt'), dir('aaa')]);
+
+    expect(namesInOrder(store)).toEqual(['a.txt', 'aaa', 'b.txt', 'zzz']);
+  });
+
+  it('mixes them by whatever key is being sorted on, not only by name', async () => {
+    settings.foldersFirst = false;
+    settings.sortBy = { by: 'size', order: 'desc' };
+    sizeFor.mockImplementation((full) => (full === 'Docs/folder' ? { sizeBytes: 500 } : null));
+    const store = await storeInDocs([
+      file('petit.txt', { size: 10 }),
+      dir('folder'),
+      file('gros.txt', { size: 9000 }),
+    ]);
+
+    expect(namesInOrder(store)).toEqual(['gros.txt', 'folder', 'petit.txt']);
+  });
+
+  /** And the default is the order every list already had. */
+  it('keeps folders first when nothing was asked for', async () => {
+    const store = await storeInDocs([file('a.txt'), dir('zzz')]);
+
+    expect(namesInOrder(store)).toEqual(['zzz', 'a.txt']);
+  });
+
   it('sorts names the way they are read, not the way they are encoded', async () => {
     const store = await storeInDocs([file('cerise.txt'), file('Banane.txt'), file('ananas.txt')]);
 

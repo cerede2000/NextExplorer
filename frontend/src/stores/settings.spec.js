@@ -292,3 +292,42 @@ describe('settings store folder views', () => {
     expect(settings.view).toBe('grid');
   });
 });
+
+/**
+ * Folders ahead of files, or one list ordered purely by the chosen key.
+ *
+ * What a listing program has always done is wrong for somebody whose new work
+ * arrives as both: sorted by date, newest first, today's files sit below folders
+ * from months ago — under a heading that says they are sorted newest first
+ * (nxzai#495). So it is the person's own choice, and the default is what every
+ * list already looked like.
+ */
+describe('settings store: folders first', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+    useAuthStore().currentUser = { id: 'user-1' };
+  });
+
+  const withUserSettings = (user) => {
+    const appSettings = useAppSettings();
+    appSettings.loaded = true;
+    appSettings.userSettings = { ...appSettings.userSettings, ...user };
+    return useSettingsStore();
+  };
+
+  it('is on when nothing was ever chosen', () => {
+    expect(withUserSettings({}).foldersFirst).toBe(true);
+  });
+
+  it('is on when it was chosen', () => {
+    expect(withUserSettings({ foldersFirst: true }).foldersFirst).toBe(true);
+  });
+
+  /** Only an explicit "no" turns it off — anything unclear reads as the default. */
+  it('is off only when it was turned off', () => {
+    expect(withUserSettings({ foldersFirst: false }).foldersFirst).toBe(false);
+    expect(withUserSettings({ foldersFirst: null }).foldersFirst).toBe(true);
+    expect(withUserSettings({ foldersFirst: undefined }).foldersFirst).toBe(true);
+  });
+});
