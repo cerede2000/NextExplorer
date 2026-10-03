@@ -3950,6 +3950,201 @@ test('opening and shutting documents one after another leaves nothing broken', a
  * every later one with it, and no single step fails on that — what was being
  * clicked is usually still there. The whole journey is the assertion.
  */
+/**
+ * Shutting a document in one half of a pair.
+ *
+ * The reader was in a folder, opened a file from it, and shut it again. Their tab
+ * never left that folder: the listing, the selection and whatever they were in the
+ * middle of are all still in it. Reading the folder from the server again threw all
+ * of that away in front of them — the listing went blank, a spinner, and then rows
+ * again — which is the jump they reported, and the reason a press in that half
+ * landed on a row that no longer existed by the time the button came up.
+ *
+ * So a tab coming back out of a file that is in the folder it holds is coming back,
+ * and the file it was reading is what it lands on.
+ */
+test('a document shut in a half gives the folder back at once, on the file that was shut', async () => {
+  test.slow();
+
+  const dir = path.join(volume, 'Shut');
+  fs.mkdirSync(dir, { recursive: true });
+  for (let i = 1; i <= 200; i += 1) {
+    fs.writeFileSync(path.join(dir, `row-${String(i).padStart(3, '0')}.txt`), 'shut\n');
+  }
+  // Sorts last, so it is only reachable from the bottom of the listing — and a
+  // listing put back at the top is then plainly not where the reader was.
+  fs.writeFileSync(path.join(dir, 'zz-shut.md'), '# shut\n\nand opened again\n');
+
+  const strip = page.locator('[data-test="tab-strip"]');
+  const entries = strip.locator('[data-test="tab"]');
+  const panes = page.locator('[data-test="tab-pane"]');
+
+  /** Where each half is: the row at the top of it, the pixels, and what is selected. */
+  const places = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll('[data-test="tab-pane"]')].map((pane) => {
+        const list = pane.querySelector('.upload-drop-target');
+        const rows = [...pane.querySelectorAll('[data-keyboard-item-key]')];
+        const name = (row) =>
+          row?.getAttribute('title') || row?.querySelector('[title]')?.getAttribute('title') || '';
+        if (!list || rows.length === 0) return { kind: 'not a listing' };
+        const edge = list.getBoundingClientRect().top;
+        return {
+          kind: 'listing',
+          top: name(rows.find((row) => row.getBoundingClientRect().bottom > edge + 4)),
+          pixels: Math.round(list.scrollTop),
+          onScreen: rows
+            .filter((row) => row.getBoundingClientRect().top < list.getBoundingClientRect().bottom)
+            .map(name),
+          selected: [...pane.querySelectorAll('[data-selected="true"]')]
+            .map((row) => row.getAttribute('title'))
+            .filter(Boolean),
+        };
+      })
+    );
+
+  const scrollPane = async (index, amount) => {
+    const box = await panes.nth(index).locator('.upload-drop-target').boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.wheel(0, amount);
+    await page.waitForTimeout(700);
+  };
+
+  const clickRow = async (index) => {
+    const aim = await page.evaluate((half) => {
+      const pane = document.querySelectorAll('[data-test="tab-pane"]')[half];
+      const area = pane.querySelector('.upload-drop-target').getBoundingClientRect();
+      const row = [...pane.querySelectorAll('[data-keyboard-item-key]')].find((node) => {
+        const box = node.getBoundingClientRect();
+        return box.top > area.top + 150 && box.bottom < area.bottom - 80;
+      });
+      const box = row.getBoundingClientRect();
+      return {
+        title:
+          row.getAttribute('title') || row.querySelector('[title]')?.getAttribute('title') || '',
+        x: box.x + 80,
+        y: box.y + box.height / 2,
+      };
+    }, index);
+    await page.mouse.click(aim.x, aim.y);
+    await page.waitForTimeout(500);
+    return aim.title;
+  };
+
+  await page.goto('/settings/user-preferences');
+  const preference = page.locator('[data-test="browse-in-tabs"]');
+  await preference.click();
+  await page.locator('[data-test="preferences-save"]').click();
+  await expect(preference).toHaveAttribute('aria-checked', 'true');
+  // In the half itself, which is where the reader had it: a document in a tab of
+  // its own is a different screen with a different question.
+  const inNewTab = page.locator('[data-test="documents-in-new-tab"]');
+  const documentsWereInNewTabs = (await inNewTab.getAttribute('aria-checked')) === 'true';
+  if (documentsWereInNewTabs) {
+    await inNewTab.click();
+    await page.locator('[data-test="preferences-save"]').click();
+  }
+
+  try {
+    await page.goto('/browse/Projects');
+    const closeEvery = page.locator('[data-test="tab-close-all"]');
+    if ((await closeEvery.count()) > 0) await closeEvery.click();
+    await expect(entries).toHaveCount(1);
+
+    // The same folder three times over, the last two side by side.
+    await page.goto('/browse/Projects/Shut');
+    await expect(page.locator('[title="row-001.txt"]').first()).toBeVisible();
+    for (const copy of [1, 2]) {
+      const before = await entries.count();
+      expect(before, `copy ${copy} of the folder`).toBeGreaterThan(0);
+      await entries.last().getByRole('tab').click({ button: 'right' });
+      await page.locator('[data-test="tab-duplicate"]').click();
+      await expect(entries).toHaveCount(before + 1);
+    }
+    await entries.last().getByRole('tab').click({ button: 'right' });
+    await page.locator('[data-test="tab-show-right"]').click();
+    await expect(panes).toHaveCount(2);
+    await expect(panes.last().locator('[data-selected]')).toHaveCount(201);
+
+    // The right half taken to the bottom, and the file down there opened in it.
+    await scrollPane(1, 20000);
+    const atTheBottom = (await places())[1];
+    expect(atTheBottom.pixels).toBeGreaterThan(1000);
+    expect(atTheBottom.onScreen).toContain('zz-shut.md');
+    await panes.last().locator('[title="zz-shut.md"]').first().dblclick();
+    await expect(page).toHaveURL(/\/(open|editor)\/Projects\/Shut\/zz-shut\.md$/);
+
+    /**
+     * Watched frame by frame from here: what the reader sees is the whole point,
+     * and a listing that goes blank and comes back is not something an assertion
+     * taken afterwards can see.
+     */
+    await page.evaluate(() => {
+      window.__shut = { blank: 0, seen: 0, frame: 0 };
+      const tick = () => {
+        const halves = [...document.querySelectorAll('[data-test="tab-pane"]')];
+        const list = halves[halves.length - 1]?.querySelector('.upload-drop-target');
+        if (list) {
+          window.__shut.seen += 1;
+          if (list.querySelectorAll('[data-keyboard-item-key]').length === 0) {
+            window.__shut.blank += 1;
+          }
+        }
+        window.__shut.frame = requestAnimationFrame(tick);
+      };
+      tick();
+    });
+
+    // Shut from the half it is in, which is the one further right on screen.
+    const crosses = page.locator('[data-test="preview-close"], [data-test="editor-close"]');
+    const boxes = [];
+    for (let i = 0; i < (await crosses.count()); i += 1) {
+      const box = await crosses.nth(i).boundingBox();
+      if (box) boxes.push({ i, x: box.x });
+    }
+    boxes.sort((a, b) => a.x - b.x);
+    await crosses.nth(boxes[boxes.length - 1].i).click();
+    await expect(panes.last().locator('[data-selected]')).toHaveCount(201);
+    await page.waitForTimeout(800);
+
+    const watched = await page.evaluate(() => {
+      cancelAnimationFrame(window.__shut.frame);
+      return { blank: window.__shut.blank, seen: window.__shut.seen };
+    });
+    expect(watched.seen, 'the listing was watched coming back').toBeGreaterThan(5);
+    expect(watched.blank, 'the listing never went blank on the way back').toBe(0);
+
+    // And it came back on the file that was shut, where that file was.
+    const back = (await places())[1];
+    expect(back.selected).toEqual(['zz-shut.md']);
+    expect(back.onScreen).toContain('zz-shut.md');
+    expect(back.pixels, 'not at the top, where the reader never was').toBeGreaterThan(1000);
+
+    // A press in that half is taken, on the first press, where it was pressed.
+    const chosen = await clickRow(1);
+    const after = (await places())[1];
+    expect(after.selected).toEqual([chosen]);
+    expect(after.pixels).toBe(back.pixels);
+
+    // The half beside it, and the tab on its own, never moved.
+    expect((await places())[0].pixels).toBe(0);
+    await entries.first().getByRole('tab').click();
+    await expect(panes).toHaveCount(1);
+    expect((await places())[0].pixels).toBe(0);
+  } finally {
+    if (documentsWereInNewTabs) {
+      await page.goto('/settings/user-preferences');
+      await inNewTab.click();
+      await page.locator('[data-test="preferences-save"]').click();
+      await expect(inNewTab).toHaveAttribute('aria-checked', 'true');
+    }
+    await page.goto('/settings/user-preferences');
+    await preference.click();
+    await page.locator('[data-test="preferences-save"]').click();
+    await expect(preference).toHaveAttribute('aria-checked', 'false');
+  }
+});
+
 test('the page threw nothing along the way', () => {
   expect(thrown, `the page threw:\n${thrown.join('\n')}`).toEqual([]);
 });
