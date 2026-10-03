@@ -195,7 +195,7 @@
 <script setup>
 import { usePaneRoute, usePaneTabId } from '@/composables/paneTab';
 import { ref, shallowRef, watch, computed, nextTick, onBeforeUnmount } from 'vue';
-import { onBeforeRouteLeave } from 'vue-router';
+import { onBeforeRouteLeave, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { Compartment, EditorState } from '@codemirror/state';
 import CodeSurface from '@/components/editor/CodeSurface.vue';
@@ -233,6 +233,12 @@ import { useTabLoadingStore } from '@/stores/tabLoading';
 
 const route = usePaneRoute();
 const tabNavigation = useTabNavigation();
+/**
+ * Where the *window* is, which is where this page's tab is only while that tab is
+ * the one in front. Read on the way out, to tell an address that changed under
+ * this page from a page being taken off screen.
+ */
+const windowAddress = useRoute();
 const { ask } = useAsk();
 const tabs = tabNavigation.tabs;
 const drafts = useEditorDraftsStore();
@@ -492,9 +498,19 @@ const placeNow = () => ({
 const handOver = (key, address) => {
   // Gone with its tab: nothing to hold it for.
   if (!key || !tabs.tabs.some((entry) => entry.id === key)) return;
-  // Still the tab this page speaks for, so the address changed underneath it: this
-  // file is not what the tab is on any more.
-  if (paneTabId.value === key) {
+
+  // Whether the address changed under this page, or the page is simply going.
+  //
+  // Only the tab in front can have been navigated: the window has one address and
+  // it belongs to the tab the reader is in. So a page speaking for any other tab
+  // is a page being taken off screen, and what its tab was holding is worth
+  // keeping. It used to ask whether it was still the tab of its own pane, which a
+  // pane always answers yes to — a destroyed one included, props and all. The half
+  // on the right of a pair is destroyed when the pair leaves the window, so it
+  // threw away where its reader was every time, and came back at the top of the
+  // file while the half on the left came back where it had been left.
+  const navigatedAway = key === tabs.activeId && windowAddress.fullPath !== address;
+  if (navigatedAway) {
     drafts.forget(key);
     return;
   }

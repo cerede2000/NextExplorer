@@ -1232,6 +1232,36 @@ describe('what a tab holds on to', () => {
   });
 
   /**
+   * And keeps it when the half it is drawn in is taken off the window.
+   *
+   * A pair is drawn while the reader is in one of its two tabs; going to any other
+   * tab takes both halves away, and the right-hand one is *destroyed* — its props
+   * go with it, so on the way out it still names its own tab. Asking "am I still
+   * the tab of this pane" therefore answered yes, which this page read as "the
+   * address changed under me" — and threw away what that tab was holding. Coming
+   * back to the pair, the editor on the right was at the top of its file, every
+   * time, while the one on the left was where it had been left.
+   */
+  it('keeps what it was holding when its half is taken off the window', async () => {
+    appTabs.tabs = [{ id: 'tab-1' }, { id: 'tab-9' }];
+    appTabs.activeId = 'tab-1';
+    appTabs.pane = 'tab-1';
+
+    const view = await mountEditor();
+    await type(view, 'half a sentence');
+
+    // The reader goes to a tab that is not in the pair: this half is destroyed,
+    // naming its own tab on the way out, and its tab is not the one in front.
+    appTabs.activeId = 'tab-9';
+    wrapper.unmount();
+
+    expect(drafts.get('tab-1')).toMatchObject({
+      address: '/editor/Docs/notes.md',
+      text: 'half a sentence',
+    });
+  });
+
+  /**
    * And the place, with nothing typed at all — which was the complaint: scrolled
    * two hundred lines down, a paragraph selected, and back to the top of the file
    * with nothing selected.
@@ -1486,6 +1516,11 @@ describe('what a tab holds on to', () => {
     const view = await mountEditor();
     await type(view, 'half a sentence');
 
+    // Said out loud, because it is the whole of the difference: the window has
+    // gone to the folder, and this tab is the one in front — so the file is not
+    // what the tab is on any more. A page merely taken off screen keeps what its
+    // tab was holding.
+    route().fullPath = '/browse/Docs';
     wrapper.unmount();
 
     expect(drafts.has('tab-1')).toBe(false);
