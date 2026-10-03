@@ -45,6 +45,23 @@ vi.mock('@/api', () => ({
 
 const router = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn() }));
 
+/**
+ * The pane's own address, which is where a screen reads its place from now.
+ *
+ * In a pair only one pane is the route, so a screen that read the window's
+ * address drew somebody else's place. Standing in for it with the same route
+ * this spec already states: what the pane decides is held in
+ * `composables/paneTab.spec.js`; what is exercised here is this screen.
+ */
+vi.mock('@/composables/paneTab', () => ({
+  usePaneRoute: () => shared.objects.route,
+  usePaneTabId: () => ({
+    get value() {
+      return appTabs.pane || appTabs.activeId;
+    },
+  }),
+}));
+
 vi.mock('vue-router', async () => {
   const { reactive } = await import('vue');
   shared.objects.route = reactive({
@@ -66,7 +83,9 @@ vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: (key) => key }) }));
 // may be closed is `tabNavigation`'s, with its own spec, so what is asked here is
 // that this view asks it, and asks it before offering the window to the browser.
 const closeOwn = vi.fn(() => false);
-const appTabs = vi.hoisted(() => ({ activeId: 'tab-1', tabs: [{ id: 'tab-1' }] }));
+// `pane` is the tab of the pane this page is drawn in: null for the ordinary case
+// of one pane, which is the tab in front.
+const appTabs = vi.hoisted(() => ({ activeId: 'tab-1', tabs: [{ id: 'tab-1' }], pane: null }));
 /**
  * What the application asks, in its own dialog rather than the browser's box. Answers
  * with a promise, as the real one does: it is part of the page, so it cannot answer
@@ -75,12 +94,22 @@ const appTabs = vi.hoisted(() => ({ activeId: 'tab-1', tabs: [{ id: 'tab-1' }] }
 const asked = vi.hoisted(() => ({ ask: vi.fn(async () => false), askFor: vi.fn() }));
 vi.mock('@/composables/useAsk', () => ({ useAsk: () => asked }));
 
+const retargeted = vi.hoisted(() => []);
 vi.mock('@/composables/tabNavigation', () => ({
   useTabNavigation: () => ({
     get tabs() {
       return appTabs;
     },
     closeOwn: (...args) => closeOwn(...args),
+    // The window only while this page's tab is the one in front; otherwise that
+    // tab alone is taken somewhere, and the address bar is left where it is.
+    leaveFrom: (id, location) => {
+      if (!id || id === appTabs.activeId) {
+        router.replace(location);
+        return;
+      }
+      retargeted.push({ id, location });
+    },
   }),
 }));
 
@@ -266,7 +295,10 @@ const mountEditor = async () => {
 const asShare = () => {
   Object.assign(route(), {
     name: 'SharedEditor',
-    fullPath: '/share/tok/edit/notes.md',
+    // The address the application really gives a share's file, which this screen
+    // now looks at: a pane can be handed a tab that holds something else entirely,
+    // and a screen only speaks for addresses it is the screen for.
+    fullPath: '/editor/share/tok/notes.md',
     params: { token: 'tok', sharedPath: 'notes.md' },
   });
 };
@@ -298,6 +330,7 @@ beforeEach(() => {
   closeOwn.mockClear();
   closeOwn.mockReturnValue(false);
   appTabs.activeId = 'tab-1';
+  appTabs.pane = null;
   appTabs.tabs = [{ id: 'tab-1' }];
   drafts.clear();
   vi.spyOn(window, 'close').mockImplementation(() => {});
@@ -723,8 +756,9 @@ describe('leaving the editor', () => {
 
     shared.guards.forEach((guard) => guard({ name: 'FolderView', params: { path: 'Docs' } }));
 
-    // Named for this tab: the folder's memory is shared by every tab on it, and so
-    // was the permission to read it.
+    // For this tab alone: the folder's own memory is shared by every tab on it, so
+    // a permission left under the folder's name is one another tab consumes — and
+    // that tab then jumps to where this one had been.
     expect(folderScroll.permitExplicitRestore).toHaveBeenCalledWith('Docs', 'tab-1');
   });
 
@@ -1173,6 +1207,64 @@ describe('what a tab holds on to', () => {
   });
 
   /**
+   * And keeps it for the tab of the pane it was drawn in, not for the tab in front.
+   *
+   * A file open beside a folder is this page drawn in the half the reader is *not*
+   * in. "The tab in front" is then the neighbour — so half a sentence typed in the
+   * editor pane was kept for the folder tab, and the editor's own tab came back to
+   * nothing.
+   */
+  it('keeps it for its own pane tab, not for the tab in front', async () => {
+    appTabs.tabs = [{ id: 'tab-1' }, { id: 'tab-9' }];
+    appTabs.activeId = 'tab-9';
+    appTabs.pane = 'tab-1';
+
+    const view = await mountEditor();
+    await type(view, 'half a sentence');
+
+    // The pane is given another tab: this page is not speaking for tab-1 any more,
+    // so what was typed is kept for it.
+    appTabs.pane = 'tab-9';
+    wrapper.unmount();
+
+    expect(drafts.get('tab-1')).toMatchObject({
+      address: '/editor/Docs/notes.md',
+      text: 'half a sentence',
+    });
+    expect(drafts.get('tab-9')).toBeFalsy();
+  });
+
+  /**
+   * And keeps it when the half it is drawn in is taken off the window.
+   *
+   * A pair is drawn while the reader is in one of its two tabs; going to any other
+   * tab takes both halves away, and the right-hand one is *destroyed* — its props
+   * go with it, so on the way out it still names its own tab. Asking "am I still
+   * the tab of this pane" therefore answered yes, which this page read as "the
+   * address changed under me" — and threw away what that tab was holding. Coming
+   * back to the pair, the editor on the right was at the top of its file, every
+   * time, while the one on the left was where it had been left.
+   */
+  it('keeps what it was holding when its half is taken off the window', async () => {
+    appTabs.tabs = [{ id: 'tab-1' }, { id: 'tab-9' }];
+    appTabs.activeId = 'tab-1';
+    appTabs.pane = 'tab-1';
+
+    const view = await mountEditor();
+    await type(view, 'half a sentence');
+
+    // The reader goes to a tab that is not in the pair: this half is destroyed,
+    // naming its own tab on the way out, and its tab is not the one in front.
+    appTabs.activeId = 'tab-9';
+    wrapper.unmount();
+
+    expect(drafts.get('tab-1')).toMatchObject({
+      address: '/editor/Docs/notes.md',
+      text: 'half a sentence',
+    });
+  });
+
+  /**
    * And the place, with nothing typed at all — which was the complaint: scrolled
    * two hundred lines down, a paragraph selected, and back to the top of the file
    * with nothing selected.
@@ -1427,6 +1519,11 @@ describe('what a tab holds on to', () => {
     const view = await mountEditor();
     await type(view, 'half a sentence');
 
+    // Said out loud, because it is the whole of the difference: the window has
+    // gone to the folder, and this tab is the one in front — so the file is not
+    // what the tab is on any more. A page merely taken off screen keeps what its
+    // tab was holding.
+    route().fullPath = '/browse/Docs';
     wrapper.unmount();
 
     expect(drafts.has('tab-1')).toBe(false);

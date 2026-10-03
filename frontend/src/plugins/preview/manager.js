@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed, reactive, watch } from 'vue';
+import { ref, computed, reactive, toRaw, watch } from 'vue';
 import {
   getPreviewUrl,
   normalizePath,
@@ -277,17 +277,34 @@ export const usePreviewManager = defineStore('preview-manager', () => {
       return;
     }
 
-    const patience = setTimeout(() => {
+    const session = ensureSession(key);
+
+    // Both named before they exist, because an immediate watcher can end the wait
+    // before `watch` has handed back the way to stop it: ending twice is harmless —
+    // the store answers with a release that can only be used once — and stopping a
+    // watcher that is already gone is a no-op.
+    let stop = () => {};
+    let patience = null;
+    const over = () => {
+      clearTimeout(patience);
       stop();
       done();
-    }, VIEWER_PATIENCE_MS);
-    const stop = watch(
-      () => match.context.previewState.isReady === true,
-      (ready) => {
-        if (!ready) return;
-        clearTimeout(patience);
-        stop();
-        done();
+    };
+    patience = setTimeout(over, VIEWER_PATIENCE_MS);
+    stop = watch(
+      // Either the viewer is there, or this tab has stopped showing the document it
+      // was being waited for — closed, or replaced by another one. The second half is
+      // not a nicety: the viewer that was going to say it had arrived has been taken
+      // off the screen, so there was nothing left to end the wait but the patience,
+      // and a tab holding nothing said it was working for three quarters of a minute.
+      //
+      // `toRaw` because a ref wraps what it is given: the session hands back a
+      // reactive proxy of the very object this was called with, and the two are
+      // never the same by identity.
+      () =>
+        match.context.previewState.isReady === true || toRaw(session.item.value) !== match.context,
+      (finished) => {
+        if (finished) over();
       },
       { immediate: true }
     );

@@ -36,10 +36,28 @@ import {
  * `restores` says whether a tab of this kind is worth bringing back when the
  * reader returns. A folder is; the settings are not — somebody who closes the
  * browser on a settings page was not in the middle of anything there.
+ *
+ * `folderPanels` says that the window's own panels about an item — its details,
+ * its earlier versions — belong beside this screen. It is the membership the
+ * browser layout used to carry: those panels were drawn by it, so a comparison
+ * or the editor never had one over it. Said per kind now that there is no layout
+ * to belong to.
+ *
+ * `fullTab` says that a *lone* tab of this kind wants the window to itself: no
+ * sidebar, no bar above it. A shell, because the sidebar's only answer beside one
+ * is to leave it — easy to confuse with a `cd` a keystroke away; and a document,
+ * because a document opened in its own tab is the document. Side by side with
+ * something else the window's chrome comes back, since the other half needs it.
+ *
+ * Every kind can sit in a pane. That is new: the panes used to be drawn by the
+ * browser layout, so a kind whose address sat outside it — a document, a shell,
+ * the editor, a comparison — had nowhere to be drawn. They are above every layout
+ * now, with the sidebar.
  */
 const TAB_KINDS = [
   {
     id: 'folder',
+    folderPanels: true,
     match: /^\/browse([/?#]|$)/,
     icon: FolderIcon,
     // Nothing to name it from at `/browse/`, which is the list of volumes.
@@ -49,6 +67,7 @@ const TAB_KINDS = [
   },
   {
     id: 'document',
+    fullTab: true,
     match: /^\/open([/?#]|$)/,
     icon: DocumentTextIcon,
     singleton: false,
@@ -59,6 +78,7 @@ const TAB_KINDS = [
     // tabs, which is the point: the drawer belongs to the window and can only
     // ever show one.
     id: 'terminal',
+    fullTab: true,
     match: /^\/terminal([/?#]|$)/,
     icon: CommandLineIcon,
     titleKey: 'titles.terminal',
@@ -95,6 +115,7 @@ const TAB_KINDS = [
   },
   {
     id: 'search',
+    folderPanels: true,
     match: /^\/search([/?#]|$)/,
     icon: MagnifyingGlassIcon,
     titleKey: 'actions.search',
@@ -103,6 +124,7 @@ const TAB_KINDS = [
   },
   {
     id: 'trash',
+    folderPanels: true,
     match: /^\/trash([/?#]|$)/,
     icon: TrashIcon,
     titleKey: 'trash.title',
@@ -119,6 +141,7 @@ const TAB_KINDS = [
   },
   {
     id: 'shares',
+    folderPanels: true,
     match: /^\/shares([/?#]|$)/,
     icon: ShareIcon,
     titleKey: 'common.shares',
@@ -127,6 +150,7 @@ const TAB_KINDS = [
   },
   {
     id: 'settings',
+    folderPanels: true,
     match: /^\/settings([/?#]|$)/,
     icon: Cog6ToothIcon,
     titleKey: 'common.settings',

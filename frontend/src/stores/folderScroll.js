@@ -48,8 +48,8 @@ export const useFolderScrollStore = defineStore('folderScroll', () => {
    * Keyed by the tab as well as by the folder, because the folder's own memory is
    * shared by every tab on it: a tab that walked up into a folder, or came back out
    * of a file in it, left a permission that *another* tab on that same folder then
-   * consumed — and jumped to where the first one had been. Two tabs on one folder
-   * and one of them opening a document was enough to move the other.
+   * consumed — and jumped to where the first one had been. Three tabs on one folder
+   * and one of them opening a document was enough to move the other two.
    */
   const permitKey = (path, tabId) => `${tabId || ''}\u0000${path}`;
 
@@ -102,16 +102,23 @@ export const useFolderScrollStore = defineStore('folderScroll', () => {
    */
   const tabPlaces = new Map();
 
-  const rememberTabPlace = (key, scrollTop) => {
+  const rememberTabPlace = (key, scrollTop, anchor = '') => {
     if (!key || !Number.isFinite(scrollTop)) return;
     tabPlaces.delete(key);
-    tabPlaces.set(key, Math.max(0, Math.round(scrollTop)));
+    // The row the reader was on, beside the number of pixels it took to get there.
+    // The two answer the same question and the row answers it better: a pane that
+    // changes width — one of a pair, or a pair becoming one — re-flows its listing,
+    // and the same number of pixels is then a different place in the folder.
+    tabPlaces.set(key, { top: Math.max(0, Math.round(scrollTop)), anchor: anchor || '' });
     while (tabPlaces.size > FOLDER_SCROLL_POSITION_LIMIT) {
       tabPlaces.delete(tabPlaces.keys().next().value);
     }
   };
 
-  const tabPlace = (key) => tabPlaces.get(key) ?? 0;
+  const tabPlace = (key) => tabPlaces.get(key)?.top ?? 0;
+
+  /** The row that was at the top of it, if the tab said which. */
+  const tabAnchor = (key) => tabPlaces.get(key)?.anchor ?? '';
 
   /**
    * Whether this tab has a place in this folder at all, which is not the same
@@ -158,6 +165,7 @@ export const useFolderScrollStore = defineStore('folderScroll', () => {
   return {
     rememberTabPlace,
     tabPlace,
+    tabAnchor,
     hasTabPlace,
     forgetTabPlace,
     remember,

@@ -93,8 +93,60 @@ vi.mock('@/stores/operationTasks', async () => {
 });
 // The tab this listing is in, which is half the key its place is remembered
 // under: two tabs can be on one folder and be in different places in it.
-const appTabs = vi.hoisted(() => ({ activeId: 'tab-1', takeBroughtForward: vi.fn(() => false) }));
+/** What kind of place the pane's address names — a folder, unless a test says so. */
+const addressKind = vi.hoisted(() => ({ value: 'folder' }));
+vi.mock('@/config/tabKinds', async (importOriginal) => ({
+  ...(await importOriginal()),
+  tabKindForPath: () => ({ id: addressKind.value }),
+}));
+
+const appTabs = vi.hoisted(() => ({
+  activeId: 'tab-1',
+  // Which tab the pane draws, when that is not the one in front.
+  paneId: '',
+  // The tabs drawn right now: one of them, or the two halves of a pair. What says
+  // whether this listing is on screen at all, which is not the same question as
+  // whether the reader is in it.
+  panes: ['tab-1'],
+  takeBroughtForward: vi.fn(() => false),
+}));
 vi.mock('@/stores/tabs', () => ({ useTabsStore: () => appTabs }));
+
+/**
+ * The pane this view is drawing, which is where it now reads its place from.
+ *
+ * Composed from the same stand-ins the tests already drive: the folder on screen
+ * is `stores.file`, and where the pane is comes from the route — so every
+ * assertion below still states its situation the way it did, and still asserts
+ * the same thing. What the pane itself decides is held in
+ * `composables/paneTab.spec.js`; what is exercised here is this view.
+ */
+vi.mock('@/composables/paneTab', async () => {
+  const { computed } = await import('vue');
+  const file = await shared.make('file');
+  const route = await shared.make('route', { params: { path: 'Docs' }, query: {} });
+  const folderPath = computed(() => String(route.params?.path || ''));
+  const address = computed(() => {
+    const select = route.query?.select;
+    const query = typeof select === 'string' ? `?select=${encodeURIComponent(select)}` : '';
+    return `/browse/${folderPath.value}${query}`;
+  });
+  return {
+    usePaneFolder: () => ({
+      tabId: computed(() => appTabs.paneId || appTabs.activeId),
+      folder: computed(() => file),
+      address,
+      folderPath,
+      view: file,
+      items: computed(() => file.getCurrentPathItems),
+      // Whether the reader is in this pane, which is what makes it act: with one
+      // pane that is always true, and in a pair it is true of one of the two.
+      focused: computed(() => (appTabs.paneId || appTabs.activeId) === appTabs.activeId),
+    }),
+    usePaneTabId: () => computed(() => appTabs.paneId || appTabs.activeId),
+    providePaneTab: () => {},
+  };
+});
 
 const composables = vi.hoisted(() => ({
   clearSelection: vi.fn(),
@@ -273,15 +325,21 @@ beforeEach(() => {
     consumeRestoreState: vi.fn(() => ({ permitted: false, scrollTop: 0, activeItemKey: '' })),
     rememberTabPlace: vi.fn(),
     tabPlace: vi.fn(() => 0),
-    // Whether this tab has a place in this folder at all, which the number cannot
-    // say: nought is where the top is.
+    // Whether this tab has a place in this folder at all, which is a different
+    // question from where it is: the top is an answer, and as a number it is zero.
     hasTabPlace: vi.fn(() => false),
+    // The row the reader was on, which is what a place in a folder really is: a
+    // pane that comes back a different width has re-flowed under the same pixels.
+    tabAnchor: vi.fn(() => ''),
     // The folder's own memory, which a tab coming back falls back to: it is what
     // a walk back up the path reads, and it has been putting readers back where
     // they were since long before tabs existed.
     get: vi.fn(() => 0),
   });
   appTabs.activeId = 'tab-1';
+  appTabs.paneId = '';
+  appTabs.panes = ['tab-1'];
+  addressKind.value = 'folder';
   appTabs.takeBroughtForward.mockClear();
   appTabs.takeBroughtForward.mockReturnValue(false);
   Object.assign(stores.operationTasks, { operationCount: 0 });
@@ -371,19 +429,6 @@ describe('the item a search result asked us to land on', () => {
 describe('coming back to a folder', () => {
   beforeEach(() => {
     stores.file.items = [file('a.txt'), file('b.txt'), file('c.txt')];
-  });
-
-  /**
-   * And it asks for the return promised to its own tab.
-   *
-   * The permission is the folder's, like the memory behind it, so whichever tab was
-   * drawn first consumed the one another tab had been promised — and was put where
-   * that other reader had been.
-   */
-  it('asks for the return that was promised to its own tab', async () => {
-    await mountFolder();
-
-    expect(stores.folderScroll.consumeRestoreState).toHaveBeenCalledWith('Docs::list', 'tab-1');
   });
 
   it('puts the keyboard back on the item it was left on', async () => {
@@ -486,6 +531,71 @@ describe('coming back to a folder', () => {
     wrapper = null;
 
     expect(stores.folderScroll.remember).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The keyboard belongs to the pane the reader is in.
+ *
+ * Every listing listens to the *window* for its keys, because a folder has no
+ * focus of its own to hang them on. With two panes that is two listeners, and both
+ * of them acted: pressing Enter in the half the reader was in opened the file
+ * chosen in the half they were not — measured in a browser, the reader's own half
+ * became an editor on the neighbour's file.
+ */
+/**
+ * A listing drawn for an address that is not a folder's.
+ *
+ * A pane can be handed another tab, and that tab may hold a file: for the tick
+ * before that tab's own screen replaces this one, this listing's address is the
+ * file's. Reading it asks the server to list a file as a folder — `ENOTDIR: not a
+ * directory`, a 500, and nothing on screen to explain it.
+ */
+describe('an address that is not a folder', () => {
+  it('reads nothing at all', async () => {
+    const route = await shared.make('route');
+    route.params.path = 'Docs/notes.ps1';
+    addressKind.value = 'editor';
+
+    await mountFolder();
+
+    expect(stores.file.fetchPathItems).not.toHaveBeenCalled();
+  });
+});
+
+describe('a pane the reader is not in', () => {
+  const pressIn = async (key) => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+    await flushPromises();
+  };
+
+  beforeEach(() => {
+    stores.file.items = [file('a.txt'), file('b.txt'), file('c.txt')];
+  });
+
+  it('does nothing when a key is pressed', async () => {
+    appTabs.activeId = 'tab-1';
+    appTabs.paneId = 'tab-9';
+    const view = await mountFolder();
+    stores.file.selectedItems = [file('b.txt')];
+
+    await pressIn('Enter');
+    await pressIn('ArrowDown');
+
+    expect(composables.openItem).not.toHaveBeenCalled();
+    expect(view.keyboardActiveItemKey).toBe('');
+  });
+
+  it('acts when the reader is in it', async () => {
+    appTabs.activeId = 'tab-9';
+    appTabs.paneId = 'tab-9';
+    const view = await mountFolder();
+    stores.file.selectedItems = [file('b.txt')];
+
+    await pressIn('Enter');
+
+    expect(composables.openItem).toHaveBeenCalled();
+    expect(view).toBeTruthy();
   });
 });
 
@@ -1350,6 +1460,23 @@ describe('a folder tab coming back', () => {
     expect(stores.file.fetchPathItems).not.toHaveBeenCalledWith('Docs');
   });
 
+  /**
+   * And it asks about its *own* tab.
+   *
+   * A pane beside the reader draws a tab that does not have focus, so a view
+   * that asked "was the tab in front just brought forward" asked about somebody
+   * else's tab — and would have thrown away the listing of a pane nobody had
+   * touched, or kept a stale one for the pane they had.
+   */
+  it('asks about its own pane tab, not the one in front', async () => {
+    appTabs.paneId = 'tab-beside';
+
+    await mountFolder();
+
+    expect(appTabs.takeBroughtForward).toHaveBeenCalledWith('tab-beside');
+    expect(appTabs.takeBroughtForward).not.toHaveBeenCalledWith('tab-1');
+  });
+
   it('asks for it again quietly, under whatever was on screen', async () => {
     await mountFolder();
 
@@ -1370,7 +1497,7 @@ describe('a folder tab coming back', () => {
    * which is what they were told would happen.
    */
   it('falls back to where the folder was when the tab has no place of its own', async () => {
-    stores.folderScroll.hasTabPlace.mockReturnValue(false);
+    stores.folderScroll.tabPlace.mockReturnValue(0);
     stores.folderScroll.get = vi.fn(() => 540);
 
     await mountFolder();
@@ -1392,11 +1519,11 @@ describe('a folder tab coming back', () => {
   /**
    * And the top is one of those places.
    *
-   * Asked as a number, a tab sitting at the top answers nought — which reads as no
+   * Asked as a number, a tab sitting at the top answers zero — which reads as no
    * answer, and the folder's own memory was taken instead. That memory is shared by
-   * every tab on the folder: two tabs on one, the first scrolled to the bottom and
-   * left there, and the second came back down beside it from the top it had never
-   * left.
+   * every tab on the folder: three tabs on one, one of them scrolled to the bottom
+   * to open a document there, and the other two came back down beside it, hundreds
+   * of pixels from where their own readers had left them.
    */
   it('comes back to the top when that is where the tab was', async () => {
     stores.folderScroll.hasTabPlace.mockReturnValue(true);
@@ -1488,6 +1615,7 @@ describe('a folder tab coming back', () => {
 
     // Another tab comes forward, and the listing is clamped to what is left.
     appTabs.activeId = 'tab-9';
+    appTabs.panes = ['tab-9'];
     listing.scrollTop = 212;
     listing.dispatchEvent(new Event('scroll'));
     await flushPromises();
@@ -1513,6 +1641,43 @@ describe('a folder tab coming back', () => {
     wrapper = null;
 
     expect(stores.folderScroll.remember).not.toHaveBeenCalled();
+  });
+
+  /**
+   * But the half beside the reader writes down where it is, because it is on screen.
+   *
+   * The question this guard asks had been "is my tab the one in front", which is
+   * the same question as "am I on screen" only while there is one pane. In a pair
+   * the half the reader is not in never wrote down anything — so coming back to the
+   * pair it had no place of its own and fell back to the folder's, which is shared
+   * by every tab on that folder: it landed where another tab had been left, several
+   * hundred pixels from where its own reader had left it.
+   */
+  it('writes down where the half beside the reader is', async () => {
+    appTabs.paneId = 'tab-9';
+    appTabs.panes = ['tab-1', 'tab-9'];
+    await mountFolder();
+    const listing = wrapper.find('.upload-drop-target').element;
+    Object.defineProperty(listing, 'scrollHeight', { value: 4000, configurable: true });
+    Object.defineProperty(listing, 'clientHeight', { value: 800, configurable: true });
+    stores.folderScroll.remember.mockClear();
+    stores.folderScroll.rememberTabPlace.mockClear();
+
+    listing.scrollTop = 1355;
+    listing.dispatchEvent(new Event('scroll'));
+    await flushPromises();
+
+    // Its own place above all, which is what makes two tabs on one folder two
+    // places; the folder's own is written as well, as it always was.
+    // With the row that was at the top of it, which jsdom lays out nowhere — so
+    // there is none to name here. That it is the row rather than the number that
+    // puts a reader back is asked in a browser, where a listing has a height.
+    expect(stores.folderScroll.rememberTabPlace).toHaveBeenCalledWith(
+      'tab-9::Docs::list',
+      1355,
+      ''
+    );
+    expect(stores.folderScroll.remember).toHaveBeenCalledWith('Docs::list', 1355);
   });
 
   /**

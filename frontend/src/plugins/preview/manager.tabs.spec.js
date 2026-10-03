@@ -319,6 +319,56 @@ describe('a tab whose viewer is still being built', () => {
     }
   });
 
+  /**
+   * The wait is for *this* document, in this tab — and it is over when the tab
+   * stops showing it, whether or not a viewer ever arrived.
+   *
+   * A document closed before its editor had answered left the wait standing: the
+   * viewer that was going to report itself ready had been taken off the screen, so
+   * the only thing left to end the wait was the patience running out. Three
+   * quarters of a minute of a tab saying it is working over a tab holding nothing
+   * — and every crossing that closed and re-opened a document added another one.
+   */
+  it('stops saying it when the document it was waiting for is closed', async () => {
+    const { first } = twoTabs();
+    const manager = usePreviewManager();
+    const busy = useTabLoadingStore();
+    manager.register(reporting());
+
+    manager.openIn(first, REPORT);
+    await nextTick();
+    expect(busy.isLoading(first)).toBe(true);
+
+    await manager.closeIn(first);
+    await nextTick();
+
+    expect(busy.isLoading(first)).toBe(false);
+  });
+
+  /**
+   * And when another document takes its place, what is still being waited for is
+   * the new one. Both waits standing at once, only one of them ever answered, is
+   * the same spinner by another road.
+   */
+  it('waits for the document that took its place, and not for both', async () => {
+    const { first } = twoTabs();
+    const manager = usePreviewManager();
+    const busy = useTabLoadingStore();
+    manager.register(reporting());
+
+    manager.openIn(first, REPORT);
+    await nextTick();
+    manager.openIn(first, SHEET);
+    await nextTick();
+    expect(busy.isLoading(first)).toBe(true);
+
+    // The one that is actually on screen says it is there.
+    manager.itemIn(first).previewState.isReady = true;
+    await nextTick();
+
+    expect(busy.isLoading(first)).toBe(false);
+  });
+
   /** Asked for what is already there: nothing was built, so nothing is waited for. */
   it('says nothing again for a document that tab already shows', async () => {
     const { first } = twoTabs();

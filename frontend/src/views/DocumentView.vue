@@ -1,4 +1,5 @@
 <script setup>
+import { usePaneRoute, usePaneTabId } from '@/composables/paneTab';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -11,6 +12,7 @@ import { useFileStore } from '@/stores/fileStore';
 import { folderRoute } from '@/utils/folderRoute';
 import { useTabNavigation } from '@/composables/tabNavigation';
 import { isEditableExtension } from '@/config/editor';
+import { tabKindForPath } from '@/config/tabKinds';
 
 /**
  * One document, at an address of its own.
@@ -34,7 +36,13 @@ import { isEditableExtension } from '@/config/editor';
  *   says when it is over.
  */
 
-const route = useRoute();
+const route = usePaneRoute();
+/**
+ * And where the *window* is, which is not where this page is whenever this page
+ * is the half beside the reader. Read on the way out, and only then — see the
+ * unmount hook, which is the one question an address alone can answer.
+ */
+const windowAddress = useRoute();
 const router = useRouter();
 const { t } = useI18n();
 const previewManager = usePreviewManager();
@@ -78,12 +86,35 @@ const tabs = tabNavigation.tabs;
  * So it is re-read whenever the address changes, which is the only moment it can
  * change hands. Never in between: read on the way out it would already name
  * whichever tab had come forward, and the session ended would be somebody else's.
+ *
+ * And it is the tab of the *pane* this page is drawn in, which is the tab in front
+ * only when there is one pane. In a pair this page can be the half beside the
+ * reader — a document next to a folder — and "the tab in front" is then the
+ * neighbour: the document was opened into the neighbour's session and drawn over
+ * the neighbour's half of the window.
  */
-const tabKey = ref(tabs.activeId);
+const paneTabId = usePaneTabId();
+const tabKey = ref(paneTabId.value);
 
-/** Back where closing the panel would have left you. */
+/**
+ * The address this page is drawing, kept so that leaving can be told from being
+ * taken off screen.
+ */
+const shownAddress = ref(route.fullPath);
+
+/**
+ * Back where closing the panel would have left you — in this page's own half.
+ *
+ * The window when this page's tab is the one in front, and that tab alone when it
+ * is not: a document closed in the half beside the reader used to send the *window*
+ * to the folder, which took the reader's own half there and left this one on an
+ * address with nothing behind it. A black panel with a tab still on it.
+ */
 const leave = () => {
-  router.replace(folderRoute(parentPath.value, name.value ? { select: name.value } : undefined));
+  tabNavigation.leaveFrom(
+    tabKey.value,
+    folderRoute(parentPath.value, name.value ? { select: name.value } : undefined)
+  );
 };
 
 /**
@@ -122,13 +153,16 @@ const CLOSE_REFUSED_AFTER_MS = 150;
 const tabIsThisDocument = () => window.history.length === 1;
 
 const closeTabOrLeave = async () => {
-  // In one of this application's own tabs, the thing to close is that tab. The
-  // rule itself is in `tabNavigation`, because the text editor's cross means
-  // exactly the same thing and a rule kept in two places is a rule that will
+  // In one of this application's own tabs, the thing to close is that tab — this
+  // page's own, which is not the tab in front when this page is the half beside the
+  // reader. The rule itself is in `tabNavigation`, because the text editor's cross
+  // means exactly the same thing and a rule kept in two places is a rule that will
   // disagree with itself.
-  if (await tabNavigation.closeOwn()) return;
+  if (await tabNavigation.closeOwn(tabKey.value)) return;
 
-  if (!tabIsThisDocument()) {
+  // And a half is not the browser's window: closing the window because a document
+  // in one of two panes was closed would take the other half with it.
+  if (tabs.activeId !== tabKey.value || !tabIsThisDocument()) {
     leave();
     return;
   }
@@ -165,7 +199,15 @@ const openDocument = async () => {
   // works here exactly as it does over the listing — the plugins read the
   // siblings from the file store. Best effort: a folder that cannot be listed
   // costs the arrows, not the document.
-  void fileStore.fetchPathItems(parentPath.value, { preserveInteraction: true }).catch(() => {});
+  //
+  // Into *this page's own tab*, not into whichever is in front. This is the one
+  // place a document page writes a listing, and it does it after an await: by the
+  // time it lands, the reader may have gone back to the folder tab it was opened
+  // from — and that tab's listing was then replaced by this folder's parent, under
+  // whatever was selected in it, at wherever the reader was in it.
+  void fileStore
+    .fetchIn(tabKey.value, parentPath.value, { preserveInteraction: true })
+    .catch(() => {});
 
   // Waited for, because the editors register once the server has said they are
   // configured. Asking before that would answer "nothing opens this" about a
@@ -207,7 +249,7 @@ watch(
     // document I was showing has gone" and sent the reader to a folder.
     if (key !== wasKey) return;
     if (!wasOpen || open) return;
-    if (tabs.activeId !== key) return;
+    if (paneTabId.value !== key) return;
     closeTabOrLeave();
   }
 );
@@ -222,14 +264,32 @@ onBeforeUnmount(() => {
   // It is not, when another tab simply came forward: this page goes, the tab
   // stays on its document, and the document goes on living in the manager —
   // which is what makes coming back to the tab instant rather than a fresh
-  // ONLYOFFICE connection. It is, when this tab is still the one in front, which
-  // means the address changed underneath it and the document is not what this
-  // tab holds any more.
+  // ONLYOFFICE connection. It is, when the address changed underneath this page
+  // and the document is not what its tab holds any more.
   //
   // And when the tab itself has gone there is nothing to do: the manager ended
   // the session the moment the tab did, beacon and all.
   if (!tabs.tabs.some((entry) => entry.id === tabKey.value)) return;
+
+  // Only a tab in front can have been navigated — the window has one address, and
+  // it belongs to the tab the reader is in. So a page speaking for any other tab
+  // is a page being taken off screen, whatever took it: another tab coming
+  // forward, or the half it was drawn in being removed from the window.
+  //
+  // Deliberately `activeId` and not this pane's own tab, which is what it asked
+  // until now. Inside a pane that question answers itself — a pane always names
+  // its own tab, and a pane destroyed still names it on the way out, props and
+  // all. So the guard never guarded, and the half beside the reader ended its
+  // document every time the pair went off the window.
   if (tabs.activeId !== tabKey.value) return;
+
+  // And a tab in front may be in front *because the reader just crossed into this
+  // half*: its address did not change, the pane simply redrew this page as the
+  // router's own screen. The window's address says which of the two it was — the
+  // router's own, already changed by the time anything is unmounted, rather than
+  // what the tab has been told since.
+  if (windowAddress.fullPath === shownAddress.value) return;
+
   if (previewManager.isOpenIn(tabKey.value)) void previewManager.closeIn(tabKey.value);
 });
 
@@ -243,8 +303,19 @@ onBeforeUnmount(() => {
  */
 watch(
   () => route.fullPath,
-  () => {
-    tabKey.value = tabs.activeId;
+  (address) => {
+    // Only for an address this page is the screen for.
+    //
+    // A pane can be given another tab, and that tab need not hold a document at
+    // all — the pair this page was drawn in is handed a folder, and this page's
+    // own address becomes that folder's for the tick before the folder's screen
+    // replaces it. Speaking for it then was expensive: the folder was opened as
+    // though it were a document, and the folder *behind* it — its parent — was
+    // read into the reader's own tab, over the listing they were in, taking their
+    // selection and their place in it with it.
+    if (tabKindForPath(address)?.id !== 'document') return;
+    tabKey.value = paneTabId.value;
+    shownAddress.value = address;
     void openDocument();
   }
 );

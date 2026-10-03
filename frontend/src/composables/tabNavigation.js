@@ -177,6 +177,24 @@ export function useTabNavigation() {
   const activate = (id) => go(tabs.activate(id));
 
   /**
+   * A pane given another tab, and the window's address taken along.
+   *
+   * Taking a pane over can move the reader — the half they were in is the one that
+   * was replaced — and the address belongs to the tab they are in. Without this the
+   * window stayed on the address of a tab that was nobody's half any more, and the
+   * pane the reader was in drew *that* place rather than its own: dropping a tab
+   * into one half turned the other half into a folder it had nothing to do with.
+   */
+  const showInPane = (side, id) => {
+    const made = tabs.showInPane(side, id);
+    if (made) go(tabs.tabs.find((one) => one.id === tabs.activeId));
+    return made;
+  };
+
+  /** The cross on a pane: the reader is left in the half that stays. */
+  const closePane = (side) => go(tabs.closePane(side));
+
+  /**
    * Open an address in a tab.
    *
    * `behind` is the middle-button gesture: the tab is made and the reader is left
@@ -251,9 +269,14 @@ export function useTabNavigation() {
    * while somebody was browsing (`own` stops being true the moment it is), and the
    * last tab, because there would be nowhere left to be.
    */
-  const closeOwn = async () => {
+  const closeOwn = async (id) => {
     if (!tabs.enabled) return false;
-    const tab = tabs.activeTab;
+    // The tab the screen pressing this speaks for, which is the tab in front only
+    // when there is one pane. A document or an editor drawn in the half beside the
+    // reader was closing *their* tab instead of its own — the wrong half went, and
+    // the half the cross was pressed in stayed on an address with nothing left to
+    // draw, which is the black panel.
+    const tab = id ? tabs.tabs.find((one) => one.id === id) : tabs.activeTab;
     if (!tab?.own || !tabs.canClose) return false;
     // Awaited rather than let go of: the answer is what decides whether the tab is
     // still there, and a caller told "yes, this was your tab" while the question was
@@ -262,8 +285,41 @@ export function useTabNavigation() {
     return true;
   };
 
+  /**
+   * Where a screen goes when it has finished with itself — its own half, not the
+   * window.
+   *
+   * A screen drawn in the pane beside the reader is not the address bar: sending the
+   * window somewhere takes the reader's own half there and leaves this one showing
+   * an address nothing draws. So the tab this screen speaks for is retargeted, and
+   * the pane redraws from the address it now has.
+   *
+   * `replace` by default, because a screen that has closed itself is not a place to
+   * come back to.
+   */
+  const leaveFrom = (id, location, { replace = true } = {}) => {
+    if (!id || id === tabs.activeId) {
+      return replace ? router.replace(location) : router.push(location);
+    }
+    const resolved = router.resolve(location);
+    return tabs.retarget(id, resolved.fullPath);
+  };
+
   /** Whether the strip belongs on screen at all: the mode, and a place to be. */
   const visible = computed(() => tabs.enabled && Boolean(tabKindForPath(route.fullPath)));
 
-  return { tabs, visible, activate, open, openHome, close, closeOthers, closeAll, closeOwn };
+  return {
+    tabs,
+    visible,
+    activate,
+    showInPane,
+    closePane,
+    open,
+    openHome,
+    close,
+    closeOthers,
+    closeAll,
+    closeOwn,
+    leaveFrom,
+  };
 }

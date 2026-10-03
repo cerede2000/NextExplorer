@@ -1,6 +1,10 @@
 import { ref } from 'vue';
-import { mount, flushPromises } from '@vue/test-utils';
+import { config, mount, flushPromises } from '@vue/test-utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createPinia, setActivePinia } from 'pinia';
+
+// The catalogue is mocked away below, and with it the `$t` the plugin installs.
+config.global.mocks = { ...config.global.mocks, $t: (key) => key };
 
 const configError = ref(null);
 const dismissConfigWarning = vi.fn(() => {
@@ -40,6 +44,18 @@ vi.mock('@/composables/useAccountLanguage', () => ({
 const tabRouteSync = vi.fn();
 vi.mock('@/composables/tabNavigation', () => ({
   useTabRouteSync: () => tabRouteSync(),
+  // Reached by what the chrome draws; the gestures it carries are held in its
+  // own place.
+  useTabNavigation: () => ({
+    tabs: appTabs,
+    visible: { value: false },
+    activate: vi.fn(),
+    open: vi.fn(),
+    openHome: vi.fn(),
+    close: vi.fn(),
+    closeOthers: vi.fn(),
+    closeAll: vi.fn(),
+  }),
 }));
 
 vi.mock('@/components/TabStrip.vue', () => ({
@@ -57,7 +73,12 @@ const previewHost = vi.fn();
  * layout was destroyed whenever the reader crossed between them, and an unmounted
  * terminal is a killed shell.
  */
-const terminals = vi.hoisted(() => ({ terminalEnabled: false, openIds: [] }));
+const terminals = vi.hoisted(() => ({
+  terminalEnabled: false,
+  openIds: [],
+  // Asked by whatever the chrome reaches for; this spec says nothing about it.
+  ensureLoaded: () => Promise.resolve(),
+}));
 vi.mock('@/stores/features', () => ({ useFeaturesStore: () => terminals }));
 vi.mock('@/stores/terminal', () => ({ useTerminalStore: () => terminals }));
 // Marked as a module so Vue's async resolution reads it as one rather than asking the
@@ -92,10 +113,96 @@ vi.mock('@/components/ConfigErrorScreen.vue', () => ({
   },
 }));
 
+/**
+ * The window's own chrome, which the shell now draws: the sidebar, the bar above
+ * a pane, the panes themselves and the dialogs that belong to the window rather
+ * than to a page. All stubbed — each is held in its own place, and what this
+ * spec is about is that the shell asks for the singletons once.
+ */
+const chrome = [
+  'WindowSidebar',
+  'WindowBar',
+  'TabPane',
+  'ExplorerContextMenu',
+  'ClipboardProgress',
+  'InfoPanel',
+  'VersionsPanel',
+  'SpotlightSearch',
+  'FavoriteEditDialog',
+  'DestinationPickerDialog',
+  'OnlyOfficeTransferConfirm',
+  'SeparateDownloadConfirm',
+  'NotificationToastContainer',
+  'NotificationPanel',
+];
+// Stubbed by name rather than by module, because `vi.mock` is hoisted to the top
+// of the file and a loop of them never sees the loop variable.
+config.global.stubs = Object.fromEntries(
+  chrome.map((name) => [name, { name, template: `<div data-test="${name}-stub"><slot /></div>` }])
+);
+
+vi.mock('vue-router', () => ({
+  // Traversed rather than swallowed: the shell draws the window's chrome inside
+  // this slot, so a stub that rendered nothing would hide everything below it.
+  RouterView: {
+    template:
+      '<div data-test="router-view"><slot :Component="null" :route="{ fullPath: \'/browse/\' }" /></div>',
+  },
+  useRoute: () => ({ path: '/browse/', fullPath: '/browse/', params: {}, query: {} }),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), resolve: () => ({ matched: [] }) }),
+  // Mocking a router means mocking what builds one: the application's own router
+  // module is pulled in by what the chrome reaches for.
+  createRouter: () => ({ beforeEach: vi.fn(), afterEach: vi.fn(), resolve: vi.fn() }),
+  createWebHistory: () => ({}),
+  RouterLink: { template: '<a><slot /></a>' },
+  onBeforeRouteLeave: vi.fn(),
+}));
+
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({ t: (key) => key, te: () => false }),
+  // Mocking the catalogue means mocking what builds it: the chrome below pulls in
+  // the module that does.
+  createI18n: () => ({ install: () => {}, global: { t: (key) => key } }),
+}));
+
+// The panes come from the tabs store; one tab, one pane, which is what a window
+// with nothing arranged looks like.
+const appTabs = vi.hoisted(() => ({
+  tabs: [{ id: 'tab-1', kind: 'folder', path: '/browse/' }],
+  activeId: 'tab-1',
+  panes: ['tab-1'],
+  isSplit: false,
+}));
+vi.mock('@/stores/tabs', () => ({ useTabsStore: () => appTabs }));
+vi.mock('@/stores/appSettings', () => ({
+  useAppSettings: () => ({
+    state: { branding: { appName: 'nextExplorer', appLogoUrl: '', showPoweredBy: false } },
+    userSettings: {},
+  }),
+}));
+vi.mock('@/stores/fileStore', () => ({ useFileStore: () => ({ currentPathData: null }) }));
+vi.mock('@/composables/sidebar', () => ({
+  useSidebar: () => ({
+    width: { value: 230 },
+    isOpen: { value: false },
+    isDesktop: { value: true },
+    open: vi.fn(),
+    close: vi.fn(),
+    toggle: vi.fn(),
+    onResizeStart: vi.fn(),
+  }),
+}));
+vi.mock('@/composables/fileUploader', () => ({ useFileUploader: vi.fn() }));
+vi.mock('@/composables/keyboardShortcuts', () => ({ useKeyboardShortcuts: vi.fn() }));
+vi.mock('@/composables/usePageTitle', () => ({ usePageTitle: vi.fn() }));
+
 import App from '@/App.vue';
 
 describe('App config error handling', () => {
   beforeEach(() => {
+    // The shell reaches for stores of its own now — the panes, the branding, the
+    // folder a page title is made from.
+    setActivePinia(createPinia());
     configError.value = null;
     dismissConfigWarning.mockClear();
     accountLanguage.mockClear();
@@ -186,19 +293,14 @@ describe('App config error handling', () => {
       requestOrigin: 'https://alt.example.com',
     };
 
-    const wrapper = mount(App, {
-      global: {
-        stubs: {
-          RouterView: {
-            template: '<div data-test="router-view">router content</div>',
-          },
-        },
-      },
-    });
+    const wrapper = mount(App);
 
     await flushPromises();
 
+    // What is behind the warning is still drawn: the window's chrome, with a pane
+    // in it. A blocking error replaces all of that; a mismatch only says so.
     expect(wrapper.find('[data-test="router-view"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="TabPane-stub"]').exists()).toBe(true);
     expect(wrapper.text()).toContain('PUBLIC_URL warning');
 
     await wrapper.get('button[aria-label="Dismiss warning"]').trigger('click');

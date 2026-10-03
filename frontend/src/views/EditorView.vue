@@ -193,8 +193,9 @@
 </template>
 
 <script setup>
+import { usePaneRoute, usePaneTabId } from '@/composables/paneTab';
 import { ref, shallowRef, watch, computed, nextTick, onBeforeUnmount } from 'vue';
-import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
+import { onBeforeRouteLeave, useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { Compartment, EditorState } from '@codemirror/state';
 import CodeSurface from '@/components/editor/CodeSurface.vue';
@@ -225,13 +226,19 @@ import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import { usePageTitle } from '@/composables/usePageTitle';
 import { fileTitleFor } from '@/utils/pageTitle';
 import { useTabNavigation } from '@/composables/tabNavigation';
+import { tabKindForPath } from '@/config/tabKinds';
 import { useAsk } from '@/composables/useAsk';
 import { useEditorDraftsStore } from '@/stores/editorDrafts';
 import { useTabLoadingStore } from '@/stores/tabLoading';
 
-const route = useRoute();
-const router = useRouter();
+const route = usePaneRoute();
 const tabNavigation = useTabNavigation();
+/**
+ * Where the *window* is, which is where this page's tab is only while that tab is
+ * the one in front. Read on the way out, to tell an address that changed under
+ * this page from a page being taken off screen.
+ */
+const windowAddress = useRoute();
 const { ask } = useAsk();
 const tabs = tabNavigation.tabs;
 const drafts = useEditorDraftsStore();
@@ -248,8 +255,14 @@ const drafts = useEditorDraftsStore();
  *
  * So it changes hands when the address does, and only then: read on the way out it
  * would already name whichever tab had come forward.
+ *
+ * And it is the tab of the *pane* this page is drawn in, which is the tab in front
+ * only when there is one pane. In a pair this page can be the half beside the
+ * reader — a file open next to a folder — and "the tab in front" is then the
+ * neighbour, so what had been typed here was kept for the neighbour.
  */
-const tabKey = ref(tabs.activeId);
+const paneTabId = usePaneTabId();
+const tabKey = ref(paneTabId.value);
 const tabLoading = useTabLoadingStore();
 
 /**
@@ -485,9 +498,19 @@ const placeNow = () => ({
 const handOver = (key, address) => {
   // Gone with its tab: nothing to hold it for.
   if (!key || !tabs.tabs.some((entry) => entry.id === key)) return;
-  // Still the tab in front, so the address changed underneath it: this file is
-  // not what the tab is on any more.
-  if (tabs.activeId === key) {
+
+  // Whether the address changed under this page, or the page is simply going.
+  //
+  // Only the tab in front can have been navigated: the window has one address and
+  // it belongs to the tab the reader is in. So a page speaking for any other tab
+  // is a page being taken off screen, and what its tab was holding is worth
+  // keeping. It used to ask whether it was still the tab of its own pane, which a
+  // pane always answers yes to — a destroyed one included, props and all. The half
+  // on the right of a pair is destroyed when the pair leaves the window, so it
+  // threw away where its reader was every time, and came back at the top of the
+  // file while the half on the left came back where it had been left.
+  const navigatedAway = key === tabs.activeId && windowAddress.fullPath !== address;
+  if (navigatedAway) {
     drafts.forget(key);
     return;
   }
@@ -508,8 +531,9 @@ onBeforeUnmount(() => handOver(tabKey.value, shownAddress.value));
 watch(
   () => route.fullPath,
   () => {
+    if (!isOurs()) return;
     handOver(tabKey.value, shownAddress.value);
-    tabKey.value = tabs.activeId;
+    tabKey.value = paneTabId.value;
   }
 );
 
@@ -562,7 +586,20 @@ const checkFileQuietly = async (requestPath) => {
 };
 
 // Operations
+/**
+ * Whether the address this page is on is still one it is the screen for.
+ *
+ * A pane can be handed another tab, and that tab need not hold a file at all — the
+ * pair this page is drawn in is given a folder, and for the tick before the
+ * folder's own screen replaces this one, this page's address *is* that folder's.
+ * Reading it would ask the server for a folder as though it were a file, and would
+ * take what this page was holding for its own tab and hand it to the folder's.
+ */
+const SCREEN_FOR = ['editor', 'trash', 'versions'];
+const isOurs = () => SCREEN_FOR.includes(tabKindForPath(route.fullPath)?.id);
+
 const loadFile = async () => {
+  if (!isOurs()) return;
   const requestPath = route.fullPath;
   const path = normalizedPath.value;
 
@@ -747,7 +784,7 @@ const requestClose = async () => {
   // `tabNavigation`. A `.txt` and a `.md` come here rather than to the preview,
   // so without this the cross of half the documents a reader opens in a tab left
   // that tab sitting on a folder.
-  if (await tabNavigation.closeOwn()) return;
+  if (await tabNavigation.closeOwn(tabKey.value)) return;
 
   // A tab opened for this file alone is closed rather than sent somewhere: the
   // preference that opens documents in their own tab sends editable files here
@@ -758,7 +795,9 @@ const requestClose = async () => {
   // "created by web content", and closing that because they shut a file would
   // take the rest of their session with it. Closing is asynchronous, so the
   // ordinary way out still runs if the browser refuses.
-  if (window.history.length === 1) {
+  // And a half of a split window is not the browser's window: closing it because
+  // the file in one pane was closed would take the other pane with it.
+  if (tabKey.value === tabs.activeId && window.history.length === 1) {
     window.close();
     setTimeout(() => {
       if (!window.closed) leaveTheOrdinaryWay();
@@ -772,9 +811,19 @@ const requestClose = async () => {
 const CLOSE_REFUSED_AFTER_MS = 150;
 
 /** Where closing lands when this tab has somewhere to go back to. */
+/**
+ * Out of here, in this page's own half.
+ *
+ * Every one of these used to send the *window*, which is right while there is one
+ * pane and wrong the moment there are two: an editor closed in the half beside the
+ * reader took the reader's own half to a folder and left this one on an address it
+ * no longer draws anything for.
+ */
+const goBackTo = (location) => tabNavigation.leaveFrom(tabKey.value, location);
+
 const leaveTheOrdinaryWay = () => {
   if (isSharedEditor.value) {
-    router.replace(`/share/${encodeURIComponent(sharedToken.value)}`);
+    goBackTo(`/share/${encodeURIComponent(sharedToken.value)}`);
     return;
   }
 
@@ -782,7 +831,7 @@ const leaveTheOrdinaryWay = () => {
     // Back to the folder, with the file's history open where it was read from.
     versionsPanel.openPath(normalizedPath.value);
     const parent = parentFolderPath();
-    router.replace(`/browse${parent ? '/' + parent : ''}`);
+    goBackTo(`/browse${parent ? '/' + parent : ''}`);
     return;
   }
 
@@ -793,12 +842,12 @@ const leaveTheOrdinaryWay = () => {
     const query = {};
     if (trashEntryPath.value) query.item = trashItemId.value;
     if (segments.length) query.path = segments.join('/');
-    router.replace({ name: 'Trash', query });
+    goBackTo({ name: 'Trash', query });
     return;
   }
 
   const parent = parentFolderPath();
-  router.replace(`/browse${parent ? '/' + parent : ''}`);
+  goBackTo(`/browse${parent ? '/' + parent : ''}`);
 };
 
 /**

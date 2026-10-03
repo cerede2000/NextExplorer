@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { defineStore } from 'pinia';
 import { TAB_KINDS_BY_ID, tabKindForPath } from '@/config/tabKinds';
 
@@ -119,6 +119,15 @@ export const useTabsStore = defineStore('tabs', () => {
     }
   };
   const ACTIVE_KEY = 'settings:tabs:active';
+  /**
+   * Which tabs were grouped two at a time, so a pair is still a pair next time.
+   *
+   * Validated rather than trusted on the way back in: a pair naming a tab that
+   * did not come back — closed, or not kept — would be half a screen with
+   * nothing to draw in it, and a tab named by two pairs would be in two places
+   * at once.
+   */
+  const PAIRS_KEY = 'settings:tabs:pairs';
 
   const read = (key, fallback) => {
     try {
@@ -225,6 +234,36 @@ export const useTabsStore = defineStore('tabs', () => {
         : tabs.value[0].id
   );
 
+  /**
+   * Tabs grouped two at a time, drawn side by side.
+   *
+   * A pair belongs to the *tabs*, not to the window, which is what lets several
+   * of them exist at once: the strip holds one entry per pair beside as many
+   * lone tabs as somebody wants, and choosing an entry shows whatever that entry
+   * is. Nothing about a tab changes by being in one — it keeps its own listing,
+   * its own selection, its own trail — so everything already keyed by tab id
+   * stays keyed by tab id, and two tabs drawn at once is the only new idea.
+   *
+   * Declared above everything that reads them: a `const` read before its line
+   * has run throws, and a throw inside a store being created is swallowed whole.
+   */
+  const pairs = ref([]);
+
+  // What was grouped last time, kept only where both halves came back and no tab
+  // is named twice.
+  {
+    const remembered = read(PAIRS_KEY, []);
+    const here = new Set(tabs.value.map((tab) => tab.id));
+    const taken = new Set();
+    pairs.value = (Array.isArray(remembered) ? remembered : []).filter((one) => {
+      if (!one || !here.has(one.left) || !here.has(one.right)) return false;
+      if (one.left === one.right || taken.has(one.left) || taken.has(one.right)) return false;
+      taken.add(one.left);
+      taken.add(one.right);
+      return true;
+    });
+  }
+
   /** Whether this account asked for tabs at all. Set from the settings, not read. */
   const enabled = ref(false);
 
@@ -259,6 +298,7 @@ export const useTabsStore = defineStore('tabs', () => {
       }))
     );
     write(ACTIVE_KEY, activeId.value);
+    write(PAIRS_KEY, pairs.value);
   };
   persist();
 
@@ -275,21 +315,228 @@ export const useTabsStore = defineStore('tabs', () => {
    * store happens to be holding: a store already on a folder is also what somebody
    * walking back up to it, or landing on a search result in it, looks like.
    */
-  const broughtForward = ref('');
+  /**
+   * The tabs just put on screen, which is a pair when the tab activated is in one.
+   *
+   * A list rather than a single tab, and that is the whole of what panes changed
+   * here: both halves of a pair are drawn by the same gesture, and the half the
+   * reader did not activate is not a folder being opened — nobody navigated it. Told
+   * it had not come forward, it read its folder again from the server, which clears
+   * what was selected in it and puts it back at the top, every time the pair is
+   * drawn.
+   */
+  const broughtForward = ref([]);
 
-  /** Whether this tab is the one just brought forward. Asking clears it. */
+  /** Whether this tab is one of those just brought forward. Asking clears it. */
   const takeBroughtForward = (id) => {
-    if (!id || broughtForward.value !== id) return false;
-    broughtForward.value = '';
+    if (!id || !broughtForward.value.includes(id)) return false;
+    broughtForward.value = broughtForward.value.filter((one) => one !== id);
     return true;
   };
 
   const activate = (id) => {
     if (!tabs.value.some((tab) => tab.id === id)) return null;
     activeId.value = id;
-    broughtForward.value = id;
     persist();
     return activeTab.value;
+  };
+
+  /**
+   * Two tabs at once, side by side, with one sidebar.
+   *
+   * Which is what a file manager is for: the folder you are taking things out of
+   * and the folder you are putting them into, both visible, so a copy is a drag
+   * and not a journey. A pair is a *grouping of two tabs* rather than a split of
+   * the window — so there can be as many pairs as there are tabs, with ordinary
+   * tabs beside them, and choosing an entry in the strip simply shows whatever
+   * that entry is.
+   */
+  const pairOf = (id) => pairs.value.find((one) => one.left === id || one.right === id) || null;
+
+  const isPaired = (id) => Boolean(pairOf(id));
+
+  /**
+   * Pairs naming a tab that no longer exists, forgotten.
+   *
+   * Said after the list of tabs has been cut down rather than by each caller: a
+   * pair is about two tabs, and a sweep that takes several of them away at once
+   * cannot know which pairs it broke without looking.
+   */
+  const forgetPairsOfClosedTabs = () => {
+    const here = new Set(tabs.value.map((tab) => tab.id));
+    pairs.value = pairs.value.filter((one) => here.has(one.left) && here.has(one.right));
+  };
+
+  /** The tabs drawn right now: the pair the reader is in, or the tab they are on. */
+  const panes = computed(() => {
+    const pair = pairOf(activeId.value);
+    return pair ? [pair.left, pair.right] : [activeId.value];
+  });
+
+  const isSplit = computed(() => panes.value.length === 2);
+
+  /**
+   * Whatever is drawn right now has just been put on screen.
+   *
+   * Said here rather than by each gesture, because every one of them means the same
+   * thing: bringing a tab forward, grouping two, dropping one into a half, closing
+   * a half, swapping the two over. None of them is anybody navigating — the tab was
+   * already where it is — so the screen that is built for it is a tab coming back,
+   * and reads what that tab already holds instead of the folder again.
+   *
+   * Which is the difference between coming back to a listing and being handed a new
+   * one: the second clears what was selected and puts the reader at the top.
+   */
+  watch(
+    panes,
+    (drawn) => {
+      broughtForward.value = [...drawn];
+    },
+    // The moment the panes change, not the tick after: whoever asks next is a
+    // screen being built for one of them, and a mark that arrives later is a mark
+    // that arrives too late.
+    { flush: 'sync' }
+  );
+
+  /**
+   * Whether the window's own chrome — the sidebar, and the few controls that
+   * belong to the window rather than to what is being looked at — is drawn.
+   *
+   * A single tab of a kind that wants the whole thing, a shell or a document, gets
+   * it: the sidebar's only answer beside a shell is to leave the shell, which is
+   * easy to confuse with a `cd` a keystroke away, and a document opened in its own
+   * tab is the document. Side by side with something else the chrome comes back,
+   * because the other half needs it.
+   *
+   * Asked by the window and by the strip, so it is said once here: the strip now
+   * carries the window's controls at its end, and the two disagreeing would mean a
+   * bell with no sidebar under it or a sidebar nobody can open.
+   */
+  const wantsChrome = computed(() => {
+    if (isSplit.value) return true;
+    const only = tabs.value.find((tab) => tab.id === panes.value[0]);
+    return TAB_KINDS_BY_ID[only?.kind]?.fullTab !== true;
+  });
+
+  /** Which pane a tab is in, or '' for a tab that is not on screen. */
+  const paneOf = (id) => {
+    const pair = pairOf(id);
+    if (!pair) return id === activeId.value ? 'left' : '';
+    if (pairOf(activeId.value) !== pair) return '';
+    return pair.left === id ? 'left' : 'right';
+  };
+
+  /**
+   * Who a tab would be grouped with, asked by the one entry that offers it.
+   *
+   * The tab in front, normally: "show this one beside where I am". And its
+   * neighbour when it *is* the tab in front, because that is the tab somebody
+   * right-clicks first and refusing them was the whole fault of the version
+   * before this — an entry that is always greyed out teaches nothing.
+   */
+  const partnerFor = (id) => {
+    if (id !== activeId.value) return activeId.value;
+    // The nearest tab that is not already in a pair, looked for outwards from
+    // where this one sits. The immediate neighbour is not enough: a lone tab
+    // between two pairs has neighbours that are both spoken for, and greying the
+    // entry out there is the same fault as greying it out on the tab in front —
+    // there *is* a tab to group with, it is simply one further along.
+    const at = tabs.value.findIndex((tab) => tab.id === id);
+    if (at < 0) return '';
+    for (let step = 1; step < tabs.value.length; step += 1) {
+      for (const candidate of [tabs.value[at + step], tabs.value[at - step]]) {
+        if (candidate && candidate.id !== id && !isPaired(candidate.id)) return candidate.id;
+      }
+    }
+    return '';
+  };
+
+  /** Whether this tab can be grouped: one pair each, and two different tabs. */
+  const canPair = (id) => {
+    if (!tabs.value.some((tab) => tab.id === id) || isPaired(id)) return false;
+    const partner = partnerFor(id);
+    return Boolean(partner) && partner !== id && !isPaired(partner);
+  };
+
+  /**
+   * Group this tab with the one it belongs beside.
+   *
+   * The reader's own tab goes on the left and stays there: their place does not
+   * move under them because they asked to see something next to it.
+   */
+  const pair = (id) => {
+    if (!canPair(id)) return null;
+    const partner = partnerFor(id);
+    const mine = id === activeId.value;
+    const made = { left: mine ? id : partner, right: mine ? partner : id };
+    pairs.value = [...pairs.value, made];
+    persist();
+    return made;
+  };
+
+  /** Ungrouped: both are ordinary tabs again, and neither is closed. */
+  const unpair = (id) => {
+    const pair = pairOf(id);
+    if (!pair) return null;
+    pairs.value = pairs.value.filter((one) => one !== pair);
+    persist();
+    return pair;
+  };
+
+  /**
+   * Put a tab in one of the panes on screen, which is what dropping it there
+   * means.
+   *
+   * Whoever was in that pane becomes an ordinary tab again rather than being
+   * closed: the reader moved something in, they did not throw anything away.
+   * A tab already in another pair leaves it, because one pair each is what makes
+   * the strip readable.
+   */
+  const showInPane = (side, id) => {
+    if (!tabs.value.some((tab) => tab.id === id)) return null;
+    const here = pairOf(activeId.value);
+    const keep = here ? (side === 'right' ? here.left : here.right) : activeId.value;
+    if (!keep || keep === id) return null;
+    const made = side === 'right' ? { left: keep, right: id } : { left: id, right: keep };
+    pairs.value = [
+      ...pairs.value.filter((one) => one !== here && one.left !== id && one.right !== id),
+      made,
+    ];
+    // The reader stays in the tab they were in, unless that is the one they just
+    // replaced — then they are in the pane they aimed at.
+    if (activeId.value !== made.left && activeId.value !== made.right) {
+      activeId.value = keep;
+    }
+    persist();
+    return made;
+  };
+
+  /**
+   * Close one pane of the pair on screen, leaving the other.
+   *
+   * What the cross on a pane's own header means, and it has to be said this way
+   * round: the reader is left in the pane that *stays*. Keeping whoever had
+   * focus kept the very pane being shut, because pressing anything in a pane
+   * puts the reader in it first.
+   */
+  const closePane = (side) => {
+    const here = pairOf(activeId.value);
+    if (!here) return null;
+    const staying = side === 'right' ? here.left : here.right;
+    pairs.value = pairs.value.filter((one) => one !== here);
+    persist();
+    return activate(staying);
+  };
+
+  /** The two panes the other way round, which is what a reader asks of a pair. */
+  const swapPanes = () => {
+    const here = pairOf(activeId.value);
+    if (!here) return null;
+    pairs.value = pairs.value.map((one) =>
+      one === here ? { left: here.right, right: here.left } : one
+    );
+    persist();
+    return panes.value;
   };
 
   /**
@@ -436,6 +683,7 @@ export const useTabsStore = defineStore('tabs', () => {
     const kept = tabs.value.filter((tab) => tab.pinned);
     tabs.value = kept.length > 0 ? kept : [makeTab(HOME)];
     activeId.value = tabs.value[0].id;
+    forgetPairsOfClosedTabs();
     persist();
     return activeTab.value;
   };
@@ -454,11 +702,24 @@ export const useTabsStore = defineStore('tabs', () => {
     if (at < 0) return null;
 
     const wasActive = tabs.value[at].id === activeId.value;
+    const was = pairOf(id);
     tabs.value.splice(at, 1);
+    const next = tabs.value[at] || tabs.value[at - 1];
+    // A pair whose tab has gone is not a pair: the other one goes back to being
+    // an ordinary tab rather than being drawn beside a gap. And the reader lands
+    // on it rather than on whatever the row happened to put next, because that is
+    // what they were looking at a moment ago.
+    if (was) {
+      pairs.value = pairs.value.filter((one) => one !== was);
+      const other = was.left === id ? was.right : was.left;
+      if (wasActive) {
+        persist();
+        return activate(other);
+      }
+    }
     persist();
     if (!wasActive) return null;
 
-    const next = tabs.value[at] || tabs.value[at - 1];
     return activate(next.id);
   };
 
@@ -466,6 +727,7 @@ export const useTabsStore = defineStore('tabs', () => {
   const closeOthers = (id) => {
     if (!tabs.value.some((tab) => tab.id === id)) return null;
     tabs.value = tabs.value.filter((tab) => tab.id === id || tab.pinned);
+    forgetPairsOfClosedTabs();
     persist();
     return activate(id);
   };
@@ -686,6 +948,20 @@ export const useTabsStore = defineStore('tabs', () => {
     at,
     syncActive,
     retarget,
+    pairs,
+    isSplit,
+    wantsChrome,
+    panes,
+    paneOf,
+    pairOf,
+    isPaired,
+    partnerFor,
+    canPair,
+    pair,
+    unpair,
+    showInPane,
+    closePane,
+    swapPanes,
     duplicate,
     pin,
     unpin,

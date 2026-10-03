@@ -641,6 +641,28 @@ describe('the tab just brought forward', () => {
     expect(tabs.takeBroughtForward(first)).toBe(false);
   });
 
+  /**
+   * A pair comes forward together, because both halves are drawn together.
+   *
+   * One slot was enough while a tab was one screen. In a pair the reader's own
+   * half is the one activated and the other is drawn beside it, with nobody having
+   * navigated it — so it asked the store whether it had come forward, was told no,
+   * and read its folder again from the server as if the reader had just walked into
+   * it. Which clears what was selected in it and puts it back at the top, every
+   * time the pair is drawn again.
+   */
+  it('is both halves of a pair, each taken once', () => {
+    const { tabs, first, second } = twoTabs();
+    tabs.activate(first);
+    tabs.pair(second);
+
+    tabs.activate(first);
+
+    expect(tabs.takeBroughtForward(first)).toBe(true);
+    expect(tabs.takeBroughtForward(second)).toBe(true);
+    expect(tabs.takeBroughtForward(second)).toBe(false);
+  });
+
   /** A tab taking over because its neighbour closed also came forward. */
   it('is the tab that takes over when one is closed', () => {
     const { tabs, first, second } = twoTabs();
@@ -1021,5 +1043,318 @@ describe('the same tab at an address it gave itself', () => {
     expect(store.retarget(tab.id, '/not-a-place')).toBe(null);
     expect(store.retarget('no-such-tab', right)).toBe(null);
     expect(tab.path).toBe(left);
+  });
+});
+
+/**
+ * Tabs grouped two at a time, drawn side by side.
+ *
+ * A pair belongs to the tabs rather than to the window, which is the whole point:
+ * there can be as many pairs as there are tabs, with ordinary tabs beside them.
+ * What is worth holding is what happens to a pair when the row changes underneath
+ * it — a member closed, everything closed at once, the window reopened — because
+ * a pair naming a tab that no longer exists is half a screen with nothing to draw.
+ */
+describe('tabs grouped two at a time', () => {
+  const three = () => {
+    const store = withTabsOn();
+    const first = store.activeTab;
+    const second = store.open('/browse/Beta');
+    const third = store.open('/browse/Gamma');
+    store.activate(first.id);
+    return { store, first, second, third };
+  };
+
+  it('groups a tab with the one in front, the reader’s own on the left', () => {
+    const { store, first, second } = three();
+
+    expect(store.isSplit).toBe(false);
+    expect(store.panes).toEqual([first.id]);
+
+    store.pair(second.id);
+
+    expect(store.isSplit).toBe(true);
+    expect(store.panes).toEqual([first.id, second.id]);
+    expect(store.paneOf(first.id)).toBe('left');
+    expect(store.paneOf(second.id)).toBe('right');
+    // Nothing was closed: both are still in the row.
+    expect(store.tabs).toHaveLength(3);
+  });
+
+  /**
+   * And works on the tab somebody right-clicks first.
+   *
+   * The version before this refused the tab in front — a mirror of itself is not
+   * a comparison — which made the only entry offering any of this permanently
+   * greyed out on the tab a reader reaches for. Its neighbour is what they meant.
+   */
+  it('groups the tab in front with its neighbour', () => {
+    const { store, first, second } = three();
+
+    expect(store.canPair(first.id)).toBe(true);
+    store.pair(first.id);
+
+    expect(store.panes).toEqual([first.id, second.id]);
+  });
+
+  /**
+   * And looks past a neighbour that is spoken for.
+   *
+   * A lone tab between two pairs has neighbours that are both in one. Greying
+   * the entry out there is the same fault as greying it out on the tab in
+   * front: there is a tab to group with, it is one further along.
+   */
+  it('groups with the nearest tab that is not already in a pair', () => {
+    const store = withTabsOn();
+    const a = store.activeTab;
+    const b = store.open('/browse/B');
+    const middle = store.open('/browse/Middle');
+    const c = store.open('/browse/C');
+    const d = store.open('/browse/D');
+    const spare = store.open('/browse/Spare');
+
+    store.activate(a.id);
+    store.pair(b.id);
+    store.activate(c.id);
+    store.pair(d.id);
+
+    // Both of its neighbours are spoken for; the spare is three along.
+    store.activate(middle.id);
+    expect(store.canPair(middle.id)).toBe(true);
+    store.pair(middle.id);
+
+    expect(store.panes).toEqual([middle.id, spare.id]);
+  });
+
+  /** And refuses when there is genuinely nobody free to group with. */
+  it('offers nothing when every other tab is already in a pair', () => {
+    const store = withTabsOn();
+    const a = store.activeTab;
+    const b = store.open('/browse/B');
+    const lone = store.open('/browse/Lone');
+    store.activate(a.id);
+    store.pair(b.id);
+
+    store.activate(lone.id);
+
+    expect(store.canPair(lone.id)).toBe(false);
+  });
+
+  it('offers nothing for a tab that is already in a pair', () => {
+    const { store, second, third } = three();
+    store.pair(second.id);
+
+    expect(store.canPair(second.id)).toBe(false);
+    expect(store.pair(second.id)).toBe(null);
+    // Nor for a tab whose partner is spoken for.
+    store.activate(second.id);
+    expect(store.canPair(third.id)).toBe(false);
+  });
+
+  it('offers nothing when there is only one tab', () => {
+    const store = withTabsOn();
+
+    expect(store.canPair(store.activeId)).toBe(false);
+    expect(store.pair(store.activeId)).toBe(null);
+  });
+
+  /**
+   * Any kind may be grouped now, a document and a shell included.
+   *
+   * They could not before: the panes were drawn by the browser layout, and both
+   * of those sit outside it on purpose. The panes are above every layout now, so
+   * what a pane draws is simply the screen for its tab's address.
+   */
+  it('groups a document and a shell as readily as a folder', () => {
+    const store = withTabsOn();
+    const folder = store.activeTab;
+    const document = store.open('/open/Docs/notes.md');
+
+    store.activate(folder.id);
+    expect(store.canPair(document.id)).toBe(true);
+    store.pair(document.id);
+
+    expect(store.panes).toEqual([folder.id, document.id]);
+  });
+
+  /** Several pairs at once, which is what belonging to the tabs buys. */
+  it('holds more than one pair, with ordinary tabs beside them', () => {
+    const store = withTabsOn();
+    const a = store.activeTab;
+    const b = store.open('/browse/B');
+    const c = store.open('/browse/C');
+    const d = store.open('/browse/D');
+    const lone = store.open('/browse/Lone');
+
+    store.activate(a.id);
+    store.pair(b.id);
+    store.activate(c.id);
+    store.pair(d.id);
+
+    expect(store.pairs).toHaveLength(2);
+
+    // Each entry shows whatever it is, and a lone tab shows one pane.
+    store.activate(a.id);
+    expect(store.panes).toEqual([a.id, b.id]);
+    store.activate(c.id);
+    expect(store.panes).toEqual([c.id, d.id]);
+    store.activate(lone.id);
+    expect(store.panes).toEqual([lone.id]);
+    expect(store.isSplit).toBe(false);
+  });
+
+  /** A pair that is not the one on screen is in no pane at all. */
+  it('says which pane a tab is in only for the pair on screen', () => {
+    const { store, first, second, third } = three();
+    store.pair(second.id);
+    store.activate(third.id);
+
+    expect(store.paneOf(first.id)).toBe('');
+    expect(store.paneOf(second.id)).toBe('');
+    expect(store.paneOf(third.id)).toBe('left');
+  });
+
+  it('ungroups without closing either of them', () => {
+    const { store, first, second } = three();
+    store.pair(second.id);
+
+    store.unpair(second.id);
+
+    expect(store.isSplit).toBe(false);
+    expect(store.tabs).toHaveLength(3);
+    expect(store.activeId).toBe(first.id);
+  });
+
+  it('exchanges the two panes', () => {
+    const { store, first, second } = three();
+    store.pair(second.id);
+
+    store.swapPanes();
+
+    expect(store.panes).toEqual([second.id, first.id]);
+  });
+
+  /**
+   * A tab dropped into a pane takes it over, and whoever was there goes back to
+   * being an ordinary tab: the reader moved something in, they threw nothing away.
+   */
+  it('puts a dropped tab in the pane it was aimed at', () => {
+    const { store, first, second, third } = three();
+    store.pair(second.id);
+
+    store.showInPane('right', third.id);
+
+    expect(store.panes).toEqual([first.id, third.id]);
+    expect(store.paneOf(second.id)).toBe('');
+    expect(store.tabs).toHaveLength(3);
+
+    // And into the left pane, with the same rule.
+    store.showInPane('left', second.id);
+    expect(store.panes).toEqual([second.id, third.id]);
+  });
+
+  it('splits a lone tab when one is dropped into its pane', () => {
+    const { store, first: here, second } = three();
+
+    store.showInPane('right', second.id);
+
+    expect(store.panes).toEqual([here.id, second.id]);
+  });
+
+  /**
+   * The cross on a pane's own header, which has to be said this way round: the
+   * reader is left in the pane that stays. Keeping whoever had focus kept the
+   * very pane being shut, because pressing anything in a pane puts them in it.
+   */
+  it('closes the pane it is told to, leaving the reader in the other', () => {
+    const { store, second } = three();
+    store.pair(second.id);
+
+    store.closePane('left');
+
+    expect(store.isSplit).toBe(false);
+    expect(store.activeId).toBe(second.id);
+    expect(store.tabs).toHaveLength(3);
+  });
+
+  it('closes no pane when the tab in front is not in one', () => {
+    const { store } = three();
+
+    expect(store.closePane('right')).toBe(null);
+    expect(store.isSplit).toBe(false);
+  });
+
+  /** A member closed takes the pair with it, and the reader lands on the other. */
+  it('dissolves a pair when one of its tabs is closed', () => {
+    const { store, first, second } = three();
+    store.pair(second.id);
+
+    store.close(first.id);
+
+    expect(store.isSplit).toBe(false);
+    expect(store.activeId).toBe(second.id);
+    expect(store.pairs).toHaveLength(0);
+  });
+
+  it.each([
+    ['closing every other tab', (store, id) => store.closeOthers(id)],
+    ['closing them all', (store) => store.closeAll()],
+  ])('forgets a pair broken by %s', (_name, act) => {
+    const { store, first, second } = three();
+    store.pair(second.id);
+
+    act(store, first.id);
+
+    expect(store.pairs).toHaveLength(0);
+    expect(store.panes).toEqual([store.activeId]);
+  });
+
+  /** A pair is where the reader was, so it is still a pair next time. */
+  it('comes back grouped', () => {
+    const { store, first, second } = three();
+    store.pair(second.id);
+    const [left, right] = [first.path, second.path];
+
+    const back = comingBack();
+
+    expect(back.isSplit).toBe(true);
+    expect(back.tabs.find((tab) => tab.id === back.panes[0]).path).toBe(left);
+    expect(back.tabs.find((tab) => tab.id === back.panes[1]).path).toBe(right);
+  });
+
+  /**
+   * And comes back whole when it cannot: a pair naming a tab that did not come
+   * back would be half a screen with nothing to draw in it.
+   */
+  it('comes back whole when one of the two tabs did not', () => {
+    const { store, second } = three();
+    store.pair(second.id);
+
+    // Returning rather than reloading, with nothing pinned: only kept tabs come back.
+    localStorage.setItem('settings:tabs:reopen', JSON.stringify(false));
+    sessionStorage.clear();
+    setActivePinia(createPinia());
+    const back = withTabsOn();
+
+    expect(back.pairs).toHaveLength(0);
+    expect(back.panes).toEqual([back.activeId]);
+  });
+
+  /** A tab named by two pairs would be in two places at once. */
+  it('drops a remembered pair that names a tab another pair already claims', () => {
+    const { store, first, second, third } = three();
+    store.pair(second.id);
+    localStorage.setItem(
+      'settings:tabs:pairs',
+      JSON.stringify([
+        { left: first.id, right: second.id },
+        { left: second.id, right: third.id },
+      ])
+    );
+
+    const back = comingBack();
+
+    expect(back.pairs).toHaveLength(1);
+    expect(back.pairs[0]).toEqual({ left: first.id, right: second.id });
   });
 });

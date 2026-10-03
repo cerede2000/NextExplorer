@@ -1,10 +1,10 @@
 <script setup>
+import { usePaneRoute, usePaneTabId } from '@/composables/paneTab';
 import { computed, onMounted, watch } from 'vue';
-import { useRoute } from 'vue-router';
+
 import { useI18n } from 'vue-i18n';
 import { normalizePath } from '@/api';
 import { usePageTitle } from '@/composables/usePageTitle';
-import { useTabsStore } from '@/stores/tabs';
 import { useTerminalStore } from '@/stores/terminal';
 
 /**
@@ -25,9 +25,9 @@ import { useTerminalStore } from '@/stores/terminal';
  * The folder in the address is the folder the shell starts in, exactly as the
  * drawer starts in the folder it was opened from.
  */
-const route = useRoute();
+const route = usePaneRoute();
+const paneTabId = usePaneTabId();
 const { t } = useI18n();
-const tabsStore = useTabsStore();
 const terminalStore = useTerminalStore();
 
 const folder = computed(() => {
@@ -50,8 +50,14 @@ usePageTitle(
  * Asking twice for the same folder is not asking for anything: the store answers
  * with the session that is already there, so a tab coming back to itself comes
  * back to the shell it left running rather than to a new one.
+ *
+ * Claimed for the tab of the *pane* this page is drawn in, which is the tab in
+ * front only when there is one pane. A shell dropped into the half beside the
+ * reader asked for the tab in front and got the neighbour: the session went to the
+ * folder tab, and the half holding the shell drew the dark ground of this page and
+ * nothing else.
  */
-const claim = () => terminalStore.openIn(tabsStore.activeId, folder.value, { mode: 'page' });
+const claim = () => terminalStore.openIn(paneTabId.value, folder.value, { mode: 'page' });
 onMounted(claim);
 watch(folder, claim);
 </script>

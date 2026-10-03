@@ -1,15 +1,15 @@
 <script setup>
 import { ref, onMounted, computed, onBeforeUnmount, nextTick, watch } from 'vue';
-import { onBeforeRouteLeave, useRoute } from 'vue-router';
+import { onBeforeRouteLeave } from 'vue-router';
 import { normalizePath } from '@/api';
 import { useSettingsStore } from '@/stores/settings';
 import FileObject from '@/components/FileObject.vue';
-import { useFileStore } from '@/stores/fileStore';
 import { useFolderSizeStore } from '@/stores/folderSize';
 import { useVolumeUsageStore } from '@/stores/volumeUsage';
 import { useFeaturesStore } from '@/stores/features';
 import { useFolderScrollStore } from '@/stores/folderScroll';
 import { useTabsStore } from '@/stores/tabs';
+import { tabKindForPath } from '@/config/tabKinds';
 import { useTabLoadingStore } from '@/stores/tabLoading';
 import { revealOffset } from '@/utils/revealOffset';
 import LoadingIcon from '@/icons/LoadingIcon.vue';
@@ -42,15 +42,21 @@ import { useOpenItemInTab } from '@/composables/itemAddress';
 import { useFileActions } from '@/composables/fileActions';
 import { useDeleteConfirm } from '@/composables/useDeleteConfirm';
 import { useOperationTasksStore } from '@/stores/operationTasks';
+import { usePaneFolder } from '@/composables/paneTab';
 
 const settings = useSettingsStore();
-const fileStore = useFileStore();
 const folderSizeStore = useFolderSizeStore();
 const volumeUsageStore = useVolumeUsageStore();
 const featuresStore = useFeaturesStore();
 const folderScrollStore = useFolderScrollStore();
 const operationTasksStore = useOperationTasksStore();
-const route = useRoute();
+const {
+  tabId: paneTabId,
+  address: paneAddress,
+  folderPath: paneFolderPath,
+  focused: readerIsHere,
+  view: pane,
+} = usePaneFolder();
 const { gridClasses, gridStyle } = useViewConfig();
 const loading = ref(true);
 const visibleLimit = ref(500);
@@ -69,9 +75,38 @@ const { handleDragOver, handleDragLeave, handleDrop, isDragTarget, isCopyDragTar
   useFileDragDrop();
 
 const currentFolderDropTarget = computed(() => ({
-  destinationPath: normalizePath(fileStore.currentPath || ''),
+  destinationPath: normalizePath(pane.currentPath || ''),
   kind: 'directory',
 }));
+
+/**
+ * The empty space below the rows, as a destination.
+ *
+ * The rows answer for themselves and the grid answers for the gaps between
+ * them; what neither covers is the space *below* the last row, which in a short
+ * folder is most of the pane and in an empty one is all of it. There was nothing
+ * to drop on there, so moving a file into an empty folder by dropping on it
+ * simply did not work — unnoticed while there was one folder on screen and the
+ * destination was somewhere you walked to. With two panes it is the common case.
+ *
+ * Bound on the scroller, which is the element that actually occupies that space,
+ * and guarded by `defaultPrevented`: a row or the grid that has taken the drag
+ * has already said so, and a drop they handled stops before it gets here anyway.
+ */
+const onEmptySpaceDragOver = (event) => {
+  if (event.defaultPrevented) return;
+  handleCurrentFolderDragOver(event);
+};
+
+const onEmptySpaceDragLeave = (event) => {
+  if (event.defaultPrevented) return;
+  handleCurrentFolderDragLeave(event);
+};
+
+const onEmptySpaceDrop = (event) => {
+  if (event.defaultPrevented) return;
+  handleCurrentFolderDrop(event);
+};
 
 const handleCurrentFolderDragOver = (event) => {
   handleDragOver(event, currentFolderDropTarget.value);
@@ -112,9 +147,7 @@ let keyboardTypeaheadTimer = null;
 // BrowserLayout keys this view by full route, so navigating into a directory
 // replaces the component. Capture this instance's folder now: during unmount
 // the reactive route may already point to the destination.
-const ownFolderPath = normalizePath(
-  Array.isArray(route.params.path) ? route.params.path.join('/') : route.params.path || ''
-);
+const ownFolderPath = normalizePath(paneFolderPath.value);
 
 /**
  * Where the reader was, keyed by folder *and* by the view it was seen in.
@@ -143,7 +176,10 @@ const scrollKey = () => `${ownFolderPath}::${settings.view}`;
  * the tab in front when it is built is the tab it belongs to.
  */
 const tabsStore = useTabsStore();
-const ownTabId = tabsStore.activeId;
+// Its pane's tab, not whichever is in front. In a split view the pane beside
+// the reader draws a tab that does not have focus, and every measurement keyed
+// on "the active tab" would be filed under the wrong one.
+const ownTabId = paneTabId.value;
 const tabLoading = useTabLoadingStore();
 const placeKey = () => `${ownTabId}::${scrollKey()}`;
 
@@ -158,14 +194,11 @@ const placeKey = () => `${ownTabId}::${scrollKey()}`;
  * And it has to already hold the folder: a tab brought forward before it ever
  * listed anything has nothing to come back to.
  */
-const cameForward = tabsStore.takeBroughtForward(tabsStore.activeId);
+const cameForward = tabsStore.takeBroughtForward(ownTabId);
 const comingBack = () =>
   cameForward &&
-  fileStore.getCurrentPathItems.length > 0 &&
-  normalizePath(fileStore.currentPath || '') ===
-    normalizePath(
-      Array.isArray(route.params.path) ? route.params.path.join('/') : route.params.path || ''
-    );
+  pane.getCurrentPathItems.length > 0 &&
+  normalizePath(pane.currentPath || '') === normalizePath(paneFolderPath.value);
 
 const getScrollTarget = () => {
   const localTarget = dropTargetRef.value;
@@ -210,10 +243,17 @@ const getScrollTarget = () => {
  * still its own. After that it has nothing to say about where anybody is.
  */
 const stillOurs = () =>
-  ownTabId === tabsStore.activeId &&
-  normalizePath(
-    Array.isArray(route.params.path) ? route.params.path.join('/') : route.params.path || ''
-  ) === ownFolderPath;
+  // On screen, rather than in front. The two are the same question while there is
+  // one pane, and they stop being the same in a pair: the half the reader is not in
+  // is as drawn as the other, and it was writing nothing down — so coming back it
+  // had no place of its own and fell back to the folder's, which every tab on that
+  // folder shares. It landed where another tab had been left.
+  //
+  // What the guard is for is unchanged: a listing on its way off the screen is
+  // clamped to a container that can no longer hold it, and the last scroll events
+  // it sends would write that clamped number over a position hundreds of pixels
+  // down. A tab that has left the panes is exactly that listing.
+  tabsStore.panes.includes(ownTabId) && normalizePath(paneFolderPath.value) === ownFolderPath;
 
 const rememberScrollPosition = () => {
   if (!stillOurs()) return;
@@ -222,8 +262,10 @@ const rememberScrollPosition = () => {
     folderScrollStore.remember(scrollKey(), target.scrollTop);
     // And for this tab, which is a different question with a different answer:
     // the tab never left this folder, another one simply came in front of it, so
-    // where it was is always worth putting back.
-    folderScrollStore.rememberTabPlace(placeKey(), target.scrollTop);
+    // where it was is always worth putting back. With the row that was at the top
+    // of it, because a pane can come back a different width — one of a pair, or a
+    // pair becoming one — and the listing re-flows under the same number of pixels.
+    folderScrollStore.rememberTabPlace(placeKey(), target.scrollTop, rowAtTheTop());
   }
   rememberActiveItem();
 };
@@ -235,6 +277,67 @@ const rememberScrollPosition = () => {
  * screen produces a few last ones. Freezing costs nothing and says what is meant:
  * after this, where the reader was is settled.
  */
+/**
+ * The row the reader is looking at, which is what a place in a folder really is.
+ *
+ * Read from the rows on screen rather than worked out from the number: a listing
+ * draws what it must and the arithmetic differs per view, but whatever is drawn is
+ * at a measurable height.
+ */
+const rowAtTheTop = () => {
+  const target = getScrollTarget();
+  if (!target || target !== dropTargetRef.value) return '';
+  const edge = target.getBoundingClientRect().top;
+  const rows = target.querySelectorAll('[data-keyboard-item-key]');
+  for (const row of rows) {
+    if (row.getBoundingClientRect().bottom > edge + 4) {
+      return row.getAttribute('data-keyboard-item-key') || '';
+    }
+  }
+  return '';
+};
+
+/**
+ * Put this tab back on the row it was on.
+ *
+ * Tried before the number, and the number is the fallback. A pane that comes back
+ * a different width has re-flowed its listing: the row the reader was on is still
+ * the row they were on, while the pixels that took them there are now somewhere
+ * else entirely — a hundred files away, measured, when a pair was formed.
+ */
+const placeAtRow = async (anchorKey) => {
+  if (!anchorKey) return false;
+  const index = sortedItems.value.findIndex((item) => getItemKey(item) === anchorKey);
+  if (index < 0) return false;
+  const target = getScrollTarget();
+  if (!target || target !== dropTargetRef.value) return false;
+
+  // Roughly first, so the rows around that place are drawn at all: a virtual list
+  // holds only what is in view, and a progressive one only what it has reached.
+  if (useVirtualList.value) {
+    const maxScrollTop = Math.max(0, target.scrollHeight - target.clientHeight);
+    target.scrollTop = Math.min(index * LIST_ROW_HEIGHT, maxScrollTop);
+    await waitForScrollLayout();
+  } else if (visibleLimit.value <= index) {
+    visibleLimit.value = sortedItems.value.length;
+    await nextTick();
+    await waitForScrollLayout();
+  }
+
+  const row = target.querySelector(`[data-keyboard-item-key="${CSS.escape(anchorKey)}"]`);
+  if (!row) return false;
+  // Moved by the distance between the row and the top of the listing, rather than
+  // asked to scroll itself into view: `scrollIntoView` keeps clear of whatever is
+  // sticky above it, which lands the reader a few rows earlier than where they were.
+  const shift = row.getBoundingClientRect().top - target.getBoundingClientRect().top;
+  target.scrollTop = Math.max(
+    0,
+    Math.min(target.scrollTop + shift, target.scrollHeight - target.clientHeight)
+  );
+  updateScrollState();
+  return true;
+};
+
 const freezeWhereItIs = () => {
   if (!canRememberScroll.value) return;
   rememberScrollPosition();
@@ -242,7 +345,7 @@ const freezeWhereItIs = () => {
 };
 
 const rememberActiveItem = (itemKey = keyboardActiveItemKey.value) => {
-  const selectedItem = fileStore.selectedItems[fileStore.selectedItems.length - 1];
+  const selectedItem = pane.selectedItems[pane.selectedItems.length - 1];
   const key = itemKey || getItemKey(selectedItem);
   if (key) folderScrollStore.rememberActiveItem(scrollKey(), key);
 };
@@ -260,17 +363,19 @@ const rememberActiveItem = (itemKey = keyboardActiveItemKey.value) => {
 const pendingRevealName = ref('');
 
 const applySelectionFromQuery = () => {
-  const selectName = typeof route.query?.select === 'string' ? route.query.select : '';
+  // From this pane's own address rather than from the router's: the pane beside
+  // the reader is on an address the router is not.
+  const selectName = new URLSearchParams(paneAddress.value.split('?')[1] || '').get('select') || '';
   if (!selectName) return;
-  const match = fileStore.getCurrentPathItems.find((it) => it?.name === selectName);
+  const match = pane.getCurrentPathItems.find((it) => it?.name === selectName);
   if (match) {
-    fileStore.selectedItems = [match];
+    pane.selectedItems = [match];
     // So the arrow keys carry on from what was just revealed rather than from
     // the top of the folder.
     const key = getItemKey(match);
     keyboardSelectionAnchorKey.value = key;
     keyboardActiveItemKey.value = key;
-    fileStore.setKeyboardActionItem(match);
+    pane.setKeyboardActionItem(match);
     pendingRevealName.value = selectName;
   }
 };
@@ -323,7 +428,7 @@ const revealPendingItem = async () => {
   return true;
 };
 
-const sortedItems = computed(() => fileStore.getCurrentPathItems);
+const sortedItems = computed(() => pane.getCurrentPathItems);
 // The window arithmetic lives in utils so it can be tested without this file's
 // fifteen stores around it.
 const listWindow = computed(() =>
@@ -387,7 +492,7 @@ const scheduleIdleThumbnailPrefetch = (delayMs = IDLE_THUMBNAIL_PREFETCH_DELAY_M
     if (!nextItem) return;
 
     const key = getItemKey(nextItem);
-    const accepted = await fileStore.prefetchItemThumbnail(nextItem);
+    const accepted = await pane.prefetchItemThumbnail(nextItem);
     if (accepted) idleThumbnailPrefetchedKeys.add(key);
 
     if (generation === idleThumbnailPrefetchGeneration) {
@@ -413,13 +518,13 @@ const getItemKey = (item) => {
 const allItemsSelected = computed(
   () =>
     sortedItems.value.length > 0 &&
-    sortedItems.value.every((item) => fileStore.selectedItemKeys.has(getItemKey(item)))
+    sortedItems.value.every((item) => pane.selectedItemKeys.has(getItemKey(item)))
 );
 
 const someItemsSelected = computed(
   () =>
     sortedItems.value.length > 0 &&
-    sortedItems.value.some((item) => fileStore.selectedItemKeys.has(getItemKey(item)))
+    sortedItems.value.some((item) => pane.selectedItemKeys.has(getItemKey(item)))
 );
 
 const resetVisibleItems = () => {
@@ -525,8 +630,8 @@ const restoreKeyboardActiveItem = (itemKey) => {
 
   keyboardSelectionAnchorKey.value = itemKey;
   keyboardActiveItemKey.value = itemKey;
-  fileStore.selectedItems = [item];
-  fileStore.setKeyboardActionItem(item);
+  pane.selectedItems = [item];
+  pane.setKeyboardActionItem(item);
 };
 
 const restoreScrollPosition = async () => {
@@ -591,11 +696,17 @@ const toggleSelectAll = () => {
     return;
   }
 
-  fileStore.selectedItems = [...sortedItems.value];
+  pane.selectedItems = [...sortedItems.value];
 };
 
 const isKeyboardNavigationBlocked = () => {
-  if (loading.value || fileStore.renameState || isDeleteConfirmOpen.value) return true;
+  // A listing has no focus of its own to hang its keys on, so it listens to the
+  // window — and in a pair that is two listings listening. Both of them acted:
+  // pressing Enter in the half the reader was in opened the file chosen in the
+  // half they were not, over the half they were. The keyboard belongs to the pane
+  // the reader is in; with one pane that is always this one.
+  if (!readerIsHere.value) return true;
+  if (loading.value || pane.renameState || isDeleteConfirmOpen.value) return true;
   const active = document.activeElement;
   return actions.isEditableElement ? actions.isEditableElement(active) : false;
 };
@@ -606,7 +717,7 @@ const getKeyboardActiveIndex = () => {
   const activeIndex = getItemIndexByKey(keyboardActiveItemKey.value);
   if (activeIndex >= 0) return activeIndex;
 
-  const selected = fileStore.selectedItems[fileStore.selectedItems.length - 1];
+  const selected = pane.selectedItems[pane.selectedItems.length - 1];
   return selected ? getItemIndexByKey(getItemKey(selected)) : -1;
 };
 
@@ -614,7 +725,7 @@ const getKeyboardSelectionAnchorIndex = () => {
   const anchorIndex = getItemIndexByKey(keyboardSelectionAnchorKey.value);
   if (anchorIndex >= 0) return anchorIndex;
 
-  const selected = fileStore.selectedItems[0];
+  const selected = pane.selectedItems[0];
   if (selected) return getItemIndexByKey(getItemKey(selected));
 
   return getKeyboardActiveIndex();
@@ -626,8 +737,8 @@ const selectItemRange = async (anchorIndex, activeIndex) => {
   const activeItem = items[activeIndex];
   if (!activeItem) return;
 
-  fileStore.selectedItems = items.slice(start, end + 1);
-  fileStore.setKeyboardActionItem(activeItem);
+  pane.selectedItems = items.slice(start, end + 1);
+  pane.setKeyboardActionItem(activeItem);
   keyboardActiveItemKey.value = getItemKey(activeItem);
   rememberActiveItem(getItemKey(activeItem));
   await scrollSelectionIntoView(activeItem, activeIndex);
@@ -707,7 +818,7 @@ const selectRelativeItem = async (direction, extendSelection = false) => {
 
   keyboardSelectionAnchorKey.value = getItemKey(nextItem);
   keyboardActiveItemKey.value = getItemKey(nextItem);
-  fileStore.setKeyboardActionItem(nextItem);
+  pane.setKeyboardActionItem(nextItem);
   rememberActiveItem(getItemKey(nextItem));
   await scrollSelectionIntoView(nextItem, nextIndex);
 };
@@ -724,7 +835,7 @@ const toggleKeyboardSelection = async () => {
   toggleSelection(item);
   keyboardSelectionAnchorKey.value = getItemKey(item);
   keyboardActiveItemKey.value = getItemKey(item);
-  fileStore.setKeyboardActionItem(item);
+  pane.setKeyboardActionItem(item);
   rememberActiveItem(getItemKey(item));
   await scrollSelectionIntoView(item, itemIndex);
 };
@@ -733,7 +844,7 @@ const handleKeyboardItemClick = (item) => {
   const key = getItemKey(item);
   keyboardSelectionAnchorKey.value = key;
   keyboardActiveItemKey.value = key;
-  fileStore.clearKeyboardActionItem();
+  pane.clearKeyboardActionItem();
   rememberActiveItem(key);
 };
 
@@ -762,10 +873,10 @@ const selectTypeaheadMatch = async (key) => {
   const matchIndex = getItemIndexByKey(getItemKey(match));
   if (matchIndex < 0) return;
 
-  fileStore.selectedItems = [match];
+  pane.selectedItems = [match];
   keyboardSelectionAnchorKey.value = getItemKey(match);
   keyboardActiveItemKey.value = getItemKey(match);
-  fileStore.setKeyboardActionItem(match);
+  pane.setKeyboardActionItem(match);
   rememberActiveItem(getItemKey(match));
   await scrollSelectionIntoView(match, matchIndex);
 };
@@ -811,8 +922,7 @@ const handleFolderKeydown = (event) => {
 
   const activeIndex = getKeyboardActiveIndex();
   const activeItem = activeIndex >= 0 ? sortedItems.value[activeIndex] : null;
-  const selected =
-    activeItem || (fileStore.selectedItems.length === 1 ? fileStore.selectedItems[0] : null);
+  const selected = activeItem || (pane.selectedItems.length === 1 ? pane.selectedItems[0] : null);
   if (event.key === 'Enter' || (event.key === 'ArrowRight' && selected?.kind === 'directory')) {
     if (!selected) return;
     event.preventDefault();
@@ -824,8 +934,7 @@ const handleFolderKeydown = (event) => {
     // with a click already means "and this one too" — taking multiple selection
     // away to offer a tab would be a poor trade. The middle button and the row's
     // own menu say it with a pointer.
-    if ((event.metaKey || event.ctrlKey) && openItemInTab(selected, fileStore.currentPath || ''))
-      return;
+    if ((event.metaKey || event.ctrlKey) && openItemInTab(selected, pane.currentPath || '')) return;
     openItem(selected);
     return;
   }
@@ -873,13 +982,13 @@ const setupLoadMoreObserver = async () => {
 };
 
 const selectionModel = computed({
-  get: () => fileStore.selectedItems,
+  get: () => pane.selectedItems,
   set: (val) => {
     // val is the new selection from drag-select (array of items)
     // We update the store.
     // Note: drag-select might replace the selection.
     // If we want to support modifiers, the library handles 'multiple' prop.
-    fileStore.selectedItems = val;
+    pane.selectedItems = val;
   },
 });
 
@@ -891,9 +1000,9 @@ const loadFiles = async () => {
   // the same wait, and a tab that was opened in the background is having it while
   // somebody is looking at something else.
   const doneLoading = tabLoading.begin(ownTabId);
-  const path = route.params.path || '';
+  const path = paneFolderPath.value;
   try {
-    await fileStore.fetchPathItems(path);
+    await pane.fetchPathItems(path);
     applySelectionFromQuery();
   } catch (error) {
     console.error('Failed to load directory contents', error);
@@ -940,18 +1049,16 @@ const returnToFolder = async () => {
    * is there — and when it is not, for any of the reasons a tab place can be
    * missing, the reader still lands where they were instead of at the top.
    */
-  // Asked as "has this tab a place here", not as a number: the top is an answer, and
-  // as a number it is zero, which reads as no answer at all. A tab left at the top
-  // therefore fell through to the folder's memory — shared by every tab on that
-  // folder — and came back wherever another tab had last been left in it.
-  // Asked as "has this tab a place here", not as a number: the top is an answer, and
-  // as a number it is zero, which reads as no answer at all. A tab left at the top
-  // therefore fell through to the folder's memory — shared by every tab on that
+  // Asked as "has this tab a place here", not as a number: the top is an answer,
+  // and as a number it is zero, which reads as no answer at all. A tab left at the
+  // top therefore fell through to the folder's memory — shared by every tab on that
   // folder — and came back wherever another tab had last been left in it.
   const savedScrollTop = folderScrollStore.hasTabPlace(placeKey())
     ? folderScrollStore.tabPlace(placeKey())
     : folderScrollStore.get(scrollKey());
-  if (savedScrollTop > 0) {
+  // The row it was on first, and the number only when there is no row to go to.
+  const anchor = folderScrollStore.tabAnchor(placeKey());
+  if (!(await placeAtRow(anchor)) && savedScrollTop > 0) {
     await waitForScrollLayout();
     // Asked for over several frames: a folder of two thousand files is not as
     // tall as it will be on the frame it is asked, and a place the container
@@ -978,8 +1085,8 @@ const returnToFolder = async () => {
    * that is still where it was put, or further down, is the reader's own and is
    * left alone.
    */
-  void fileStore
-    .fetchPathItems(route.params.path || '', { preserveInteraction: true })
+  void pane
+    .fetchPathItems(paneFolderPath.value, { preserveInteraction: true })
     .then(async () => {
       if (!(savedScrollTop > 0)) return;
       const now = getScrollTarget()?.scrollTop ?? 0;
@@ -989,7 +1096,21 @@ const returnToFolder = async () => {
     .catch(() => {});
 };
 
-onMounted(() => (comingBack() ? returnToFolder() : loadFiles()));
+/**
+ * Whether the address this listing is drawn for is a folder's at all.
+ *
+ * A pane can be handed another tab, and that tab may hold a file: for the tick
+ * before that tab's own screen replaces this one, this listing's address is the
+ * file's. Reading it asks the server to list a file as a folder, which is an error
+ * with a 500 on it — `ENOTDIR: not a directory` — and nothing on screen to explain
+ * it. The other screens ask the same question before speaking; this is the fourth.
+ */
+const isAFolderAddress = () => tabKindForPath(paneAddress.value)?.id === 'folder';
+
+onMounted(() => {
+  if (!isAFolderAddress()) return;
+  return comingBack() ? returnToFolder() : loadFiles();
+});
 
 // Populate folder sizes for the directories currently in view (one batch
 // request; O(1) index reads server-side). Re-runs whenever the listing changes.
@@ -999,7 +1120,7 @@ onMounted(() => (comingBack() ? returnToFolder() : loadFiles()));
 let onViewFollowupTimer = null;
 const refreshFolderSizes = () => {
   if (!featuresStore.folderSizeEnabled) return;
-  const dirPaths = fileStore.getCurrentPathItems
+  const dirPaths = pane.getCurrentPathItems
     .filter((item) => item?.kind === 'directory')
     .map((item) => (item.path ? `${item.path}/${item.name}` : item.name));
   if (dirPaths.length) {
@@ -1010,7 +1131,7 @@ const refreshFolderSizes = () => {
 };
 
 watch(
-  () => fileStore.getCurrentPathItems,
+  () => pane.getCurrentPathItems,
   () => {
     refreshFolderSizes();
     resetIdleThumbnailPrefetch();
@@ -1048,9 +1169,9 @@ const refreshCurrentView = async () => {
   if (document.hidden || loading.value || currentViewRefresh) return currentViewRefresh;
   if (Date.now() - lastCurrentViewRefreshAt < RETURN_TO_TAB_REFRESH_THROTTLE_MS) return null;
 
-  const path = fileStore.currentPath;
+  const path = pane.currentPath;
   lastCurrentViewRefreshAt = Date.now();
-  currentViewRefresh = fileStore
+  currentViewRefresh = pane
     .fetchPathItems(path)
     .catch(() => {})
     .finally(() => {
@@ -1099,7 +1220,7 @@ watch(
 );
 
 watch(
-  () => route.params.path,
+  () => paneFolderPath.value,
   () => {
     stopIdleThumbnailPrefetch();
     idleThumbnailPrefetchedKeys.clear();
@@ -1121,7 +1242,7 @@ const showNoPhotosMessage = computed(() => {
   if (loading.value) return false;
   if (settings.view !== 'photos') return false;
 
-  const items = fileStore.getCurrentPathItems;
+  const items = pane.getCurrentPathItems;
   if (items.length === 0) return false;
 
   // Check if any item is an image or video
@@ -1135,7 +1256,7 @@ const showNoPhotosMessage = computed(() => {
 
 const showEmptyFolderMessage = computed(() => {
   if (loading.value) return false;
-  return fileStore.getCurrentPathItems.length === 0;
+  return pane.getCurrentPathItems.length === 0;
 });
 
 const toggleSort = (by, defaultOrder = 'asc') => {
@@ -1242,13 +1363,16 @@ onBeforeUnmount(() => {
     class="upload-drop-target relative flex flex-col flex-1 min-h-0 overflow-auto"
     @click.self="clearSelection()"
     @scroll.passive="updateScrollState"
+    @dragover="onEmptySpaceDragOver"
+    @dragleave="onEmptySpaceDragLeave"
+    @drop="onEmptySpaceDrop"
   >
     <template v-if="!loading">
       <DragSelect
         v-model="selectionModel"
         :click-option-to-select="false"
         :draggable-on-option="false"
-        :disabled="isTouchDevice || !!fileStore.renameState"
+        :disabled="isTouchDevice || !!pane.renameState"
         class="grow px-2"
         @click.self="clearSelection()"
         @contextmenu.prevent="handleBackgroundContextMenu"

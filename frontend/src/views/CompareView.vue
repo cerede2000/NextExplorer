@@ -1,6 +1,8 @@
 <script setup>
+import { usePaneRoute, usePaneTabId } from '@/composables/paneTab';
+import { tabKindForPath } from '@/config/tabKinds';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
+import { onBeforeRouteLeave, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
   ArrowDownIcon,
@@ -55,7 +57,7 @@ import { useAsk } from '@/composables/useAsk';
  * exercise: replace those lines on that side, and every row, every difference, every
  * count and the position in the row of them is recomputed from that.
  */
-const route = useRoute();
+const route = usePaneRoute();
 const router = useRouter();
 const { t } = useI18n();
 const tabsStore = useTabsStore();
@@ -71,9 +73,15 @@ const { ask } = useAsk();
  * crossing between two comparison tabs never unmounts anything, because both
  * addresses match the same route, so a tab captured at setup goes stale the moment
  * the reader crosses from one comparison to another.
+ *
+ * And it is the tab of the *pane* this screen is drawn in. With one pane that is
+ * the tab in front; in a pair this screen can be the half beside the reader, and
+ * the tab in front is then the neighbour — so a comparison in the other half was
+ * kept for, and restored into, somebody else's tab.
  */
 const held = useCompareSessionsStore();
-const ownTabId = ref(tabsStore.activeId);
+const paneTabId = usePaneTabId();
+const ownTabId = ref(paneTabId.value);
 /** The address this screen is showing, which is what a kept comparison belongs to. */
 const shownAddress = ref('');
 const wantedSides = computed(() => comparedSides(route.query));
@@ -141,9 +149,9 @@ const mapPinned = ref(false);
 const handOver = (key, address) => {
   // Gone with its tab: nothing to hold it for.
   if (!key || !tabsStore.tabs.some((entry) => entry.id === key)) return;
-  // Still the tab in front, so the address changed underneath it: this comparison is
-  // not what the tab is on any more.
-  if (tabsStore.activeId === key) {
+  // Still the tab this screen speaks for, so the address changed underneath it:
+  // this comparison is not what the tab is on any more.
+  if (paneTabId.value === key) {
     held.forget(key);
     return;
   }
@@ -233,7 +241,7 @@ const load = async () => {
  */
 watch(
   () => route.fullPath,
-  () => {
+  (address) => {
     // Our own doing — the sides were swapped over — so nothing changed hands and
     // there is nothing to read again: the screen already shows what the address now
     // says.
@@ -241,8 +249,14 @@ watch(
       weMovedTheAddress = false;
       return;
     }
+    // And only for an address this screen is the screen for. A pane can be handed
+    // another tab, and that tab need not hold a comparison: taking its tab as our
+    // own made this screen say it was the tab in front — and the guard that asks
+    // about lines taken across and not saved then asked, about a tab that was not
+    // leaving anything, and refused to let the reader go.
+    if (tabKindForPath(address)?.id !== 'compare') return;
     handOver(ownTabId.value, shownAddress.value);
-    ownTabId.value = tabsStore.activeId;
+    ownTabId.value = paneTabId.value;
     void load();
   }
 );
@@ -1415,8 +1429,10 @@ window.addEventListener('keydown', onKey);
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
 const close = async () => {
-  if (await tabNavigation.closeOwn()) return;
-  void router.push('/browse/');
+  if (await tabNavigation.closeOwn(ownTabId.value)) return;
+  // Its own half, not the window: a comparison closed in the pane beside the reader
+  // used to take the reader's own pane to the volumes with it.
+  void tabNavigation.leaveFrom(ownTabId.value, '/browse/', { replace: false });
 };
 </script>
 

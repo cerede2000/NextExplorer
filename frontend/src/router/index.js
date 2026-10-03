@@ -3,7 +3,6 @@ import FolderView from '@/views/FolderView.vue';
 import HomeView from '@/views/HomeView.vue';
 import EditorView from '@/views/EditorView.vue';
 import BrowserLayout from '@/layouts/BrowserLayout.vue';
-import EditorLayout from '@/layouts/EditorLayout.vue';
 import SearchResultsView from '@/views/SearchResultsView.vue';
 import SettingsView from '@/views/settings/SettingsView.vue';
 import SettingsBranding from '@/views/settings/SettingsBranding.vue';
@@ -37,7 +36,6 @@ import { useFeaturesStore } from '@/stores/features';
 import { useAppSettings } from '@/stores/appSettings';
 import { useFolderScrollStore } from '@/stores/folderScroll';
 import { useTabsStore } from '@/stores/tabs';
-import { restorePermission } from './restorePermission';
 import { getVolumes } from '@/api';
 import { readGuestSession, resolveShareAccess } from '@/router/shareGuard';
 import { loadAccountSettings } from '@/router/settingsGuard';
@@ -155,104 +153,91 @@ const router = createRouter({
         },
       ],
     },
+    /**
+     * The two screens a pane holds most of the time, each a record of its own.
+     *
+     * They were children of `BrowserLayout`, which is now nothing but a
+     * `<RouterView />` — and that passthrough had a cost nobody could see: the pane
+     * the reader is in draws the router's own component, which was the *layout*,
+     * while the pane beside it resolves the deepest one, which is the screen. Two
+     * different components for the same address, so moving from one half to the
+     * other rebuilt both screens: the listing was read again, the reader was put
+     * back from memory, and a click that crossed into the other half was swallowed
+     * whole — the row it was pressed on had been replaced before the button came up.
+     *
+     * Flat, both panes draw the same component and crossing costs nothing. The
+     * addresses, the names and what each record allows are exactly as they were.
+     */
     {
       path: '/browse',
-      component: BrowserLayout,
+      name: 'HomeView',
+      component: HomeView,
       meta: { requiresAuth: true },
-      children: [
-        {
-          path: '',
-          name: 'HomeView',
-          component: HomeView,
-        },
-        {
-          path: ':path(.+)',
-          name: 'FolderView',
-          component: FolderView,
-          meta: { allowGuest: true }, // Allow guest access for share paths
-        },
-      ],
     },
     {
-      path: '/shares',
-      component: BrowserLayout,
+      path: '/browse/:path(.+)',
+      name: 'FolderView',
+      component: FolderView,
+      // Allow guest access for share paths
+      meta: { requiresAuth: true, allowGuest: true },
+    },
+    {
+      path: '/shares/shared-with-me',
+      name: 'SharedWithMe',
+      component: SharedWithMeView,
       meta: { requiresAuth: true },
-      children: [
-        {
-          path: 'shared-with-me',
-          name: 'SharedWithMe',
-          component: SharedWithMeView,
-        },
-        {
-          path: 'shared-by-me',
-          name: 'SharedByMe',
-          component: SharedByMeView,
-        },
-      ],
+    },
+    {
+      path: '/shares/shared-by-me',
+      name: 'SharedByMe',
+      component: SharedByMeView,
+      meta: { requiresAuth: true },
     },
     {
       path: '/trash',
-      component: BrowserLayout,
+      name: 'Trash',
+      component: TrashView,
       meta: { requiresAuth: true },
-      children: [{ path: '', name: 'Trash', component: TrashView }],
     },
     {
       // A file in the trash, shown in the editor to be read: nothing there can
       // be saved. Its own path, so no volume name can ever collide with it.
-      path: '/trash/view',
-      component: EditorLayout,
+      path: '/trash/view/:itemId/:entryPath(.*)*',
+      name: 'TrashFileViewer',
+      component: EditorView,
       meta: { requiresAuth: true },
-      children: [
-        { path: ':itemId/:entryPath(.*)*', name: 'TrashFileViewer', component: EditorView },
-      ],
     },
     {
       // An earlier version of a file, shown in the editor to be read. The file
       // is named by its path, a share path for a share's visitor.
-      path: '/versions/view',
-      component: EditorLayout,
+      path: '/versions/view/:versionId/:path(.*)',
+      name: 'VersionFileViewer',
+      component: EditorView,
       meta: { requiresAuth: true, allowGuest: true },
-      children: [
-        { path: ':versionId/:path(.*)', name: 'VersionFileViewer', component: EditorView },
-      ],
     },
     {
       path: '/search',
-      component: BrowserLayout,
+      component: SearchResultsView,
       meta: { requiresAuth: true },
-      children: [{ path: '', component: SearchResultsView }],
     },
     {
-      // Two or three files side by side — see views/CompareView.vue. In the editor's
-      // layout, because that is what it is: a working surface on files, not a place
-      // in the tree. Loaded on demand; nothing else needs the alignment.
+      // Two or three files side by side — see views/CompareView.vue. Loaded on
+      // demand; nothing else needs the alignment.
       path: '/compare',
-      component: EditorLayout,
+      name: 'CompareView',
+      component: () => import('@/views/CompareView.vue'),
       meta: { requiresAuth: true },
-      children: [
-        {
-          path: '',
-          name: 'CompareView',
-          component: () => import('@/views/CompareView.vue'),
-        },
-      ],
     },
     {
-      path: '/editor',
-      component: EditorLayout,
+      path: '/editor/share/:token/:sharedPath(.*)*',
+      name: 'SharedEditor',
+      component: EditorView,
+      meta: { requiresAuth: true, allowGuest: true, sharedEditor: true },
+    },
+    {
+      path: '/editor/:path(.*)',
+      component: EditorView,
       meta: { requiresAuth: true, allowGuest: true },
-      children: [
-        {
-          path: 'share/:token/:sharedPath(.*)*',
-          name: 'SharedEditor',
-          component: EditorView,
-          meta: { sharedEditor: true },
-        },
-        {
-          path: ':path(.*)',
-          component: EditorView,
-        },
-      ],
     },
     {
       // One document, at an address of its own — see views/DocumentView.vue.
@@ -310,22 +295,22 @@ const folderPathFromRoute = (route) => {
   return String(raw).replace(/^\/+|\/+$/g, '');
 };
 
+const isAncestorFolder = (candidate, current) =>
+  Boolean(candidate && current && current.startsWith(`${candidate}/`));
+
 router.beforeEach(async (to, from) => {
   const folderScrollStore = useFolderScrollStore();
   const destinationPath = folderPathFromRoute(to);
   const sourcePath = folderPathFromRoute(from);
-  const restore = restorePermission({
-    destination: destinationPath,
-    source: sourcePath,
-    // The tab making the journey, because the permission is one tab's and the
-    // folder's memory behind it is every tab's.
-    travelling: useTabsStore().activeId,
-  });
-  if (restore) {
-    if (restore.permitted) {
-      folderScrollStore.permitRestore(restore.path, restore.tabId);
+  if (destinationPath) {
+    // The tab this walk belongs to: the window has one address and it is the tab in
+    // front's. A permission keyed by the folder alone is one any other tab on that
+    // folder would consume, and jump to where this one had been.
+    const walking = useTabsStore().activeId;
+    if (isAncestorFolder(destinationPath, sourcePath)) {
+      folderScrollStore.permitRestore(destinationPath, walking);
     } else {
-      folderScrollStore.preventRestore(restore.path, restore.tabId);
+      folderScrollStore.preventRestore(destinationPath, walking);
     }
   }
 

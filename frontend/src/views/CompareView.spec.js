@@ -22,6 +22,24 @@ const route = reactive({ fullPath: '/compare?paths=Docs%2Fa.txt&paths=Docs%2Fb.t
 const push = vi.fn();
 const replace = vi.fn();
 const leaveGuards = [];
+
+/**
+ * The pane's own address, which is where a screen reads its place from now.
+ *
+ * In a pair only one pane is the route, so a screen that read the window's
+ * address drew somebody else's place. Standing in for it with the same route
+ * this spec already states: what the pane decides is held in
+ * `composables/paneTab.spec.js`; what is exercised here is this screen.
+ */
+vi.mock('@/composables/paneTab', () => ({
+  usePaneRoute: () => route,
+  usePaneTabId: () => ({
+    get value() {
+      return appTabs.pane || appTabs.activeId;
+    },
+  }),
+}));
+
 vi.mock('vue-router', () => ({
   useRoute: () => route,
   useRouter: () => ({ push, replace, resolve: resolveAddress }),
@@ -47,12 +65,28 @@ vi.mock('vue-i18n', () => ({
   }),
 }));
 vi.mock('@/composables/usePageTitle', () => ({ usePageTitle: () => {} }));
+const retargeted = vi.hoisted(() => []);
 vi.mock('@/composables/tabNavigation', () => ({
-  useTabNavigation: () => ({ tabs: { enabled: true }, closeOwn: () => false }),
+  useTabNavigation: () => ({
+    tabs: { enabled: true },
+    closeOwn: () => false,
+    // Its own half: a comparison closed beside the reader must not take the
+    // reader's pane to the volumes with it.
+    leaveFrom: (id, location) => {
+      if (!id || id === appTabs.activeId) {
+        push(location);
+        return;
+      }
+      retargeted.push({ id, location });
+    },
+  }),
 }));
 const appTabs = vi.hoisted(() => ({
   activeId: 'tab-1',
   tabs: [{ id: 'tab-1' }, { id: 'tab-9' }],
+  // The tab of the pane this screen is drawn in. Null is the ordinary case — one
+  // pane, which is the tab in front.
+  pane: null,
   // Real, and on the real store too: a screen that rewrites its own address has to say
   // so, or the landing takes it for the reader walking somewhere.
   retarget: vi.fn(),
@@ -129,6 +163,7 @@ beforeEach(() => {
   asked.ask.mockClear();
   asked.ask.mockResolvedValue(false);
   appTabs.activeId = 'tab-1';
+  appTabs.pane = null;
   appTabs.tabs = [{ id: 'tab-1' }, { id: 'tab-9' }];
   appTabs.retarget.mockClear();
   push.mockClear();
@@ -499,6 +534,34 @@ describe('a comparison tab coming back', () => {
     await open({ 'c.txt': 'two', 'd.txt': 'TWO' }, ['c.txt', 'd.txt']);
 
     expect(api.fetchFileContent).toHaveBeenCalledWith('c.txt');
+  });
+
+  /**
+   * And it is kept for the tab of the pane it was drawn in, not for the tab in
+   * front.
+   *
+   * A comparison beside a folder is this screen drawn in the half the reader is
+   * *not* in, and "the tab in front" is then the neighbour. So the lines taken
+   * across were kept for the folder tab, and this one came back reading both files
+   * again — the one case where that loses work nobody agreed to discard.
+   */
+  it('keeps what it was in the middle of for its own pane tab', async () => {
+    appTabs.activeId = 'tab-9';
+    appTabs.pane = 'tab-1';
+    const wrapper = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
+    await wrapper.get('[data-test="compare-next"]').trigger('click');
+    await wrapper.get('[data-test="compare-copy-forward-0"]').trigger('click');
+
+    // The pane is given another tab, so this screen stops speaking for tab-1.
+    appTabs.pane = 'tab-9';
+    wrapper.unmount();
+    appTabs.pane = 'tab-1';
+    api.fetchFileContent.mockClear();
+
+    const back = await open({ 'a.txt': 'one\ntwo', 'b.txt': 'one\nTWO' });
+
+    expect(api.fetchFileContent).not.toHaveBeenCalled();
+    expect(back.find('[data-test="compare-identical"]').exists()).toBe(true);
   });
 
   /** Still the tab in front, so the address changed under it: nothing to keep. */

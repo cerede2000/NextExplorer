@@ -21,7 +21,18 @@ const replace = vi.fn();
 const route = { fullPath: '/browse/' };
 
 vi.mock('vue-router', () => ({
-  useRouter: () => ({ push, replace }),
+  // `resolve` as the router's own: a screen may name where it is going as a
+  // location object, and a tab holds an address.
+  useRouter: () => ({
+    push,
+    replace,
+    resolve: (location) =>
+      typeof location === 'string'
+        ? { fullPath: location }
+        : {
+            fullPath: `${location.path || ''}${location.query ? '?' + new URLSearchParams(location.query).toString() : ''}`,
+          },
+  }),
   useRoute: () => route,
 }));
 
@@ -144,6 +155,80 @@ describe('closing the tab something was opened for', () => {
     expect(await navigation.closeOwn()).toBe(true);
     expect(tabs.activeId).not.toBe(second.id);
     expect(push).toHaveBeenCalledWith('/browse/Photos');
+  });
+
+  /**
+   * And the tab it closes is the one the screen pressing it speaks for.
+   *
+   * A document drawn in the half beside the reader pressed its own cross and the
+   * *reader's* tab went: the wrong half disappeared, and the half the cross was in
+   * stayed on an address with nothing left to draw — a black panel under a tab that
+   * is still there.
+   */
+  it('closes the tab it is told about, not the one in front', async () => {
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    tabs.syncActive('/browse/Photos');
+    const beside = tabs.open('/open/Docs/report.docx', { own: true });
+    tabs.activate(tabs.tabs[0].id);
+    const navigation = useTabNavigation();
+
+    expect(await navigation.closeOwn(beside.id)).toBe(true);
+    expect(tabs.tabs.some((entry) => entry.id === beside.id)).toBe(false);
+    // And the reader is still where they were.
+    expect(tabs.activeTab.path).toBe('/browse/Photos');
+  });
+});
+
+/**
+ * Where a screen goes when it has finished with itself.
+ *
+ * The window, while the tab it speaks for is the one in front — and that tab alone
+ * when it is not. A comparison, an editor or a document closed in the half beside
+ * the reader used to send the *window* to a folder: the reader's own half went
+ * there, and the half that was closed stayed on an address nothing draws.
+ */
+describe('a screen leaving its own half', () => {
+  it('takes the window when its tab is the one in front', () => {
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    tabs.syncActive('/open/Docs/report.docx');
+    const navigation = useTabNavigation();
+
+    navigation.leaveFrom(tabs.activeId, '/browse/Docs');
+
+    expect(replace).toHaveBeenCalledWith('/browse/Docs');
+  });
+
+  it('takes its own tab and leaves the address bar alone', () => {
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    tabs.syncActive('/browse/Photos');
+    const beside = tabs.open('/open/Docs/report.docx');
+    tabs.activate(tabs.tabs[0].id);
+    const navigation = useTabNavigation();
+    replace.mockClear();
+    push.mockClear();
+
+    navigation.leaveFrom(beside.id, '/browse/Docs');
+
+    expect(tabs.tabs.find((one) => one.id === beside.id).path).toBe('/browse/Docs');
+    expect(tabs.activeTab.path).toBe('/browse/Photos');
+    expect(replace).not.toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  /** Nobody named: the window, exactly as every screen did before there were halves. */
+  it('takes the window when no tab is named', () => {
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    tabs.syncActive('/open/Docs/report.docx');
+    const navigation = useTabNavigation();
+    push.mockClear();
+
+    navigation.leaveFrom(null, '/browse/Docs', { replace: false });
+
+    expect(push).toHaveBeenCalledWith('/browse/Docs');
   });
 });
 
@@ -298,6 +383,65 @@ describe('closing a tab that has something to say', () => {
  * came back on the volumes: kept tabs sit at the front of the row, so the front tab is
  * very often the kept one, and the landing quietly took away the folder it was kept on.
  */
+/**
+ * The halves of a pair, and the one address the window has.
+ *
+ * Giving a pane another tab can move the reader: the half they were in is the half
+ * that was taken over. The address belongs to the tab they are in, so these two
+ * things are one action — the store's move and the router's push — and this is the
+ * one place that knows it. Done in halves, the window stayed on the address of a
+ * tab that was nobody's half any more, and the pane the reader was in drew *that*
+ * place instead of its own.
+ */
+describe('a pane given another tab', () => {
+  const pairOfFolders = () => {
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    const here = tabs.tabs[0];
+    const beside = tabs.open('/browse/Beside');
+    const spare = tabs.open('/browse/Spare');
+    tabs.activate(here.id);
+    tabs.pair(beside.id);
+    return { tabs, here, beside, spare };
+  };
+
+  it('takes the window to the tab the reader is left in', () => {
+    const { tabs, here, spare } = pairOfFolders();
+    const navigation = useTabNavigation();
+    push.mockClear();
+
+    // The reader's own half is the one replaced, so they are moved into the half
+    // they were not in.
+    navigation.showInPane('left', spare.id);
+
+    expect(tabs.activeId).not.toBe(here.id);
+    expect(push).toHaveBeenCalledWith(tabs.tabs.find((one) => one.id === tabs.activeId).path);
+  });
+
+  it('leaves the window where it is when the reader has not moved', () => {
+    const { spare } = pairOfFolders();
+    const navigation = useTabNavigation();
+    push.mockClear();
+
+    // The far half is replaced; the reader stays where they are.
+    navigation.showInPane('right', spare.id);
+
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  /** And the cross on a pane leaves the reader in the half that stays. */
+  it('takes the window along when a pane is closed', () => {
+    const { tabs, beside } = pairOfFolders();
+    const navigation = useTabNavigation();
+    push.mockClear();
+
+    navigation.closePane('left');
+
+    expect(tabs.activeId).toBe(beside.id);
+    expect(push).toHaveBeenCalledWith('/browse/Beside');
+  });
+});
+
 describe('landing on the application', () => {
   const landOn = (where, tabPath) => {
     const tabs = useTabsStore();

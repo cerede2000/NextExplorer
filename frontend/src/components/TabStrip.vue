@@ -1,8 +1,10 @@
 <script setup>
+import { beginTabDrag, endTabDrag, TAB_DRAG_TYPE } from '@/utils/tabDrag';
 import { computed, onUnmounted, ref, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { onClickOutside, useElementSize } from '@vueuse/core';
-import { PlusIcon, XMarkIcon } from '@heroicons/vue/20/solid';
+import { ChevronDownIcon, PlusIcon, XMarkIcon } from '@heroicons/vue/20/solid';
+import { Bars3Icon } from '@heroicons/vue/24/outline';
 import { TAB_KINDS_BY_ID, tabFolderPath, tabTitle } from '@/config/tabKinds';
 import { useFavoritesStore } from '@/stores/favorites';
 import { resolveFavoriteIcon } from '@/utils/favoriteIcons';
@@ -10,6 +12,9 @@ import { useTabNavigation } from '@/composables/tabNavigation';
 import { useAppSettings } from '@/stores/appSettings';
 import { useFileDragDrop } from '@/composables/useFileDragDrop';
 import { useTabLoadingStore } from '@/stores/tabLoading';
+import { useSidebar } from '@/composables/sidebar';
+import NotificationBell from '@/components/NotificationBell.vue';
+import SearchBar from '@/components/SearchBar.vue';
 import SpinnerIcon from '@/icons/SpinnerIcon.vue';
 import { normalizePath } from '@/api';
 
@@ -25,6 +30,19 @@ import { normalizePath } from '@/api';
  * something a screen reader can read.
  */
 const { tabs, visible, activate, openHome, close, closeOthers, closeAll } = useTabNavigation();
+
+/**
+ * The window's own controls, at the end of the row.
+ *
+ * They had a row to themselves — a bell and a magnifying glass, the height of a
+ * strip, above every folder for the whole life of the window. Here they cost
+ * nothing: the row is already drawn, and the end of it was empty.
+ *
+ * Drawn only where the window's chrome is drawn at all, which is the store's
+ * answer: beside a lone document or shell there is no sidebar to open and nothing
+ * for them to sit above.
+ */
+const { toggle: toggleSidebar } = useSidebar();
 const { t } = useI18n();
 
 /**
@@ -175,11 +193,97 @@ const runAndShut = (action, id) => {
 const held = ref('');
 const over = ref('');
 
+/**
+ * Grouped with the tab it belongs beside, from the menu.
+ *
+ * The partner is the tab in front, or this tab's neighbour when this *is* the
+ * tab in front — so the entry works on the tab somebody right-clicks first
+ * instead of being greyed out on it, which is what the version before this did
+ * and what taught nobody anything.
+ */
+/**
+ * What the strip draws: one entry per lone tab, and one per pair.
+ *
+ * A pair is two tabs, and drawing both of them would fill the row twice as fast
+ * for something the reader thinks of as one place. So the pair's left member
+ * carries the entry and the right one is not drawn on its own — it is reachable
+ * through the chevron, which is the only thing the entry adds.
+ */
+const entries = computed(() => {
+  const inside = new Set(tabs.pairs.map((one) => one.right));
+  return tabs.tabs
+    .filter((tab) => !inside.has(tab.id))
+    .map((tab) => {
+      const pair = tabs.pairOf(tab.id);
+      const partner = pair ? tabs.tabs.find((one) => one.id === pair.right) : null;
+      return { tab, partner: partner || null };
+    });
+});
+
+/** Both names when there are two, which is what the comparison tab already does. */
+const labelFor = (tab, partner) =>
+  partner ? `${titleFor(tab)} ↔ ${titleFor(partner)}` : titleFor(tab);
+
+/** Which pair is unfolded, so the reader can go straight into one of its halves. */
+const openedPair = ref('');
+const pairAt = ref({ x: 0, y: 0 });
+
+const togglePair = (id, event) => {
+  if (openedPair.value === id) {
+    openedPair.value = '';
+    return;
+  }
+  const box = event.currentTarget?.getBoundingClientRect();
+  pairAt.value = {
+    x: Math.min(Math.max(8, (box?.left ?? 0) - 40), window.innerWidth - 232),
+    y: Math.min((box?.bottom ?? 0) + 4, window.innerHeight - 96),
+  };
+  openedPair.value = id;
+};
+
+const goToMember = (id) => {
+  openedPair.value = '';
+  activate(id);
+};
+
+/**
+ * The cross on an entry closes what the entry shows.
+ *
+ * Which for a pair is both of its tabs: it is one entry, and closing it leaving
+ * half of itself behind in the row is not what a cross means anywhere else.
+ * Ungrouping is in the menu, for whoever wants the two back.
+ */
+const closeEntry = (tab, partner) => {
+  openedPair.value = '';
+  if (partner) tabs.unpair(tab.id);
+  if (partner) close(partner.id);
+  close(tab.id);
+};
+
+const canShowBeside = (tab) => Boolean(tab) && tabs.canPair(tab.id);
+const showBeside = (id) => {
+  menuFor.value = '';
+  tabs.pair(id);
+};
+
+/** Ungrouped from the tab's own menu, with neither of them closed. */
+const canUngroup = (tab) => Boolean(tab) && tabs.isPaired(tab.id);
+const ungroup = (id) => {
+  menuFor.value = '';
+  tabs.unpair(id);
+};
+
 const startDrag = (id, event) => {
   held.value = id;
+  // Said to the window, so that a document or a shell drawn over a pane stops
+  // taking pointers and the pane underneath can be dropped on.
+  beginTabDrag();
   // Firefox starts no drag at all without something on the transfer, and `move`
   // is what this is — no copy of a tab exists.
   event.dataTransfer?.setData('text/plain', id);
+  // Named as well as written in plain text: a pane takes drops of files *and* of
+  // tabs, and "some text that happens to be an id" is not something to act on.
+  event.dataTransfer?.setData(TAB_DRAG_TYPE, id);
   if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
 };
 
@@ -192,6 +296,7 @@ const dragOver = (id, event) => {
 const endDrag = () => {
   held.value = '';
   over.value = '';
+  endTabDrag();
 };
 
 /** Dropped on a tab: take the place of the one underneath. */
@@ -298,14 +403,18 @@ const duplicate = (id) => {
     data-test="tab-strip"
   >
     <div
-      v-for="tab in tabs.tabs"
+      v-for="{ tab, partner } in entries"
       :key="tab.id"
       class="group relative flex min-w-0 items-center rounded-t-md border border-b-0 text-sm"
       :class="[
         tab.pinned ? 'w-11 shrink-0 justify-center' : 'max-w-44 flex-1 basis-0',
-        tab.id === tabs.activeId
+        tabs.paneOf(tab.id)
           ? 'border-neutral-200 bg-white dark:border-neutral-700 dark:bg-default'
           : 'border-transparent bg-transparent hover:bg-zinc-200/70 dark:hover:bg-neutral-700/70',
+        // Both panes are on screen; which of them the reader is in is said by the
+        // underline rather than by the tab looking unselected, because a pane
+        // that is drawn and looks closed is a tab nobody believes.
+        tabs.isSplit && tabs.paneOf(tab.id) && tab.id !== tabs.activeId ? 'opacity-80' : '',
         isCopyTarget(tab)
           ? 'ring-2 ring-emerald-500'
           : isFileTarget(tab)
@@ -316,6 +425,8 @@ const duplicate = (id) => {
       :data-id="tab.id"
       :data-kind="tab.kind"
       :data-active="tab.id === tabs.activeId ? 'true' : 'false'"
+      :data-pane="tabs.paneOf(tab.id) || 'none'"
+      :data-paired="partner ? 'true' : 'false'"
       :data-pinned="tab.pinned ? 'true' : 'false'"
       :data-loading="isLoading(tab) ? 'true' : 'false'"
       :data-over="over === tab.id ? 'true' : 'false'"
@@ -339,7 +450,7 @@ const duplicate = (id) => {
         role="tab"
         draggable="true"
         :aria-selected="tab.id === tabs.activeId"
-        :title="titleFor(tab)"
+        :title="labelFor(tab, partner)"
         class="flex min-w-0 flex-1 items-center gap-1.5 py-1.5"
         :class="tab.pinned ? 'justify-center px-0' : 'px-2'"
         @click="activate(tab.id)"
@@ -360,7 +471,21 @@ const duplicate = (id) => {
         />
         <!-- A kept tab is its icon: it is there to be recognised, not read, and
              the room it gives back is room for the tabs that are being read. -->
-        <span v-if="!tab.pinned" class="truncate">{{ titleFor(tab) }}</span>
+        <span v-if="!tab.pinned" class="truncate">{{ labelFor(tab, partner) }}</span>
+      </button>
+      <!-- A pair unfolds, so either half is one press away rather than something
+           to be found by guessing which side of the screen it is on. -->
+      <button
+        v-if="partner && !tab.pinned"
+        type="button"
+        class="shrink-0 rounded p-0.5 hover:bg-black/10 dark:hover:bg-white/15"
+        :title="t('tabs.unfoldPair')"
+        :aria-label="t('tabs.unfoldPair')"
+        :aria-expanded="openedPair === tab.id"
+        data-test="tab-unfold"
+        @click.stop="togglePair(tab.id, $event)"
+      >
+        <ChevronDownIcon class="h-3.5 w-3.5" />
       </button>
       <button
         v-if="tabs.canClose && !tab.pinned"
@@ -369,7 +494,7 @@ const duplicate = (id) => {
         :title="t('tabs.closeTab')"
         :aria-label="t('tabs.closeTab')"
         data-test="tab-close"
-        @click.stop="close(tab.id)"
+        @click.stop="closeEntry(tab, partner)"
       >
         <XMarkIcon class="h-4 w-4" />
       </button>
@@ -395,6 +520,37 @@ const duplicate = (id) => {
       entirely, and there was no pinning a tab and no duplicating one because there was
       nothing on screen to press.
     -->
+    <!-- Unfolded beside the strip rather than inside it, and for the same reason
+         the menu is: the strip is `overflow-hidden` so that tabs share the room,
+         and anything drawn inside it is clipped away entirely.
+
+         At the menu's own level, which is above the surfaces a tab can hold. Below
+         them it was there and unreachable: a document is drawn over the window from
+         outside the page, so the one control that crosses from one half of a pair to
+         the other was covered by the very documents it is for. -->
+    <Teleport to="body">
+      <div
+        v-if="openedPair"
+        data-test="tab-pair-list"
+        class="fixed z-2200 w-56 rounded-md border border-neutral-200 bg-white p-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-800"
+        :style="{ left: pairAt.x + 'px', top: pairAt.y + 'px' }"
+      >
+        <button
+          v-for="member in tabs.pairOf(openedPair)
+            ? [tabs.pairOf(openedPair).left, tabs.pairOf(openedPair).right]
+            : []"
+          :key="member"
+          type="button"
+          class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 dark:hover:bg-neutral-600"
+          :data-member="member"
+          data-test="tab-pair-member"
+          @click="goToMember(member)"
+        >
+          <span class="truncate">{{ titleFor(tabs.tabs.find((one) => one.id === member)) }}</span>
+        </button>
+      </div>
+    </Teleport>
+
     <Teleport to="body">
       <div
         v-if="menuTab"
@@ -429,6 +585,24 @@ const duplicate = (id) => {
           @click="duplicate(menuTab.id)"
         >
           {{ t('tabs.duplicate') }}
+        </button>
+        <button
+          type="button"
+          class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 disabled:opacity-50 dark:hover:bg-neutral-600"
+          :disabled="!canShowBeside(menuTab)"
+          data-test="tab-show-right"
+          @click="showBeside(menuTab.id)"
+        >
+          {{ t('tabs.showOnRight') }}
+        </button>
+        <button
+          v-if="canUngroup(menuTab)"
+          type="button"
+          class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-zinc-200 dark:hover:bg-neutral-600"
+          data-test="tab-ungroup"
+          @click="ungroup(menuTab.id)"
+        >
+          {{ t('tabs.ungroup') }}
         </button>
         <button
           type="button"
@@ -472,5 +646,29 @@ const duplicate = (id) => {
     >
       <XMarkIcon class="h-4 w-4" />
     </button>
+
+    <!--
+      The window's own controls: what it has to tell you, and searching.
+
+      At the end of the strip rather than on a row below it. `ml-auto` pushes them
+      to the far edge, and the tabs themselves still share whatever is left.
+    -->
+    <div
+      v-if="tabs.wantsChrome"
+      data-test="window-controls"
+      class="mb-0.5 ml-auto flex shrink-0 items-center"
+    >
+      <button
+        type="button"
+        class="rounded-md p-1.5 hover:bg-zinc-200 dark:hover:bg-neutral-700 lg:hidden"
+        :aria-label="t('browser.openSidebar')"
+        data-test="strip-sidebar"
+        @click="toggleSidebar"
+      >
+        <Bars3Icon class="h-5 w-5" />
+      </button>
+      <NotificationBell />
+      <SearchBar />
+    </div>
   </div>
 </template>
