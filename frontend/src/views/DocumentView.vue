@@ -12,6 +12,7 @@ import { useFileStore } from '@/stores/fileStore';
 import { folderRoute } from '@/utils/folderRoute';
 import { useTabNavigation } from '@/composables/tabNavigation';
 import { isEditableExtension } from '@/config/editor';
+import { tabKindForPath } from '@/config/tabKinds';
 
 /**
  * One document, at an address of its own.
@@ -198,7 +199,15 @@ const openDocument = async () => {
   // works here exactly as it does over the listing — the plugins read the
   // siblings from the file store. Best effort: a folder that cannot be listed
   // costs the arrows, not the document.
-  void fileStore.fetchPathItems(parentPath.value, { preserveInteraction: true }).catch(() => {});
+  //
+  // Into *this page's own tab*, not into whichever is in front. This is the one
+  // place a document page writes a listing, and it does it after an await: by the
+  // time it lands, the reader may have gone back to the folder tab it was opened
+  // from — and that tab's listing was then replaced by this folder's parent, under
+  // whatever was selected in it, at wherever the reader was in it.
+  void fileStore
+    .fetchIn(tabKey.value, parentPath.value, { preserveInteraction: true })
+    .catch(() => {});
 
   // Waited for, because the editors register once the server has said they are
   // configured. Asking before that would answer "nothing opens this" about a
@@ -295,6 +304,16 @@ onBeforeUnmount(() => {
 watch(
   () => route.fullPath,
   (address) => {
+    // Only for an address this page is the screen for.
+    //
+    // A pane can be given another tab, and that tab need not hold a document at
+    // all — the pair this page was drawn in is handed a folder, and this page's
+    // own address becomes that folder's for the tick before the folder's screen
+    // replaces it. Speaking for it then was expensive: the folder was opened as
+    // though it were a document, and the folder *behind* it — its parent — was
+    // read into the reader's own tab, over the listing they were in, taking their
+    // selection and their place in it with it.
+    if (tabKindForPath(address)?.id !== 'document') return;
     tabKey.value = paneTabId.value;
     shownAddress.value = address;
     void openDocument();

@@ -295,7 +295,10 @@ const mountEditor = async () => {
 const asShare = () => {
   Object.assign(route(), {
     name: 'SharedEditor',
-    fullPath: '/share/tok/edit/notes.md',
+    // The address the application really gives a share's file, which this screen
+    // now looks at: a pane can be handed a tab that holds something else entirely,
+    // and a screen only speaks for addresses it is the screen for.
+    fullPath: '/editor/share/tok/notes.md',
     params: { token: 'tok', sharedPath: 'notes.md' },
   });
 };

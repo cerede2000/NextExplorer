@@ -23,8 +23,17 @@ const routePath = ref('Docs/report.docx');
  * which is the ordinary single-pane window.
  */
 const windowPath = ref(null);
+/** What kind of address the pane is on, which is how a screen knows it is still its own. */
+const routeKind = ref('document');
 const replace = vi.fn();
-const fetchPathItems = vi.fn(async () => {});
+/**
+ * The folder behind the document, read into a named tab.
+ *
+ * Named, because this is the one listing a document page writes and it writes it
+ * after an await: into whichever tab was in front, it landed on the reader's own
+ * listing — the folder they were looking at, replaced by this document's parent.
+ */
+const fetchIn = vi.fn(async () => {});
 const pluginsReady = vi.fn(async () => {});
 let editableExtensions = ['txt', 'md'];
 
@@ -154,11 +163,17 @@ vi.mock('@/stores/appSettings', () => ({
 }));
 
 vi.mock('@/stores/fileStore', () => ({
-  useFileStore: () => ({ fetchPathItems: (...args) => fetchPathItems(...args) }),
+  useFileStore: () => ({ fetchIn: (...args) => fetchIn(...args) }),
 }));
 
 vi.mock('@/config/editor', () => ({
   isEditableExtension: (extension) => editableExtensions.includes(extension),
+}));
+
+// Which kind of place an address names — the catalogue's own answer, held to it in
+// `config/tabKinds.spec.js`. What is asked here is that this page looks.
+vi.mock('@/config/tabKinds', () => ({
+  tabKindForPath: () => ({ id: routeKind.value }),
 }));
 
 const DocumentView = (await import('./DocumentView.vue')).default;
@@ -211,6 +226,7 @@ beforeEach(() => {
   appTabs.tabs = [{ id: 'tab-1', own: false }];
   appTabs.pane = null;
   windowPath.value = null;
+  routeKind.value = 'document';
   retargeted.length = 0;
   leaveFrom.mockClear();
   for (const key of Object.keys(sessions)) delete sessions[key];
@@ -224,7 +240,7 @@ beforeEach(() => {
   });
   shows.mockClear();
   closeIn.mockClear();
-  fetchPathItems.mockClear();
+  fetchIn.mockClear();
   pluginsReady.mockClear();
   pluginsReady.mockResolvedValue(undefined);
   editableExtensions = ['txt', 'md'];
@@ -284,7 +300,7 @@ describe('opening a document at its own address', () => {
     // one thing that works over a listing and not here.
     // Quietly: the folder behind a document is read for the arrows, and reading
     // it must not take away what the reader had chosen in it.
-    expect(fetchPathItems).toHaveBeenCalledWith('Photos/2026', { preserveInteraction: true });
+    expect(fetchIn).toHaveBeenCalledWith('tab-1', 'Photos/2026', { preserveInteraction: true });
   });
 
   it('waits for the editors to register before deciding nothing opens it', async () => {
@@ -439,6 +455,38 @@ describe('opening a document at its own address', () => {
     expect(openIn).not.toHaveBeenCalled();
   });
 
+  /**
+   * And it says nothing at all for an address that is not a document's.
+   *
+   * A pane can be handed another tab, and that tab need not hold a document: the
+   * pair this page was drawn in is given a folder, and for the tick before the
+   * folder's own screen replaces this one, this page's address *is* that folder's.
+   * Speaking for it then opened the folder as though it were a document — and read
+   * the folder behind it, its parent, into the reader's own tab, over the listing
+   * they were in, with their selection and their place in it.
+   */
+  it('says nothing for an address that is not a document', async () => {
+    appTabs.enabled = true;
+    appTabs.activeId = 'tab-2';
+    appTabs.pane = 'tab-2';
+    appTabs.tabs = [
+      { id: 'tab-2', own: false },
+      { id: 'tab-9', own: false },
+    ];
+    await show('Docs/first.docx');
+    openIn.mockClear();
+    fetchIn.mockClear();
+
+    // The pane is given the folder tab beside it.
+    appTabs.pane = 'tab-9';
+    routeKind.value = 'folder';
+    routePath.value = 'Docs/Reports';
+    await flushPromises();
+
+    expect(openIn).not.toHaveBeenCalled();
+    expect(fetchIn).not.toHaveBeenCalled();
+  });
+
   it('opens the next document when the address changes under it', async () => {
     const wrapper = await show('Docs/first.docx');
     expect(openIn).toHaveBeenCalledWith('tab-1', { name: 'first.docx', path: 'Docs' });
@@ -589,7 +637,7 @@ describe('leaving the page, and leaving the document', () => {
     // builds a second editor over a live one — and the folder behind it is not
     // fetched a second time either, since this page never left it.
     expect(openIn).toHaveBeenCalledTimes(1);
-    expect(fetchPathItems).toHaveBeenCalledTimes(1);
+    expect(fetchIn).toHaveBeenCalledTimes(1);
   });
 });
 

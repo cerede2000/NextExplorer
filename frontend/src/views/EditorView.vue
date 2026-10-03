@@ -226,6 +226,7 @@ import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import { usePageTitle } from '@/composables/usePageTitle';
 import { fileTitleFor } from '@/utils/pageTitle';
 import { useTabNavigation } from '@/composables/tabNavigation';
+import { tabKindForPath } from '@/config/tabKinds';
 import { useAsk } from '@/composables/useAsk';
 import { useEditorDraftsStore } from '@/stores/editorDrafts';
 import { useTabLoadingStore } from '@/stores/tabLoading';
@@ -514,6 +515,7 @@ onBeforeUnmount(() => handOver(tabKey.value, shownAddress.value));
 watch(
   () => route.fullPath,
   () => {
+    if (!isOurs()) return;
     handOver(tabKey.value, shownAddress.value);
     tabKey.value = paneTabId.value;
   }
@@ -566,7 +568,20 @@ const checkFileQuietly = async (requestPath) => {
 };
 
 // Operations
+/**
+ * Whether the address this page is on is still one it is the screen for.
+ *
+ * A pane can be handed another tab, and that tab need not hold a file at all — the
+ * pair this page is drawn in is given a folder, and for the tick before the
+ * folder's own screen replaces this one, this page's address *is* that folder's.
+ * Reading it would ask the server for a folder as though it were a file, and would
+ * take what this page was holding for its own tab and hand it to the folder's.
+ */
+const SCREEN_FOR = ['editor', 'trash', 'versions'];
+const isOurs = () => SCREEN_FOR.includes(tabKindForPath(route.fullPath)?.id);
+
 const loadFile = async () => {
+  if (!isOurs()) return;
   const requestPath = route.fullPath;
   const path = normalizedPath.value;
 

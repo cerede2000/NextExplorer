@@ -1,5 +1,6 @@
 <script setup>
 import { usePaneRoute, usePaneTabId } from '@/composables/paneTab';
+import { tabKindForPath } from '@/config/tabKinds';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { onBeforeRouteLeave, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -240,7 +241,7 @@ const load = async () => {
  */
 watch(
   () => route.fullPath,
-  () => {
+  (address) => {
     // Our own doing — the sides were swapped over — so nothing changed hands and
     // there is nothing to read again: the screen already shows what the address now
     // says.
@@ -248,6 +249,12 @@ watch(
       weMovedTheAddress = false;
       return;
     }
+    // And only for an address this screen is the screen for. A pane can be handed
+    // another tab, and that tab need not hold a comparison: taking its tab as our
+    // own made this screen say it was the tab in front — and the guard that asks
+    // about lines taken across and not saved then asked, about a tab that was not
+    // leaving anything, and refused to let the reader go.
+    if (tabKindForPath(address)?.id !== 'compare') return;
     handOver(ownTabId.value, shownAddress.value);
     ownTabId.value = paneTabId.value;
     void load();
