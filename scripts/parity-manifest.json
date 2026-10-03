@@ -1700,6 +1700,10 @@
       "note": "the split view changes files earlier batches already sent: the panes' own state and the rule that says what may go in one (`stores/tabs.js`, `config/tabKinds.js`), the breadcrumb reading its pane instead of the router (`BreadCrumb.vue`), and the drag reading the folder the files arrived in rather than only the one they left (`useFileDragDrop.js`). The difference stands until P3-61 goes, which is the batch that carries it — see the rule of that batch above"
     },
     {
+      "match": "^frontend/src/components/TabPane\\.vue$",
+      "note": "the panes batch is open, not merged, and this file has moved on here since the branch was cut: a pane's header now carries the button that puts the two of them the other way round, beside the cross that closes one. It is in both headers because it moves neither pane in particular, and it goes with the gesture that opens a pane without tabs — the batch after the panes, which the `controls` entry for `tabs.swapPanes` names."
+    },
+    {
       "match": "^frontend/src/components/BreadCrumb\\.vue$",
       "note": "the split view changes files earlier batches already sent: the panes' own state and the rule that says what may go in one (`stores/tabs.js`, `config/tabKinds.js`), the breadcrumb reading its pane instead of the router (`BreadCrumb.vue`), and the drag reading the folder the files arrived in rather than only the one they left (`useFileDragDrop.js`). The difference stands until P3-61 goes, which is the batch that carries it — see the rule of that batch above"
     },
@@ -1764,6 +1768,10 @@
     {
       "match": "^tabs\\.(unfoldPair|ungroup)$",
       "note": "the strip draws one entry per pair, unfolding to either half, and the menu takes a pair apart without closing anything — part of the same batch as the panes"
+    },
+    {
+      "match": "^tabs\\.(swapPanes|openInRightPane)$",
+      "note": "a second pane without turning tabs on, and the two of them put the other way round — the batch after the panes, and the whole of it is one gesture and one button. The gesture is on an entry in a listing rather than on a tab, because a reader who wants the folder they are copying into beside the one they are copying out of should not have to accept a row of tabs to reach it; underneath there is nothing new, a pane having always been a tab. The button swaps the two panes over and sits in both headers, since it moves neither of them in particular — `swapPanes` has been in the store since the pair existed, with its own case, and nothing could ask for it."
     },
     {
       "match": "^\\\"labelFor\\(tab, partner\\)\\\"$",
