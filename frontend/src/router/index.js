@@ -34,9 +34,13 @@ import SettingsFileVersions from '@/views/settings/SettingsFileVersions.vue';
 import { useAuthStore } from '@/stores/auth';
 import { useFeaturesStore } from '@/stores/features';
 import { useAppSettings } from '@/stores/appSettings';
+import { folderRoute } from '@/utils/folderRoute';
+import { documentRoute } from '@/utils/documentRoute';
 import { useFolderScrollStore } from '@/stores/folderScroll';
 import { useTabsStore } from '@/stores/tabs';
 import { restorePermission } from './restorePermission';
+import { shareTokenOf } from './shareToken';
+import { folderPathOfRoute } from '@/utils/routeFolderPath';
 import { getVolumes } from '@/api';
 import { readGuestSession, resolveShareAccess } from '@/router/shareGuard';
 import { loadAccountSettings } from '@/router/settingsGuard';
@@ -229,11 +233,71 @@ const router = createRouter({
       component: () => import('@/views/CompareView.vue'),
       meta: { requiresAuth: true },
     },
+    /**
+     * Everything a visitor with no account touches, under one prefix.
+     *
+     * A share used to send its visitor into `/browse/share/<token>`, which is the
+     * prefix of the signed-in application — so anybody putting an authentication
+     * proxy in front of this had to be told about that one too, and a rule meant to
+     * open a public link ended up naming half the application. Every other file
+     * manager keeps its public share under a prefix of its own: Nextcloud serves the
+     * page, the password prompt and the download under `/s/{token}`, Filestash serves
+     * the page and the files under `/s/{share}`, FileBrowser has a `/public` route
+     * beside the `/files` one that requires an account.
+     *
+     * So does this now. The words after the token are the API's own — `browse`,
+     * `editor` — which is also why nothing a share holds can be mistaken for one:
+     * a file lives under one of them, never beside them.
+     *
+     * These are guest routes, not public ones. `public` means the guard returns
+     * before it has asked anything, which is right for the door and wrong for the
+     * rooms: what is behind them is somebody's files, and `resolveShareAccess`
+     * decides who may see them.
+     */
     {
-      path: '/editor/share/:token/:sharedPath(.*)*',
+      path: '/share/:token/browse/:path(.*)*',
+      name: 'ShareBrowse',
+      component: FolderView,
+      meta: { requiresAuth: true, allowGuest: true },
+    },
+    {
+      path: '/share/:token/editor/:sharedPath(.*)*',
       name: 'SharedEditor',
       component: EditorView,
       meta: { requiresAuth: true, allowGuest: true, sharedEditor: true },
+    },
+    /**
+     * And what a visitor reads rather than edits — a PDF, a picture, a document in
+     * ONLYOFFICE or Collabora.
+     *
+     * `/open/…` asks for an account, so a share holding anything with a preview sent
+     * its visitor to the sign-in screen: the listing offered the file and opening it
+     * refused. Here it is a guest route like the others, decided by the same
+     * `resolveShareAccess`, and every byte still comes through `/api/share/<token>/…`
+     * where the server checks the guest session for itself.
+     */
+    {
+      path: '/share/:token/open/:path(.*)*',
+      name: 'ShareDocument',
+      component: DocumentView,
+      meta: { requiresAuth: true, allowGuest: true },
+    },
+    // Where a share used to be. Links already handed out still resolve, and still
+    // through the same guard: a redirect is a navigation like any other.
+    {
+      path: '/browse/share/:token/:path(.*)*',
+      redirect: (to) => folderRoute(`share/${to.params.token}/${segmentsOf(to.params.path)}`),
+    },
+    {
+      path: '/editor/share/:token/:sharedPath(.*)*',
+      redirect: (to) => ({
+        name: 'SharedEditor',
+        params: { token: to.params.token, sharedPath: to.params.sharedPath },
+      }),
+    },
+    {
+      path: '/open/share/:token/:path(.*)*',
+      redirect: (to) => documentRoute(`share/${to.params.token}/${segmentsOf(to.params.path)}`),
     },
     {
       path: '/editor/:path(.*)',
@@ -288,13 +352,12 @@ const router = createRouter({
   ],
 });
 
-const folderPathFromRoute = (route) => {
-  if (route?.name !== 'FolderView') return '';
-  const raw = Array.isArray(route.params?.path)
-    ? route.params.path.join('/')
-    : route.params?.path || '';
-  return String(raw).replace(/^\/+|\/+$/g, '');
-};
+/** A `(.*)*` parameter, which vue-router hands over as an array of segments. */
+const segmentsOf = (value) =>
+  Array.isArray(value) ? value.filter(Boolean).join('/') : String(value || '');
+
+const folderPathFromRoute = (route) =>
+  route?.name === 'FolderView' || route?.name === 'ShareBrowse' ? folderPathOfRoute(route) : '';
 
 router.beforeEach(async (to, from) => {
   const folderScrollStore = useFolderScrollStore();
@@ -327,15 +390,7 @@ router.beforeEach(async (to, from) => {
 
   // Allow guest access for share paths (check if path starts with share/)
   const isGuestRoute = Boolean(to.meta?.allowGuest);
-  const pathParam = typeof to.params?.path === 'string' ? to.params.path : '';
-  const shareToken =
-    to.name === 'SharedEditor'
-      ? typeof to.params?.token === 'string'
-        ? to.params.token
-        : ''
-      : pathParam.startsWith('share/')
-        ? pathParam.split('/')[1]
-        : '';
+  const shareToken = shareTokenOf(to);
 
   if (isGuestRoute && shareToken) {
     // Read this first: initialize() drops the guest session as soon as it sees

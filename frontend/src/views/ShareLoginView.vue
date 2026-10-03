@@ -107,8 +107,23 @@ async function handleUserAccess() {
 }
 
 function navigateAfterShareAccess() {
-  if (redirectTarget.value) {
-    window.location.assign(redirectTarget.value);
+  const target = redirectTarget.value;
+  if (target) {
+    /**
+     * Inside the application, rather than by throwing the whole page away.
+     *
+     * This used to be `window.location.assign`, which reloads: the application
+     * started, read the share, let the visitor in, and then started again from
+     * nothing — two downloads of the bundle and a flash of this screen in between,
+     * which is what a reader saw as a page that would not settle. Nothing needed
+     * the reload: the guest session is read from session storage on every request,
+     * so it is live the moment it is written.
+     *
+     * `target` has already been refused unless it is a path of ours — a value like
+     * `//evil.example` only looks like one, and following it would leave the site
+     * from a link whose address was ours.
+     */
+    void router.replace(target);
     return;
   }
 

@@ -116,6 +116,25 @@ describe('what a page is called', () => {
       'Plans'
     );
   });
+
+  /**
+   * And the same, from a share's own address.
+   *
+   * That one keeps the token and the word after it apart, so the folder it names
+   * is in two parameters rather than one. Read as one, a share's own listing has
+   * no segments at all and a visitor's tab read "Volumes".
+   */
+  it('calls it the same from the share’s own address', () => {
+    const root = { name: 'ShareBrowse', params: { token: 'a1b2c3d4e5f6', path: [] } };
+    expect(titleOf(root, { shareName: 'Dossier client' })).toBe('Dossier client');
+    expect(titleOf(root)).toBe('translated:titles.share');
+    expect(
+      titleOf({ name: 'ShareBrowse', params: { token: 'a1b2c3d4e5f6', path: ['Plans'] } })
+    ).toBe('Plans');
+    expect(
+      titleOf({ name: 'ShareDocument', params: { token: 'a1b2c3d4e5f6', path: ['devis.md'] } })
+    ).toBe('devis.md');
+  });
 });
 
 describe('what a page showing one file is called', () => {

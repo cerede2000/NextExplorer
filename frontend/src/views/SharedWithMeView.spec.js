@@ -200,7 +200,7 @@ describe('opening one', () => {
 
     await wrapper.find('[data-share-row]').trigger('click');
 
-    expect(push).toHaveBeenCalledWith({ path: '/browse/share/abc123' });
+    expect(push).toHaveBeenCalledWith({ path: '/share/abc123/browse/' });
   });
 
   /**

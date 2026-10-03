@@ -1,5 +1,6 @@
 import { folderRoute } from '@/utils/folderRoute';
 import { documentRoute } from '@/utils/documentRoute';
+import { editorRoute } from '@/utils/editorRoute';
 import { isEditableExtension } from '@/config/editor';
 import { usePreviewManager } from '@/plugins/preview/manager';
 import { useAppSettings } from '@/stores/appSettings';
@@ -55,9 +56,7 @@ export function useItemAddress() {
     // Asked once: matching a plugin builds a context and walks the list.
     const previewable = !opensInEditor && Boolean(previewManager.findPlugin(item));
     if (previewable) return documentRoute(fullPath);
-    if (opensInEditor || editable) {
-      return { path: `/editor/${fullPath.split('/').map(encodeURIComponent).join('/')}` };
-    }
+    if (opensInEditor || editable) return editorRoute(fullPath);
     return null;
   };
 

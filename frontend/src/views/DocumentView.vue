@@ -54,7 +54,11 @@ const nothingOpensIt = ref(false);
 const documentPath = computed(() => {
   const raw = route.params.path;
   const joined = Array.isArray(raw) ? raw.join('/') : typeof raw === 'string' ? raw : '';
-  return normalizePath(joined);
+  // A document inside a share says where it is in two parts: the address keeps the
+  // token and the word `open` apart, and the file the server is asked for — and the
+  // folder this page goes back to — is `share/<token>/…`.
+  const token = typeof route.params.token === 'string' ? route.params.token : '';
+  return normalizePath(token ? `share/${token}${joined ? `/${joined}` : ''}` : joined);
 });
 
 const name = computed(() => documentPath.value.split('/').filter(Boolean).pop() || '');

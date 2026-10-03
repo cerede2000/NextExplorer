@@ -58,7 +58,11 @@ const TAB_KINDS = [
   {
     id: 'folder',
     folderPanels: true,
-    match: /^\/browse([/?#]|$)/,
+    // A share browses under its own prefix: everything a visitor with no account
+    // touches is `/share/<token>/…`, so one rule in front of the application can
+    // let a public link through without opening the rest of it. `/browse/share/…`
+    // is where it used to be and still resolves, for links already handed out.
+    match: /^\/browse([/?#]|$)|^\/share\/[^/?#]+\/browse([/?#]|$)/,
     icon: FolderIcon,
     // Nothing to name it from at `/browse/`, which is the list of volumes.
     rootTitleKey: 'breadcrumb.volumes',
@@ -68,7 +72,7 @@ const TAB_KINDS = [
   {
     id: 'document',
     fullTab: true,
-    match: /^\/open([/?#]|$)/,
+    match: /^\/open([/?#]|$)|^\/share\/[^/?#]+\/open([/?#]|$)/,
     icon: DocumentTextIcon,
     singleton: false,
     restores: true,
@@ -108,7 +112,7 @@ const TAB_KINDS = [
   },
   {
     id: 'editor',
-    match: /^\/editor([/?#]|$)/,
+    match: /^\/editor([/?#]|$)|^\/share\/[^/?#]+\/editor([/?#]|$)/,
     icon: CodeBracketIcon,
     singleton: false,
     restores: true,
@@ -233,8 +237,14 @@ export const tabFolderPath = (tab) => {
     .split('?')[0]
     .split('/')
     .filter(Boolean);
-  // The kind's own prefix is not part of the folder: `/browse/Docs` is `Docs`.
-  const parts = segments.slice(1);
+  // A share says where it is twice over: the address is `/share/<token>/browse/…`
+  // and the folder it names is `share/<token>/…`, which is what the server is
+  // asked for. The token stays, the word `browse` goes.
+  const parts =
+    segments[0] === 'share' && segments[2] === 'browse'
+      ? [segments[0], segments[1], ...segments.slice(3)]
+      : // The kind's own prefix is not part of the folder: `/browse/Docs` is `Docs`.
+        segments.slice(1);
   return parts
     .map((part) => {
       try {

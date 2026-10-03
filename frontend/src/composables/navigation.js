@@ -2,6 +2,8 @@ import { computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { withViewTransition } from '@/utils';
 import { folderRoute } from '@/utils/folderRoute';
+import { folderPathOfRoute } from '@/utils/routeFolderPath';
+import { editorRoute } from '@/utils/editorRoute';
 import { isEditableExtension } from '@/config/editor';
 import { usePreviewManager } from '@/plugins/preview/manager';
 import { useAppSettings } from '@/stores/appSettings';
@@ -81,12 +83,9 @@ export function useNavigation() {
     const kind = typeof item.kind === 'string' ? item.kind : '';
     const name = typeof item.name === 'string' ? item.name : '';
     if (!name && kind !== 'personal') return;
-    const currentPath =
-      typeof route.params.path === 'string'
-        ? route.params.path
-        : Array.isArray(route.params.path)
-          ? route.params.path.join('/')
-          : '';
+    // Where this listing is, which inside a share is `share/<token>/…` even though
+    // the address keeps the token in a parameter of its own.
+    const currentPath = folderPathOfRoute(route);
 
     if (kind === 'volume') {
       navigate(folderRoute(name));
@@ -173,11 +172,7 @@ export function useNavigation() {
       return;
     }
 
-    if (editable) {
-      // Encode each segment for editor path
-      const encodedPath = fullPath.split('/').map(encodeURIComponent).join('/');
-      navigate({ path: `/editor/${encodedPath}` });
-    }
+    if (editable) navigate(editorRoute(fullPath));
   };
 
   const openBreadcrumb = (path) => {
@@ -193,13 +188,7 @@ export function useNavigation() {
   };
 
   const goUp = () => {
-    const currentPath =
-      typeof route.params.path === 'string'
-        ? route.params.path
-        : Array.isArray(route.params.path)
-          ? route.params.path.join('/')
-          : '';
-    const segments = currentPath.split('/').filter(Boolean);
+    const segments = folderPathOfRoute(route).split('/').filter(Boolean);
     if (segments.length === 0) return;
 
     segments.pop();

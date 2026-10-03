@@ -58,6 +58,7 @@ vi.mock('@/stores/auth', async () => {
 
 const routing = vi.hoisted(() => ({ route: null }));
 const push = vi.hoisted(() => vi.fn());
+const replace = vi.hoisted(() => vi.fn());
 
 vi.mock('vue-router', async () => {
   const { reactive } = await import('vue');
@@ -66,7 +67,7 @@ vi.mock('vue-router', async () => {
     query: {},
     fullPath: '/share/tok123',
   });
-  return { useRoute: () => routing.route, useRouter: () => ({ push }) };
+  return { useRoute: () => routing.route, useRouter: () => ({ push, replace }) };
 });
 
 const ShareLoginView = (await import('./ShareLoginView.vue')).default;
@@ -109,6 +110,7 @@ beforeEach(() => {
   Object.values(api).forEach((fn) => fn.mockClear());
   api.accessShare.mockResolvedValue({});
   push.mockClear();
+  replace.mockClear();
   initialize.mockClear();
   Object.assign(routing.route, {
     params: { token: 'tok123' },
@@ -132,8 +134,8 @@ describe('where a visitor is sent once they are in', () => {
     const view = await openOn(PUBLIC_SHARE, { redirect: '//evil.example/steal' });
 
     expect(view.redirectTarget).toBeNull();
-    expect(assigned).toBe('');
-    expect(push).toHaveBeenCalledWith({ path: '/browse/share/tok123' });
+    expect(replace).not.toHaveBeenCalled();
+    expect(push).toHaveBeenCalledWith({ path: '/share/tok123/browse/' });
   });
 
   it('refuses an address somewhere else outright', async () => {
@@ -148,10 +150,18 @@ describe('where a visitor is sent once they are in', () => {
     expect(view.redirectTarget).toBeNull();
   });
 
-  it('follows a path inside the site', async () => {
-    await openOn(PUBLIC_SHARE, { redirect: '/browse/share/tok123/Docs' });
+  /**
+   * And it follows it inside the application rather than by reloading the page.
+   *
+   * `window.location.assign` threw the whole page away and built it again: two
+   * downloads of the bundle and a flash of this screen in between. Nothing needed
+   * it — the guest session is read from session storage on every request.
+   */
+  it('follows a path inside the site, without starting the application again', async () => {
+    await openOn(PUBLIC_SHARE, { redirect: '/share/tok123/browse/Docs' });
 
-    expect(assigned).toBe('/browse/share/tok123/Docs');
+    expect(replace).toHaveBeenCalledWith('/share/tok123/browse/Docs');
+    expect(assigned).toBe('');
   });
 
   it('takes the first of several, rather than the list', async () => {
@@ -163,7 +173,7 @@ describe('where a visitor is sent once they are in', () => {
   it('goes to the share itself when nothing else was asked for', async () => {
     await openOn(PUBLIC_SHARE);
 
-    expect(push).toHaveBeenCalledWith({ path: '/browse/share/tok123' });
+    expect(push).toHaveBeenCalledWith({ path: '/share/tok123/browse/' });
   });
 });
 

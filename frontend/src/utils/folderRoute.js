@@ -31,8 +31,26 @@ export const encodeFolderPath = (path) =>
  * @param {object} [query]  Left out entirely when empty, so no address grows a
  *   bare `?`.
  */
+/**
+ * A share's own address, which is not under `/browse/`.
+ *
+ * Everything a visitor with no account touches lives under `/share/<token>/`, so
+ * one rule in front of the application can let a public link through without
+ * opening the rest of it — which is what every other file manager does, and what
+ * ours did not: it dropped its visitors into the prefix of the signed-in
+ * application and a proxy had to be told about that one too.
+ */
+const SHARE = /^share\/([^/]+)(?:\/(.*))?$/;
+
 export const folderRoute = (path, query) => {
+  const shared = SHARE.exec(String(path ?? '').replace(/^\/+/, ''));
   const encoded = encodeFolderPath(path);
-  const route = { path: encoded ? `/browse/${encoded}` : '/browse/' };
+  const route = {
+    path: shared
+      ? `/share/${encodeURIComponent(shared[1])}/browse/${encodeFolderPath(shared[2] || '')}`
+      : encoded
+        ? `/browse/${encoded}`
+        : '/browse/',
+  };
   return query && Object.keys(query).length > 0 ? { ...route, query } : route;
 };

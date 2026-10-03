@@ -33,7 +33,9 @@ vi.mock('@/api/shares.api', () => ({
   updateShare: (...args) => updateShare(...args),
   copyShareUrl: (...args) => copyShareUrl(...args),
   copyDirectShareFileUrl: (...args) => copyDirectShareFileUrl(...args),
-  getDirectShareFileUrl: vi.fn(() => 'https://files.example.com/d/tok'),
+  // The dialog shows the link it will copy, which is the one built from the name
+  // the instance is published under rather than from this browser's address bar.
+  getShareableDirectFileUrl: vi.fn(() => 'https://files.example.com/d/tok'),
   DIRECT_SHARE_FILE_MODES: [
     { value: 'auto', labelKey: 'share.directLinkModes.auto', fallback: 'Auto' },
     { value: 'editor', labelKey: 'share.directLinkModes.editor', fallback: 'Editor' },

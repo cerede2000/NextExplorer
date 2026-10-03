@@ -698,7 +698,8 @@ test('a document inside a share opens in a tab as well', async () => {
   const [document] = await Promise.all([page.waitForEvent('popup'), row.dblclick()]);
   await document.waitForLoadState('domcontentloaded');
 
-  expect(document.url()).toContain(`/open/share/${token}/tabbed.md`);
+  // Under the share's own prefix: everything a visitor touches is `/share/<token>/…`.
+  expect(document.url()).toContain(`/share/${token}/open/tabbed.md`);
   await expect(document.locator('[data-test="preview-surface"]')).toBeVisible();
   // Not an empty shell: the document itself came through the share.
   await expect(document.getByText('In its own tab')).toBeVisible();
@@ -4322,6 +4323,246 @@ test('a second pane opens without tabs, and holds anything a tab holds', async (
   await expect(panes).toHaveCount(1);
   await expect(strip).toHaveCount(0);
   expect((await places())[0].kind).toBe('listing');
+});
+
+/**
+ * A whole shared folder, walked by somebody with no account.
+ *
+ * Everything a visitor touches now lives under `/share/<token>/` — the listing, a
+ * subfolder, a file read in the viewer, a file opened in the editor. It used to
+ * wander into `/browse/share/<token>` and `/open/…`, which is the prefix of the
+ * signed-in application: anybody putting an authentication proxy in front of this
+ * had to name half of it to let a public link through, and `/open/…` asked for an
+ * account outright, so a share holding anything with a preview offered the file in
+ * its listing and refused to open it.
+ *
+ * So this walks the whole of it and watches the address at every step.
+ */
+test('a shared folder is browsed, read and edited without ever leaving the share', async ({
+  browser,
+}) => {
+  test.slow();
+
+  const dir = path.join(volume, 'Handout');
+  fs.mkdirSync(path.join(dir, 'Deeper'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'readme.md'), '# Handout\n\nread me\n');
+  fs.writeFileSync(path.join(dir, 'Deeper', 'inside.txt'), 'inside the subfolder\n');
+  // A real one-pixel image, so the viewer's own plugin claims it.
+  fs.writeFileSync(
+    path.join(dir, 'picture.png'),
+    Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64'
+    )
+  );
+
+  await page.goto('/browse/Projects');
+  await page.getByRole('button', { name: 'Select Handout' }).click();
+  await page.getByRole('button', { name: 'Share selected item' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Create Share Link' }).click();
+  const link = await dialog.locator('input[readonly]').first().inputValue();
+  const token = link.split('/share/')[1];
+  await page.keyboard.press('Escape');
+
+  const stranger = await browser.newContext({ locale: 'en-US' });
+  try {
+    const visitor = await stranger.newPage();
+    /** Every address this visitor is ever on, so none of them can wander off. */
+    const visited = [];
+    visitor.on('framenavigated', (frame) => {
+      if (frame === visitor.mainFrame()) visited.push(new URL(frame.url()).pathname);
+    });
+
+    await visitor.goto(link);
+
+    // The listing of the shared folder, under the share's own prefix.
+    await expect(visitor).toHaveURL(new RegExp(`/share/${token}/browse/$`));
+    await expect(visitor.locator('[title="readme.md"]').first()).toBeVisible();
+    await expect(visitor.locator('[title="Deeper"]').first()).toBeVisible();
+
+    // Into a subfolder, and back out again.
+    await visitor.locator('[title="Deeper"]').first().dblclick();
+    await expect(visitor).toHaveURL(new RegExp(`/share/${token}/browse/Deeper$`));
+    await expect(visitor.locator('[title="inside.txt"]').first()).toBeVisible();
+    await visitor.goBack();
+    await expect(visitor).toHaveURL(new RegExp(`/share/${token}/browse/$`));
+
+    /**
+     * A file read in the viewer.
+     *
+     * Without tabs the viewer is a surface over the listing rather than an address,
+     * which is what it has always been — so what is asked here is that a visitor
+     * with no account reaches it at all, and is not sent to a sign-in screen on the
+     * way. The address it *does* have, for whoever browses in tabs, is walked by
+     * the journey that opens a shared document in one.
+     */
+    const [served] = await Promise.all([
+      // The viewer reads through `/api/preview`, which is where the server looks at
+      // the guest session for itself.
+      visitor.waitForResponse((response) => response.url().includes('/api/preview')),
+      visitor.locator('[title="picture.png"]').first().dblclick(),
+    ]);
+    // The bytes actually came through the share, for somebody with no account.
+    expect(served.status(), `the viewer was answered ${served.status()}`).toBeLessThan(400);
+    await expect(visitor.locator('[data-test="preview-surface"]')).toHaveCount(1);
+    // Not sent to the sign-in screen on the way — which is what `/open/…` asking
+    // for an account did. The guest banner in the sidebar says "Sign In" too, so
+    // what is asked is the address rather than the words on the page.
+    await expect(visitor).toHaveURL(new RegExp(`/share/${token}/`));
+    await visitor.keyboard.press('Escape');
+
+    /**
+     * And a file opened in the editor, which does have an address.
+     *
+     * A file with a preview opens in the surface above; the editor is where one
+     * without goes — so this is the plain text file inside the subfolder, which
+     * also says the inner path survives the move.
+     */
+    await visitor.locator('[title="Deeper"]').first().dblclick();
+    await expect(visitor).toHaveURL(new RegExp(`/share/${token}/browse/Deeper$`));
+    await visitor.locator('[title="inside.txt"]').first().dblclick();
+    await expect(visitor).toHaveURL(new RegExp(`/share/${token}/editor/Deeper/inside\\.txt$`));
+    await expect(visitor.locator('.cm-content')).toContainText('inside the subfolder');
+
+    // Not one address outside the share, at any point.
+    const strayed = visited.filter((address) => !address.startsWith(`/share/${token}`));
+    expect(strayed, `addresses outside the share: ${strayed.join(', ')}`).toEqual([]);
+
+    // And the address a share used to have still arrives, for links already sent.
+    await visitor.goto(`/browse/share/${token}/Deeper`);
+    await expect(visitor).toHaveURL(new RegExp(`/share/${token}/browse/Deeper$`));
+    await expect(visitor.locator('[title="inside.txt"]').first()).toBeVisible();
+  } finally {
+    await stranger.close();
+  }
+});
+
+/**
+ * Nobody gets in without a reason, and the reason is checked where it counts.
+ *
+ * Moving a share to its own prefix moves which *addresses* a visitor walks; it must
+ * move nothing about who may see what. The rooms are guest routes rather than public
+ * ones, so the router still asks `resolveShareAccess` before drawing any of them —
+ * and behind that the server asks again for every byte, which is the gate that
+ * actually holds: a browser is the visitor's, and anything decided only in it is
+ * decided by them.
+ *
+ * So this walks straight at the rooms, with no session, with somebody else's
+ * session, and with a token that names nothing — and asks the server directly,
+ * where no screen can soften the answer.
+ */
+test('a share lets nobody in without a reason, whatever address they walk at', async ({
+  browser,
+}) => {
+  test.slow();
+
+  const open = path.join(volume, 'Open');
+  const locked = path.join(volume, 'Locked');
+  fs.mkdirSync(open, { recursive: true });
+  fs.mkdirSync(locked, { recursive: true });
+  fs.writeFileSync(path.join(open, 'public.txt'), 'anybody may read this\n');
+  fs.writeFileSync(path.join(locked, 'secret.txt'), 'not for everybody\n');
+
+  const shareOf = async (name, password) => {
+    await page.goto('/browse/Projects');
+    await page.getByRole('button', { name: `Select ${name}` }).click();
+    await page.getByRole('button', { name: 'Share selected item' }).click();
+    const dialog = page.getByRole('dialog');
+    if (password) {
+      // The field appears only once the protection is asked for.
+      await dialog.getByText('Password protect').click();
+      await dialog.locator('input[type="password"]').first().fill(password);
+    }
+    await dialog.getByRole('button', { name: 'Create Share Link' }).click();
+    const link = await dialog.locator('input[readonly]').first().inputValue();
+    await page.keyboard.press('Escape');
+    return link.split('/share/')[1];
+  };
+
+  const openToken = await shareOf('Open', '');
+  const lockedToken = await shareOf('Locked', 'correct-horse-battery');
+
+  const stranger = await browser.newContext({ locale: 'en-US' });
+  try {
+    const visitor = await stranger.newPage();
+
+    /**
+     * What the server actually hands over, with whatever this visitor is carrying.
+     *
+     * The body rather than the status, because a refusal here is not always a 4xx:
+     * the server answers some of them by sending the visitor to the door, and a
+     * `fetch` follows that and comes back 200 with a page of HTML. What matters is
+     * not the number — it is whether the thing being guarded came out.
+     */
+    const asksFor = (address) =>
+      visitor.evaluate(async (url) => {
+        const answer = await fetch(url, { headers: { Accept: 'application/json' } });
+        return { status: answer.status, body: (await answer.text()).slice(0, 4000) };
+      }, address);
+
+    // In through the door of the open share, the way anybody arrives: that is the
+    // setup, and a setup must not lean on the thing being tested. What it gives
+    // this visitor is a real guest session — for *that* share.
+    await visitor.goto(`/share/${openToken}`);
+    await expect(visitor.locator('[title="public.txt"]').first()).toBeVisible();
+
+    // A token that names nothing hands nothing over.
+    expect((await asksFor('/api/share/doesnotexist/browse/')).body).not.toContain('public.txt');
+
+    /**
+     * The password-protected share, walked straight at.
+     *
+     * Not the door — the rooms, one by one, which is what a prefix move could have
+     * quietly opened. Each of them has to land on the door instead.
+     */
+    for (const address of [
+      `/share/${lockedToken}/browse/`,
+      `/share/${lockedToken}/browse/Deeper`,
+      `/share/${lockedToken}/open/secret.txt`,
+      `/share/${lockedToken}/editor/secret.txt`,
+    ]) {
+      await visitor.goto(address);
+      await expect(
+        visitor.locator('input[type="password"]'),
+        `${address} drew no password prompt`
+      ).toBeVisible();
+      await expect(visitor.locator('[title="secret.txt"]')).toHaveCount(0);
+      await expect(visitor.locator('.cm-content')).toHaveCount(0);
+    }
+
+    /**
+     * And the session this visitor is carrying is for the other share.
+     *
+     * It is a real, valid guest session — the open share let them in and wrote it
+     * down. It must not open the locked one: a session names the share it was given
+     * for, and the server checks that rather than merely that one exists.
+     */
+    const secret = 'not for everybody';
+    expect((await asksFor(`/api/share/${lockedToken}/browse/`)).body).not.toContain('secret.txt');
+    expect((await asksFor(`/api/share/${lockedToken}/file/secret.txt`)).body).not.toContain(secret);
+    expect((await asksFor(`/api/share/${lockedToken}/editor/secret.txt`)).body).not.toContain(
+      secret
+    );
+    // Including the two endpoints the viewer itself reads through, which a move of
+    // the *addresses* could never have changed and must not have.
+    const inner = encodeURIComponent(`share/${lockedToken}/secret.txt`);
+    expect((await asksFor(`/api/preview?path=${inner}`)).body).not.toContain(secret);
+    expect((await asksFor(`/api/raw?path=${inner}`)).body).not.toContain(secret);
+
+    // The open one still answers them, so the refusals above are about the share
+    // and not about this visitor being refused everything.
+    const allowed = await asksFor(`/api/share/${openToken}/browse/`);
+    expect(allowed.status).toBeLessThan(400);
+    expect(allowed.body).toContain('public.txt');
+
+    // The old addresses are no shortcut either: they redirect into the same rooms.
+    await visitor.goto(`/browse/share/${lockedToken}`);
+    await expect(visitor.locator('input[type="password"]')).toBeVisible();
+    await expect(visitor.locator('[title="secret.txt"]')).toHaveCount(0);
+  } finally {
+    await stranger.close();
+  }
 });
 
 test('the page threw nothing along the way', () => {

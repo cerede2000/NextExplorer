@@ -16,7 +16,16 @@ import { encodeFolderPath } from './folderRoute';
  * Encoded the same way a folder is — each segment on its own, so the slashes
  * between them survive and no address comes back full of `%2F`.
  */
+const SHARE = /^share\/([^/]+)(?:\/(.*))?$/;
+
 export const documentRoute = (path) => {
+  // Inside a share it goes under the share's own prefix, with everything else a
+  // visitor with no account touches: `/share/<token>/open/<file>`.
+  const shared = SHARE.exec(String(path ?? '').replace(/^\/+/, ''));
+  if (shared) {
+    const inner = encodeFolderPath(shared[2] || '');
+    return { path: `/share/${encodeURIComponent(shared[1])}/open/${inner}` };
+  }
   const encoded = encodeFolderPath(path);
   return { path: encoded ? `/open/${encoded}` : '/browse/' };
 };
@@ -34,7 +43,14 @@ export const documentRoute = (path) => {
  * with nothing after it.
  */
 export const documentItemFromAddress = (address) => {
-  const match = /^\/open\/(.+)$/.exec(String(address || '').split(/[?#]/)[0]);
+  const plain = String(address || '').split(/[?#]/)[0];
+  // Either shape says the same thing: `/open/<path>` and, inside a share,
+  // `/share/<token>/open/<path>` — where the file the server is asked for is
+  // `share/<token>/<path>`.
+  const shared = /^\/share\/([^/]+)\/open\/(.*)$/.exec(plain);
+  const match = shared
+    ? [plain, `share/${shared[1]}${shared[2] ? `/${shared[2]}` : ''}`]
+    : /^\/open\/(.+)$/.exec(plain);
   if (!match) return null;
 
   const segments = match[1]

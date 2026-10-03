@@ -1,3 +1,5 @@
+import { folderPathOfRoute } from './routeFolderPath';
+
 /**
  * The browser tab's title: what the page is, then the name the instance was
  * given in Settings → Branding.
@@ -22,11 +24,7 @@ export const composeTitle = (page, appName) => {
 
 const camelCase = (key) => key.replace(/-([a-z])/g, (_match, letter) => letter.toUpperCase());
 
-const segmentsOf = (route) => {
-  const path = route?.params?.path;
-  const joined = Array.isArray(path) ? path.join('/') : path || '';
-  return joined.split('/').filter(Boolean);
-};
+const segmentsOf = (route) => folderPathOfRoute(route).split('/').filter(Boolean);
 
 /**
  * What a page of the explorer is called, before the instance's name.
