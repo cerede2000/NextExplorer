@@ -1081,6 +1081,8 @@
     "ungroup": "Anulează gruparea",
     "closeSplit": "Închide acest panou",
     "resizeSplit": "Redimensionează panourile",
+    "openInRightPane": "Deschide într-un panou în dreapta",
+    "swapPanes": "Inversează panourile",
     "pin": "Fixează tabul",
     "unpin": "Anulează fixarea tabului",
     "closeTab": "Închide tabul",

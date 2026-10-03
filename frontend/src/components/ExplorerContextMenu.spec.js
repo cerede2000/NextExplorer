@@ -81,6 +81,7 @@ const address = vi.hoisted(() => ({
   // Answering with a tab is how the store says there was room for it; null is
   // how it says the row is full, and the menu has to read the difference.
   open: vi.fn(() => ({ id: 'opened' })),
+  openInPane: vi.fn(() => ({ id: 'in-pane' })),
   limit: 10,
 }));
 vi.mock('@/composables/itemAddress', () => ({
@@ -92,6 +93,7 @@ vi.mock('@/composables/tabNavigation', () => ({
       return { enabled: address.enabled, limit: address.limit };
     },
     open: address.open,
+    openInPane: address.openInPane,
   }),
 }));
 vi.mock('@/stores/fileStore', () => ({ useFileStore: () => fileStore }));
@@ -1552,5 +1554,73 @@ describe('open in a new tab', () => {
 
     expect(labels()).toContain('tabs.openInNewTab');
     expect(labels().some((label) => label.startsWith('tabs.openInNewTabs'))).toBe(false);
+  });
+});
+
+/**
+ * The pane beside this one, offered from the menu.
+ *
+ * Whether tabs are on or not: a second pane is not a row of tabs, and the gesture it
+ * serves — the folder you are copying into, beside the one you are copying out of —
+ * is what a file manager is for. About one entry, because a pane holds one place.
+ */
+describe('opening something in the pane beside this one', () => {
+  const openOnFile = async () => {
+    const { api } = await mountMenu();
+    api.openItemMenu(rightClick(), FILE);
+    await flushPromises();
+  };
+
+  const press = async (label) => {
+    const button = [...(menuPanel()?.querySelectorAll('button') ?? [])].find(
+      (candidate) => candidate.querySelector('p')?.textContent?.trim() === label
+    );
+    button?.click();
+    await flushPromises();
+  };
+
+  it('is offered with tabs turned off, where opening in a tab is not', async () => {
+    address.enabled = false;
+
+    await openOnFile();
+
+    expect(labels()).toContain('tabs.openInRightPane');
+    expect(labels()).not.toContain('tabs.openInNewTab');
+  });
+
+  it('is offered with tabs turned on as well', async () => {
+    address.enabled = true;
+
+    await openOnFile();
+
+    expect(labels()).toContain('tabs.openInRightPane');
+  });
+
+  it('opens the entry’s own address, on the right', async () => {
+    address.enabled = false;
+
+    await openOnFile();
+    await press('tabs.openInRightPane');
+
+    expect(address.openInPane).toHaveBeenCalledWith('right', '/open/Docs/report.docx');
+  });
+
+  /** A pane holds one place, so several chosen entries are not a pane. */
+  it('is not offered for several entries at once', async () => {
+    const other = { name: 'budget.xlsx', path: 'Docs', kind: 'xlsx' };
+    actions = makeActions({ isSingleItemSelected: ref(false), selectedItems: ref([FILE, other]) });
+    fileStore.selectedItems = [FILE, other];
+
+    await openOnFile();
+
+    expect(labels()).not.toContain('tabs.openInRightPane');
+  });
+
+  it('is not offered for an entry with no address of its own', async () => {
+    address.addressFor.mockReturnValueOnce(null);
+
+    await openOnFile();
+
+    expect(labels()).not.toContain('tabs.openInRightPane');
   });
 });

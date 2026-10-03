@@ -1081,6 +1081,8 @@
     "ungroup": "Dégrouper",
     "closeSplit": "Fermer ce volet",
     "resizeSplit": "Redimensionner les volets",
+    "openInRightPane": "Ouvrir dans un volet à droite",
+    "swapPanes": "Échanger les volets",
     "pin": "Épingler l'onglet",
     "unpin": "Détacher l'onglet",
     "closeTab": "Fermer l'onglet",

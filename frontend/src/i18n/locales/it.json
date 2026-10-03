@@ -1081,6 +1081,8 @@
     "ungroup": "Separa",
     "closeSplit": "Chiudi questo riquadro",
     "resizeSplit": "Ridimensiona i riquadri",
+    "openInRightPane": "Apri in un pannello a destra",
+    "swapPanes": "Scambia i pannelli",
     "pin": "Fissa la scheda",
     "unpin": "Sblocca la scheda",
     "closeTab": "Chiudi la scheda",

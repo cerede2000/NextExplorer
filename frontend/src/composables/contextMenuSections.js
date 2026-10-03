@@ -8,6 +8,7 @@ import {
   ShareIcon,
   ArchiveBoxArrowDownIcon,
   ArrowUpOnSquareIcon,
+  ArrowRightCircleIcon,
   ArrowTopRightOnSquareIcon,
   ClockIcon,
 } from '@heroicons/vue/24/outline';
@@ -221,6 +222,15 @@ const itemSections = (situation, run, entries, words) => {
         ArrowsRightLeftIcon,
         run.compare
       ),
+    ]);
+  }
+
+  // Beside opening in tabs, and offered whether or not tabs are on: a pane is not a
+  // tab in the row, and the gesture it serves — the folder you are copying into,
+  // beside the one you are copying out of — is what a file manager is for.
+  if (situation.canOpenInPane) {
+    sections.push([
+      mk('open-in-pane', t('tabs.openInRightPane'), ArrowRightCircleIcon, run.openInPane),
     ]);
   }
 

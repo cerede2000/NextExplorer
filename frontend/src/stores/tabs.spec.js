@@ -443,6 +443,174 @@ describe('turning the mode off', () => {
     expect(store.count).toBe(1);
     expect(store.activeId).toBe(inFront);
   });
+
+  /**
+   * The pair goes with the row it was made from.
+   *
+   * Turning the mode off is asking for the tabs to go, and a pair is two of them. A
+   * second pane without tabs is asked for the other way round — from the menu, one
+   * entry at a time — rather than left behind by a mode being switched off.
+   */
+  it('takes a pair with it, leaving the tab in front', () => {
+    const store = withTabsOn();
+    const left = store.activeId;
+    const right = store.open('/browse/Beta').id;
+    store.activate(left);
+    store.pair(right);
+    expect(store.isSplit).toBe(true);
+
+    store.setEnabled(false);
+
+    expect(store.count).toBe(1);
+    expect(store.isSplit).toBe(false);
+    expect(store.activeId).toBe(left);
+  });
+});
+
+/**
+ * A second pane for somebody who has not turned tabs on.
+ *
+ * Nothing is added for them, because a pane has always *been* a tab: what a reader
+ * sees as the other half is a tab the strip is not drawing, and everything that makes
+ * the two halves independent is already keyed by tab. So this is about the one
+ * difference, which is about what the reader can reach: with no strip, a tab taken
+ * out of a pane has nowhere to be.
+ */
+describe('a pane opened beside this one', () => {
+  const withTabsOff = () => {
+    const store = useTabsStore();
+    store.setEnabled(false);
+    return store;
+  };
+
+  it('makes the pane, and leaves the reader in it', () => {
+    const store = withTabsOff();
+    const left = store.activeId;
+
+    const opened = store.openInPane('right', '/browse/Beta');
+
+    expect(store.isSplit).toBe(true);
+    expect(store.panes).toEqual([left, opened.id]);
+    expect(store.activeId).toBe(opened.id);
+    expect(opened.path).toBe('/browse/Beta');
+  });
+
+  it('holds anything a tab holds', () => {
+    const store = withTabsOff();
+
+    const opened = store.openInPane('right', '/editor/Docs/notes.md');
+
+    expect(opened.kind).toBe('editor');
+    expect(store.isSplit).toBe(true);
+  });
+
+  it('opens on the left when that is the side asked for', () => {
+    const store = withTabsOff();
+    const own = store.activeId;
+
+    const opened = store.openInPane('left', '/browse/Beta');
+
+    expect(store.panes).toEqual([opened.id, own]);
+  });
+
+  /**
+   * And a second one replaces what was in that pane rather than becoming a third.
+   *
+   * With no strip, the tab taken out of the pane is a tab the reader cannot see and
+   * cannot reach — so it goes, and there are two panes rather than two panes and a
+   * stowaway.
+   */
+  it('replaces what was in the pane, and does not keep it behind', () => {
+    const store = withTabsOff();
+    const left = store.activeId;
+    const first = store.openInPane('right', '/browse/Beta');
+
+    const second = store.openInPane('right', '/browse/Gamma');
+
+    expect(store.panes).toEqual([left, second.id]);
+    expect(store.count).toBe(2);
+    expect(store.tabs.some((tab) => tab.id === first.id)).toBe(false);
+  });
+
+  /** With tabs on it is the same gesture, and the strip is somewhere to be. */
+  it('keeps the tab it replaced when there is a strip to find it in', () => {
+    const store = withTabsOn();
+    const left = store.activeId;
+    const first = store.openInPane('right', '/browse/Beta');
+
+    const second = store.openInPane('right', '/browse/Gamma');
+
+    expect(store.panes).toEqual([left, second.id]);
+    expect(store.count).toBe(3);
+    expect(store.tabs.some((tab) => tab.id === first.id)).toBe(true);
+  });
+
+  it('refuses an address nothing can hold', () => {
+    const store = withTabsOff();
+
+    expect(store.openInPane('right', '/nowhere/at/all')).toBeNull();
+    expect(store.isSplit).toBe(false);
+  });
+
+  it('says which tab each pane is drawing', () => {
+    const store = withTabsOff();
+    const left = store.activeId;
+    const right = store.openInPane('right', '/browse/Beta');
+
+    expect(store.paneTab('left')).toBe(left);
+    expect(store.paneTab('right')).toBe(right.id);
+  });
+
+  /**
+   * Closing it closes the tab, with tabs off.
+   *
+   * The pane is the only place that tab was ever drawn. Setting it aside — which is
+   * right when a strip can find it again — would leave the reader a tab they cannot
+   * see, and the next pane they opened would be the second of three.
+   */
+  it('is closed, not set aside, when there is no strip to set it aside in', () => {
+    const store = withTabsOff();
+    const left = store.activeId;
+    store.openInPane('right', '/browse/Beta');
+
+    store.closePane('right');
+
+    expect(store.isSplit).toBe(false);
+    expect(store.count).toBe(1);
+    expect(store.activeId).toBe(left);
+  });
+
+  it('is set aside when there is', () => {
+    const store = withTabsOn();
+    store.openInPane('right', '/browse/Beta');
+
+    store.closePane('right');
+
+    expect(store.isSplit).toBe(false);
+    expect(store.count).toBe(2);
+  });
+
+  it('exchanges the two of them', () => {
+    const store = withTabsOff();
+    const left = store.activeId;
+    const right = store.openInPane('right', '/browse/Beta');
+
+    store.swapPanes();
+
+    expect(store.panes).toEqual([right.id, left]);
+  });
+
+  /** And walking somewhere in a pane moves that pane, not the other. */
+  it('walks the pane the reader is in', () => {
+    const store = withTabsOff();
+    const left = store.activeId;
+    const right = store.openInPane('right', '/browse/Beta');
+
+    store.open('/browse/Delta');
+
+    expect(store.tabs.find((tab) => tab.id === right.id).path).toBe('/browse/Delta');
+    expect(store.tabs.find((tab) => tab.id === left).path).toBe(HOME);
+  });
 });
 
 /**

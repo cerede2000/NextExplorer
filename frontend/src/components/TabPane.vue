@@ -1,7 +1,7 @@
 <script setup>
 import { computed, defineAsyncComponent, ref, shallowRef, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { XMarkIcon } from '@heroicons/vue/24/outline';
+import { ArrowsRightLeftIcon, XMarkIcon } from '@heroicons/vue/24/outline';
 import FolderViewToolbar from '@/components/FolderViewToolbar.vue';
 import { tabTitle } from '@/config/tabKinds';
 import { useI18n } from 'vue-i18n';
@@ -274,6 +274,20 @@ const takeFocus = () => {
       <!-- Its name, not a second breadcrumb: a folder pane has one of those in
            its own toolbar just below, and saying where it is twice is noise. -->
       <span class="min-w-0 flex-1 truncate">{{ paneName }}</span>
+      <!-- In both headers, because the gesture is the same wherever the reader's
+           hand already is: this one swaps the two over rather than moving the one
+           it sits on, which is why it says so and is not an arrow. -->
+      <button
+        type="button"
+        data-test="pane-swap"
+        class="shrink-0 rounded p-1 hover:bg-neutral-200 dark:hover:bg-neutral-700"
+        :aria-label="$t('tabs.swapPanes')"
+        :title="$t('tabs.swapPanes')"
+        @pointerdown.stop
+        @click.stop="tabsStore.swapPanes()"
+      >
+        <ArrowsRightLeftIcon class="h-4 w-4" />
+      </button>
       <button
         type="button"
         data-test="pane-close"
@@ -281,7 +295,7 @@ const takeFocus = () => {
         :aria-label="$t('tabs.closeSplit')"
         :title="$t('tabs.closeSplit')"
         @pointerdown.stop
-        @click.stop="tabNavigation.closePane(side)"
+        @click.stop="void tabNavigation.closePane(side)"
       >
         <XMarkIcon class="h-4 w-4" />
       </button>

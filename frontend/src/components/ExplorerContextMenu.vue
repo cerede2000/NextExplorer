@@ -249,6 +249,27 @@ const openInTabTargets = computed(() => {
     .filter((target) => Boolean(target?.path));
 });
 
+/**
+ * The one entry, for the pane beside this one.
+ *
+ * A pane holds one place, so this is about one entry rather than about everything
+ * chosen — which is the difference from opening in tabs, where four chosen folders
+ * are four tabs. Offered whether or not tabs are turned on: a second pane is not a
+ * row of tabs, and somebody who wants the folder they are copying into beside the
+ * one they are copying out of should not have to turn tabs on to get it.
+ */
+const openInPaneTarget = computed(() => {
+  const chosen = actions.selectedItems.value || [];
+  if (chosen.length !== 1) return null;
+  const target = addressFor(chosen[0], { currentPath: chosen[0]?.path || '' });
+  return target?.path ? target : null;
+});
+
+const runOpenInPane = () => {
+  const target = openInPaneTarget.value;
+  if (target) tabNavigation.openInPane('right', target.path);
+};
+
 const runOpenInTab = () => {
   // `target.path` rather than asking the router to resolve it: every address
   // `addressFor` answers with is a path and nothing else, so resolving it would be
@@ -528,6 +549,7 @@ const menuSections = computed(() => {
       comparedCount: (actions.selectedItems.value || []).length,
       canOpenInTab: openInTabTargets.value.length > 0,
       openInTabCount: openInTabTargets.value.length,
+      canOpenInPane: Boolean(openInPaneTarget.value),
       canDownloadSeparately: actions.canDownloadSeparately.value,
       downloadMode: actions.downloadMode.value,
       canShowVersions: canShowVersions.value,
@@ -545,6 +567,7 @@ const menuSections = computed(() => {
       openWithEditor: runOpenWithEditor,
       openWithTerminal: runOpenWithTerminal,
       openInTab: runOpenInTab,
+      openInPane: runOpenInPane,
       compare: runCompare,
       download: runDownload,
       downloadAsZip: runDownloadAsZip,

@@ -1081,6 +1081,8 @@
     "ungroup": "Gruppierung aufheben",
     "closeSplit": "Diesen Bereich schließen",
     "resizeSplit": "Bereiche in der Größe ändern",
+    "openInRightPane": "In einem Bereich rechts öffnen",
+    "swapPanes": "Bereiche tauschen",
     "pin": "Tab anheften",
     "unpin": "Tab lösen",
     "closeTab": "Tab schließen",

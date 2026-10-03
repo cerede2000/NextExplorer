@@ -511,6 +511,49 @@ export const useTabsStore = defineStore('tabs', () => {
     return made;
   };
 
+  /** The tab a pane on screen is drawing, asked by which side it is. */
+  const paneTab = (side) => (side === 'right' ? panes.value[1] || '' : panes.value[0] || '');
+
+  /**
+   * Open something in a pane beside this one, making the pane if there is not one.
+   *
+   * The gesture that gives a second pane to somebody who has not turned tabs on —
+   * and there is nothing to add for them, because a pane has always *been* a tab.
+   * What a reader sees as "the other half" is a tab the strip is not drawing, and
+   * everything that makes the two halves independent is already keyed by tab: the
+   * listing, what is selected in it, where the reader is in it, the document's
+   * session, the editor's unsaved work, the shell.
+   *
+   * So with tabs off this makes the tab nobody will see in a row and pairs it; with
+   * tabs on it is the same thing, and the tab is in the strip as well. One
+   * difference, and it is about what the reader can reach: a tab taken out of a pane
+   * becomes an ordinary tab, which is somewhere to be only when there is a strip to
+   * find it in. With tabs off it goes.
+   */
+  const openInPane = (side, path) => {
+    const kind = tabKindForPath(path);
+    if (!kind) return null;
+    const here = pairOf(activeId.value);
+    const keep = here ? (side === 'right' ? here.left : here.right) : activeId.value;
+    if (!keep) return null;
+    if (enabled.value && atLimit.value) return null;
+
+    const made = makeTab(path, true);
+    if (!made) return null;
+    const displaced = here ? (side === 'right' ? here.right : here.left) : '';
+    tabs.value.push(made);
+    const grouping =
+      side === 'right' ? { left: keep, right: made.id } : { left: made.id, right: keep };
+    pairs.value = [...pairs.value.filter((one) => one !== here), grouping];
+    if (displaced && !enabled.value) {
+      tabs.value = tabs.value.filter((tab) => tab.id !== displaced);
+    }
+    persist();
+    // In the pane they asked for: they asked to see this, and the pane they were in
+    // is beside it, untouched, one press away.
+    return activate(made.id);
+  };
+
   /**
    * Close one pane of the pair on screen, leaving the other.
    *
@@ -518,12 +561,21 @@ export const useTabsStore = defineStore('tabs', () => {
    * round: the reader is left in the pane that *stays*. Keeping whoever had
    * focus kept the very pane being shut, because pressing anything in a pane
    * puts the reader in it first.
+   *
+   * With tabs off it closes the tab as well. There the pane is the only place that
+   * tab was ever drawn, so setting it aside — which is right when a strip can find
+   * it again — would leave the reader a tab they cannot see and cannot reach, and
+   * the next pane they open would be the second of three.
    */
   const closePane = (side) => {
     const here = pairOf(activeId.value);
     if (!here) return null;
+    const going = side === 'right' ? here.right : here.left;
     const staying = side === 'right' ? here.left : here.right;
     pairs.value = pairs.value.filter((one) => one !== here);
+    if (!enabled.value) {
+      tabs.value = tabs.value.filter((tab) => tab.id !== going);
+    }
     persist();
     return activate(staying);
   };
@@ -908,6 +960,11 @@ export const useTabsStore = defineStore('tabs', () => {
    */
   const setEnabled = (value) => {
     enabled.value = value === true;
+    // The tab in front and nothing else, pair included: turning the mode off is
+    // asking for the row of tabs to go, and a pair made of two of them goes with
+    // it. A second pane without tabs is asked for the other way round — from the
+    // menu, one entry at a time — rather than left behind by a mode being switched
+    // off.
     if (!enabled.value && tabs.value.length > 1) closeOthers(activeId.value);
   };
 
@@ -960,6 +1017,8 @@ export const useTabsStore = defineStore('tabs', () => {
     pair,
     unpair,
     showInPane,
+    openInPane,
+    paneTab,
     closePane,
     swapPanes,
     duplicate,

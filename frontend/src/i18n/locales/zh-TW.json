@@ -1081,6 +1081,8 @@
     "ungroup": "取消分組",
     "closeSplit": "關閉此窗格",
     "resizeSplit": "調整窗格大小",
+    "openInRightPane": "在右側窗格中開啟",
+    "swapPanes": "交換窗格",
     "pin": "釘選索引標籤",
     "unpin": "取消釘選索引標籤",
     "closeTab": "關閉索引標籤",

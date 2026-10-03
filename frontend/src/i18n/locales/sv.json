@@ -1081,6 +1081,8 @@
     "ungroup": "Dela upp",
     "closeSplit": "Stäng den här rutan",
     "resizeSplit": "Ändra storlek på rutorna",
+    "openInRightPane": "Öppna i en panel till höger",
+    "swapPanes": "Byt plats på panelerna",
     "pin": "Fäst fliken",
     "unpin": "Lossa fliken",
     "closeTab": "Stäng fliken",

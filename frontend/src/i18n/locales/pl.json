@@ -1081,6 +1081,8 @@
     "ungroup": "Rozgrupuj",
     "closeSplit": "Zamknij ten panel",
     "resizeSplit": "Zmień rozmiar paneli",
+    "openInRightPane": "Otwórz w panelu po prawej",
+    "swapPanes": "Zamień panele",
     "pin": "Przypnij kartę",
     "unpin": "Odepnij kartę",
     "closeTab": "Zamknij kartę",

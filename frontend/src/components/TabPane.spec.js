@@ -24,6 +24,7 @@ const appTabs = vi.hoisted(() => ({
     { id: 'tab-beside', kind: 'folder', path: '/browse/Beside' },
   ],
   activeId: 'tab-here',
+  swapPanes: vi.fn(),
 }));
 vi.mock('@/stores/tabs', () => ({ useTabsStore: () => appTabs }));
 
@@ -98,6 +99,7 @@ beforeEach(() => {
   navigation.activate.mockReset();
   navigation.showInPane.mockReset();
   navigation.closePane.mockReset();
+  appTabs.swapPanes.mockReset();
   routerPush.mockReset();
 });
 
@@ -223,6 +225,28 @@ describe('a pane', () => {
     await pane.find('[data-test="pane-close"]').trigger('click');
 
     expect(navigation.closePane).toHaveBeenCalledWith('right');
+  });
+
+  /**
+   * And the swap is in both headers, because it swaps the two over rather than
+   * moving the one it sits on: there is no side to press it on.
+   */
+  it('exchanges the two panes from either header', async () => {
+    const left = paneFor('tab-here', { split: true, side: 'left' });
+    await left.find('[data-test="pane-swap"]').trigger('click');
+
+    const right = paneFor('tab-beside', { split: true, side: 'right' });
+    await right.find('[data-test="pane-swap"]').trigger('click');
+
+    expect(appTabs.swapPanes).toHaveBeenCalledTimes(2);
+  });
+
+  /** And neither control is drawn where there is only one pane to be in. */
+  it('offers neither the swap nor the cross with one pane', () => {
+    const pane = paneFor('tab-here');
+
+    expect(pane.find('[data-test="pane-swap"]').exists()).toBe(false);
+    expect(pane.find('[data-test="pane-close"]').exists()).toBe(false);
   });
 });
 

@@ -1081,6 +1081,8 @@
     "ungroup": "Ungroup",
     "closeSplit": "Close this pane",
     "resizeSplit": "Resize the panes",
+    "openInRightPane": "Open in a pane on the right",
+    "swapPanes": "Swap the panes",
     "pin": "Pin tab",
     "unpin": "Unpin tab",
     "closeTab": "Close tab",

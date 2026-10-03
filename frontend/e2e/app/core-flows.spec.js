@@ -4145,6 +4145,185 @@ test('a document shut in a half gives the folder back at once, on the file that 
   }
 });
 
+/**
+ * A second pane without turning tabs on.
+ *
+ * Which is what a file manager is for, and asking somebody to turn tabs on first is
+ * asking them to accept a row of tabs they did not want. Right-click an entry →
+ * **Open in a pane on the right**, and the thing is beside what they were looking at.
+ *
+ * There is nothing new underneath it: a pane has always been a tab, so the half the
+ * strip is not drawing is a tab, and everything that makes two halves independent —
+ * the listing, what is selected in it, where the reader is in it, a document's
+ * session, an editor's unsaved work — is already keyed by tab. What this walks is
+ * that claim: with tabs off, each half of one folder keeps its own place and its own
+ * selection, a document opens in a half, an editor opens in a half and keeps its
+ * line, the two swap over, and closing one leaves the other.
+ */
+test('a second pane opens without tabs, and holds anything a tab holds', async () => {
+  test.slow();
+
+  const dir = path.join(volume, 'Pair');
+  const deeper = path.join(dir, 'Deeper');
+  fs.mkdirSync(deeper, { recursive: true });
+  for (let i = 1; i <= 200; i += 1) {
+    fs.writeFileSync(path.join(dir, `line-${String(i).padStart(3, '0')}.txt`), 'pair\n');
+    fs.writeFileSync(path.join(deeper, `deep-${String(i).padStart(3, '0')}.txt`), 'deeper\n');
+  }
+  fs.writeFileSync(path.join(dir, 'zz-read.md'), '# read me\n\nin a pane\n');
+  fs.writeFileSync(
+    path.join(dir, 'zz-write.txt'),
+    Array.from({ length: 400 }, (_, line) => `line ${line + 1} to edit`).join('\n')
+  );
+
+  const panes = page.locator('[data-test="tab-pane"]');
+  const strip = page.locator('[data-test="tab-strip"]');
+
+  const places = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll('[data-test="tab-pane"]')].map((pane) => {
+        const list = pane.querySelector('.upload-drop-target');
+        const rows = [...pane.querySelectorAll('[data-keyboard-item-key]')];
+        const name = (row) =>
+          row?.getAttribute('title') || row?.querySelector('[title]')?.getAttribute('title') || '';
+        const editor = pane.querySelector('.cm-scroller');
+        if (editor) {
+          const edge = editor.getBoundingClientRect().top;
+          const first = [...pane.querySelectorAll('.cm-line')].find(
+            (one) => one.getBoundingClientRect().bottom > edge + 4
+          );
+          return { kind: 'editor', line: first?.textContent?.slice(0, 24) ?? '' };
+        }
+        if (!list || rows.length === 0) return { kind: 'not a listing' };
+        const edge = list.getBoundingClientRect().top;
+        return {
+          kind: 'listing',
+          top: name(rows.find((row) => row.getBoundingClientRect().bottom > edge + 4)),
+          pixels: Math.round(list.scrollTop),
+          selected: [...pane.querySelectorAll('[data-selected="true"]')]
+            .map((row) => row.getAttribute('title'))
+            .filter(Boolean),
+        };
+      })
+    );
+
+  const scrollPane = async (index, amount) => {
+    const box = await panes
+      .nth(index)
+      .locator('.upload-drop-target, .cm-scroller')
+      .first()
+      .boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.wheel(0, amount);
+    await page.waitForTimeout(700);
+  };
+
+  const clickRow = async (index) => {
+    const aim = await page.evaluate((half) => {
+      const pane = document.querySelectorAll('[data-test="tab-pane"]')[half];
+      const area = pane.querySelector('.upload-drop-target').getBoundingClientRect();
+      const row = [...pane.querySelectorAll('[data-keyboard-item-key]')].find((node) => {
+        const box = node.getBoundingClientRect();
+        return box.top > area.top + 150 && box.bottom < area.bottom - 80;
+      });
+      const box = row.getBoundingClientRect();
+      return {
+        title:
+          row.getAttribute('title') || row.querySelector('[title]')?.getAttribute('title') || '',
+        x: box.x + 80,
+        y: box.y + box.height / 2,
+      };
+    }, index);
+    await page.mouse.click(aim.x, aim.y);
+    await page.waitForTimeout(400);
+    return aim.title;
+  };
+
+  /** Right-click an entry in a pane and take the entry that opens one beside it. */
+  const openBeside = async (index, title) => {
+    await panes.nth(index).locator(`[title="${title}"]`).first().click({ button: 'right' });
+    await page.getByText('Open in a pane on the right').click();
+    await page.waitForTimeout(900);
+  };
+
+  await page.goto('/browse/Projects/Pair');
+  // Tabs off, which is the whole point: no strip at all.
+  await expect(strip).toHaveCount(0);
+  await expect(panes).toHaveCount(1);
+  await expect(page.locator('[title="line-001.txt"]').first()).toBeVisible();
+
+  // A folder beside the one it is in, from the menu on the folder itself.
+  await openBeside(0, 'Deeper');
+  await expect(panes).toHaveCount(2);
+  // Still no strip: a pane is not a row of tabs.
+  await expect(strip).toHaveCount(0);
+  await expect(panes.last().locator('[data-selected]')).toHaveCount(200);
+  await expect(panes.last().locator('[title="deep-001.txt"]').first()).toBeVisible();
+
+  // Two listings, each with its own place and its own selection.
+  await scrollPane(1, 20000);
+  const atTheBottom = (await places())[1];
+  expect(atTheBottom.pixels).toBeGreaterThan(1000);
+  const chosenRight = await clickRow(1);
+  const chosenLeft = await clickRow(0);
+  const both = await places();
+  expect(both[0].pixels, 'the half nobody scrolled is still at the top').toBe(0);
+  expect(both[0].selected).toEqual([chosenLeft]);
+  expect(both[1].pixels).toBe(atTheBottom.pixels);
+  expect(both[1].selected).toEqual([chosenRight]);
+  expect(chosenLeft).not.toBe(chosenRight);
+
+  /**
+   * A document in the pane beside the listing.
+   *
+   * The reader walks to the bottom of the left pane first, because that is where the
+   * file is and because a reader opens what they can see — and because reaching for a
+   * row that is off screen scrolls the pane to it, which would move the very place
+   * being measured here.
+   */
+  await scrollPane(0, 20000);
+  const leftWas = (await places())[0];
+  expect(leftWas.pixels).toBeGreaterThan(1000);
+  await openBeside(0, 'zz-read.md');
+  await expect(page).toHaveURL(/\/(open|editor)\/Projects\/Pair\/zz-read\.md$/);
+  await expect(panes).toHaveCount(2);
+
+  // And the listing beside it has not moved from where its reader left it.
+  const besideDocument = (await places())[0];
+  expect(besideDocument.pixels).toBe(leftWas.pixels);
+  expect(besideDocument.selected).toEqual(['zz-read.md']);
+
+  // A press in that listing is taken, on the first press, and moves nothing.
+  const afterDocument = await clickRow(0);
+  const pressed = (await places())[0];
+  expect(pressed.selected).toEqual([afterDocument]);
+  expect(pressed.pixels).toBe(leftWas.pixels);
+
+  // The text editor in a pane, scrolled, and still on its line after the swap.
+  await openBeside(0, 'zz-write.txt');
+  await expect(panes.last().locator('.cm-content')).toContainText('to edit');
+  await scrollPane(1, 1500);
+  const placed = (await places())[1];
+  expect(placed.kind).toBe('editor');
+  expect(placed.line).not.toBe('');
+
+  // Swapped over: the editor is on the left, the listing on the right, and the
+  // editor is on the line it was left on.
+  await panes.first().locator('[data-test="pane-swap"]').click();
+  await page.waitForTimeout(900);
+  const swapped = await places();
+  expect(swapped[0].kind).toBe('editor');
+  expect(swapped[1].kind).toBe('listing');
+  await expect.poll(async () => (await places())[0].line).toBe(placed.line);
+
+  // And closing one leaves the other, with nothing kept behind it.
+  await panes.first().locator('[data-test="pane-close"]').click();
+  await page.waitForTimeout(900);
+  await expect(panes).toHaveCount(1);
+  await expect(strip).toHaveCount(0);
+  expect((await places())[0].kind).toBe('listing');
+});
+
 test('the page threw nothing along the way', () => {
   expect(thrown, `the page threw:\n${thrown.join('\n')}`).toEqual([]);
 });

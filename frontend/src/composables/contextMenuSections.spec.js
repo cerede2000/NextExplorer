@@ -32,6 +32,8 @@ const RUN_NAMES = [
   'delete',
   'newFolder',
   'newFile',
+  'openInTab',
+  'openInPane',
 ];
 const handlers = () => Object.fromEntries(RUN_NAMES.map((name) => [name, vi.fn()]));
 
@@ -302,5 +304,48 @@ describe('downloading a selection', () => {
 
     entries.find((entry) => entry.id === 'download-zip').run();
     expect(run.downloadAsZip).toHaveBeenCalled();
+  });
+});
+
+/**
+ * The pane beside this one, offered whether or not tabs are on.
+ *
+ * A second pane is not a row of tabs: somebody who wants the folder they are copying
+ * into beside the one they are copying out of should not have to turn tabs on to get
+ * it. And it is about *one* entry, which is what tells it from opening in tabs —
+ * four chosen folders are four tabs, and a pane holds one place.
+ */
+describe('opening something in the pane beside this one', () => {
+  it('is offered for one entry that has an address of its own', () => {
+    expect(ids(allowed({ canOpenInPane: true }))).toContain('open-in-pane');
+  });
+
+  it('is not offered where there is nothing to open there', () => {
+    expect(ids(allowed({ canOpenInPane: false }))).not.toContain('open-in-pane');
+  });
+
+  it('is offered with tabs off, where opening in a tab is not', () => {
+    const situation = allowed({ canOpenInPane: true, canOpenInTab: false });
+
+    expect(ids(situation)).toContain('open-in-pane');
+    expect(ids(situation)).not.toContain('open-in-tab');
+  });
+
+  it('runs the pane gesture and nothing else', () => {
+    const run = handlers();
+    const found = menu(allowed({ canOpenInPane: true }), run)
+      .flat()
+      .find((candidate) => candidate.id === 'open-in-pane');
+
+    found.run();
+
+    expect(run.openInPane).toHaveBeenCalledTimes(1);
+    expect(run.openInTab).not.toHaveBeenCalled();
+  });
+
+  it('says where it opens, in the catalogue’s own words', () => {
+    expect(entry(allowed({ canOpenInPane: true }), 'open-in-pane').label).toBe(
+      'tabs.openInRightPane'
+    );
   });
 });

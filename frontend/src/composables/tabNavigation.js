@@ -177,6 +177,18 @@ export function useTabNavigation() {
   const activate = (id) => go(tabs.activate(id));
 
   /**
+   * Closing a tab, once whatever is in it has had its say.
+   *
+   * Closing is the one gesture that destroys what a tab was holding, and the store
+   * cannot know whether that matters — it holds addresses, not work. A comparison with
+   * lines copied across and not saved has something to lose; a folder has not, and
+   * being asked about a folder would train everybody to click through the question
+   * without reading it. So a screen with something to lose leaves a question, and this
+   * asks it.
+   */
+  const guards = useTabGuardsStore();
+
+  /**
    * A pane given another tab, and the window's address taken along.
    *
    * Taking a pane over can move the reader — the half they were in is the one that
@@ -191,8 +203,29 @@ export function useTabNavigation() {
     return made;
   };
 
-  /** The cross on a pane: the reader is left in the half that stays. */
-  const closePane = (side) => go(tabs.closePane(side));
+  /**
+   * Something opened in the pane beside this one, with the pane made if there is
+   * none — which is how a second pane exists for somebody who has not turned tabs
+   * on. The address follows, because the reader is now in the pane they asked for.
+   */
+  const openInPane = (side, path) => go(tabs.openInPane(side, path));
+
+  /**
+   * The cross on a pane: the reader is left in the half that stays.
+   *
+   * With tabs off the pane is the only place its tab is drawn, so closing the pane
+   * destroys what it was holding — and whatever had something to lose is asked
+   * first, exactly as closing a tab is. With tabs on the tab stays in the strip and
+   * there is nothing to lose, so there is nothing to ask.
+   */
+  const closePane = async (side) => {
+    const going = tabs.paneTab(side);
+    if (!tabs.enabled && going) {
+      if (!(await guards.mayClose(going))) return null;
+      guards.release(going);
+    }
+    return go(tabs.closePane(side));
+  };
 
   /**
    * Open an address in a tab.
@@ -209,18 +242,6 @@ export function useTabNavigation() {
   };
 
   const openHome = () => open(HOME);
-
-  /**
-   * Closing a tab, once whatever is in it has had its say.
-   *
-   * Closing is the one gesture that destroys what a tab was holding, and the store
-   * cannot know whether that matters — it holds addresses, not work. A comparison with
-   * lines copied across and not saved has something to lose; a folder has not, and
-   * being asked about a folder would train everybody to click through the question
-   * without reading it. So a screen with something to lose leaves a question, and this
-   * asks it.
-   */
-  const guards = useTabGuardsStore();
 
   /**
    * Waited on, all of them, because the question is the application's own dialog now
@@ -313,6 +334,7 @@ export function useTabNavigation() {
     visible,
     activate,
     showInPane,
+    openInPane,
     closePane,
     open,
     openHome,

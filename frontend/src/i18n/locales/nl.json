@@ -1081,6 +1081,8 @@
     "ungroup": "Groepering opheffen",
     "closeSplit": "Dit paneel sluiten",
     "resizeSplit": "Grootte van de panelen wijzigen",
+    "openInRightPane": "Openen in een venster rechts",
+    "swapPanes": "Vensters verwisselen",
     "pin": "Tabblad vastzetten",
     "unpin": "Tabblad losmaken",
     "closeTab": "Tabblad sluiten",

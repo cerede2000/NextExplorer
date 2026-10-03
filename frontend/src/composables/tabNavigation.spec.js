@@ -482,3 +482,73 @@ describe('landing on the application', () => {
     expect(tabs.activeTab.path).toBe('/browse/');
   });
 });
+
+/**
+ * A pane opened beside this one, and shut again.
+ *
+ * The gesture that gives a second pane to somebody who has not turned tabs on. What
+ * it adds here is where the address goes — the reader is in the pane they asked for,
+ * so the window has to be on that pane's address — and the question before a pane is
+ * shut, because with no strip the pane is the only place its tab was ever drawn.
+ */
+describe('a pane beside this one', () => {
+  const withTabsOff = () => {
+    settings.userSettings = { browseInTabs: false };
+    const tabs = useTabsStore();
+    tabs.setEnabled(false);
+    return tabs;
+  };
+
+  it('takes the window to what it opened, which is where the reader now is', () => {
+    const tabs = withTabsOff();
+
+    const opened = useTabNavigation().openInPane('right', '/browse/Beta');
+
+    expect(opened.path).toBe('/browse/Beta');
+    expect(push).toHaveBeenCalledWith('/browse/Beta');
+    expect(tabs.isSplit).toBe(true);
+  });
+
+  /**
+   * And shutting it asks first, because shutting it destroys what it held.
+   *
+   * With tabs on the tab stays in the strip and there is nothing to lose, so there is
+   * nothing to ask — which is the difference, and it is the whole reason this is said
+   * here and not in the store.
+   */
+  it('asks before shutting it when there is no strip to keep it in', async () => {
+    const tabs = withTabsOff();
+    const opened = useTabNavigation().openInPane('right', '/compare/?a=A&b=B');
+
+    await useTabNavigation().closePane('right');
+
+    expect(guards.mayClose).toHaveBeenCalledWith(opened.id);
+    expect(guards.release).toHaveBeenCalledWith(opened.id);
+    expect(tabs.isSplit).toBe(false);
+    expect(tabs.count).toBe(1);
+  });
+
+  it('leaves it open when the answer is no', async () => {
+    const tabs = withTabsOff();
+    useTabNavigation().openInPane('right', '/compare/?a=A&b=B');
+    guards.mayClose.mockResolvedValue(false);
+
+    expect(await useTabNavigation().closePane('right')).toBeNull();
+    expect(tabs.isSplit).toBe(true);
+    expect(tabs.count).toBe(2);
+  });
+
+  it('asks nothing when the tab is staying in the strip', async () => {
+    settings.userSettings = { browseInTabs: true };
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    useTabNavigation().openInPane('right', '/browse/Beta');
+    guards.mayClose.mockClear();
+
+    await useTabNavigation().closePane('right');
+
+    expect(guards.mayClose).not.toHaveBeenCalled();
+    expect(tabs.isSplit).toBe(false);
+    expect(tabs.count).toBe(2);
+  });
+});

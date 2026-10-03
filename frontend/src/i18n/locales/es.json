@@ -1081,6 +1081,8 @@
     "ungroup": "Desagrupar",
     "closeSplit": "Cerrar este panel",
     "resizeSplit": "Redimensionar los paneles",
+    "openInRightPane": "Abrir en un panel a la derecha",
+    "swapPanes": "Intercambiar los paneles",
     "pin": "Fijar la pestaña",
     "unpin": "Soltar la pestaña",
     "closeTab": "Cerrar la pestaña",
