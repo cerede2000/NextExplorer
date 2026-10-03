@@ -3100,7 +3100,7 @@ test('three tabs on one folder each keep their own place and selection', async (
   } finally {
     await page.goto('/settings/user-preferences');
     await preference.click();
-    await page.getByRole('button', { name: 'Save' }).click();
+    await page.locator('[data-test="preferences-save"]').click();
     await expect(preference).toHaveAttribute('aria-checked', 'false');
   }
 });
@@ -3235,6 +3235,117 @@ test('a document opened from the bottom leaves the other tabs where they were', 
     await page.goto('/settings/user-preferences');
     await preference.click();
     await page.getByRole('button', { name: 'Save' }).click();
+    await expect(preference).toHaveAttribute('aria-checked', 'false');
+  }
+});
+
+/**
+ * Two files open in the editor, side by side, and crossing from one to the other.
+ *
+ * The editor flashed on every crossing — the file read again, a new CodeMirror,
+ * the cursor and the undo history with it. Twice over, in fact, and the reason is
+ * one tick: bringing a tab forward tells the store first and the address bar
+ * follows, so the half that has just come forward is "the tab in front" while the
+ * window is still on the address of the half being left. Every screen in it read
+ * the neighbour's place for that tick — this one read the neighbour's *file*, and
+ * then its own again.
+ *
+ * A pane reads its own tab's address now, in both halves. The other direction needs
+ * no care: walking somewhere changes the address, and the tab in front is told in a
+ * watcher that runs before anything is drawn.
+ */
+test('crossing between two editors does not build them again', async () => {
+  test.slow();
+
+  const dir = path.join(volume, 'Texts');
+  fs.mkdirSync(dir, { recursive: true });
+  for (const [name, what] of [
+    ['one.txt', 'first'],
+    ['two.txt', 'second'],
+  ]) {
+    fs.writeFileSync(
+      path.join(dir, name),
+      Array.from({ length: 400 }, (_, line) => `line ${line + 1} of the ${what} file`).join('\n')
+    );
+  }
+
+  const strip = page.locator('[data-test="tab-strip"]');
+  const entries = strip.locator('[data-test="tab"]');
+  const panes = page.locator('[data-test="tab-pane"]');
+  const editors = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll('[data-test="tab-pane"]')].map((pane) => {
+        const scroller = pane.querySelector('.cm-scroller');
+        return {
+          witness: scroller?.dataset.witness ?? 'none',
+          top: Math.round(scroller?.scrollTop ?? -1),
+          text: pane.querySelector('.cm-content')?.textContent?.slice(0, 48) ?? '',
+        };
+      })
+    );
+
+  await page.goto('/settings/user-preferences');
+  const preference = page.locator('[data-test="browse-in-tabs"]');
+  await preference.click();
+  await page.locator('[data-test="preferences-save"]').click();
+  await expect(preference).toHaveAttribute('aria-checked', 'true');
+  const inNewTab = page.locator('[data-test="documents-in-new-tab"]');
+  if ((await inNewTab.getAttribute('aria-checked')) !== 'true') {
+    await inNewTab.click();
+    await page.locator('[data-test="preferences-save"]').click();
+  }
+
+  try {
+    // Both files open, each in a tab of its own, and then side by side.
+    await page.goto('/browse/Projects/Texts');
+    for (const name of ['one.txt', 'two.txt']) {
+      await page
+        .locator(`[title="${name}"]:not([role="tab"])`)
+        .first()
+        .dblclick({ modifiers: ['ControlOrMeta'] });
+      await expect(
+        entries.filter({ has: page.locator(`[role="tab"][title="${name}"]`) })
+      ).toHaveCount(1);
+    }
+    await entries
+      .filter({ has: page.locator('[role="tab"][title="one.txt"]') })
+      .getByRole('tab')
+      .click();
+    await entries
+      .filter({ has: page.locator('[role="tab"][title="two.txt"]') })
+      .getByRole('tab')
+      .click({ button: 'right' });
+    await page.locator('[data-test="tab-show-right"]').click();
+    await expect(panes).toHaveCount(2);
+    await expect(panes.first().locator('.cm-content')).toContainText('of the first file');
+    await expect(panes.last().locator('.cm-content')).toContainText('of the second file');
+
+    // Each editor is marked where it stands, and one of them is scrolled.
+    await page.evaluate(() =>
+      document.querySelectorAll('[data-test="tab-pane"] .cm-scroller').forEach((node, half) => {
+        node.dataset.witness = `editor-${half}`;
+      })
+    );
+    const box = await panes.first().locator('.cm-scroller').boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.wheel(0, 1500);
+    await page.waitForTimeout(600);
+    const scrolled = (await editors())[0].top;
+    expect(scrolled).toBeGreaterThan(500);
+
+    // Crossing into the other half: the same two editors, and the same places.
+    const other = await panes.last().locator('.cm-scroller').boundingBox();
+    await page.mouse.click(other.x + other.width / 2, other.y + other.height / 2);
+    await page.waitForTimeout(1200);
+    const after = await editors();
+    expect(after.map((half) => half.witness)).toEqual(['editor-0', 'editor-1']);
+    expect(after[0].top).toBe(scrolled);
+    expect(after[0].text).toContain('of the first file');
+    expect(after[1].text).toContain('of the second file');
+  } finally {
+    await page.goto('/settings/user-preferences');
+    await preference.click();
+    await page.locator('[data-test="preferences-save"]').click();
     await expect(preference).toHaveAttribute('aria-checked', 'false');
   }
 });

@@ -228,21 +228,40 @@ describe('the address a pane reads', () => {
   });
 
   /**
-   * The pane the reader is in is the router itself, and not a re-resolution of
-   * its address.
+   * Its own tab's address even when that tab is the one in front, because the two
+   * do not always agree.
    *
-   * That pane is where navigation lands, where a guard ran, and where anything
-   * the router knows beyond the address still holds.
+   * Bringing a tab forward is two moves: the store is told first and the address
+   * bar follows. For that tick the pane that has just come forward is "the tab in
+   * front" while the window is still on the address of the tab being *left* — and
+   * a pane that read the window then read the neighbour's place. Measured in a
+   * browser: crossing from one editor to another made the second read the first
+   * one's file, re-read it and build a new CodeMirror, twice over.
+   *
+   * Nothing is lost by resolving instead: the resolution is the same record, the
+   * same params and the same query, since the tab holds the whole address.
    */
-  it('is the window itself, in the pane the reader is in', async () => {
+  it('is its own tab even when that tab is the one in front', async () => {
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    const editing = tabs.open('/editor/Docs/notes.txt?view=wide');
+
+    const seen = await paneReadingAddress(ref(editing.id), '/browse/Elsewhere?sort=name');
+
+    expect(seen.route.path).toBe('/editor/Docs/notes.txt');
+    expect(seen.route.query).toEqual({ view: 'wide' });
+  });
+
+  /** And the window's own address wherever a tab has none to give. */
+  it('is the window for a tab with no address of its own', async () => {
     const tabs = useTabsStore();
     tabs.setEnabled(true);
     const editing = tabs.open('/editor/Docs/notes.txt');
+    editing.path = '';
 
     const seen = await paneReadingAddress(ref(editing.id), '/browse/Elsewhere?sort=name');
 
     expect(seen.route.path).toBe('/browse/Elsewhere');
-    expect(seen.route.query).toEqual({ sort: 'name' });
   });
 
   /** Outside any pane it is the window, which is every screen that is not one. */

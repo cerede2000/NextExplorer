@@ -3,7 +3,6 @@ import FolderView from '@/views/FolderView.vue';
 import HomeView from '@/views/HomeView.vue';
 import EditorView from '@/views/EditorView.vue';
 import BrowserLayout from '@/layouts/BrowserLayout.vue';
-import EditorLayout from '@/layouts/EditorLayout.vue';
 import SearchResultsView from '@/views/SearchResultsView.vue';
 import SettingsView from '@/views/settings/SettingsView.vue';
 import SettingsBranding from '@/views/settings/SettingsBranding.vue';
@@ -182,85 +181,62 @@ const router = createRouter({
       meta: { requiresAuth: true, allowGuest: true },
     },
     {
-      path: '/shares',
-      component: BrowserLayout,
+      path: '/shares/shared-with-me',
+      name: 'SharedWithMe',
+      component: SharedWithMeView,
       meta: { requiresAuth: true },
-      children: [
-        {
-          path: 'shared-with-me',
-          name: 'SharedWithMe',
-          component: SharedWithMeView,
-        },
-        {
-          path: 'shared-by-me',
-          name: 'SharedByMe',
-          component: SharedByMeView,
-        },
-      ],
+    },
+    {
+      path: '/shares/shared-by-me',
+      name: 'SharedByMe',
+      component: SharedByMeView,
+      meta: { requiresAuth: true },
     },
     {
       path: '/trash',
-      component: BrowserLayout,
+      name: 'Trash',
+      component: TrashView,
       meta: { requiresAuth: true },
-      children: [{ path: '', name: 'Trash', component: TrashView }],
     },
     {
       // A file in the trash, shown in the editor to be read: nothing there can
       // be saved. Its own path, so no volume name can ever collide with it.
-      path: '/trash/view',
-      component: EditorLayout,
+      path: '/trash/view/:itemId/:entryPath(.*)*',
+      name: 'TrashFileViewer',
+      component: EditorView,
       meta: { requiresAuth: true },
-      children: [
-        { path: ':itemId/:entryPath(.*)*', name: 'TrashFileViewer', component: EditorView },
-      ],
     },
     {
       // An earlier version of a file, shown in the editor to be read. The file
       // is named by its path, a share path for a share's visitor.
-      path: '/versions/view',
-      component: EditorLayout,
+      path: '/versions/view/:versionId/:path(.*)',
+      name: 'VersionFileViewer',
+      component: EditorView,
       meta: { requiresAuth: true, allowGuest: true },
-      children: [
-        { path: ':versionId/:path(.*)', name: 'VersionFileViewer', component: EditorView },
-      ],
     },
     {
       path: '/search',
-      component: BrowserLayout,
+      component: SearchResultsView,
       meta: { requiresAuth: true },
-      children: [{ path: '', component: SearchResultsView }],
     },
     {
-      // Two or three files side by side — see views/CompareView.vue. In the editor's
-      // layout, because that is what it is: a working surface on files, not a place
-      // in the tree. Loaded on demand; nothing else needs the alignment.
+      // Two or three files side by side — see views/CompareView.vue. Loaded on
+      // demand; nothing else needs the alignment.
       path: '/compare',
-      component: EditorLayout,
+      name: 'CompareView',
+      component: () => import('@/views/CompareView.vue'),
       meta: { requiresAuth: true },
-      children: [
-        {
-          path: '',
-          name: 'CompareView',
-          component: () => import('@/views/CompareView.vue'),
-        },
-      ],
     },
     {
-      path: '/editor',
-      component: EditorLayout,
+      path: '/editor/share/:token/:sharedPath(.*)*',
+      name: 'SharedEditor',
+      component: EditorView,
+      meta: { requiresAuth: true, allowGuest: true, sharedEditor: true },
+    },
+    {
+      path: '/editor/:path(.*)',
+      component: EditorView,
       meta: { requiresAuth: true, allowGuest: true },
-      children: [
-        {
-          path: 'share/:token/:sharedPath(.*)*',
-          name: 'SharedEditor',
-          component: EditorView,
-          meta: { sharedEditor: true },
-        },
-        {
-          path: ':path(.*)',
-          component: EditorView,
-        },
-      ],
     },
     {
       // One document, at an address of its own — see views/DocumentView.vue.

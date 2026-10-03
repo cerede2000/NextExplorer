@@ -127,10 +127,20 @@ export const usePaneRoute = () => {
 
   const resolved = computed(() => {
     const id = provided?.value;
-    // The pane the reader is in *is* the route: its own params, its own guards,
-    // and whatever the router knows that an address alone does not.
-    if (!id || id === tabsStore.activeId) return route;
-    const tab = tabsStore.tabs.find((one) => one.id === id);
+    const tab = id ? tabsStore.tabs.find((one) => one.id === id) : null;
+    // A pane reads its own tab's address — *including* the pane the reader is in.
+    //
+    // That one used to read the window's, on the grounds that it is the window.
+    // It is, once the two agree; bringing a tab forward is two moves and they do
+    // not agree in between. The store is told first and the address bar follows,
+    // so for one tick the pane that has just come forward is "the tab in front"
+    // while the window is still on the address of the tab being left — and every
+    // screen in it read the neighbour's place. Measured: crossing from one editor
+    // to another made the second read the first one's file, re-read it, and build
+    // a new CodeMirror, twice over, which is the editor flashing on every crossing.
+    //
+    // The other direction needs no care: walking somewhere changes the address,
+    // and the tab in front is told in a watcher that runs before anything renders.
     if (!tab?.path) return route;
     try {
       return router.resolve(tab.path);
