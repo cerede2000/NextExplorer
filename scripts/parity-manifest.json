@@ -26,6 +26,13 @@
   "rules": [
     {
       "axis": "*",
+      "match": "^frontend/src/utils/(editorRoute|routeFolderPath)\\.js(:|$)|^frontend/src/utils/(folderRoute|pageTitle)\\.js(:|$)",
+      "verdict": "PORT",
+      "batch": "share-its-own-prefix",
+      "note": "a share keeps to its own prefix — the batch after the panes. Everything a visitor with no account touches is `/share/<token>/…`: the door, the listing, a subfolder, a file read in the viewer, a file opened in the editor. It used to send them into `/browse/share/<token>` and `/open/…`, which are the addresses of the signed-in application, so a rule in front of this had to name half of it to let a public link through — and `/open/…` asked for an account outright, so a share holding a picture or an office document offered the file and refused to open it. `utils/routeFolderPath.js` is where a route says which folder it is on, and `utils/editorRoute.js` where a file in the editor says where it lives: four places were working the first out and two the second, and a share says both in a shape only some of them knew. `folderRoute.js` and `pageTitle.js` learned the same shape."
+    },
+    {
+      "axis": "*",
       "match": "^frontend/src/(composables/useAsk\\.js|components/AskDialog\\.vue)(:|$)",
       "verdict": "PORT",
       "batch": "P3-58",
@@ -1611,6 +1618,22 @@
     }
   ],
   "residue": [
+    {
+      "match": "^frontend/src/views/ShareLoginView\\.vue$",
+      "note": "a share keeps to its own prefix: everything a visitor with no account touches is `/share/<token>/…`, so one rule in front of the application can let a public link through without naming half of it. These are the files that build or read such an address — where a folder route points, where a file in the editor points, what a page is called, and the screen that lets a visitor in, which also stopped reloading the page to do it. It goes with the batches that send them."
+    },
+    {
+      "match": "^frontend/src/utils/pageTitle\\.js$",
+      "note": "a share keeps to its own prefix: everything a visitor with no account touches is `/share/<token>/…`, so one rule in front of the application can let a public link through without naming half of it. These are the files that build or read such an address — where a folder route points, where a file in the editor points, what a page is called, and the screen that lets a visitor in, which also stopped reloading the page to do it. It goes with the batches that send them."
+    },
+    {
+      "match": "^frontend/src/utils/folderRoute\\.js$",
+      "note": "a share keeps to its own prefix: everything a visitor with no account touches is `/share/<token>/…`, so one rule in front of the application can let a public link through without naming half of it. These are the files that build or read such an address — where a folder route points, where a file in the editor points, what a page is called, and the screen that lets a visitor in, which also stopped reloading the page to do it. It goes with the batches that send them."
+    },
+    {
+      "match": "^frontend/src/composables/itemAddress\\.js$",
+      "note": "a share keeps to its own prefix: everything a visitor with no account touches is `/share/<token>/…`, so one rule in front of the application can let a public link through without naming half of it. These are the files that build or read such an address — where a folder route points, where a file in the editor points, what a page is called, and the screen that lets a visitor in, which also stopped reloading the page to do it. It goes with the batches that send them."
+    },
     {
       "match": "^frontend/src/components/ShareDialog\\.vue$",
       "note": "a share link is built from the name the instance is published under rather than from the address bar — `PUBLIC_URL`, which the server has always used for the link it builds and the browser was not using for any of the others. The dialog showed the server's link and its copy button built a fresh one from the address bar, so an administrator on a local network copied `http://192.168.1.250:3017/...` while reading the published name. The rule is in `api/shares.api.js`, the dialog reads the link it will copy, and `/api/features` already carried the origin. It goes with the batches that send these files."

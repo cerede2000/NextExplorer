@@ -96,6 +96,14 @@
         "^empties the list itself when the store offers nothing$"
       ],
       "note": "one case now, because the question the two of them split no longer exists. What is selected belongs to a *place*: every row asks on a click, and asking the window meant one selection for both halves of a split view — choosing a file in one half moved the highlight in the other. It asks its pane's folder now, and every folder has a selection of its own with its own way of letting go, so there is no longer a store that offers one and a store that does not. What the two guarded — that clearing really empties the list — is `asks the folder to let go of what it was holding` here, and a second case beside it says the thing that was missing: `clears its own pane and leaves the other alone`."
+    },
+    {
+      "file": "^frontend/src/utils/folderRoute\\.spec\\.js$",
+      "note": "`opens a share the same way` said that a share resolved to the same route as any other folder, which is exactly what stopped being true: a share has a prefix of its own now, so that everything a visitor with no account touches sits under one rule. It is `opens a share under the share prefix, not under the browse one` here, beside four more that came with the move — the root of a share, the two addresses a link was handed out under still arriving, and the rooms being guest routes rather than public ones."
+    },
+    {
+      "file": "^frontend/src/views/ShareLoginView\\.spec\\.js$",
+      "note": "`follows a path inside the site` is `follows a path inside the site, without starting the application again` here, and the longer name is the point: it used to follow by reloading the page, so the application started, read the share, let the visitor in and started again from nothing. The case asserts the navigation is the router's now, and that nothing was assigned to the window's location."
     }
   ]
 }
