@@ -62,6 +62,7 @@ export default defineConfig({
         items: [
           { text: 'Environment Reference', link: '/configuration/environment' },
           { text: 'Runtime Settings', link: '/configuration/settings' },
+          { text: 'Public links behind a proxy', link: '/configuration/public-links' },
         ],
       },
       {
@@ -106,6 +107,7 @@ export default defineConfig({
         items: [
           { text: 'Environment Reference', link: '/configuration/environment' },
           { text: 'Runtime Settings', link: '/configuration/settings' },
+          { text: 'Public links behind a proxy', link: '/configuration/public-links' },
         ],
       },
       {

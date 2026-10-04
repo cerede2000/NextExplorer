@@ -108,6 +108,55 @@ describe('what goes through without any session at all', () => {
     expect((await ask({ path: '/api/share/abc123/browse/Docs' })).passed).toBe(false);
   });
 
+  /**
+   * The door of a share, named one endpoint at a time.
+   *
+   * Everything a visitor's browser asks for — a preview, a thumbnail, a
+   * download, an office document — now also answers under the share's own
+   * prefix, so that letting a public link through an authentication proxy does
+   * not mean opening `/api/download` to the world. The rule that says who may
+   * be here without identifying themselves therefore has to name what is open
+   * rather than what is not: written as "everything under the prefix except
+   * browsing", it would have answered for every endpoint that joined later.
+   */
+  it('opens the door of a share and nothing behind it', async () => {
+    const ask = await gate();
+
+    for (const path of [
+      '/api/share/abc123',
+      '/api/share/abc123/info',
+      '/api/share/abc123/verify',
+      '/api/share/abc123/access',
+      '/api/share/abc123/file/notes.txt',
+      '/api/share/abc123/editor/notes.txt',
+    ]) {
+      expect((await ask({ path, method: 'GET' })).passed, path).toBe(true);
+    }
+
+    for (const path of [
+      '/api/share/abc123/browse',
+      '/api/share/abc123/preview',
+      '/api/share/abc123/download',
+      '/api/share/abc123/download/plan',
+      '/api/share/abc123/thumbnails/share/abc123/picture.png',
+      '/api/share/abc123/metadata/share/abc123/notes.txt',
+      '/api/share/abc123/folder-size/share/abc123',
+      '/api/share/abc123/archive/list',
+      '/api/share/abc123/onlyoffice/config',
+      '/api/share/abc123/collabora/config',
+    ]) {
+      expect((await ask({ path, method: 'GET' })).passed, path).toBe(false);
+    }
+  });
+
+  /** A management route is not a share link that happens to start the same way. */
+  it('is not fooled by the plural', async () => {
+    const ask = await gate();
+
+    expect((await ask({ path: '/api/shares/abc123' })).passed).toBe(false);
+    expect((await ask({ path: '/api/shares' })).passed).toBe(false);
+  });
+
   it('refuses everything else', async () => {
     const ask = await gate();
 

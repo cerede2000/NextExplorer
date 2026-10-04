@@ -1,4 +1,5 @@
 import { computed } from 'vue';
+import { shareScoped } from '@/api/shareScope';
 import { useFileStore } from '@/stores/fileStore';
 import { useFeaturesStore } from '@/stores/features';
 import { useAppSettings } from '@/stores/appSettings';
@@ -200,7 +201,12 @@ export function useFileActions() {
     // This triggers the browser's native download with progress bar
     const form = document.createElement('form');
     form.method = 'POST';
-    form.action = buildUrl('/api/download');
+    // Inside a share this is the share's own address. A form submission is a
+    // navigation and carries no header, so what identifies the visitor is the
+    // guest session cookie — which the server reads either way; what the prefix
+    // buys is a public link that works from behind an authentication proxy
+    // without `/api/download` having to be opened to everyone.
+    form.action = buildUrl(shareScoped('/api/download', currentPath || paths[0]));
     form.style.display = 'none';
 
     // Add each path as a separate 'paths' field (form arrays)

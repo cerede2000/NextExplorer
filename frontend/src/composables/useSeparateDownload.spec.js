@@ -51,6 +51,14 @@ import { useSeparateDownload } from './useSeparateDownload';
 
 const PLAN = { token: 'tok', files: [{ index: 0, name: 'a.txt', size: 4 }], archive: null };
 const ask = { paths: ['Docs/a.txt', 'Docs/b.txt'], basePath: 'Docs', fileCount: 2 };
+/**
+ * Where the selection came from travels with the plan.
+ *
+ * The parts are fetched later, from somewhere that no longer knows, and a plan
+ * made inside a share has to be fetched under that share's prefix like
+ * everything else a visitor asks for.
+ */
+const CARRIED = { ...PLAN, basePath: ask.basePath };
 
 beforeEach(() => {
   Object.values(m).forEach((fn) => fn.mockReset());
@@ -96,7 +104,7 @@ describe('the way the files are taken', () => {
   it('is the anchors where there is no folder picker', async () => {
     await expect(useSeparateDownload().run(ask)).resolves.toBe('done');
 
-    expect(m.clickPartsThrough).toHaveBeenCalledWith({ plan: PLAN });
+    expect(m.clickPartsThrough).toHaveBeenCalledWith({ plan: CARRIED });
     expect(m.writePartsToFolder).not.toHaveBeenCalled();
     expect(m.startOperation).not.toHaveBeenCalled();
   });
@@ -122,7 +130,7 @@ describe('the way the files are taken', () => {
       expect.objectContaining({ type: 'download', itemCount: 2, totalBytes: 10, cancellable: true })
     );
     expect(m.writePartsToFolder).toHaveBeenCalledWith(
-      expect.objectContaining({ plan: PLAN, folder: { name: 'Downloads' } })
+      expect.objectContaining({ plan: CARRIED, folder: { name: 'Downloads' } })
     );
     expect(m.finishOperation).toHaveBeenCalledWith('op-1');
     expect(m.addNotification).toHaveBeenCalledWith(

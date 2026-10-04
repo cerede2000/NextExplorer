@@ -1,6 +1,7 @@
 // /api/onlyoffice.api.js
 
 import { buildUrl, requestJson, normalizePath } from './http';
+import { shareScoped } from './shareScope';
 
 /**
  * `theme` is 'light' or 'dark'. It has to travel with the request rather than
@@ -11,7 +12,7 @@ export async function fetchOnlyOfficeConfig(path, mode = 'edit', { theme, versio
   const normalizedPath = normalizePath(path || '');
   if (!normalizedPath) throw new Error('Path is required.');
 
-  return requestJson('/api/onlyoffice/config', {
+  return requestJson(shareScoped('/api/onlyoffice/config', normalizedPath), {
     method: 'POST',
     body: JSON.stringify({
       path: normalizedPath,
@@ -27,7 +28,7 @@ export async function fetchOnlyOfficeHistory(path) {
   const normalizedPath = normalizePath(path || '');
   if (!normalizedPath) throw new Error('Path is required.');
 
-  return requestJson('/api/onlyoffice/history', {
+  return requestJson(shareScoped('/api/onlyoffice/history', normalizedPath), {
     method: 'POST',
     body: JSON.stringify({ path: normalizedPath }),
   });
@@ -41,7 +42,7 @@ export async function fetchOnlyOfficeHistoryData(path, { version, versionId } = 
   const normalizedPath = normalizePath(path || '');
   if (!normalizedPath) throw new Error('Path is required.');
 
-  return requestJson('/api/onlyoffice/history-data', {
+  return requestJson(shareScoped('/api/onlyoffice/history-data', normalizedPath), {
     method: 'POST',
     body: JSON.stringify({
       path: normalizedPath,
@@ -55,7 +56,7 @@ export async function requestOnlyOfficeForceSave(path, { sessionId, reason = 'cl
   const normalizedPath = normalizePath(path || '');
   if (!normalizedPath || !sessionId) return { queued: false };
 
-  return requestJson('/api/onlyoffice/force-save', {
+  return requestJson(shareScoped('/api/onlyoffice/force-save', normalizedPath), {
     method: 'POST',
     body: JSON.stringify({ path: normalizedPath, sessionId, reason }),
     // Keep the short close request eligible to finish while the preview is
@@ -75,7 +76,7 @@ export async function saveOnlyOfficeDocumentAs(path, { url, title } = {}) {
   const normalizedPath = normalizePath(path || '');
   if (!normalizedPath || !url || !title) throw new Error('Path, url and title are required.');
 
-  return requestJson('/api/onlyoffice/save-as', {
+  return requestJson(shareScoped('/api/onlyoffice/save-as', normalizedPath), {
     method: 'POST',
     body: JSON.stringify({ path: normalizedPath, url, title }),
   });
@@ -94,7 +95,7 @@ export async function renameOnlyOfficeDocument(path, { sessionId, newName } = {}
     throw new Error('Path, session and new name are required.');
   }
 
-  return requestJson('/api/onlyoffice/rename', {
+  return requestJson(shareScoped('/api/onlyoffice/rename', normalizedPath), {
     method: 'POST',
     body: JSON.stringify({ path: normalizedPath, sessionId, newName }),
   });
@@ -112,7 +113,7 @@ export async function fetchOnlyOfficeStorageFile(path, { c } = {}) {
   const normalizedPath = normalizePath(path || '');
   if (!normalizedPath) throw new Error('Path is required.');
 
-  return requestJson('/api/onlyoffice/storage-file', {
+  return requestJson(shareScoped('/api/onlyoffice/storage-file', normalizedPath), {
     method: 'POST',
     body: JSON.stringify({ path: normalizedPath, c }),
   });
@@ -138,7 +139,7 @@ export async function notifyOnlyOfficeMention(path, { emails, actionLink, commen
   const normalizedPath = normalizePath(path || '');
   if (!normalizedPath) throw new Error('Path is required.');
 
-  return requestJson('/api/onlyoffice/notify', {
+  return requestJson(shareScoped('/api/onlyoffice/notify', normalizedPath), {
     method: 'POST',
     body: JSON.stringify({ path: normalizedPath, emails, actionLink, comment }),
     suppressErrorHandler: true,
@@ -148,7 +149,7 @@ export async function notifyOnlyOfficeMention(path, { emails, actionLink, commen
 export async function heartbeatOnlyOfficeSession(path, { sessionId } = {}) {
   const normalizedPath = normalizePath(path || '');
   if (!normalizedPath || !sessionId) return { active: false };
-  return requestJson('/api/onlyoffice/session-heartbeat', {
+  return requestJson(shareScoped('/api/onlyoffice/session-heartbeat', normalizedPath), {
     method: 'POST',
     body: JSON.stringify({ path: normalizedPath, sessionId }),
     suppressErrorHandler: true,
@@ -175,7 +176,7 @@ export async function endOnlyOfficeSession(path, { sessionId, beacon = false } =
   if (beacon && typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
     try {
       const handedOver = navigator.sendBeacon(
-        buildUrl('/api/onlyoffice/session-end'),
+        buildUrl(shareScoped('/api/onlyoffice/session-end', normalizedPath)),
         // Typed, because the server reads JSON bodies and nothing else: a
         // beacon sent as text/plain arrives with an empty body.
         new Blob([body], { type: 'application/json' })
@@ -186,7 +187,7 @@ export async function endOnlyOfficeSession(path, { sessionId, beacon = false } =
     }
   }
 
-  return requestJson('/api/onlyoffice/session-end', {
+  return requestJson(shareScoped('/api/onlyoffice/session-end', normalizedPath), {
     method: 'POST',
     body,
     keepalive: true,

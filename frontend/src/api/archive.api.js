@@ -1,4 +1,5 @@
 import { buildUrl, normalizePath, requestJson, requestRaw, requestStream } from './http';
+import { shareScoped } from './shareScope';
 
 /**
  * Looking inside an archive without unpacking it.
@@ -14,12 +15,17 @@ const pathQuery = (path) => `path=${encodeURIComponent(normalizePath(path))}`;
 /** One level of an archive: `{ path, name, inside, entries, total, outside }`. */
 async function browseArchive(path, inside = '') {
   const position = inside ? `&inside=${encodeURIComponent(inside)}` : '';
-  return requestJson(`/api/archive/list?${pathQuery(path)}${position}`, { method: 'GET' });
+  return requestJson(
+    `${shareScoped('/api/archive/list', normalizePath(path))}?${pathQuery(path)}${position}`,
+    { method: 'GET' }
+  );
 }
 
 /** Where one entry downloads from: a plain link, so the browser saves it as it does any file. */
 function archiveEntryUrl(path, entry) {
-  return buildUrl(`/api/archive/entry?${pathQuery(path)}&entry=${encodeURIComponent(entry)}`);
+  return buildUrl(
+    `${shareScoped('/api/archive/entry', normalizePath(path))}?${pathQuery(path)}&entry=${encodeURIComponent(entry)}`
+  );
 }
 
 /**
@@ -32,10 +38,13 @@ function archiveEntryUrl(path, entry) {
  * the browser as something to open.
  */
 async function readArchiveEntry(path, entry, options = {}) {
-  return requestRaw(`/api/archive/entry?${pathQuery(path)}&entry=${encodeURIComponent(entry)}`, {
-    method: 'GET',
-    signal: options.signal,
-  });
+  return requestRaw(
+    `${shareScoped('/api/archive/entry', normalizePath(path))}?${pathQuery(path)}&entry=${encodeURIComponent(entry)}`,
+    {
+      method: 'GET',
+      signal: options.signal,
+    }
+  );
 }
 
 /**

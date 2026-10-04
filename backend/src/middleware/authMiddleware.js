@@ -21,13 +21,37 @@ const ANONYMOUS_USER = {
 };
 
 /**
- * A share link is opened by someone with no account, which is the point of it.
+ * What a share answers to somebody carrying nothing at all.
  *
- * Browsing *inside* one is deliberately not on that list: it needs either an
- * account or a guest session, which is the only proof the password was typed.
+ * The door — what this share is, the password, and the session that typing it
+ * earns — plus the direct links a share hands out to be pasted elsewhere, which
+ * check the share for themselves and are the whole point of a public link.
+ *
+ * Named one by one, rather than "everything under the share prefix except
+ * browsing". That shape answered for routes that did not exist yet: everything a
+ * visitor's browser asks for now lives under this prefix, so a rule written as an
+ * exception would have made each new one anonymous by default. Browsing a share
+ * has always needed an account or a guest session — the only proof the password
+ * was typed — and so does everything that joined it.
  */
-const isPublicShareRoute = (requestPath) =>
-  requestPath.startsWith('/api/share/') && !requestPath.includes('/browse/');
+const PUBLIC_SHARE_ENDPOINTS = new Set([
+  // GET /api/share/<token> — the direct link to a shared file.
+  '',
+  'info',
+  'verify',
+  'access',
+  'file',
+  'editor',
+]);
+
+const SHARE_PREFIX = '/api/share/';
+
+const isPublicShareRoute = (requestPath) => {
+  if (!requestPath.startsWith(SHARE_PREFIX)) return false;
+  const [token, endpoint = ''] = requestPath.slice(SHARE_PREFIX.length).split('/');
+  if (!token) return false;
+  return PUBLIC_SHARE_ENDPOINTS.has(endpoint);
+};
 
 /**
  * The paths an editor's server calls back on, which carry their own signed

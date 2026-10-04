@@ -113,4 +113,4 @@ const configureStaticFiles = (app, frontendDirectory) => {
   }
 };
 
-module.exports = { configureStaticFiles };
+module.exports = { configureStaticFiles, requireThumbnailToken };

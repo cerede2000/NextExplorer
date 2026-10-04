@@ -17,7 +17,11 @@ const { togglePanel } = notificationsStore;
     <BellIcon class="w-6" />
 
     <!-- Badge with count and pulse animation -->
-    <span v-if="unreadCount > 0" class="absolute top-0 right-0 flex h-5 w-5">
+    <span
+      v-if="unreadCount > 0"
+      data-test="notification-count"
+      class="absolute top-0 right-0 flex h-5 w-5"
+    >
       <!-- Ping animation -->
       <span
         class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"

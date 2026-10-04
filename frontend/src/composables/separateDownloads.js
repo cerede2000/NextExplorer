@@ -119,7 +119,10 @@ export const writePartsToFolder = async ({ plan, folder, signal, onProgress } = 
     if (signal?.aborted) break;
     const entry = parts[position];
 
-    const response = await fetchDownloadPart(plan.token, entry.part, { signal });
+    const response = await fetchDownloadPart(plan.token, entry.part, {
+      signal,
+      basePath: plan.basePath,
+    });
     const target = await freeFileHandle(folder, entry.name);
     if (target.renamed) renamed.push(target.name);
 
@@ -175,7 +178,7 @@ export const clickPartsThrough = async ({ plan, spacingMs = CLICK_SPACING_MS } =
   for (let position = 0; position < parts.length; position += 1) {
     const entry = parts[position];
     const anchor = document.createElement('a');
-    anchor.href = downloadPartUrl(plan.token, entry.part);
+    anchor.href = downloadPartUrl(plan.token, entry.part, plan.basePath);
     anchor.download = entry.name;
     anchor.rel = 'noopener';
     anchor.style.display = 'none';

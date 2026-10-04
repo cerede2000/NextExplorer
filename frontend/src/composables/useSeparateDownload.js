@@ -55,8 +55,12 @@ export function useSeparateDownload() {
     }
 
     // From here the download is counted, so from here it has to be reported.
-    const plan = await createDownloadPlan(paths, basePath);
-    if (!plan?.token || (!plan.files?.length && !plan.archive)) return 'failed';
+    const made = await createDownloadPlan(paths, basePath);
+    if (!made?.token || (!made.files?.length && !made.archive)) return 'failed';
+    // Where the selection came from travels with the plan: each part is fetched
+    // later, from somewhere that no longer knows, and a plan made inside a share
+    // is fetched under that share's prefix like everything else.
+    const plan = { ...made, basePath };
 
     if (!folder) {
       await clickPartsThrough({ plan });

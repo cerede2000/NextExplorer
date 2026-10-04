@@ -4412,9 +4412,11 @@ test('a shared folder is browsed, read and edited without ever leaving the share
      * the journey that opens a shared document in one.
      */
     const [served] = await Promise.all([
-      // The viewer reads through `/api/preview`, which is where the server looks at
-      // the guest session for itself.
-      visitor.waitForResponse((response) => response.url().includes('/api/preview')),
+      // The viewer reads through the share's own prefix — `/api/share/<token>/preview`
+      // — which is the same handler, behind a gate that checks the visitor holds a
+      // session for this share. It used to read `/api/preview`, the whole instance's,
+      // which is a path nobody can open in front of an authentication proxy.
+      visitor.waitForResponse((response) => response.url().includes(`/api/share/${token}/preview`)),
       visitor.locator('[title="picture.png"]').first().dblclick(),
     ]);
     // The bytes actually came through the share, for somebody with no account.
@@ -4643,6 +4645,121 @@ test('folders can be mixed into the listing instead of bucketed ahead of it', as
     expect(await namesInOrder()).toEqual(['aaa.txt', 'bbb', 'ccc.txt']);
   } finally {
     await setFoldersFirst(true);
+  }
+});
+
+/**
+ * The whole of a share, from behind a front door that lets nothing else past.
+ *
+ * Somebody running this behind an authentication proxy opens one hole in it for
+ * public links, and that hole is a list of path prefixes. The list is only short
+ * if everything a visitor's browser asks for is under one of them — so this walks
+ * a visitor through the share with every other address refused, exactly as the
+ * proxy would refuse it, and collects what was asked outside the hole.
+ *
+ * The hole is the three prefixes the application claims are enough: the share's
+ * pages, the share's API, and the build's own files.
+ */
+test('a visitor reaches all of a share from behind a front door', async ({ browser }) => {
+  test.slow();
+
+  const dir = path.join(volume, 'Doorway');
+  fs.mkdirSync(path.join(dir, 'Inner'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'notes.txt'), 'behind the door\n');
+  fs.writeFileSync(path.join(dir, 'Inner', 'deep.txt'), 'deeper still\n');
+  fs.writeFileSync(
+    path.join(dir, 'picture.png'),
+    Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64'
+    )
+  );
+
+  await page.goto('/browse/Projects');
+  await page.getByRole('button', { name: 'Select Doorway' }).click();
+  await page.getByRole('button', { name: 'Share selected item' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Create Share Link' }).click();
+  const link = await dialog.locator('input[readonly]').first().inputValue();
+  const token = link.split('/share/')[1];
+  await page.keyboard.press('Escape');
+
+  const stranger = await browser.newContext({ locale: 'en-US' });
+  try {
+    const visitor = await stranger.newPage();
+
+    /** What the visitor asked for that the door would have turned away. */
+    const refused = [];
+    const letThrough = (pathname) =>
+      pathname.startsWith('/share/') ||
+      pathname.startsWith('/api/share/') ||
+      pathname.startsWith('/assets/');
+
+    /**
+     * Three the application asks for and goes on without.
+     *
+     * This server answers all three to anybody — the feature flags, the branding,
+     * and whether anyone is signed in — so a proxy may well let them through. It
+     * does not have to: each is asked quietly and has a default, and a visitor who
+     * is refused them must still see the share and be told nothing about it. That
+     * is the second half of this journey's assertion.
+     */
+    const doesWithout = new Set(['/api/features', '/api/branding', '/api/auth/status']);
+
+    await stranger.route('**/*', async (route) => {
+      const { pathname } = new URL(route.request().url());
+      if (letThrough(pathname)) return route.continue();
+      refused.push(pathname);
+      return route.fulfill({
+        status: 401,
+        contentType: 'text/html',
+        body: '<html><body>Authentication required</body></html>',
+      });
+    });
+
+    await visitor.goto(link);
+    await expect(visitor).toHaveURL(new RegExp(`/share/${token}/browse/$`));
+    await expect(visitor.locator('[title="notes.txt"]').first()).toBeVisible();
+
+    // Into the subfolder and back.
+    await visitor.locator('[title="Inner"]').first().dblclick();
+    await expect(visitor.locator('[title="deep.txt"]').first()).toBeVisible();
+    await visitor.goBack();
+    await expect(visitor.locator('[title="notes.txt"]').first()).toBeVisible();
+
+    // Read in the viewer.
+    //
+    // Waited for by what the viewer itself draws, not by the surface around it:
+    // the surface is there the moment the plugin is asked for, while its component
+    // is still being fetched — so a key pressed against the surface alone is a key
+    // pressed at nothing.
+    await visitor.locator('[title="picture.png"]').first().dblclick();
+    const viewer = visitor.locator('[data-test="preview-surface"]');
+    await expect(viewer.getByRole('heading', { name: 'picture.png' })).toBeVisible();
+    await visitor.keyboard.press('Escape');
+    await expect(viewer).toHaveCount(0);
+
+    // Opened in the editor.
+    await visitor.locator('[title="notes.txt"]').first().dblclick();
+    await expect(visitor).toHaveURL(new RegExp(`/share/${token}/editor/notes\\.txt$`));
+    await expect(visitor.locator('.cm-content')).toContainText('behind the door');
+    await visitor.goBack();
+    await expect(visitor.locator('[title="notes.txt"]').first()).toBeVisible();
+
+    // And taken away.
+    await visitor.locator('[title="notes.txt"]').first().click({ button: 'right' });
+    const download = visitor.waitForEvent('download', { timeout: 10000 }).catch(() => null);
+    await visitor.getByText('Download', { exact: true }).first().click();
+    await download;
+
+    const strayed = [...new Set(refused)].filter((pathname) => !doesWithout.has(pathname));
+    expect(strayed, `asked outside the door:\n${strayed.join('\n')}`).toEqual([]);
+
+    // And not one refusal reached the reader: the three above are asked quietly,
+    // and nothing else was asked at all.
+    await expect(visitor.locator('[data-test="notification-count"]')).toHaveCount(0);
+  } finally {
+    await stranger.close();
   }
 });
 

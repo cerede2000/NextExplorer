@@ -1,3 +1,4 @@
+import { shareScoped } from './shareScope';
 import {
   requestJson,
   requestRaw,
@@ -91,14 +92,16 @@ async function getVolumes() {
 async function getUsage(path = '') {
   const normalizedPath = normalizePath(path);
   const encodedPath = encodePath(normalizedPath);
-  return requestJson(`/api/usage/${encodedPath}`, { method: 'GET' });
+  return requestJson(`${shareScoped('/api/usage', normalizedPath)}/${encodedPath}`, {
+    method: 'GET',
+  });
 }
 
 async function getFolderSizesBatch(paths = [], options = {}) {
   const normalizedPaths = (Array.isArray(paths) ? paths : [])
     .map((p) => normalizePath(p))
     .filter(Boolean);
-  return requestJson('/api/folder-size/batch', {
+  return requestJson(shareScoped('/api/folder-size/batch', normalizedPaths[0] || ''), {
     ...options,
     method: 'POST',
     body: JSON.stringify({ paths: normalizedPaths }),
@@ -111,7 +114,10 @@ async function refreshFolderSize(relativePath, options = {}) {
     throw new Error('A folder path is required to refresh its size.');
   }
   const encodedPath = encodePath(normalizedPath);
-  return requestJson(`/api/folder-size/refresh/${encodedPath}`, { ...options, method: 'POST' });
+  return requestJson(`${shareScoped('/api/folder-size/refresh', normalizedPath)}/${encodedPath}`, {
+    ...options,
+    method: 'POST',
+  });
 }
 
 /**
@@ -440,7 +446,7 @@ function getRawFileUrl(path) {
   }
 
   const params = new URLSearchParams({ path: normalizedPath });
-  return buildUrl(`/api/raw?${params.toString()}`);
+  return buildUrl(`${shareScoped('/api/raw', normalizedPath)}?${params.toString()}`);
 }
 
 async function fetchThumbnail(relativePath, options = {}) {
@@ -454,7 +460,7 @@ async function fetchThumbnail(relativePath, options = {}) {
   // Thumbnails are best-effort/background: never surface a global error toast on
   // a missing source. Callers inspect the thrown error's statusCode to decide
   // whether to retry.
-  return requestJson(`/api/thumbnails/${encodedPath}${suffix}`, {
+  return requestJson(`${shareScoped('/api/thumbnails', normalizedPath)}/${encodedPath}${suffix}`, {
     method: 'GET',
     suppressErrorHandler: true,
     ...requestOptions,
@@ -467,7 +473,9 @@ async function fetchMetadata(relativePath) {
     throw new Error('A file path is required to fetch metadata.');
   }
   const encodedPath = encodePath(normalizedPath);
-  return requestJson(`/api/metadata/${encodedPath}`, { method: 'GET' });
+  return requestJson(`${shareScoped('/api/metadata', normalizedPath)}/${encodedPath}`, {
+    method: 'GET',
+  });
 }
 
 async function downloadItems(paths, basePath = '') {
@@ -482,7 +490,7 @@ async function downloadItems(paths, basePath = '') {
   const normalizedBase = normalizePath(basePath || '');
 
   // Use requestRaw as this returns a file blob, not JSON
-  return requestRaw('/api/download', {
+  return requestRaw(shareScoped('/api/download', normalizedBase || normalizedList[0]), {
     method: 'POST',
     body: JSON.stringify({
       items: normalizedList,
@@ -507,17 +515,28 @@ async function createDownloadPlan(paths, basePath = '') {
     throw new Error('At least one path is required for download.');
   }
 
-  return requestJson('/api/download/plan', {
+  const normalizedBase = normalizePath(basePath || '');
+
+  return requestJson(shareScoped('/api/download/plan', normalizedBase || normalizedList[0]), {
     method: 'POST',
     body: JSON.stringify({
       items: normalizedList,
-      basePath: normalizePath(basePath || ''),
+      basePath: normalizedBase,
     }),
   });
 }
 
-const downloadPartPath = (token, part) =>
-  `/api/download/part/${encodeURIComponent(token)}/${encodeURIComponent(part)}`;
+/**
+ * @param {string} token the plan's token, which is not a share's
+ * @param {string} part the part named by the plan
+ * @param {string} [basePath] where the selection was taken from, so a plan made
+ *   inside a share is fetched under that share's prefix like everything else
+ */
+const downloadPartPath = (token, part, basePath = '') =>
+  shareScoped(
+    `/api/download/part/${encodeURIComponent(token)}/${encodeURIComponent(part)}`,
+    normalizePath(basePath || '')
+  );
 
 /**
  * Where one part of a plan is, as an address.
@@ -526,8 +545,8 @@ const downloadPartPath = (token, part) =>
  * anchor carrying `download`: a navigation, not a request, so it must be a URL
  * and it must be a GET. The browser then streams it to disk itself.
  */
-function downloadPartUrl(token, part) {
-  return buildUrl(downloadPartPath(token, part));
+function downloadPartUrl(token, part, basePath = '') {
+  return buildUrl(downloadPartPath(token, part, basePath));
 }
 
 /**
@@ -537,7 +556,11 @@ function downloadPartUrl(token, part) {
  * into a file handle, so a file larger than memory is never held in the page.
  */
 function fetchDownloadPart(token, part, options = {}) {
-  return requestRaw(downloadPartPath(token, part), { method: 'GET', ...options });
+  const { basePath = '', ...requestOptions } = options;
+  return requestRaw(downloadPartPath(token, part, basePath), {
+    method: 'GET',
+    ...requestOptions,
+  });
 }
 
 async function extractZip(relativePath, options = {}) {
@@ -547,7 +570,7 @@ async function extractZip(relativePath, options = {}) {
   }
   // The endpoint streams NDJSON progress events (start/progress/done/error),
   // like the copy/move endpoints; `onEvent` receives each intermediate event.
-  return requestStream('/api/files/zip/extract', {
+  return requestStream(shareScoped('/api/files/zip/extract', normalizedPath), {
     method: 'POST',
     body: JSON.stringify({
       path: normalizedPath,
@@ -571,12 +594,15 @@ async function compressToZip(items, destination = '', name, options = {}) {
 
   // The endpoint streams NDJSON progress events (start/progress/done/error),
   // like the extract and copy/move endpoints.
-  return requestStream('/api/files/zip/compress', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-    onEvent: options.onEvent,
-    signal: options.signal,
-  });
+  return requestStream(
+    shareScoped('/api/files/zip/compress', payload.destination || payload.items[0]),
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      onEvent: options.onEvent,
+      signal: options.signal,
+    }
+  );
 }
 
 async function search(path = '', q = '', limit, { signal } = {}) {
@@ -599,7 +625,7 @@ const getPreviewUrl = (relativePath) => {
   }
 
   const params = new URLSearchParams({ path: normalizedPath });
-  return buildUrl(`/api/preview?${params.toString()}`);
+  return buildUrl(`${shareScoped('/api/preview', normalizedPath)}?${params.toString()}`);
 };
 
 /**
@@ -617,10 +643,13 @@ async function fetchMediaTracks(relativePath) {
 
   const params = new URLSearchParams({ path: normalizedPath });
   try {
-    return await requestJson(`/api/media/tracks?${params.toString()}`, {
-      method: 'GET',
-      suppressErrorHandler: true,
-    });
+    return await requestJson(
+      `${shareScoped('/api/media/tracks', normalizedPath)}?${params.toString()}`,
+      {
+        method: 'GET',
+        suppressErrorHandler: true,
+      }
+    );
   } catch (_) {
     // A file ffprobe will not read is not an error worth showing anyone; the
     // video still plays, and the extra information is simply unavailable.
@@ -653,7 +682,7 @@ const getSubtitleUrl = (relativePath, track = {}) => {
     return null;
   }
 
-  return buildUrl(`/api/media/subtitle?${params.toString()}`);
+  return buildUrl(`${shareScoped('/api/media/subtitle', normalizedPath)}?${params.toString()}`);
 };
 
 async function fetchPermissions(relativePath) {

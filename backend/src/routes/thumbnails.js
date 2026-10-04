@@ -30,6 +30,22 @@ const isThumbnailable = (extension = '') => {
   );
 };
 
+/**
+ * Where the thumbnail this request just cleared is fetched from.
+ *
+ * Signed either way — the signature is what unlocks the file — but a visitor
+ * who asked under a share's prefix is answered under it too, so that everything
+ * their browser fetches stays inside the one hole an authentication proxy has
+ * to open for a public link.
+ */
+const served = (req, url) => {
+  const signed = withThumbnailToken(url);
+  if (!req.shareScope || typeof signed !== 'string' || !signed.startsWith('/static/')) {
+    return signed;
+  }
+  return `/api/share/${encodeURIComponent(req.shareScope.token)}${signed}`;
+};
+
 router.get(
   '/thumbnails/{*splat}',
   asyncHandler(async (req, res) => {
@@ -89,7 +105,7 @@ router.get(
       // token carries that decision to the static handler.
       const cachedThumbnail = await getThumbnailPathIfExists(absolutePath, stats);
       if (cachedThumbnail) {
-        return res.json({ thumbnail: withThumbnailToken(cachedThumbnail), pending: false });
+        return res.json({ thumbnail: served(req, cachedThumbnail), pending: false });
       }
 
       // A prefetch is deliberately lower priority and is admitted only while
@@ -102,7 +118,7 @@ router.get(
       );
       return res
         .status(result.pending ? 202 : 200)
-        .json({ ...result, thumbnail: withThumbnailToken(result.thumbnail) });
+        .json({ ...result, thumbnail: served(req, result.thumbnail) });
     } catch (error) {
       logger.warn(
         { absolutePath, err: error },
