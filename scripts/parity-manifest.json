@@ -1625,6 +1625,13 @@
     },
     {
       "axis": "*",
+      "match": "^(frontend/src/composables/useStorageBrowser\\.js|frontend/src/components/(Storage|Destination)PickerDialog\\.vue)(:|$)",
+      "verdict": "PORT",
+      "batch": "share-behind-a-door",
+      "note": "the dialogs that walk folders, inside a share. \"Copy to\", \"Move to\", \"Extract to\", the file picker the editor opens and the Versions panel's \"Restore a copy to\" listed folders at `/api/browse/…`, which is not a visitor's address: behind an authentication proxy letting a public link through, the dialog opened on nothing and said the folder could not be listed. The listing comes through the share's own door now, and a visitor with no account cannot be sent above the share — whose token is not a folder anybody chose and whose parent is not theirs to see. An account keeps its own storage above a share, which is where copying something out of one happens."
+    },
+    {
+      "axis": "*",
       "match": "^(backend/src/middleware/shareScope\\.js|backend/src/routes/thumbnails\\.js|frontend/src/api/guestSession\\.js|frontend/src/api/shareScope\\.js|frontend/src/api/archive\\.api\\.js|frontend/src/utils/brandingLogo\\.js|frontend/src/components/NotificationBell\\.vue|docs/configuration/public-links\\.md|frontend/public/assets/[^/]+|backend/src/routes/branding\\.js|backend/src/middleware/integrationCallbacks\\.js|backend/src/utils/shareScopedUrl\\.js|frontend/src/api/versions\\.api\\.js|EDITOR_INTERNAL_URL)(:|$)",
       "verdict": "PORT",
       "batch": "share-behind-a-door",
@@ -1831,6 +1838,22 @@
     {
       "match": "^(backend/src/routes/(collabora|onlyoffice)\\.js|frontend/src/api/versions\\.api\\.js)$",
       "note": "the whole of a share handed to its visitor, the editing server included: the document URL and the callback ONLYOFFICE is given, and the WOPI source Collabora is given, are addressed under the share's prefix when the document is in a share — that server fetches through the same front door the reader came in by, and was refused, which is what 'cannot save the document' meant. Each still carries the token this server signed. Everything else that takes a path went with them: the long poll a page waits on, copying and moving and renaming and deleting, searching, a file's versions, unpacking an archive."
+    },
+    {
+      "match": "^frontend/src/components/DestinationPickerDialog\\.vue$",
+      "note": "the dialogs that walk folders, inside a share. \"Copy to\", \"Move to\", \"Extract to\", the file picker the editor opens and the Versions panel's \"Restore a copy to\" listed folders at `/api/browse/…`, which is not a visitor's address: behind an authentication proxy letting a public link through, the dialog opened on nothing and said the folder could not be listed. The listing comes through the share's own door now, and a visitor with no account cannot be sent above the share — whose token is not a folder anybody chose and whose parent is not theirs to see. An account keeps its own storage above a share, which is where copying something out of one happens."
+    },
+    {
+      "match": "^backend/src/openapi/paths/integrations\\.js$",
+      "note": "the editor is told whether the document it is opening has a history to show. A share hands out its files' histories only when its owner turned that on, and the editor asks for one the moment the reader opens its menu: offered anyway, it put a menu entry there whose only answer was a refusal. One field on an answer the batches already carry, and the description says so where every other field of it is described."
+    },
+    {
+      "match": "^(frontend/src/components/StoragePickerDialog\\.vue|frontend/src/composables/useStorageBrowser\\.js)$",
+      "note": "the dialogs that walk folders, inside a share. \"Copy to\", \"Move to\", \"Extract to\", the file picker the editor opens and the Versions panel's \"Restore a copy to\" listed folders at `/api/browse/…`, which is not a visitor's address: behind an authentication proxy letting a public link through, the dialog opened on nothing and said the folder could not be listed. The listing comes through the share's own door now, and a visitor with no account cannot be sent above the share — whose token is not a folder anybody chose and whose parent is not theirs to see. An account keeps its own storage above a share, which is where copying something out of one happens."
+    },
+    {
+      "match": "^frontend/src/utils/compareRoute\\.js$",
+      "note": "a comparison inside a share is one of the share's own pages. The Versions panel offers a version against the file as it is now for anything that reads as lines of text, and `/compare` asks for an account: inside a share that offer sent the reader to a sign-in screen. The address carries the share when every side of the comparison is in one, as the listing, the viewer and the editor already did; sides in different shares, or one inside and one outside, keep the application's own address."
     }
   ],
   "controls": [

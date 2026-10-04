@@ -77,8 +77,9 @@ const mergeTransferResults = (results) => {
  * A folder's listing, from whichever door the folder is behind.
  *
  * A share's listing has its own endpoint, which is what the browser's folder
- * pane has always used. Everything else that walks folders — the "Copy to"
- * dialog, the file picker the editor opens — asked here, and `/api/browse` is
+ * pane has always used. Everything else that walks folders — the dialog that
+ * asks where to copy something, the file picker the editor opens — asked here,
+ * and `/api/browse` is
  * not a visitor's address: inside a share they were told the folder could not be
  * listed. So the share's door is taken here too, by the same rule as the rest:
  * the path says which share it belongs to.
