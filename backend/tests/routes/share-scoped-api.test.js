@@ -52,7 +52,13 @@ const buildApp = ({ user } = {}) => {
 };
 
 /** An owner with a volume, and a public share of a folder on it. */
-const seedShare = async ({ suffix = '', password, accessMode } = {}) => {
+const seedShare = async ({
+  suffix = '',
+  password,
+  accessMode,
+  versionsVisible,
+  versionsDownload,
+} = {}) => {
   const usersService = envContext.requireFresh('src/services/users');
   const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
   const root = path.join(envContext.tmpRoot, `scoped-volume${suffix}`);
@@ -91,6 +97,8 @@ const seedShare = async ({ suffix = '', password, accessMode } = {}) => {
       sharingType: 'anyone',
       ...(accessMode ? { accessMode } : {}),
       ...(password ? { password } : {}),
+      ...(versionsVisible === undefined ? {} : { versionsVisible }),
+      ...(versionsDownload === undefined ? {} : { versionsDownload }),
     });
   expect(created.status).toBe(201);
 
@@ -180,6 +188,82 @@ describe('what a share answers before anybody is identified', () => {
     // The same answer as the address every other page reads them at.
     expect(features.body).toEqual((await request(app).get('/api/features')).body);
     expect(branding.body).toEqual((await request(app).get('/api/branding')).body);
+  });
+});
+
+/**
+ * The logo a share's page draws itself with.
+ *
+ * A chosen logo is a file this application holds, served at `/static/logos/<name>`
+ * — a path of its own in front of an authentication proxy, exactly like the
+ * `/logo.svg` that sent the default one to a broken image. So the branding a
+ * share's page reads points at the logo under the share's own prefix, and the
+ * bytes are there: before anybody is identified, because the door of a
+ * password-protected share draws the logo too.
+ */
+describe('a logo somebody chose, inside a share', () => {
+  /**
+   * A logo chosen earlier: the file where the upload puts it, and the branding
+   * pointing at it. Written rather than uploaded — the upload is an
+   * administrator's endpoint and the share's owner is not one, and what this is
+   * about is the address, not how the bytes got there.
+   */
+  const withALogo = async () => {
+    const name = 'logo-11111111-2222-3333-4444-555555555555.png';
+    const logos = path.join(envContext.configDir, 'logos');
+    await fs.mkdir(logos, { recursive: true });
+    await fs.writeFile(
+      path.join(logos, name),
+      Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+        'base64'
+      )
+    );
+
+    const db = await envContext.requireFresh('src/services/db').getDb();
+    db.prepare(
+      `INSERT OR REPLACE INTO system_settings (id, category, key, value, updated_at)
+       VALUES ('branding', 'branding', 'branding', ?, ?)`
+    ).run(
+      JSON.stringify({
+        appName: 'Explorer',
+        appLogoUrl: `/static/logos/${name}`,
+        showPoweredBy: false,
+      }),
+      new Date().toISOString()
+    );
+    return `/static/logos/${name}`;
+  };
+
+  it('is pointed at under the share prefix, and served there to anybody', async () => {
+    const { token } = await seedShare({ suffix: '-logo' });
+    const stored = await withALogo();
+    expect(stored).toMatch(/^\/static\/logos\//);
+
+    // Read with nothing at all: no account, no guest session — the door's own case.
+    const app = buildApp();
+    const branding = await request(app).get(`/api/share/${token}/branding`);
+
+    expect(branding.status, branding.text).toBe(200);
+    expect(branding.body.appLogoUrl).toBe(
+      `/api/share/${token}/branding/logo/${stored.slice('/static/logos/'.length)}`
+    );
+
+    const bytes = await request(app).get(branding.body.appLogoUrl);
+    expect(bytes.status, bytes.text).toBe(200);
+    expect(bytes.headers['content-type']).toContain('image/png');
+    // The same sandbox `/static/logos` is served with: a logo may be an SVG.
+    expect(bytes.headers['content-security-policy']).toBe('sandbox');
+  });
+
+  /** And every other page is told what the settings hold, as it always was. */
+  it('is where the settings say for a page that is not a share', async () => {
+    await seedShare({ suffix: '-logo-outside' });
+    const stored = await withALogo();
+
+    const branding = await request(buildApp()).get('/api/branding');
+
+    expect(branding.body.appLogoUrl).toBe(stored);
   });
 });
 
@@ -400,6 +484,206 @@ describe('an office document saved from inside a share', () => {
 
     expect(history.status, history.text).toBe(200);
     expect(history.body.versions?.length || 0).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * The Versions panel, inside a share.
+ *
+ * Everything this panel asks is `/api/versions/…`, and under a share's prefix
+ * that address was served by nobody: the panel opened and answered 404. What it
+ * may show has always been the share's own decision — `versionsVisible` and
+ * `versionsDownload`, read by `services/versions` — and that decision is what is
+ * checked here, at the address the reader's browser actually uses.
+ */
+describe('the history of a file inside a share', () => {
+  /** Two saves, so there is something in the history to show. */
+  const withHistory = async (seeded) => {
+    const app = buildApp();
+    for (const content of ['first words', 'second words']) {
+      const written = await request(app)
+        .put(`/api/share/${seeded.token}/editor/file.txt`)
+        .set({ 'X-Guest-Session': seeded.guestSession })
+        .send({ content });
+      expect(written.status, written.text).toBe(200);
+    }
+    return seeded;
+  };
+
+  it('is shown to the visitor when the share shows it', async () => {
+    const seeded = await withHistory(
+      await seedShare({
+        suffix: '-history',
+        accessMode: 'readwrite',
+        versionsVisible: true,
+        versionsDownload: true,
+      })
+    );
+
+    const history = await request(buildApp())
+      .get(`/api/share/${seeded.token}/versions`)
+      .query({ path: `share/${seeded.token}/file.txt` })
+      .set({ 'X-Guest-Session': seeded.guestSession });
+
+    expect(history.status, history.text).toBe(200);
+    expect(history.body.versions.length).toBeGreaterThan(0);
+    expect(history.body.rights).toMatchObject({ see: true, download: true });
+  });
+
+  it('hands over one of them, at the address the panel links to', async () => {
+    const seeded = await withHistory(
+      await seedShare({
+        suffix: '-version-content',
+        accessMode: 'readwrite',
+        versionsVisible: true,
+        versionsDownload: true,
+      })
+    );
+    const app = buildApp();
+    const history = await request(app)
+      .get(`/api/share/${seeded.token}/versions`)
+      .query({ path: `share/${seeded.token}/file.txt` })
+      .set({ 'X-Guest-Session': seeded.guestSession });
+    expect(history.status, history.text).toBe(200);
+    const oldest = history.body.versions.at(-1);
+
+    const taken = await request(app)
+      .get(`/api/share/${seeded.token}/versions/${oldest.id}/content`)
+      .query({ path: `share/${seeded.token}/file.txt` })
+      .set({ 'X-Guest-Session': seeded.guestSession });
+
+    expect(taken.status, taken.text).toBe(200);
+    expect(taken.headers['content-disposition']).toContain('attachment');
+  });
+
+  /**
+   * And the share's own decisions still decide. The address moved; what a
+   * visitor may do with a history did not.
+   */
+  it('is refused where the share keeps it hidden', async () => {
+    const seeded = await withHistory(
+      await seedShare({ suffix: '-history-off', accessMode: 'readwrite', versionsVisible: false })
+    );
+
+    const history = await request(buildApp())
+      .get(`/api/share/${seeded.token}/versions`)
+      .query({ path: `share/${seeded.token}/file.txt` })
+      .set({ 'X-Guest-Session': seeded.guestSession });
+
+    expect(history.status).toBe(403);
+  });
+
+  it('is shown but not handed over where the share allows only that', async () => {
+    const seeded = await withHistory(
+      await seedShare({
+        suffix: '-no-download',
+        accessMode: 'readwrite',
+        versionsVisible: true,
+        versionsDownload: false,
+      })
+    );
+    const app = buildApp();
+    const history = await request(app)
+      .get(`/api/share/${seeded.token}/versions`)
+      .query({ path: `share/${seeded.token}/file.txt` })
+      .set({ 'X-Guest-Session': seeded.guestSession });
+    expect(history.status, history.text).toBe(200);
+    expect(history.body.rights).toMatchObject({ see: true, download: false });
+
+    const taken = await request(app)
+      .get(`/api/share/${seeded.token}/versions/${history.body.versions[0].id}/content`)
+      .query({ path: `share/${seeded.token}/file.txt` })
+      .set({ 'X-Guest-Session': seeded.guestSession });
+
+    expect(taken.status).toBe(403);
+  });
+
+  it('is not a way to read the history of a file beside the share', async () => {
+    const seeded = await seedShare({ suffix: '-history-outside', versionsVisible: true });
+
+    const history = await request(buildApp())
+      .get(`/api/share/${seeded.token}/versions`)
+      .query({ path: `${seeded.volume}/private.txt` })
+      .set({ 'X-Guest-Session': seeded.guestSession });
+
+    expect(history.status).toBe(403);
+    // Named, so that this cannot start passing for another reason: the refusal
+    // is the resolution's, before any history is looked for. A path outside the
+    // share is not this visitor's to resolve at all.
+    expect(history.body.error.message).toMatch(/guests cannot access/i);
+  });
+});
+
+/**
+ * And the editor is told whether this document has a history at all.
+ *
+ * It asks for one the moment the reader opens its menu, so the menu entry is
+ * offered from what the configuration says rather than offered and refused.
+ */
+describe('the history an office document offers inside a share', () => {
+  const configFor = async (seeded) =>
+    request(buildApp())
+      .post(`/api/share/${seeded.token}/onlyoffice/config`)
+      .set({ 'X-Guest-Session': seeded.guestSession })
+      .send({ path: `share/${seeded.token}/report.docx`, mode: 'edit' });
+
+  it('is offered where the share shows histories', async () => {
+    const answer = await configFor(
+      await seedShare({
+        suffix: '-office-history',
+        accessMode: 'readwrite',
+        versionsVisible: true,
+      })
+    );
+
+    expect(answer.status, answer.text).toBe(200);
+    expect(answer.body.versionsVisible).toBe(true);
+  });
+
+  it('is withheld where the share keeps them hidden', async () => {
+    const answer = await configFor(
+      await seedShare({
+        suffix: '-office-no-history',
+        accessMode: 'readwrite',
+        versionsVisible: false,
+      })
+    );
+
+    expect(answer.status, answer.text).toBe(200);
+    expect(answer.body.versionsVisible).toBe(false);
+  });
+});
+
+/**
+ * Searching from inside a share.
+ *
+ * The box at the top of the window and Ctrl+K reach the same endpoint, and under
+ * a share's prefix it answered 404 — a visitor typing anything was told nothing
+ * at all. The search itself already resolved the folder it was given with the
+ * visitor's own rights, which is what keeps the answer inside the share.
+ */
+describe('a search made from inside a share', () => {
+  it('answers with what is in the share', async () => {
+    const { token, guestSession } = await seedShare({ suffix: '-search' });
+
+    const found = await request(buildApp())
+      .get(`/api/share/${token}/search`)
+      .query({ path: `share/${token}`, q: 'file' })
+      .set({ 'X-Guest-Session': guestSession });
+
+    expect(found.status, found.text).toBe(200);
+    expect(found.body.items.map((item) => item.name)).toContain('file.txt');
+  });
+
+  it('is not a way to look outside it', async () => {
+    const { token, guestSession, volume } = await seedShare({ suffix: '-search-outside' });
+
+    const found = await request(buildApp())
+      .get(`/api/share/${token}/search`)
+      .query({ path: volume, q: 'private' })
+      .set({ 'X-Guest-Session': guestSession });
+
+    expect(found.status).toBe(403);
   });
 });
 

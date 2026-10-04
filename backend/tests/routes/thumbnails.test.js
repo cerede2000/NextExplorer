@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import express from 'express';
 import request from 'supertest';
 import sharp from 'sharp';
-import { setupTestEnv } from '../helpers/env-test-utils.js';
+import { modulePath, setupTestEnv } from '../helpers/env-test-utils.js';
 
 /**
  * The thumbnail endpoint is the only authorization a thumbnail ever gets: the
@@ -171,5 +171,90 @@ describe('when thumbnails are switched off', () => {
 
     expect(response.status).toBe(200);
     expect(response.body).toEqual({ thumbnail: '' });
+  });
+});
+
+/**
+ * Where the answer points, for a request that arrived under a share's prefix.
+ *
+ * A thumbnail is fetched by an `<img>`, so the address in the answer is the
+ * address the browser goes to — and inside a share that has to be the share's
+ * own. The image itself is served from /static, and the fallback for an image
+ * whose thumbnail could not be made is the file itself: both were the signed-in
+ * application's address, which a visitor behind an authentication proxy cannot
+ * reach. The listing of a share drew a broken image for every one of them.
+ */
+describe('a thumbnail asked for under a share prefix', () => {
+  const underAShare = () => {
+    const routes = currentEnv.requireFresh('src/routes/thumbnails');
+    const { errorHandler } = currentEnv.requireFresh('src/middleware/errorHandler');
+    const app = express();
+    app.use((req, _res, next) => {
+      req.user = { id: 'u1', email: 'u@example.com', roles: ['admin'] };
+      // What `requireShareScope` leaves behind for the handlers behind it.
+      req.shareScope = { token: 'TOKEN', shareId: 'share-1' };
+      next();
+    });
+    app.use('/api/share/TOKEN', routes);
+    app.use(errorHandler);
+    return app;
+  };
+
+  it('points at the image under that prefix', async () => {
+    const volume = await seed();
+    await writeImage(volume, 'Photos/shared.png');
+    const app = underAShare();
+
+    // 202 while it is still being made, so this waits for the URL.
+    let answer;
+    await expect
+      .poll(
+        async () => {
+          answer = await request(app).get('/api/share/TOKEN/thumbnails/Photos/shared.png');
+          return Boolean(answer.body?.thumbnail);
+        },
+        { timeout: 15000 }
+      )
+      .toBe(true);
+
+    expect(answer.body.thumbnail).toMatch(/^\/api\/share\/TOKEN\/static\/thumbnails\//);
+  });
+
+  /**
+   * And so does the fallback, for an image whose thumbnail could not even be
+   * scheduled. Only that failure reaches this branch — a file that merely turns
+   * out not to be an image fails later, inside the queue — so the two functions
+   * the route calls are replaced by ones that fail, and nothing else is.
+   */
+  it('points at the file itself under that prefix when no thumbnail can be made', async () => {
+    const volume = await seed();
+    await writeImage(volume, 'Photos/unschedulable.png');
+
+    const resolved = require.resolve(modulePath('src/services/thumbnailService'));
+    const real = require(resolved);
+    require.cache[resolved] = {
+      id: resolved,
+      filename: resolved,
+      loaded: true,
+      exports: {
+        ...real,
+        getThumbnailPathIfExists: async () => null,
+        queueThumbnailGeneration: async () => {
+          throw new Error('scheduling failed');
+        },
+      },
+    };
+    try {
+      const answer = await request(underAShare()).get(
+        '/api/share/TOKEN/thumbnails/Photos/unschedulable.png'
+      );
+
+      expect(answer.status, answer.text).toBe(200);
+      expect(answer.body.thumbnail).toBe(
+        `/api/share/TOKEN/preview?path=${encodeURIComponent('Photos/unschedulable.png')}`
+      );
+    } finally {
+      delete require.cache[resolved];
+    }
   });
 });

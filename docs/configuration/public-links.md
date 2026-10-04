@@ -81,12 +81,34 @@ network they share — a container name, a LAN address — and it is only used f
 the addresses handed to them. Everything a person sees still uses `PUBLIC_URL`.
 Unset, it is `PUBLIC_URL`, and an editing server outside the proxy cannot save.
 
-## Nothing else
+## Everything, not just the bytes of a file
 
-Uploading into a share that accepts them is under the prefix too, including the
-resumable kind: the server keeps the prefix in the address it tells a client to
-continue at. A browser journey walks a visitor through a whole share with every
-other address refused, and fails if anything is asked outside these three.
+What a visitor can do in a share is more than reading it, and all of it is under
+the prefix:
+
+- the listing, a subfolder, a thumbnail, a file in the viewer, a file in the
+  editor, a download, and what is inside an archive;
+- uploading into a share that accepts them, including the resumable kind: the
+  server keeps the prefix in the address it tells a client to continue at;
+- copying, moving and extracting — the dialogs that walk folders to ask where,
+  which also cannot be sent above the share;
+- searching inside the share, from the box at the top or with `Ctrl+K`;
+- a file's earlier versions, where the share's owner turned that on — listed,
+  read, downloaded, put back, and the same history inside ONLYOFFICE;
+- the name and the logo the page draws itself with, which is why a chosen logo
+  is served under the prefix as well instead of at `/static/logos/…`.
+
+A share that shows no histories offers none: the mark in the listing, the entry
+in the menu and the editor's own History are not drawn rather than drawn and
+refused. And a visitor is never asked for the mode, owner or group of a file —
+that is `/api/permissions/…`, which is the whole instance's and stays behind the
+proxy.
+
+A browser journey walks a visitor through a whole share with every other address
+refused, and fails if anything is asked outside these three. A second one checks
+the other direction: every address the browser builds under a share's prefix is
+compared against the routes the server mounts there, so an endpoint that is asked
+for and answered by nothing fails the build rather than the reader.
 
 The one request that may be refused is `/api/auth/status`, which cannot be
 answered to somebody the proxy has not let in — and "nobody is signed in" is the

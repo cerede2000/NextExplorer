@@ -3,7 +3,14 @@ import { mount, flushPromises } from '@vue/test-utils';
 import { createI18n } from 'vue-i18n';
 
 const browse = vi.fn();
-vi.mock('@/api', () => ({ browse: (...args) => browse(...args) }));
+vi.mock('@/api', () => ({
+  browse: (...args) => browse(...args),
+  normalizePath: (value = '') => String(value).replace(/^\/+|\/+$/g, ''),
+}));
+
+// Who is reading decides whether the walk is confined to a share.
+const auth = vi.hoisted(() => ({ isGuest: false }));
+vi.mock('@/stores/auth', () => ({ useAuthStore: () => auth }));
 
 import StoragePickerDialog from './StoragePickerDialog.vue';
 

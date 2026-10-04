@@ -31,20 +31,30 @@ const isThumbnailable = (extension = '') => {
 };
 
 /**
- * Where the thumbnail this request just cleared is fetched from.
+ * An address in this answer, as the browser will have to ask for it.
  *
- * Signed either way — the signature is what unlocks the file — but a visitor
- * who asked under a share's prefix is answered under it too, so that everything
- * their browser fetches stays inside the one hole an authentication proxy has
- * to open for a public link.
+ * A visitor who asked under a share's prefix is answered under it, so that
+ * everything their browser fetches stays inside the one hole an authentication
+ * proxy has to open for a public link. Both of the addresses this route hands
+ * out go through here: the thumbnail under `/static/`, and — for an image whose
+ * thumbnail could not be made — the file itself at `/api/preview`. Keyed on the
+ * scope the gate in front established rather than on how the caller spelled the
+ * path, so one answer cannot be prefixed and the other not.
  */
-const served = (req, url) => {
-  const signed = withThumbnailToken(url);
-  if (!req.shareScope || typeof signed !== 'string' || !signed.startsWith('/static/')) {
-    return signed;
-  }
-  return `/api/share/${encodeURIComponent(req.shareScope.token)}${signed}`;
+const reachable = (req, url) => {
+  if (!req.shareScope || typeof url !== 'string') return url;
+  const prefix = `/api/share/${encodeURIComponent(req.shareScope.token)}`;
+  if (url.startsWith('/static/')) return `${prefix}${url}`;
+  if (url.startsWith('/api/')) return `${prefix}${url.slice('/api'.length)}`;
+  return url;
 };
+
+/**
+ * Where the thumbnail this request just cleared is fetched from. Signed either
+ * way — the signature is what unlocks the file — and reachable where it was
+ * asked for.
+ */
+const served = (req, url) => reachable(req, withThumbnailToken(url));
 
 router.get(
   '/thumbnails/{*splat}',
@@ -126,9 +136,12 @@ router.get(
       );
     }
 
-    // If thumbnail scheduling failed unexpectedly, fall back to the original file for images.
+    // If thumbnail scheduling failed unexpectedly, fall back to the original file
+    // for images — at the address this file is reachable at, which inside a share
+    // is the share's own. Handed `/api/preview` instead, the listing of a share
+    // behind an authentication proxy drew a broken image for every one of them.
     if (extensions.images.includes(extension) || (extensions.rawImages || []).includes(extension)) {
-      const previewUrl = `/api/preview?path=${encodeURIComponent(logicalPath)}`;
+      const previewUrl = `${reachable(req, '/api/preview')}?path=${encodeURIComponent(logicalPath)}`;
       return res.json({ thumbnail: previewUrl });
     }
 

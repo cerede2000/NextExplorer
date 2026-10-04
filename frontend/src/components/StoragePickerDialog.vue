@@ -3,7 +3,7 @@ import { computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { FolderIcon, DocumentIcon } from '@heroicons/vue/24/outline';
 import ModalDialog from '@/components/ModalDialog.vue';
-import { useStorageBrowser } from '@/composables/useStorageBrowser';
+import { confinedRoot, useStorageBrowser } from '@/composables/useStorageBrowser';
 
 /**
  * Pick one file from the user's storage.
@@ -44,7 +44,8 @@ const isOpen = computed({
   set: (value) => emit('update:modelValue', value),
 });
 
-const { items, isLoading, error, crumbs, navigate, fullPath, currentPath } = useStorageBrowser();
+const { root, items, isLoading, error, crumbs, navigate, fullPath, currentPath } =
+  useStorageBrowser();
 
 const accepted = computed(() => new Set(props.extensions.map((ext) => String(ext).toLowerCase())));
 
@@ -81,6 +82,7 @@ watch(
   () => props.modelValue,
   (opened) => {
     if (!opened) return;
+    root.value = confinedRoot();
     // Reopening lands where the document is rather than where the last pick
     // left off: the two are unrelated often enough that resuming is a nuisance.
     void navigate(props.initialPath || '');

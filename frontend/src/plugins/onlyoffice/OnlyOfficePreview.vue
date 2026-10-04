@@ -538,8 +538,18 @@ const restoreFromHistory = async (version) => {
   }
 };
 
-const historyEvents = (cfg) => {
-  if (viewedVersionId.value || !featuresStore.versionsEnabled) return {};
+/**
+ * Whether this document has a history to offer, as the configuration said.
+ *
+ * Switched off for the whole installation is one answer; a share that hands out
+ * its files without their histories is another, and only the server knows it.
+ * Offered anyway, the editor's menu held a History entry whose only answer was a
+ * refusal.
+ */
+const historyEvents = (cfg, versionsVisible) => {
+  if (viewedVersionId.value || !featuresStore.versionsEnabled || versionsVisible === false) {
+    return {};
+  }
   const events = {
     onRequestHistory() {
       void showHistory();
@@ -636,6 +646,7 @@ const load = async ({ inPlace = false } = {}) => {
       config: cfg,
       forceSaveSessionId,
       autoSaveIntervalMs: configuredAutoSaveIntervalMs,
+      versionsVisible,
     } = await fetchOnlyOfficeConfig(path, viewedVersionId.value ? 'view' : 'edit', {
       theme: settings.isDark ? 'dark' : 'light',
       ...(viewedVersionId.value ? { versionId: viewedVersionId.value } : {}),
@@ -645,7 +656,7 @@ const load = async ({ inPlace = false } = {}) => {
     previewState.requestForceSave = requestForceSave;
     cfg.events = {
       ...cfg.events,
-      ...historyEvents(cfg),
+      ...historyEvents(cfg, versionsVisible),
 
       // Presence starts here, not when the configuration was fetched. Asking
       // for a configuration says nothing about whether the document opens, so

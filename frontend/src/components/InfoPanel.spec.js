@@ -49,6 +49,9 @@ vi.mock('@/stores/versionsPanel', () => ({ useVersionsPanelStore: () => versions
 const fileStore = vi.hoisted(() => ({ currentPathData: null }));
 vi.mock('@/stores/fileStore', () => ({ useFileStore: () => fileStore }));
 
+const auth = vi.hoisted(() => ({ isGuest: false }));
+vi.mock('@/stores/auth', () => ({ useAuthStore: () => auth }));
+
 // Something in the import chain builds an i18n instance at load time, so the
 // real module has to stay: only `useI18n` is replaced, to name each string by
 // its key.
@@ -97,6 +100,7 @@ beforeEach(() => {
   close.mockClear();
   versionsPanel.open.mockClear();
   fileStore.currentPathData = null;
+  auth.isGuest = false;
   features.folderSizeEnabled = true;
   features.versionsEnabled = true;
   if (panel.store) Object.assign(panel.store, { isOpen: false, item: null, relativePath: '' });
@@ -310,6 +314,51 @@ describe('what it reads when it opens', () => {
 
     expect(view.permissionsError).toBe('Not permitted');
     expect(view.permissionsLoading).toBe(false);
+  });
+});
+
+/**
+ * The panel can change the mode and the owner of a file on the filesystem, and
+ * it draws its own defaults — 644, owner read and write — until something
+ * answers with the real ones. A visitor holding a share link gets no answer:
+ * `/api/permissions/…` is not an address they may ask, and behind an
+ * authentication proxy the refusal is a 401 shown to them. So they are not
+ * asked, and nothing is drawn.
+ */
+describe('what a file allows, asked for by a visitor with no account', () => {
+  it('is not asked for at all', async () => {
+    auth.isGuest = true;
+
+    await openOn(FILE, 'share/abc123/rapport.docx');
+
+    expect(api.fetchPermissions).not.toHaveBeenCalled();
+  });
+
+  it('leaves the section out rather than showing a mode nobody answered with', async () => {
+    auth.isGuest = true;
+
+    const view = await openOn(FILE, 'share/abc123/rapport.docx');
+
+    expect(view.permissions).toBe(null);
+    expect(document.body.querySelector('permissions-panel-stub')).toBe(null);
+  });
+
+  /** And an account is still asked, through a share as anywhere else. */
+  it('is asked for by an account reading the same share', async () => {
+    await openOn(FILE, 'share/abc123/rapport.docx');
+
+    expect(api.fetchPermissions).toHaveBeenCalledWith('share/abc123/rapport.docx');
+    expect(document.body.querySelector('permissions-panel-stub')).not.toBe(null);
+  });
+
+  /** Nor is a mode invented when the question was asked and not answered. */
+  it('shows nothing but the reason when the answer does not come', async () => {
+    api.fetchPermissions.mockRejectedValue(new Error('Path is not accessible.'));
+
+    const view = await openOn(FILE);
+
+    expect(view.permissionsError).toBe('Path is not accessible.');
+    expect(document.body.querySelector('permissions-panel-stub')).toBe(null);
   });
 });
 

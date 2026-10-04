@@ -61,6 +61,10 @@ module.exports = {
               // The same value under the name this answer has always carried.
               editorSessionId: str(),
               autoSaveIntervalMs: num(),
+              versionsVisible: bool(
+                'Whether this document has a history to offer: a share hands out its ' +
+                  'files without their histories unless its owner turned that on.'
+              ),
             },
             ['documentServerUrl', 'config']
           )

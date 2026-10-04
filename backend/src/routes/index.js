@@ -129,6 +129,13 @@ const registerRoutes = (app) => {
     usageRoutes,
     editorRoutes,
     uploadRoutes,
+    searchRoutes,
+    // The history of a file, which a share hands out only when its owner turned
+    // it on: `services/versions` reads `versionsVisible` and `versionsDownload`
+    // off the share before it answers for one. Not the administrator's side
+    // (`versionsAdmin`), which is every history in the instance and is addressed
+    // by history id rather than by a path — nothing a visitor is ever about.
+    versionsRoutes,
   ];
   if (onlyoffice && onlyoffice.serverUrl) forShareVisitors.push(onlyofficeRoutes);
   if (collabora && collabora.url && collabora.secret) forShareVisitors.push(collaboraRoutes);

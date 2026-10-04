@@ -58,6 +58,23 @@ export const shareTokenOfLocation = (pathname) => {
 };
 
 /**
+ * The top of the storage, for whoever is reading this page.
+ *
+ * There is nothing above a share. A visitor with no account has no other
+ * storage, so a dialog that walks folders — "Copy to", the file picker the
+ * editor opens — starts at the share and must not offer to leave it: above it
+ * is `/api/browse`, which answers them with a refusal. Read from the address for
+ * the same reason as `shareScopedForPage`.
+ *
+ * @param {string} [pathname] the address being read, for a test
+ * @returns {string} the logical path of the share this page is about, or ''
+ */
+export const shareRootForPage = (pathname) => {
+  const token = shareTokenOfLocation(pathname);
+  return token ? `share/${token}` : '';
+};
+
+/**
  * The first of several candidates that names a share: a destination, the thing
  * being acted on, whatever the caller has. Written out because an operation on a
  * selection is named by what it touches, not by a single path.

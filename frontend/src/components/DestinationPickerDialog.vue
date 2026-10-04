@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { FolderIcon, ClockIcon, DocumentIcon, StarIcon } from '@heroicons/vue/24/outline';
 import ModalDialog from '@/components/ModalDialog.vue';
-import { useStorageBrowser } from '@/composables/useStorageBrowser';
+import { confinedRoot, useStorageBrowser } from '@/composables/useStorageBrowser';
 import { useFavoritesStore } from '@/stores/favorites';
 import { useDestinationPicker } from '@/composables/useDestinationPicker';
 import { fetchRecentDestinations, normalizePath } from '@/api';
@@ -25,7 +25,15 @@ import logger from '@/utils/logger';
 const { t } = useI18n();
 const favoritesStore = useFavoritesStore();
 const picker = useDestinationPicker();
-const { currentPath, items: entries, isLoading, error, crumbs, navigate } = useStorageBrowser();
+const {
+  root,
+  currentPath,
+  items: entries,
+  isLoading,
+  error,
+  crumbs,
+  navigate,
+} = useStorageBrowser();
 
 // Closing without choosing has to settle the caller's promise, whichever way it
 // happens — the Cancel button, the dialog's own dismiss, or the Escape key.
@@ -167,6 +175,7 @@ watch(
   () => picker.isOpen.value,
   (opened) => {
     if (!opened) return;
+    root.value = confinedRoot();
     void navigate(props.value.initialPath || '');
     void loadRecents();
     void favoritesStore.ensureLoaded?.();

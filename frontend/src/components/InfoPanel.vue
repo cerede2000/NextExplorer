@@ -6,6 +6,7 @@ import { useFolderSizeStore } from '@/stores/folderSize';
 import { useFeaturesStore } from '@/stores/features';
 import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import { useFileStore } from '@/stores/fileStore';
+import { useAuthStore } from '@/stores/auth';
 import { formatBytes, formatDate } from '@/utils';
 import { getKindLabel } from '@/utils/fileKinds';
 import FileIcon from '@/icons/FileIcon.vue';
@@ -17,6 +18,7 @@ import { useI18n } from 'vue-i18n';
 const store = useInfoPanelStore();
 const folderSizeStore = useFolderSizeStore();
 const featuresStore = useFeaturesStore();
+const auth = useAuthStore();
 
 const isOpen = computed(() => store.isOpen);
 const item = computed(() => store.item);
@@ -117,8 +119,17 @@ const loadDetails = async () => {
   }
 };
 
+/**
+ * Who is asked for a file's mode, owner and group.
+ *
+ * Not a visitor holding a share link: the answer cannot concern them — they
+ * have no account on the host to be one of those names, and the panel is read
+ * only for a shared path anyway — and the question itself is refused, which
+ * behind an authentication proxy is a 401 shown to the reader. So it is not
+ * asked, and the panel below draws nothing rather than a mode nobody gave it.
+ */
 const loadPermissions = async () => {
-  if (!isOpen.value || !relativePath.value) {
+  if (!isOpen.value || !relativePath.value || auth.isGuest) {
     permissions.value = null;
     return;
   }
@@ -485,8 +496,13 @@ onBeforeUnmount(() => {
               {{ errorMsg }}
             </div>
 
-            <!-- Permissions Panel -->
+            <!--
+              Permissions Panel. Only with something to show: with none it drew
+              its own defaults — 644, owner read and write — which is a mode
+              nobody answered with.
+            -->
             <PermissionsPanel
+              v-if="permissions || permissionsLoading"
               :permissions="permissions"
               :is-directory="item?.kind === 'directory'"
               :loading="permissionsLoading"

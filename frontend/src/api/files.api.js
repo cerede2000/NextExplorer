@@ -7,6 +7,7 @@ import {
   encodePath,
   buildUrl,
 } from './http';
+import { browseShare } from './shares.api';
 
 const DELETE_BATCH_SIZE = 100;
 
@@ -72,8 +73,22 @@ const mergeTransferResults = (results) => {
   return merged;
 };
 
+/**
+ * A folder's listing, from whichever door the folder is behind.
+ *
+ * A share's listing has its own endpoint, which is what the browser's folder
+ * pane has always used. Everything else that walks folders — the "Copy to"
+ * dialog, the file picker the editor opens — asked here, and `/api/browse` is
+ * not a visitor's address: inside a share they were told the folder could not be
+ * listed. So the share's door is taken here too, by the same rule as the rest:
+ * the path says which share it belongs to.
+ */
 async function browse(path = '', options = {}) {
   const normalizedPath = normalizePath(path);
+  const token = shareTokenOfPath(normalizedPath);
+  if (token) {
+    return browseShare(token, normalizedPath.slice(`share/${token}`.length), options);
+  }
   const encodedPath = encodePath(normalizedPath);
   const endpoint = encodedPath ? `/api/browse/${encodedPath}` : '/api/browse/';
   return requestJson(endpoint, {
@@ -551,10 +566,8 @@ async function createDownloadPlan(paths, basePath = '') {
  *   inside a share is fetched under that share's prefix like everything else
  */
 const downloadPartPath = (token, part, basePath = '') =>
-  shareScoped(
-    `/api/download/part/${encodeURIComponent(token)}/${encodeURIComponent(part)}`,
-    normalizePath(basePath || '')
-  );
+  `${shareScoped('/api/download/part', normalizePath(basePath || ''))}` +
+  `/${encodeURIComponent(token)}/${encodeURIComponent(part)}`;
 
 /**
  * Where one part of a plan is, as an address.

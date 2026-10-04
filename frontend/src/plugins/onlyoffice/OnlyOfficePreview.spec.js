@@ -289,6 +289,36 @@ describe('the document history in the editor', () => {
     expect(capturedConfig.events.onRequestRestore).toBeUndefined();
   });
 
+  /**
+   * And not where this document's own history is withheld.
+   *
+   * A share hands out its files without their histories unless its owner turned
+   * that on, which only the server knows: the configuration says so, and the
+   * menu entry is not offered rather than offered and refused.
+   */
+  it('is not offered for a document whose history is withheld', async () => {
+    fetchOnlyOfficeConfig.mockImplementation(async () => ({
+      ...editable(),
+      versionsVisible: false,
+    }));
+
+    mountOn();
+    await flushPromises();
+
+    expect(capturedConfig.events.onRequestHistory).toBeUndefined();
+    expect(capturedConfig.events.onRequestRestore).toBeUndefined();
+  });
+
+  /** An answer that says nothing about it leaves the history offered. */
+  it('is offered where the configuration says nothing either way', async () => {
+    fetchOnlyOfficeConfig.mockImplementation(async () => editable());
+
+    mountOn();
+    await flushPromises();
+
+    expect(typeof capturedConfig.events.onRequestHistory).toBe('function');
+  });
+
   it("lists NextExplorer's versions as the editor's history, the current state last", async () => {
     fetchOnlyOfficeConfig.mockResolvedValue(editable());
     fetchOnlyOfficeHistory.mockResolvedValue(HISTORY);

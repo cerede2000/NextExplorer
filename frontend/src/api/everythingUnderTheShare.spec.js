@@ -52,6 +52,9 @@ const ITEM = { path: 'share/TOKEN/Papers', name: 'report.docx' };
 
 /** Everything that takes a path, and how to call it with one. */
 const CALLS = [
+  // The listing itself, which anything that walks folders asks for: the folder
+  // pane, "Copy to", the file picker the editor opens.
+  ['a folder listed', () => files.browse(FOLDER)],
   ['a thumbnail', () => files.fetchThumbnail(INSIDE)],
   ['what is known about a file', () => files.fetchMetadata(INSIDE)],
   ['a file to look at', () => files.getPreviewUrl(INSIDE)],
@@ -87,6 +90,9 @@ const CALLS = [
   ['one of them downloaded', () => versions.getVersionDownloadUrl(INSIDE, 'v1')],
   ['one of them read', () => versions.getVersionText(INSIDE, 'v1')],
   ['one of them put back', () => versions.restoreVersion(INSIDE, 'v1')],
+  ['one of them taken out as a copy', () => versions.copyVersionTo(INSIDE, 'v1', FOLDER)],
+  ['one of them put over another file', () => versions.replaceWithVersion(INSIDE, 'v1', INSIDE)],
+  ['one of them named', () => versions.updateVersion(INSIDE, 'v1', { label: 'before' })],
   ['versions deleted', () => versions.deleteVersions(INSIDE, { all: true })],
   ['an office document opened', () => onlyoffice.fetchOnlyOfficeConfig(INSIDE)],
   ['its history', () => onlyoffice.fetchOnlyOfficeHistory(INSIDE)],

@@ -15,7 +15,7 @@ const pathQuery = (path) => `path=${encodeURIComponent(normalizePath(path))}`;
  * visitor asks for. See `api/shareScope.js`.
  */
 const versionEndpoint = (path, id, suffix = '') =>
-  shareScoped(`/api/versions/${encodeURIComponent(id)}${suffix}`, normalizePath(path || ''));
+  `${shareScoped('/api/versions', normalizePath(path || ''))}/${encodeURIComponent(id)}${suffix}`;
 
 const send = (endpoint, method, body) =>
   requestJson(endpoint, { method, body: JSON.stringify(body) });

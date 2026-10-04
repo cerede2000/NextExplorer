@@ -112,7 +112,13 @@ async function browseShare(shareToken, innerPath = '', options = {}) {
     ? `/api/share/${shareToken}/browse/${encodedPath}`
     : `/api/share/${shareToken}/browse/`;
 
-  return requestJson(endpoint, { method: 'GET', signal: options.signal });
+  return requestJson(endpoint, {
+    method: 'GET',
+    signal: options.signal,
+    // Short-lived state is in a listing here too — see `browse`, which comes
+    // through for anything inside a share.
+    cache: 'no-store',
+  });
 }
 
 /**

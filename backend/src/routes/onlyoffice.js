@@ -444,6 +444,9 @@ const resolveUiTheme = (requested) => {
  */
 const versionHistory = () => require('../services/versions');
 
+/** What this reader may do with the document's history, as the panel reads it. */
+const versionRightsFor = (accessInfo) => versionHistory().rightsFrom(accessInfo);
+
 const versionKeyFor = (versionId) => `version-${versionId}`;
 
 const editorUserOf = (req) =>
@@ -849,6 +852,11 @@ router.post(
       // is, and anything already reading that one keeps working.
       editorSessionId: forceSaveSessionId,
       autoSaveIntervalMs: canEdit ? onlyoffice.autoSaveIntervalMs : 0,
+      // Whether the editor is given a History at all. A share hands out its
+      // files' histories only when its owner turned that on, and the editor
+      // asks for one the moment the reader opens the menu: offered anyway, it
+      // put a menu entry there whose only answer was a refusal.
+      versionsVisible: versionRightsFor(accessInfo).see,
     });
   })
 );

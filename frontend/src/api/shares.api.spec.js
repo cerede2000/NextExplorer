@@ -165,7 +165,7 @@ describe('the shares API', () => {
 
     const [endpoint, options] = requestJson.mock.calls.at(-1);
     expect(endpoint).toBe('/api/share/tok123/browse/Q3%20%26%20Q4/%23drafts/100%25');
-    expect(options).toEqual({ method: 'GET', signal });
+    expect(options).toEqual({ method: 'GET', signal, cache: 'no-store' });
   });
 });
 
