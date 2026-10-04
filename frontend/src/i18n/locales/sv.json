@@ -456,6 +456,11 @@
       "totpExplain": "Ditt lösenord godtogs. Ange koden från din autentiseringsapp, eller en av dina återställningskoder.",
       "totpSubmit": "Logga in",
       "sessionExpired": "Din session har gått ut. Logga in igen för att fortsätta där du slutade.",
+      "noAccountHere": "Din identitetsleverantör loggade in dig, men den här servern har inget konto för dig. Be en administratör skapa ett.",
+      "cameBackWithoutSession": "Du kom tillbaka från din identitetsleverantör utan någon session på den här servern. Försök en gång till, eller be en administratör se över inställningarna för enkel inloggning.",
+      "serverUnreachable": "Den här servern svarade inte, så det går inte att veta hur man loggar in här. Försök igen om en stund.",
+      "askAgain": "Försök igen",
+      "noMethod": "Inget sätt att logga in är inställt på den här servern. En administratör kan slå på lösenord eller enkel inloggning.",
       "totpBack": "Börja om"
     },
     "setup": {

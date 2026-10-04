@@ -456,6 +456,11 @@
       "totpExplain": "Sua senha foi aceita. Digite o código do seu aplicativo autenticador, ou um dos seus códigos de recuperação.",
       "totpSubmit": "Entrar",
       "sessionExpired": "Sua sessão expirou. Entre novamente para continuar de onde parou.",
+      "noAccountHere": "Seu provedor de identidade autenticou você, mas este servidor não tem uma conta para você. Peça a um administrador para criar uma.",
+      "cameBackWithoutSession": "Você voltou do seu provedor de identidade sem uma sessão neste servidor. Tente outra vez, ou peça a um administrador para conferir as configurações de login único.",
+      "serverUnreachable": "Este servidor não respondeu, então não há como saber como entrar aqui. Tente novamente em um instante.",
+      "askAgain": "Tentar de novo",
+      "noMethod": "Nenhuma forma de entrar está configurada neste servidor. Um administrador pode ativar as senhas ou o login único.",
       "totpBack": "Começar de novo"
     },
     "setup": {

@@ -456,6 +456,11 @@
       "totpExplain": "Your password was accepted. Enter the code from your authenticator app, or one of your recovery codes.",
       "totpSubmit": "Sign in",
       "sessionExpired": "Your session has ended. Sign in again to carry on where you left off.",
+      "noAccountHere": "Your identity provider signed you in, but this server has no account for you. Ask an administrator to create one.",
+      "cameBackWithoutSession": "You came back from your identity provider without a session for this server. Try once more, or ask an administrator to check its single sign-on settings.",
+      "serverUnreachable": "This server could not be reached, so there is no telling how to sign in here. Try again in a moment.",
+      "askAgain": "Try again",
+      "noMethod": "No way to sign in is configured on this server. An administrator can turn on passwords or single sign-on.",
       "totpBack": "Start again"
     },
     "setup": {

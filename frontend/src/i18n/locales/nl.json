@@ -456,6 +456,11 @@
       "totpExplain": "Uw wachtwoord is geaccepteerd. Voer de code uit uw authenticatie-app in, of een van uw herstelcodes.",
       "totpSubmit": "Aanmelden",
       "sessionExpired": "Uw sessie is beëindigd. Meld u opnieuw aan om verder te gaan waar u gebleven was.",
+      "noAccountHere": "Je identiteitsprovider heeft je aangemeld, maar deze server heeft geen account voor je. Vraag een beheerder er een aan te maken.",
+      "cameBackWithoutSession": "Je komt terug van je identiteitsprovider zonder sessie op deze server. Probeer het nog eens, of vraag een beheerder de single-sign-on-instellingen na te kijken.",
+      "serverUnreachable": "Deze server was niet bereikbaar, dus is niet bekend hoe je hier inlogt. Probeer het over een moment opnieuw.",
+      "askAgain": "Opnieuw proberen",
+      "noMethod": "Op deze server is geen manier om in te loggen ingesteld. Een beheerder kan wachtwoorden of single sign-on aanzetten.",
       "totpBack": "Opnieuw beginnen"
     },
     "setup": {

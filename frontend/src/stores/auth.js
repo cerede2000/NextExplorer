@@ -11,6 +11,7 @@ import {
   fetchCurrentUser,
 } from '@/api';
 import { forgetGuestSession, guestSessionId } from '@/api/guestSession';
+import { forgetHandedOff } from '@/utils/providerHandoff';
 
 export const useAuthStore = defineStore('auth', () => {
   const requiresSetup = ref(false);
@@ -25,6 +26,28 @@ export const useAuthStore = defineStore('auth', () => {
   // 'ready', 'not-configured' or 'unavailable'. The sign-in screen shows the
   // last two rather than sending somebody to a provider that cannot answer.
   const oidcStatus = ref('ready');
+  /**
+   * Whether the server could be asked at all.
+   *
+   * Everything below is what the server said, and until it has said it the
+   * defaults above are a guess — a guess that happens to describe a password
+   * sign-in. So a status request that got nowhere, which is what an expired
+   * session behind an authentication proxy looks like from here, drew a
+   * username and password form on an installation that has neither, under an
+   * error about CORS. Nobody could sign in from that screen and nothing on it
+   * said why.
+   */
+  const statusUnavailable = ref(false);
+  /**
+   * The provider vouched for somebody this installation has no account for.
+   *
+   * `authenticated` and `user` are two different answers: the first says a
+   * session exists, the second says whose. They come apart when accounts are
+   * not created on the fly and nobody made this one — and the sign-in screen,
+   * which reads only the second, used to hand such a visitor back to the
+   * provider that had just signed them in.
+   */
+  const providerHasNoAccountHere = ref(false);
   const currentUser = ref(null);
   /**
    * The password was right, and the account asks for a code as well.
@@ -72,6 +95,7 @@ export const useAuthStore = defineStore('auth', () => {
 
       try {
         const status = await fetchAuthStatus();
+        statusUnavailable.value = false;
         const enabled = status?.authEnabled !== false;
         requiresSetup.value = enabled ? Boolean(status.requiresSetup) : false;
         authEnabled.value = enabled;
@@ -80,14 +104,21 @@ export const useAuthStore = defineStore('auth', () => {
         oidcStatus.value = status?.oidc?.status || 'ready';
         currentUser.value = status?.user || null;
         totpPending.value = Boolean(status?.totpPending);
+        providerHasNoAccountHere.value = enabled && status?.authenticated === true && !status?.user;
 
         // Clear guest session if user is now authenticated
         if (currentUser.value) {
           forgetGuestSession();
+          // Whatever trip to the provider this session came from is over.
+          forgetHandedOff();
         }
 
         // Cookies hold session; no token adjustments needed
       } catch (error) {
+        // Nothing is known, and saying nothing is known is the point: the
+        // strategies above keep whatever they held, and the sign-in screen
+        // offers none of them until the server has answered.
+        statusUnavailable.value = true;
         lastError.value =
           error instanceof Error ? error.message : 'Failed to load authentication status.';
       } finally {
@@ -245,6 +276,8 @@ export const useAuthStore = defineStore('auth', () => {
     authMode,
     strategies,
     oidcStatus,
+    statusUnavailable,
+    providerHasNoAccountHere,
     currentUser,
     totpPending,
     lastError,

@@ -507,3 +507,132 @@ describe('signing in with a passkey', () => {
     expect(store.isAuthenticated).toBe(false);
   });
 });
+
+/**
+ * What is known when the server could not be asked.
+ *
+ * The strategies start out describing a password sign-in, because that is the
+ * commonest installation — and until the server has answered, that is a guess.
+ * The sign-in screen read the guess as an answer, so one status request that
+ * got nowhere drew a username and a password field on an installation signing
+ * in through an identity provider, under an error about CORS. Saying "nothing
+ * is known" is what lets that screen say it.
+ */
+describe('a status that could not be read', () => {
+  it('says so', async () => {
+    fetchAuthStatus.mockRejectedValue(new Error('Network Error'));
+    const store = useAuthStore();
+
+    await store.initialize();
+
+    expect(store.statusUnavailable).toBe(true);
+  });
+
+  it('signs nobody in', async () => {
+    fetchAuthStatus.mockRejectedValue(new Error('Network Error'));
+    const store = useAuthStore();
+
+    await store.initialize();
+
+    expect(store.isAuthenticated).toBe(false);
+  });
+
+  it('is forgotten as soon as the server answers', async () => {
+    fetchAuthStatus.mockRejectedValue(new Error('Network Error'));
+    const store = useAuthStore();
+    await store.initialize();
+
+    fetchAuthStatus.mockResolvedValue({
+      authEnabled: true,
+      requiresSetup: false,
+      authMode: 'oidc',
+      strategies: { local: false, oidc: true },
+      user: null,
+    });
+    await store.initialize();
+
+    expect(store.statusUnavailable).toBe(false);
+    expect(store.strategies).toEqual({ local: false, oidc: true });
+  });
+});
+
+/**
+ * A session the provider vouches for, and no account here to attach it to.
+ *
+ * `authenticated` and `user` are two answers, not one: the first says a
+ * session exists, the second says whose. They come apart where accounts are
+ * not created on the fly and nobody made this one — and the screen that reads
+ * only the second handed such a visitor straight back to the provider that had
+ * just signed them in.
+ */
+describe('an identity with no account on this server', () => {
+  it('is told apart from nobody at all', async () => {
+    fetchAuthStatus.mockResolvedValue({
+      authEnabled: true,
+      requiresSetup: false,
+      authMode: 'oidc',
+      strategies: { local: false, oidc: true },
+      authenticated: true,
+      user: null,
+    });
+    const store = useAuthStore();
+
+    await store.initialize();
+
+    expect(store.providerHasNoAccountHere).toBe(true);
+    expect(store.isAuthenticated).toBe(false);
+  });
+
+  it('is not what an ordinary visitor with no session is', async () => {
+    fetchAuthStatus.mockResolvedValue({
+      authEnabled: true,
+      requiresSetup: false,
+      authMode: 'oidc',
+      strategies: { local: false, oidc: true },
+      authenticated: false,
+      user: null,
+    });
+    const store = useAuthStore();
+
+    await store.initialize();
+
+    expect(store.providerHasNoAccountHere).toBe(false);
+  });
+
+  it('is over once an account answers for the session', async () => {
+    fetchAuthStatus.mockResolvedValue({
+      authEnabled: true,
+      requiresSetup: false,
+      authMode: 'oidc',
+      strategies: { local: false, oidc: true },
+      authenticated: true,
+      user: USER,
+    });
+    const store = useAuthStore();
+
+    await store.initialize();
+
+    expect(store.providerHasNoAccountHere).toBe(false);
+  });
+});
+
+/** A session in hand means the trip to the provider is over. */
+describe('the mark a trip to the provider leaves', () => {
+  it('is dropped once the status comes back with a user', async () => {
+    const { markHandedOff, takeHandedOffRecently } = await import('@/utils/providerHandoff');
+    markHandedOff();
+    fetchAuthStatus.mockResolvedValue({
+      authEnabled: true,
+      requiresSetup: false,
+      authMode: 'oidc',
+      strategies: { local: false, oidc: true },
+      authenticated: true,
+      user: USER,
+    });
+    const store = useAuthStore();
+
+    await store.initialize();
+
+    expect(takeHandedOffRecently()).toBe(false);
+  });
+});

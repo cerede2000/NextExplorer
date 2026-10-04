@@ -97,12 +97,17 @@
   <body class="text-neutral-900 dark:text-neutral-300 bg-white dark:bg-default">
     <div id="app" class="min-h-dvh w-full font-normal">
       <div
+        id="boot"
         style="
           width: 100dvw;
           height: 100dvh;
           display: flex;
+          flex-direction: column;
+          gap: 1.5rem;
           align-items: center;
           justify-content: center;
+          text-align: center;
+          padding: 0 1rem;
         "
       >
         <div class="logo-loader" role="status" aria-label="Loading">
@@ -168,8 +173,63 @@
             <path d="m79.85 19.34v57.32l-26.83-46.79z" fill="url(#d)" />
           </svg>
         </div>
+        <!--
+          Said only if the application never arrives.
+
+          Mounting empties this element, so anything written here is gone the
+          moment the page is running — which is why it can be written without
+          asking anybody's permission first. Until then this logo is the whole
+          interface, and it used to spin for as long as somebody was willing to
+          watch it: a bundle refused by whatever stands in front of this server
+          looks exactly like a page that is merely slow.
+
+          English, and not a translation: this runs before the locales exist.
+        -->
+        <p id="boot-trouble" style="display: none; max-width: 32rem; font-size: 0.875rem"></p>
       </div>
     </div>
+    <script>
+      (() => {
+        // A file this page asked for never arrived. An authentication proxy in
+        // front of the application answers an expired session with a redirect
+        // to its own sign-in page, and a browser will not run that as a module
+        // — so the page loads, the logo spins, and nothing else ever happens.
+        let aFileWasRefused = false;
+        window.addEventListener(
+          'error',
+          (event) => {
+            if (event.target && event.target !== window && event.target.src) {
+              aFileWasRefused = true;
+            }
+          },
+          true
+        );
+
+        // Long enough that a slow connection is not accused of anything.
+        setTimeout(() => {
+          const splash = document.getElementById('boot');
+          const trouble = document.getElementById('boot-trouble');
+          // Mounting emptied this: the application is here and this is moot.
+          if (!splash || !splash.isConnected || !trouble) return;
+          trouble.textContent = aFileWasRefused
+            ? 'This page could not load the application\u2019s files. Something in front of this server turned them away \u2014 often a sign-in that has run out. Reload the page, or sign in again.'
+            : 'This is taking longer than it should. Reload the page, or sign in again.';
+          trouble.style.display = 'block';
+          const ways = document.createElement('span');
+          ways.style.cssText = 'display:flex;gap:1rem;font-size:0.875rem';
+          const again = document.createElement('a');
+          again.href = window.location.href;
+          again.textContent = 'Reload';
+          again.style.textDecoration = 'underline';
+          const signIn = document.createElement('a');
+          signIn.href = '/auth/login';
+          signIn.textContent = 'Sign in';
+          signIn.style.textDecoration = 'underline';
+          ways.append(again, signIn);
+          trouble.insertAdjacentElement('afterend', ways);
+        }, 12000);
+      })();
+    </script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

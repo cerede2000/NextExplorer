@@ -456,6 +456,11 @@
       "totpExplain": "La password è stata accettata. Inserisci il codice della tua app di autenticazione, o uno dei codici di recupero.",
       "totpSubmit": "Accedi",
       "sessionExpired": "La tua sessione è scaduta. Accedi di nuovo per riprendere da dove eri arrivato.",
+      "noAccountHere": "Il tuo provider di identità ti ha autenticato, ma questo server non ha un account per te. Chiedi a un amministratore di crearne uno.",
+      "cameBackWithoutSession": "Sei tornato dal tuo provider di identità senza una sessione su questo server. Riprova, oppure chiedi a un amministratore di controllare le impostazioni di single sign-on.",
+      "serverUnreachable": "Questo server non ha risposto, quindi non si sa come accedere qui. Riprova tra un momento.",
+      "askAgain": "Riprova",
+      "noMethod": "Su questo server non è configurato alcun modo per accedere. Un amministratore può attivare le password o il single sign-on.",
       "totpBack": "Ricomincia"
     },
     "setup": {

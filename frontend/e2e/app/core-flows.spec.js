@@ -5180,6 +5180,39 @@ test('a visitor files a copy inside a share, and the picker never leaves it', as
   }
 });
 
+/**
+ * The worst ending this application has: a logo that spins for ever.
+ *
+ * Everything before the first line of the bundle runs is one `index.html` and
+ * one spinning logo. An authentication proxy answers an expired session with a
+ * redirect to its own sign-in page, a browser will not run that as a module,
+ * and the result is indistinguishable from a page that is merely slow — so the
+ * logo turned, and turned, and said nothing.
+ *
+ * Its own page: the journey's own must not be left with the bundle blocked.
+ */
+test('a page whose files were turned away says so instead of spinning for ever', async ({
+  browser,
+}) => {
+  // The notice deliberately waits long enough not to accuse a slow connection.
+  test.setTimeout(60000);
+  const blocked = await browser.newPage();
+  try {
+    await blocked.route('**/assets/*.js', (route) => route.abort());
+
+    await blocked.goto('/browse/');
+
+    // The logo is all there is, to begin with.
+    await expect(blocked.locator('#boot .logo-loader')).toBeVisible();
+    await expect(blocked.locator('#boot-trouble')).toHaveText(/turned them away/, {
+      timeout: 30000,
+    });
+    await expect(blocked.getByRole('link', { name: 'Sign in' })).toBeVisible();
+  } finally {
+    await blocked.close();
+  }
+});
+
 test('the page threw nothing along the way', () => {
   expect(thrown, `the page threw:\n${thrown.join('\n')}`).toEqual([]);
 });

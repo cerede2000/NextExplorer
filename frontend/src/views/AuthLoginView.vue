@@ -9,6 +9,7 @@ import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useFeaturesStore } from '@/stores/features';
 import { useAppSettings } from '@/stores/appSettings';
+import { markHandedOff, takeHandedOffRecently, takeSignedOut } from '@/utils/providerHandoff';
 
 const auth = useAuthStore();
 const featuresStore = useFeaturesStore();
@@ -24,9 +25,18 @@ const isSubmittingLogin = ref(false);
 /** The code from the phone, or one off the paper, when the account asks. */
 const totpCodeValue = ref('');
 
-const statusError = computed(() => auth.lastError || '');
-const supportsLocal = computed(() => auth.strategies?.local !== false);
-const supportsOidc = computed(() => Boolean(auth.strategies?.oidc));
+/**
+ * Whether the server has said how anybody signs in here.
+ *
+ * Until it has, this screen offers nothing: every button below describes
+ * something the server told us about, and the defaults it falls back to
+ * describe a password form that an installation signing in through a provider
+ * does not have. An unreachable server gets a sentence and a button to ask
+ * again, which is the whole truth about it.
+ */
+const statusUnknown = computed(() => Boolean(auth.statusUnavailable));
+const supportsLocal = computed(() => !statusUnknown.value && auth.strategies?.local !== false);
+const supportsOidc = computed(() => !statusUnknown.value && Boolean(auth.strategies?.oidc));
 /**
  * Whether to offer a passkey at all.
  *
@@ -34,7 +44,9 @@ const supportsOidc = computed(() => Boolean(auth.strategies?.oidc));
  * browser can do it — which over plain http it cannot, whatever it supports.
  * A button that opens a dialog only to fail is worse than no button.
  */
-const supportsPasskey = computed(() => Boolean(auth.strategies?.passkey) && passkeysSupported());
+const supportsPasskey = computed(
+  () => !statusUnknown.value && Boolean(auth.strategies?.passkey) && passkeysSupported()
+);
 
 /**
  * Whether pressing the single sign-on button would reach anything.
@@ -53,7 +65,16 @@ const oidcUnavailableMessage = computed(() => {
   const message = OIDC_STATUS_MESSAGES[auth.oidcStatus];
   return message ? t(message) : '';
 });
-const returnedFromLogout = ref(window.sessionStorage.getItem('oidcSignedOut') === '1');
+/**
+ * The two things that happened before this screen existed.
+ *
+ * Both are read once, here, and removed as they are read — see
+ * utils/providerHandoff.js. A mark that outlives the screen it was left for
+ * answers the wrong question later: the sign-out mark used to stop a hand-off
+ * hours after the sign-out it described, and nothing ever cleared it.
+ */
+const returnedFromLogout = ref(takeSignedOut());
+const providerSentThemBackWithNothing = ref(takeHandedOffRecently());
 
 /**
  * Whether this screen is showing because a session ran out.
@@ -62,6 +83,23 @@ const returnedFromLogout = ref(window.sessionStorage.getItem('oidcSignedOut') ==
  * only account of it was the row of failed requests it left behind.
  */
 const sessionExpired = computed(() => route.query?.reason === 'expired');
+
+/**
+ * Nothing at all on offer.
+ *
+ * `AUTH_MODE=oidc` with no provider configured is the combination that gets
+ * here, and what it used to draw was a heading, a subtitle and nothing else:
+ * no field, no button, no sentence. An administrator reading that screen has
+ * no way to know whether they are looking at a bug or at their own settings.
+ */
+const nothingOnOffer = computed(
+  () =>
+    !statusUnknown.value &&
+    !auth.totpPending &&
+    !supportsLocal.value &&
+    !supportsOidc.value &&
+    !supportsPasskey.value
+);
 const redirectTarget = computed(() => {
   const redirect = route.query?.redirect;
   if (typeof redirect === 'string' && redirect.trim()) {
@@ -74,6 +112,43 @@ const inputBaseClasses =
   'mt-2 w-full h-12 rounded-xl ring-1 ring-inset ring-white/10 bg-neutral-800/70 px-4 text-neutral-100 placeholder-neutral-500 focus:ring-white/60 focus:outline-hidden transition';
 
 const helperTextClasses = 'text-sm text-red-400';
+
+/**
+ * Why a hand-off to the provider must wait for somebody to ask for it.
+ *
+ * Going on its own is right where a provider is the only way in: a form nobody
+ * can fill is a dead end. It is wrong in four cases, and each of them used to
+ * be a screen somebody was stuck on:
+ *
+ *  - straight after a sign-out, or leaving would be a flicker and a return;
+ *  - straight after a hand-off that came back without a session, which is the
+ *    circle that spins a logo for as long as anybody will watch it;
+ *  - when the provider knows this person and this installation has no account
+ *    for them, which no number of further trips will change;
+ *  - when the provider handed back an error, or the server said before the
+ *    button was ever pressed that there is no provider to reach. The button
+ *    is disabled for exactly that reason, and this path did it anyway —
+ *    straight onto a page of raw JSON.
+ */
+const handOffIsHeldBack = computed(
+  () =>
+    returnedFromLogout.value ||
+    providerSentThemBackWithNothing.value ||
+    Boolean(auth.providerHasNoAccountHere) ||
+    arrivedWithProviderError.value ||
+    Boolean(oidcUnavailableMessage.value)
+);
+
+const handsOffOnItsOwn = computed(
+  () => !supportsLocal.value && supportsOidc.value && !handOffIsHeldBack.value
+);
+
+/** What to say to somebody a trip to the provider left with nothing. */
+const providerLeftThemOutside = computed(() => {
+  if (auth.providerHasNoAccountHere) return t('auth.login.noAccountHere');
+  if (providerSentThemBackWithNothing.value) return t('auth.login.cameBackWithoutSession');
+  return '';
+});
 
 const redirectToDestination = () => {
   const target = redirectTarget.value;
@@ -103,7 +178,7 @@ onMounted(async () => {
     return;
   }
 
-  if (!supportsLocal.value && supportsOidc.value && !returnedFromLogout.value) {
+  if (handsOffOnItsOwn.value) {
     handleOidcLogin();
   }
 
@@ -149,6 +224,12 @@ const messageFor = (error, fallback) => {
   return error instanceof Error && error.message ? error.message : t(fallback);
 };
 
+/**
+ * Whether the provider handed something back in the address rather than a
+ * session. Read on the way in, before anything decides to go there again.
+ */
+const arrivedWithProviderError = ref(false);
+
 const syncErrorFromRoute = (nextRoute) => {
   const query = nextRoute?.query || {};
   const errorCode = query.error_code;
@@ -166,6 +247,9 @@ const syncErrorFromRoute = (nextRoute) => {
 
   if (message && !loginError.value) {
     loginError.value = message;
+  }
+  if (message) {
+    arrivedWithProviderError.value = true;
   }
 
   if (
@@ -271,8 +355,25 @@ const handlePasskeyLogin = async () => {
   }
 };
 
+/** Ask the server again how anybody signs in here. */
+const isAskingAgain = ref(false);
+const handleAskAgain = async () => {
+  if (isAskingAgain.value) return;
+  isAskingAgain.value = true;
+  resetErrors();
+  try {
+    await auth.initialize();
+  } finally {
+    isAskingAgain.value = false;
+  }
+};
+
 const handleOidcLogin = () => {
   resetErrors();
+  // The server already said this one cannot be reached. Pressing on would
+  // leave the application for an address that answers with a refusal nobody
+  // can read, and no way back to this screen.
+  if (oidcUnavailableMessage.value) return;
   const returnTo = redirectTarget.value;
   const base = apiBase || '';
   // Our own route rather than the provider library's `/login`: that one is
@@ -287,10 +388,11 @@ const handleOidcLogin = () => {
   }
   if (returnedFromLogout.value) {
     query.set('prompt', 'login');
-    window.sessionStorage.removeItem('oidcSignedOut');
     returnedFromLogout.value = false;
   }
   const finalUrl = query.size ? `${loginUrl}?${query.toString()}` : loginUrl;
+  // Written before leaving, read by whatever screen the browser comes back to.
+  markHandedOff();
   window.location.href = finalUrl;
 };
 </script>
@@ -321,6 +423,59 @@ const handleOidcLogin = () => {
       data-test="session-expired"
     >
       {{ t('auth.login.sessionExpired') }}
+    </p>
+
+    <!--
+      A trip to the provider that ended outside.
+
+      Not an error anybody typed, and not a refusal of what they typed: the
+      provider did its part and this installation has no session to show for
+      it. Said here rather than left to the next hand-off, which is what used
+      to happen — and that hand-off came back to this same screen, which handed
+      off again.
+    -->
+    <p
+      v-if="providerLeftThemOutside"
+      class="mb-5 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100"
+      role="status"
+      data-test="provider-left-outside"
+    >
+      {{ providerLeftThemOutside }}
+    </p>
+
+    <!--
+      The server could not be asked how anybody signs in here.
+
+      Nothing below is drawn in this state: every field and every button
+      describes something the server told us about, and guessing produced a
+      password form on installations that have no passwords. One sentence, and
+      the one thing worth doing about it.
+    -->
+    <div v-if="statusUnknown" class="space-y-4" data-test="status-unavailable">
+      <p class="rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-100">
+        {{ t('auth.login.serverUnreachable') }}
+      </p>
+      <button
+        type="button"
+        class="h-12 w-full rounded-xl bg-neutral-100 px-4 font-semibold text-neutral-900 hover:bg-neutral-100/90 active:bg-neutral-100/70 disabled:cursor-not-allowed disabled:opacity-60"
+        :disabled="isAskingAgain"
+        data-test="ask-again"
+        @click="handleAskAgain"
+      >
+        {{ isAskingAgain ? $t('common.verifying') : $t('auth.login.askAgain') }}
+      </button>
+    </div>
+
+    <!--
+      And an installation that offers no way in at all, which is a heading over
+      an empty box until it says so.
+    -->
+    <p
+      v-if="nothingOnOffer"
+      class="rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-100"
+      data-test="no-sign-in-method"
+    >
+      {{ t('auth.login.noMethod') }}
     </p>
 
     <!--
@@ -469,7 +624,18 @@ const handleOidcLogin = () => {
       </p>
     </div>
 
-    <p v-if="!supportsLocal && (loginError || statusError)" class="mt-4" :class="helperTextClasses">
+    <!--
+      The last word, where there is no form to put it under. Never the status
+      error of a server that could not be reached: that one says the browser
+      received no response and suggests looking at PUBLIC_URL and CORS, which
+      is an accurate description of a fetch that got nowhere and a thoroughly
+      misleading explanation of a session that ran out.
+    -->
+    <p
+      v-if="!statusUnknown && !supportsLocal && (loginError || statusError)"
+      class="mt-4"
+      :class="helperTextClasses"
+    >
       {{ loginError || statusError }}
     </p>
   </AuthLayout>

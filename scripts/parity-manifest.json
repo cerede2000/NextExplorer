@@ -1636,6 +1636,13 @@
       "verdict": "PORT",
       "batch": "share-behind-a-door",
       "note": "a share answers its visitor under its own prefix — the batch after `share-its-own-prefix`. Everything somebody with no account asks for was asked at the application's own addresses (`/api/preview`, `/api/download`, `/api/thumbnails/…`, `/api/onlyoffice/…`); each checks the share behind it, so none of it was open, but an authentication proxy lets a public link through by path, and letting it through meant opening `/api/download` to the world. The same routers now also answer under `/api/share/<token>/…` behind a gate that adds a requirement and removes none, the rule for what a share answers anonymously names its endpoints instead of excepting one, the icons a page needs moved under `/assets/`, and the guest session became a value that can be watched — it was a computed over `sessionStorage` behind a `&&` that short-circuited, so a visitor refused at boot was taken for a signed-in account for the life of the page."
+    },
+    {
+      "axis": "*",
+      "match": "^(frontend/src/utils/providerHandoff\\.js|frontend/src/stores/auth\\.js|frontend/src/views/AuthLoginView\\.vue|frontend/src/components/UserMenu\\.vue|frontend/src/stores/features\\.js|frontend/index\\.html)(:|$)",
+      "verdict": "PORT",
+      "batch": "sign-in-says-what-happened",
+      "note": "the sign-in screen stops acting on what it does not know — the batch after the panes. `utils/providerHandoff.js` is the two marks a trip to an identity provider leaves in the tab it was started from, each consumed the first time it is read: the sign-out mark was removed only by the single sign-on button, so anybody who signed out and then signed in some other way left it behind for the rest of the tab's life and the next session to run out there stopped at a button instead of going to the provider. The hand-off mark is new and is what closes the circle — the provider signs somebody in, this installation ends up with no session for them anyway, and the screen handed them back to the provider, which signed them in again. The store says when the status could not be read at all, because before the server has answered the strategies describe a password sign-in and one unanswered request drew a password form on an installation that has none; and it reads `authenticated` beside `user`, which is how an identity the provider vouches for and this server has no account for can be said in those words. `stores/features.js` releases the promise of a load that failed, which was the only one a page would ever make. `index.html` says, after twelve seconds, that the application never arrived — a file turned away by whatever stands in front of this server is indistinguishable from a page that is merely slow, and the logo spun either way."
     }
   ],
   "residue": [
@@ -1854,6 +1861,10 @@
     {
       "match": "^frontend/src/utils/compareRoute\\.js$",
       "note": "a comparison inside a share is one of the share's own pages. The Versions panel offers a version against the file as it is now for anything that reads as lines of text, and `/compare` asks for an account: inside a share that offer sent the reader to a sign-in screen. The address carries the share when every side of the comparison is in one, as the listing, the viewer and the editor already did; sides in different shares, or one inside and one outside, keep the application's own address."
+    },
+    {
+      "match": "^(frontend/src/views/AuthLoginView\\.vue|frontend/src/components/UserMenu\\.vue)$",
+      "note": "the sign-in screen stops acting on what it does not know. It offers nothing while the status could not be read — before the server has answered, the strategies describe a password sign-in, so one unanswered request drew a username and a password field on an installation that has neither, under an error naming CORS. It says when an installation has no way in configured at all, where it used to draw a heading over an empty box. And it hands a sign-in to the identity provider on its own account only when nothing says not to: not straight after a sign-out, not straight after a hand-off that came back without a session, not for somebody the provider vouches for and this server has no account for, and not towards a provider the server already said could not be reached — each of which was a circle through the provider that never reached a person. The two marks those decisions read live in `utils/providerHandoff.js`, which is why the menu's sign-out writes one through it rather than into `sessionStorage` itself."
     }
   ],
   "controls": [
@@ -1888,6 +1899,10 @@
     {
       "match": "^tabs\\.detachPane$",
       "note": "the button that puts a pane back in the row, beside the cross. The cross used to do this — the pair undone and the tab back in the strip — which is a different gesture wearing a cross: somebody pressing it has decided they are done with what is in there, and got it back in the row instead. The cross closes now, through the same `close` the cross on a tab uses, and putting a pane back is worth keeping, so it has a button that says so. Travels with the panes."
+    },
+    {
+      "match": "^auth\\.login\\.askAgain$",
+      "note": "the one thing worth pressing on a sign-in screen that could not ask the server how anybody signs in here. It used to draw a password form instead, built on the defaults the store falls back to before the server has answered — part of the same batch as the marks a trip to the provider leaves"
     }
   ],
   "literals": [

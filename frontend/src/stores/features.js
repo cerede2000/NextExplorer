@@ -209,7 +209,18 @@ export const useFeaturesStore = defineStore('features', () => {
       } finally {
         isLoading.value = false;
       }
-    })();
+    })().finally(() => {
+      // Released whichever way it ended.
+      //
+      // Held, a load that failed was the only one this page would ever make:
+      // `initialize` handed the settled promise back to every later caller and
+      // `ensureLoaded` awaited it and returned happy, so one unanswered
+      // request at start — which is exactly what a session running out
+      // produces — left the whole window believing this installation has no
+      // office editor, no trash, no versions and no shell, for as long as it
+      // stayed open.
+      initPromise = null;
+    });
 
     return initPromise;
   };

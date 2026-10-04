@@ -17,6 +17,7 @@ const login = vi.hoisted(() => vi.fn(async () => {}));
 const submitTotpCode = vi.hoisted(() => vi.fn(async () => ({})));
 const cancelTotp = vi.hoisted(() => vi.fn());
 const ensureStatus = vi.hoisted(() => vi.fn(async () => {}));
+const initialize = vi.hoisted(() => vi.fn(async () => {}));
 const clearError = vi.hoisted(() => vi.fn());
 const signInWithPasskey = vi.hoisted(() => vi.fn(async () => ({})));
 const passkeysSupported = vi.hoisted(() => vi.fn(() => true));
@@ -31,6 +32,9 @@ vi.mock('@/stores/auth', async () => {
     lastError: '',
     strategies: { local: true, oidc: false, passkey: false },
     oidcStatus: 'ready',
+    statusUnavailable: false,
+    providerHasNoAccountHere: false,
+    initialize,
     login,
     signInWithPasskey,
     submitTotpCode,
@@ -76,6 +80,7 @@ vi.mock('@/layouts/AuthLayout.vue', () => ({
   default: { name: 'AuthLayoutStub', template: '<div><slot name="heading" /><slot /></div>' },
 }));
 
+const { forgetHandedOff } = await import('@/utils/providerHandoff');
 const AuthLoginView = (await import('./AuthLoginView.vue')).default;
 
 let wrapper = null;
@@ -119,6 +124,8 @@ beforeEach(() => {
       lastError: '',
       strategies: { local: true, oidc: false, passkey: false },
       oidcStatus: 'ready',
+      statusUnavailable: false,
+      providerHasNoAccountHere: false,
       totpPending: false,
     });
   }
@@ -129,6 +136,7 @@ beforeEach(() => {
     submitTotpCode,
     cancelTotp,
     ensureStatus,
+    initialize,
     clearError,
     replace,
     push,
@@ -138,6 +146,7 @@ beforeEach(() => {
   signInWithPasskey.mockResolvedValue({});
   passkeysSupported.mockReturnValue(true);
   ensureStatus.mockResolvedValue(undefined);
+  initialize.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -762,5 +771,215 @@ describe('signing in with a passkey', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('That passkey did not open anything here.');
+  });
+});
+
+/**
+ * What this screen offers when the server has not said what it offers.
+ *
+ * Everything above is the server's answer. The defaults the store falls back
+ * to before it has one happen to describe a password sign-in, so a status
+ * request that got nowhere — which is what an expired session behind an
+ * authentication proxy looks like from a browser — drew a username and a
+ * password field on an installation that has neither, under an error about
+ * CORS and PUBLIC_URL. Nobody could sign in from that screen, and nothing on
+ * it said why.
+ */
+describe('a server that could not be asked how anybody signs in', () => {
+  beforeEach(() => {
+    auth.store.statusUnavailable = true;
+  });
+
+  it('offers no password form it has no reason to believe in', async () => {
+    const view = await mountLogin();
+
+    expect(view.supportsLocal).toBe(false);
+    expect(wrapper.find('#login-identifier').exists()).toBe(false);
+  });
+
+  it('offers no provider either', async () => {
+    auth.store.strategies = { local: false, oidc: true };
+
+    const view = await mountLogin();
+
+    expect(view.supportsOidc).toBe(false);
+    expect(navigatedTo).toBe('');
+  });
+
+  it('says so, and nothing about CORS', async () => {
+    auth.store.lastError = 'Network Error';
+
+    await mountLogin();
+
+    expect(wrapper.find('[data-test="status-unavailable"]').exists()).toBe(true);
+    expect(wrapper.text()).not.toContain('Network Error');
+  });
+
+  it('asks again when somebody asks it to', async () => {
+    const view = await mountLogin();
+
+    await view.handleAskAgain();
+
+    expect(initialize).toHaveBeenCalled();
+  });
+
+  /** And once it has an answer, it is an ordinary sign-in screen again. */
+  it('draws the form once the server has answered', async () => {
+    const view = await mountLogin();
+    auth.store.statusUnavailable = false;
+    await flushPromises();
+
+    expect(view.supportsLocal).toBe(true);
+  });
+});
+
+/** An installation with nothing on offer is a heading over an empty box. */
+describe('an installation that offers no way in', () => {
+  it('says so rather than drawing nothing at all', async () => {
+    auth.store.strategies = { local: false, oidc: false, passkey: false };
+
+    await mountLogin();
+
+    expect(wrapper.find('[data-test="no-sign-in-method"]').exists()).toBe(true);
+  });
+
+  it('says nothing of the kind while a password would do', async () => {
+    await mountLogin();
+
+    expect(wrapper.find('[data-test="no-sign-in-method"]').exists()).toBe(false);
+  });
+});
+
+/**
+ * The circle: the provider signs somebody in, this installation has no session
+ * to show for it, and the sign-in screen hands them straight back to the
+ * provider, which signs them in again.
+ *
+ * Nothing in that circle ever reaches a person. The only account of it is a
+ * logo spinning for as long as anybody is willing to watch it, so the hand-off
+ * is marked on the way out and the screen the browser comes back to reads it.
+ */
+describe('a trip to the provider that came back with nothing', () => {
+  beforeEach(() => {
+    auth.store.strategies = { local: false, oidc: true };
+  });
+
+  it('does not hand off again straight away', async () => {
+    const view = await mountLogin();
+    view.handleOidcLogin();
+    navigatedTo = '';
+    wrapper.unmount();
+    wrapper = null;
+
+    await mountLogin();
+
+    expect(navigatedTo).toBe('');
+  });
+
+  it('says what happened instead', async () => {
+    const view = await mountLogin();
+    view.handleOidcLogin();
+    wrapper.unmount();
+    wrapper = null;
+
+    await mountLogin();
+
+    expect(wrapper.find('[data-test="provider-left-outside"]').exists()).toBe(true);
+  });
+
+  /** One stop, not a screen nobody can ever leave: the button still works. */
+  it('still goes when somebody presses the button', async () => {
+    const first = await mountLogin();
+    first.handleOidcLogin();
+    wrapper.unmount();
+    wrapper = null;
+    const view = await mountLogin();
+    navigatedTo = '';
+
+    view.handleOidcLogin();
+
+    expect(navigatedTo).toContain('/api/auth/oidc/login');
+  });
+
+  /** A session obtained in between is the proof the trip worked. */
+  it('hands off on its own once a session has been obtained', async () => {
+    const view = await mountLogin();
+    view.handleOidcLogin();
+    navigatedTo = '';
+    wrapper.unmount();
+    wrapper = null;
+    // What the store does when the status comes back with a user.
+    forgetHandedOff();
+
+    await mountLogin();
+
+    expect(navigatedTo).toContain('/api/auth/oidc/login');
+  });
+});
+
+/**
+ * The provider knows this person and this installation has no account for
+ * them — `OIDC_AUTO_CREATE_USERS=false` and nobody made it. No number of
+ * further trips to the provider will change that, and the sign-in screen used
+ * to make all of them.
+ */
+describe('somebody the provider vouches for and this server does not know', () => {
+  beforeEach(() => {
+    auth.store.strategies = { local: false, oidc: true };
+    auth.store.providerHasNoAccountHere = true;
+  });
+
+  it('stays put', async () => {
+    await mountLogin();
+
+    expect(navigatedTo).toBe('');
+  });
+
+  it('says it is an account that is missing, not a password', async () => {
+    await mountLogin();
+
+    expect(wrapper.find('[data-test="provider-left-outside"]').text()).toBe(
+      'auth.login.noAccountHere'
+    );
+  });
+});
+
+/**
+ * A provider the server already said cannot be reached.
+ *
+ * The button is disabled for exactly that reason. The automatic hand-off read
+ * none of it and went anyway — onto `/api/auth/oidc/login`, which answers a
+ * refusal in JSON: a page of JSON in place of the application, with nothing on
+ * it to press.
+ */
+describe('a provider the server says is not there', () => {
+  beforeEach(() => {
+    auth.store.strategies = { local: false, oidc: true };
+  });
+
+  it('is not handed off to on our own account', async () => {
+    auth.store.oidcStatus = 'not-configured';
+
+    await mountLogin();
+
+    expect(navigatedTo).toBe('');
+  });
+
+  it('is not handed off to by the button either', async () => {
+    auth.store.oidcStatus = 'unavailable';
+    const view = await mountLogin();
+
+    view.handleOidcLogin();
+
+    expect(navigatedTo).toBe('');
+  });
+
+  /** And an error the provider handed back is a reason to stop, once. */
+  it('is not handed off to again after it handed back an error', async () => {
+    routing.route.query = { error_code: 'AUTH_OIDC_PROVIDER_UNAVAILABLE' };
+
+    await mountLogin();
+
+    expect(navigatedTo).toBe('');
   });
 });

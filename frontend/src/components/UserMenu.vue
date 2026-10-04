@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useSettingsStore } from '@/stores/settings';
 import { useAuthStore } from '@/stores/auth';
+import { markSignedOut } from '@/utils/providerHandoff';
 import { apiBase } from '@/api';
 import {
   ArrowRightOnRectangleIcon,
@@ -83,9 +84,10 @@ const handleLogout = async () => {
   isExpanded.value = false;
 
   if (isOidcUser) {
-    // The login view uses this same-tab marker to avoid immediately starting a
-    // new OIDC flow when the IdP redirects the browser back after logout.
-    window.sessionStorage.setItem('oidcSignedOut', '1');
+    // The login view reads this same-tab mark to avoid immediately starting a
+    // new OIDC flow when the IdP redirects the browser back after logout, and
+    // removes it as it reads it — see utils/providerHandoff.js.
+    markSignedOut();
     const base = apiBase || '';
     const returnTo = '/auth/login';
     const logoutUrl = `${base}/logout?returnTo=${encodeURIComponent(returnTo)}`;

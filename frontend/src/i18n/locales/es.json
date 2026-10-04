@@ -456,6 +456,11 @@
       "totpExplain": "Su contraseña se ha aceptado. Introduzca el código de su aplicación de autenticación o uno de sus códigos de recuperación.",
       "totpSubmit": "Iniciar sesión",
       "sessionExpired": "Su sesión ha caducado. Vuelva a iniciar sesión para continuar donde lo dejó.",
+      "noAccountHere": "Tu proveedor de identidad te ha autenticado, pero este servidor no tiene ninguna cuenta para ti. Pide a un administrador que cree una.",
+      "cameBackWithoutSession": "Has vuelto de tu proveedor de identidad sin una sesión en este servidor. Vuelve a intentarlo o pide a un administrador que revise los ajustes de inicio de sesión único.",
+      "serverUnreachable": "No se pudo contactar con este servidor, así que no hay forma de saber cómo iniciar sesión aquí. Inténtalo de nuevo en un momento.",
+      "askAgain": "Intentar de nuevo",
+      "noMethod": "En este servidor no hay configurada ninguna forma de iniciar sesión. Un administrador puede activar las contraseñas o el inicio de sesión único.",
       "totpBack": "Empezar de nuevo"
     },
     "setup": {

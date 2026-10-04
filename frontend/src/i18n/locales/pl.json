@@ -456,6 +456,11 @@
       "totpExplain": "Hasło zostało przyjęte. Wpisz kod z aplikacji uwierzytelniającej albo jeden z kodów zapasowych.",
       "totpSubmit": "Zaloguj się",
       "sessionExpired": "Twoja sesja wygasła. Zaloguj się ponownie, aby wrócić tam, gdzie skończyłeś.",
+      "noAccountHere": "Twój dostawca tożsamości cię uwierzytelnił, ale ten serwer nie ma dla ciebie konta. Poproś administratora, aby je utworzył.",
+      "cameBackWithoutSession": "Wróciłeś od dostawcy tożsamości bez sesji na tym serwerze. Spróbuj jeszcze raz albo poproś administratora o sprawdzenie ustawień logowania jednokrotnego.",
+      "serverUnreachable": "Ten serwer nie odpowiedział, więc nie wiadomo, jak się tu zalogować. Spróbuj ponownie za chwilę.",
+      "askAgain": "Spróbuj ponownie",
+      "noMethod": "Na tym serwerze nie skonfigurowano żadnego sposobu logowania. Administrator może włączyć hasła albo logowanie jednokrotne.",
       "totpBack": "Zacznij od nowa"
     },
     "setup": {

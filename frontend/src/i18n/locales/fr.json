@@ -456,6 +456,11 @@
       "totpExplain": "Votre mot de passe a été accepté. Saisissez le code de votre application d'authentification, ou l'un de vos codes de secours.",
       "totpSubmit": "Se connecter",
       "sessionExpired": "Votre session a expiré. Reconnectez-vous pour reprendre où vous en étiez.",
+      "noAccountHere": "Votre fournisseur d’identité vous a authentifié, mais ce serveur n’a pas de compte pour vous. Demandez à un administrateur d’en créer un.",
+      "cameBackWithoutSession": "Vous revenez de votre fournisseur d’identité sans session sur ce serveur. Réessayez, ou demandez à un administrateur de vérifier ses réglages d’authentification unique.",
+      "serverUnreachable": "Ce serveur n’a pas répondu, impossible de savoir comment s’y connecter. Réessayez dans un instant.",
+      "askAgain": "Réessayer",
+      "noMethod": "Aucun moyen de connexion n’est configuré sur ce serveur. Un administrateur peut activer les mots de passe ou l’authentification unique.",
       "totpBack": "Recommencer"
     },
     "setup": {

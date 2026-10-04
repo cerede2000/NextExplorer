@@ -456,6 +456,11 @@
       "totpExplain": "Ihr Passwort wurde akzeptiert. Geben Sie den Code aus Ihrer Authenticator-App ein oder einen Ihrer Wiederherstellungscodes.",
       "totpSubmit": "Anmelden",
       "sessionExpired": "Ihre Sitzung ist abgelaufen. Melden Sie sich erneut an, um dort weiterzumachen, wo Sie aufgehört haben.",
+      "noAccountHere": "Ihr Identitätsanbieter hat Sie angemeldet, aber dieser Server hat kein Konto für Sie. Bitten Sie einen Administrator, eines anzulegen.",
+      "cameBackWithoutSession": "Sie sind von Ihrem Identitätsanbieter ohne Sitzung für diesen Server zurückgekommen. Versuchen Sie es noch einmal, oder bitten Sie einen Administrator, die Single-Sign-On-Einstellungen zu prüfen.",
+      "serverUnreachable": "Dieser Server war nicht erreichbar, daher ist nicht bekannt, wie man sich hier anmeldet. Versuchen Sie es in einem Moment erneut.",
+      "askAgain": "Erneut versuchen",
+      "noMethod": "Auf diesem Server ist keine Anmeldemöglichkeit konfiguriert. Ein Administrator kann Passwörter oder Single Sign-On aktivieren.",
       "totpBack": "Neu beginnen"
     },
     "setup": {

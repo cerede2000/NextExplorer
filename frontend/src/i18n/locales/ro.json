@@ -456,6 +456,11 @@
       "totpExplain": "Parola a fost acceptată. Introduceți codul din aplicația de autentificare sau unul dintre codurile de recuperare.",
       "totpSubmit": "Conectați-vă",
       "sessionExpired": "Sesiunea ta a expirat. Conectează-te din nou pentru a continua de unde ai rămas.",
+      "noAccountHere": "Furnizorul tău de identitate te-a autentificat, dar acest server nu are un cont pentru tine. Cere unui administrator să creeze unul.",
+      "cameBackWithoutSession": "Te-ai întors de la furnizorul de identitate fără o sesiune pe acest server. Mai încearcă o dată sau cere unui administrator să verifice setările de autentificare unică.",
+      "serverUnreachable": "Acest server nu a răspuns, așa că nu se știe cum se face autentificarea aici. Încearcă din nou într-o clipă.",
+      "askAgain": "Încearcă din nou",
+      "noMethod": "Pe acest server nu este configurat niciun mod de autentificare. Un administrator poate activa parolele sau autentificarea unică.",
       "totpBack": "Reluați"
     },
     "setup": {
