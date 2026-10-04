@@ -1082,6 +1082,7 @@
     "unfoldPair": "양쪽 모두 표시",
     "ungroup": "그룹 해제",
     "closeSplit": "이 창 닫기",
+    "detachPane": "이 창을 탭으로 되돌리기",
     "resizeSplit": "창 크기 조정",
     "openInRightPane": "오른쪽 창에서 열기",
     "swapPanes": "창 위치 바꾸기",

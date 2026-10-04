@@ -1,7 +1,7 @@
 <script setup>
 import { computed, defineAsyncComponent, ref, shallowRef, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { ArrowsRightLeftIcon, XMarkIcon } from '@heroicons/vue/24/outline';
+import { ArrowsRightLeftIcon, ArrowUpOnSquareIcon, XMarkIcon } from '@heroicons/vue/24/outline';
 import FolderViewToolbar from '@/components/FolderViewToolbar.vue';
 import { tabTitle } from '@/config/tabKinds';
 import { useI18n } from 'vue-i18n';
@@ -288,6 +288,24 @@ const takeFocus = () => {
       >
         <ArrowsRightLeftIcon class="h-4 w-4" />
       </button>
+      <!-- Beside the cross, because it is what the cross used to do: this one
+           undoes the pair and puts this half back in the strip, where it is one
+           press away. Only where there is a strip to put it in — with tabs off a
+           tab nobody can reach is a tab that is gone. -->
+      <button
+        v-if="tabsStore.enabled"
+        type="button"
+        data-test="pane-detach"
+        class="shrink-0 rounded p-1 hover:bg-neutral-200 dark:hover:bg-neutral-700"
+        :aria-label="$t('tabs.detachPane')"
+        :title="$t('tabs.detachPane')"
+        @pointerdown.stop
+        @click.stop="tabNavigation.detachPane(side)"
+      >
+        <ArrowUpOnSquareIcon class="h-4 w-4" />
+      </button>
+      <!-- And the cross closes, as a cross does: what this pane holds goes, and
+           the reader is left in the half that stays. -->
       <button
         type="button"
         data-test="pane-close"

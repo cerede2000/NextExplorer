@@ -1884,6 +1884,10 @@
     {
       "match": "^\\\"labelFor\\(tab, partner\\)\\\"$",
       "note": "what the strip writes on an entry: one name, or both when the entry is a pair — the same thing `titleFor(tab)` already accounts for, one batch later"
+    },
+    {
+      "match": "^tabs\\.detachPane$",
+      "note": "the button that puts a pane back in the row, beside the cross. The cross used to do this — the pair undone and the tab back in the strip — which is a different gesture wearing a cross: somebody pressing it has decided they are done with what is in there, and got it back in the row instead. The cross closes now, through the same `close` the cross on a tab uses, and putting a pane back is worth keeping, so it has a button that says so. Travels with the panes."
     }
   ],
   "literals": [

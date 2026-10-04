@@ -2499,13 +2499,69 @@ test('two folders sit side by side, and a file is dragged across', async () => {
   await page.locator('[data-test="tab-show-right"]').click();
   await expect(panes).toHaveCount(2);
 
-  // The cross on a pane closes that pane and leaves the other.
+  /**
+   * Swapping the two over is about the screen, and the row does not move.
+   *
+   * A pair is one entry in the strip, carried by one of its two tabs — and it
+   * used to be carried by whichever was on the *left of the screen*. Swapping
+   * moved the entry to wherever the other tab happened to sit, so the strip
+   * reordered itself under the reader's hand for a gesture that reorders nothing.
+   */
+  const rowOrder = () => entries.evaluateAll((row) => row.map((one) => one.dataset.id));
+  const beforeSwap = await rowOrder();
+  await expect(headers.first()).toContainText('Spare');
+  await page.locator('[data-test="pane-swap"]').first().click();
+  await expect(headers.first()).toContainText('Dock');
+  expect(await rowOrder(), 'the row moved when the panes were swapped').toEqual(beforeSwap);
+
+  // And back, so the rest of this walk finds the pair the way it left it.
+  await page.locator('[data-test="pane-swap"]').first().click();
+  await expect(headers.first()).toContainText('Spare');
+  expect(await rowOrder()).toEqual(beforeSwap);
+
+  /**
+   * And the two buttons beside each other mean two different things.
+   *
+   * The one that is not a cross puts this half back in the row: the pair is undone
+   * and both tabs stay. That is what the cross itself used to do, which is a
+   * different gesture wearing a cross — somebody pressing it has decided they are
+   * done with what is in there.
+   */
+  // A pair is one entry carrying two tabs, so the tabs in the row are the
+  // entries plus one for each pair.
+  const tabsInTheRow = async () => (await entries.count()) + (await pairEntries.count());
+  const wasInTheRow = await tabsInTheRow();
+  await page.locator('[data-test="pane-detach"]').last().click();
+  await expect(panes).toHaveCount(1);
+  expect(await tabsInTheRow(), 'a tab went missing when a pane was put back').toBe(wasInTheRow);
+  await expect(entryFor('Spare')).toHaveAttribute('data-paired', 'false');
+  await expect(entryFor('Dock')).toHaveAttribute('data-paired', 'false');
+
+  // Grouped again the way they were, to press the other one.
+  await entryFor('Spare').getByRole('tab').click();
+  await expect(panes).toHaveCount(1);
+  await entryFor('Dock').getByRole('tab').click({ button: 'right' });
+  await page.locator('[data-test="tab-show-right"]').click();
+  await expect(panes).toHaveCount(2);
+  await expect(headers.first()).toContainText('Spare');
+
+  // The cross on a pane closes that pane, leaves the other, and the tab it was
+  // holding is gone from the row rather than waiting there.
+  const closing = await headers.last().innerText();
   await page.locator('[data-test="pane-close"]').last().click();
   await expect(panes).toHaveCount(1);
   await expect(page.locator('[data-test="pane-header"]')).toHaveCount(0);
+  expect(await tabsInTheRow(), 'the closed pane left its tab behind').toBe(wasInTheRow - 1);
+  await expect(entryFor(closing.trim())).toHaveCount(0);
+
   // The pane that stays is the one the reader is left in, which is the whole of
   // what a cross on a pane means.
   await expect(page).toHaveURL(/\/browse\/Projects\/Spare$/);
+
+  // And one tab opened in place of the one the cross took away, because what
+  // follows groups the document with a tab beside it and there has to be one.
+  await page.locator('[data-test="tab-new"]').click();
+  await expect(panes).toHaveCount(1);
 
   // A document is a pane like any other now, which it could not be while the
   // panes were drawn by the browser layout and a document sat outside it.

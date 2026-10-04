@@ -580,14 +580,48 @@ describe('a pane opened beside this one', () => {
     expect(store.activeId).toBe(left);
   });
 
-  it('is set aside when there is', () => {
+  /**
+   * And closed with a strip too: a cross closes. It used to set the pane aside
+   * there — the pairing undone and the tab back in the row — which is a different
+   * gesture wearing a cross, and the reader who had decided they were done with it
+   * got it back in the strip instead.
+   */
+  it('is closed when there is a strip as well', () => {
     const store = withTabsOn();
+    const left = store.activeId;
     store.openInPane('right', '/browse/Beta');
 
     store.closePane('right');
 
     expect(store.isSplit).toBe(false);
+    expect(store.count).toBe(1);
+    expect(store.activeId).toBe(left);
+  });
+
+  /** Setting it aside is the button beside the cross, and keeps both tabs. */
+  it('is put back in the row by the button that says so', () => {
+    const store = withTabsOn();
+    const left = store.activeId;
+    const right = store.openInPane('right', '/browse/Beta');
+
+    store.detachPane('right');
+
+    expect(store.isSplit).toBe(false);
     expect(store.count).toBe(2);
+    expect(store.activeId).toBe(left);
+    expect(store.tabs.some((tab) => tab.id === right.id)).toBe(true);
+  });
+
+  /**
+   * And not where there is no row to put it back in: a tab nobody can reach is a
+   * tab that is gone, which is why the button is not offered with tabs off.
+   */
+  it('is not put back where there is no row', () => {
+    const store = withTabsOff();
+    store.openInPane('right', '/browse/Beta');
+
+    expect(store.detachPane('right')).toBe(null);
+    expect(store.isSplit).toBe(true);
   });
 
   it('exchanges the two of them', () => {
@@ -1435,14 +1469,16 @@ describe('tabs grouped two at a time', () => {
    * very pane being shut, because pressing anything in a pane puts them in it.
    */
   it('closes the pane it is told to, leaving the reader in the other', () => {
-    const { store, second } = three();
+    const { store, first, second } = three();
     store.pair(second.id);
 
     store.closePane('left');
 
     expect(store.isSplit).toBe(false);
     expect(store.activeId).toBe(second.id);
-    expect(store.tabs).toHaveLength(3);
+    // Closed, not set aside: the tab goes with the pane.
+    expect(store.tabs).toHaveLength(2);
+    expect(store.tabs.some((tab) => tab.id === first.id)).toBe(false);
   });
 
   it('closes no pane when the tab in front is not in one', () => {

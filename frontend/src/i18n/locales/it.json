@@ -1082,6 +1082,7 @@
     "unfoldPair": "Mostra le due metà",
     "ungroup": "Separa",
     "closeSplit": "Chiudi questo riquadro",
+    "detachPane": "Riporta questo riquadro in una scheda",
     "resizeSplit": "Ridimensiona i riquadri",
     "openInRightPane": "Apri in un pannello a destra",
     "swapPanes": "Scambia i pannelli",

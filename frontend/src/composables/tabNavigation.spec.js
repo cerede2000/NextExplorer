@@ -429,13 +429,17 @@ describe('a pane given another tab', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  /** And the cross on a pane leaves the reader in the half that stays. */
-  it('takes the window along when a pane is closed', () => {
+  /**
+   * And the cross on a pane leaves the reader in the half that stays. Awaited:
+   * closing a pane closes its tab, so whatever that tab has to lose is asked
+   * about first, exactly as closing a tab from the strip is.
+   */
+  it('takes the window along when a pane is closed', async () => {
     const { tabs, beside } = pairOfFolders();
     const navigation = useTabNavigation();
     push.mockClear();
 
-    navigation.closePane('left');
+    await navigation.closePane('left');
 
     expect(tabs.activeId).toBe(beside.id);
     expect(push).toHaveBeenCalledWith('/browse/Beside');
@@ -538,17 +542,51 @@ describe('a pane beside this one', () => {
     expect(tabs.count).toBe(2);
   });
 
-  it('asks nothing when the tab is staying in the strip', async () => {
+  /**
+   * And with a strip too, because the tab goes with the pane either way now: a
+   * cross closes. What the cross used to do — undo the pair and put the tab back
+   * in the row — is the button beside it.
+   */
+  it('asks before closing a pane whose tab the strip could have kept', async () => {
     settings.userSettings = { browseInTabs: true };
     const tabs = useTabsStore();
     tabs.setEnabled(true);
-    useTabNavigation().openInPane('right', '/browse/Beta');
+    const opened = useTabNavigation().openInPane('right', '/browse/Beta');
     guards.mayClose.mockClear();
 
     await useTabNavigation().closePane('right');
 
+    expect(guards.mayClose).toHaveBeenCalledWith(opened.id);
+    expect(tabs.isSplit).toBe(false);
+    expect(tabs.count).toBe(1);
+  });
+
+  it('leaves the pair alone when the answer is no, strip or no strip', async () => {
+    settings.userSettings = { browseInTabs: true };
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    useTabNavigation().openInPane('right', '/browse/Beta');
+    guards.mayClose.mockResolvedValue(false);
+
+    expect(await useTabNavigation().closePane('right')).toBeNull();
+    expect(tabs.isSplit).toBe(true);
+    expect(tabs.count).toBe(2);
+  });
+
+  /** The other button: the pane goes back to the row, so there is nothing to ask. */
+  it('asks nothing to put a pane back in the row, and keeps both tabs', async () => {
+    settings.userSettings = { browseInTabs: true };
+    const tabs = useTabsStore();
+    tabs.setEnabled(true);
+    const left = tabs.activeId;
+    useTabNavigation().openInPane('right', '/browse/Beta');
+    guards.mayClose.mockClear();
+
+    useTabNavigation().detachPane('right');
+
     expect(guards.mayClose).not.toHaveBeenCalled();
     expect(tabs.isSplit).toBe(false);
     expect(tabs.count).toBe(2);
+    expect(tabs.activeId).toBe(left);
   });
 });

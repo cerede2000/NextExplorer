@@ -211,21 +211,29 @@ export function useTabNavigation() {
   const openInPane = (side, path) => go(tabs.openInPane(side, path));
 
   /**
-   * The cross on a pane: the reader is left in the half that stays.
+   * The cross on a pane: what it was holding is closed, and the reader is left in
+   * the half that stays.
    *
-   * With tabs off the pane is the only place its tab is drawn, so closing the pane
-   * destroys what it was holding — and whatever had something to lose is asked
-   * first, exactly as closing a tab is. With tabs on the tab stays in the strip and
-   * there is nothing to lose, so there is nothing to ask.
+   * Asked first, like any tab being closed, because the tab goes with the pane now
+   * — whether or not there is a strip it could have been set aside in. Setting it
+   * aside is its own gesture and its own button; see `detachPane`.
    */
   const closePane = async (side) => {
     const going = tabs.paneTab(side);
-    if (!tabs.enabled && going) {
+    if (going) {
       if (!(await guards.mayClose(going))) return null;
       guards.release(going);
     }
     return go(tabs.closePane(side));
   };
+
+  /**
+   * And the button beside it: the pane goes back to the strip as an ordinary tab.
+   *
+   * Nothing is lost, so nothing is asked — which is the whole difference between
+   * this and the cross, and the reason they are two buttons.
+   */
+  const detachPane = (side) => go(tabs.detachPane(side));
 
   /**
    * Open an address in a tab.
@@ -336,6 +344,7 @@ export function useTabNavigation() {
     showInPane,
     openInPane,
     closePane,
+    detachPane,
     open,
     openHome,
     close,

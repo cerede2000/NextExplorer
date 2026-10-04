@@ -1082,6 +1082,7 @@
     "unfoldPair": "顯示兩個半邊",
     "ungroup": "取消分組",
     "closeSplit": "關閉此窗格",
+    "detachPane": "將此窗格放回分頁",
     "resizeSplit": "調整窗格大小",
     "openInRightPane": "在右側窗格中開啟",
     "swapPanes": "交換窗格",

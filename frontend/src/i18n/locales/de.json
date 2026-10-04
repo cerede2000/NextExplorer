@@ -1082,6 +1082,7 @@
     "unfoldPair": "Beide Hälften anzeigen",
     "ungroup": "Gruppierung aufheben",
     "closeSplit": "Diesen Bereich schließen",
+    "detachPane": "Diesen Bereich wieder zum Tab machen",
     "resizeSplit": "Bereiche in der Größe ändern",
     "openInRightPane": "In einem Bereich rechts öffnen",
     "swapPanes": "Bereiche tauschen",

@@ -659,8 +659,8 @@ describe('a tab shown beside the other pane', () => {
    * A pair is one entry, not two.
    *
    * Drawing both members would fill the row twice as fast for something the
-   * reader thinks of as one place, so the left member carries the entry, both
-   * names are on it, and the right one is reachable through the chevron.
+   * reader thinks of as one place, so one of them carries the entry, both names
+   * are on it, and the other is reachable through the chevron.
    */
   it('draws a pair as one entry carrying both names', () => {
     state.pairs.value = [{ left: 'a', right: 'b' }];
@@ -682,6 +682,41 @@ describe('a tab shown beside the other pane', () => {
       ['c', 'false'],
     ]);
     expect(wrapper.find('[data-test="tab"] [role="tab"]').attributes('title')).toBe('A ↔ B');
+  });
+
+  /**
+   * And it stays where it is when the two panes are swapped over.
+   *
+   * The entry used to be carried by whichever half was on the *left of the
+   * screen*, so swapping the panes moved it to wherever that other tab happened
+   * to sit in the row: the strip reordered itself under the reader's hand for a
+   * gesture that reorders nothing. It is carried by whichever comes first in the
+   * row instead — and the names still read in the order they are on screen,
+   * because that is what the entry opens.
+   */
+  it('keeps a pair where it sits in the row when the panes are swapped', () => {
+    state.pairs.value = [{ left: 'a', right: 'c' }];
+    const wrapper = withTabs(
+      [
+        tab('a', 'folder', '/browse/A'),
+        tab('b', 'folder', '/browse/B'),
+        tab('c', 'folder', '/browse/C'),
+      ],
+      'a'
+    );
+    const order = () =>
+      wrapper.findAll('[data-test="tab"]').map((one) => one.attributes('data-id'));
+    const name = () => wrapper.find('[data-test="tab"] [role="tab"]').attributes('title');
+
+    expect(order()).toEqual(['a', 'b']);
+    expect(name()).toBe('A ↔ C');
+
+    // The panes the other way round: the same two tabs, in the same row.
+    state.pairs.value = [{ left: 'c', right: 'a' }];
+    return wrapper.vm.$nextTick().then(() => {
+      expect(order()).toEqual(['a', 'b']);
+      expect(name()).toBe('C ↔ A');
+    });
   });
 
   it('marks the entry as on screen, and which half the reader is in', () => {

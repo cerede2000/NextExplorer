@@ -557,26 +557,42 @@ export const useTabsStore = defineStore('tabs', () => {
   /**
    * Close one pane of the pair on screen, leaving the other.
    *
-   * What the cross on a pane's own header means, and it has to be said this way
-   * round: the reader is left in the pane that *stays*. Keeping whoever had
-   * focus kept the very pane being shut, because pressing anything in a pane
-   * puts the reader in it first.
+   * A cross closes. It used to set the pane aside when tabs were on — the pairing
+   * undone and the tab back in the strip — which is a different gesture wearing a
+   * cross: somebody pressing it has decided they are done with what is in there,
+   * and got it back in the row instead. Putting it back is worth offering, and is
+   * `detachPane` below, under a button that says so.
    *
-   * With tabs off it closes the tab as well. There the pane is the only place that
-   * tab was ever drawn, so setting it aside — which is right when a strip can find
-   * it again — would leave the reader a tab they cannot see and cannot reach, and
-   * the next pane they open would be the second of three.
+   * Through `close`, so that a pane closes exactly as a tab does and there is one
+   * answer to what closing means. It also has to be said this way round: the
+   * reader is left in the pane that *stays*. Keeping whoever had focus kept the
+   * very pane being shut, because pressing anything in a pane puts the reader in
+   * it first.
    */
   const closePane = (side) => {
     const here = pairOf(activeId.value);
     if (!here) return null;
     const going = side === 'right' ? here.right : here.left;
     const staying = side === 'right' ? here.left : here.right;
-    pairs.value = pairs.value.filter((one) => one !== here);
-    if (!enabled.value) {
-      tabs.value = tabs.value.filter((tab) => tab.id !== going);
-    }
-    persist();
+    // `close` answers with the tab now in front when the one closed was the one
+    // the reader was in; otherwise nothing moved and the half that stays is
+    // already where they are.
+    return close(going) || activate(staying);
+  };
+
+  /**
+   * The same pane put back in the strip, both tabs kept.
+   *
+   * What the cross used to do, under a button of its own: the pair is undone and
+   * the half pressed goes back to being an ordinary tab, one press away. Only
+   * where there is a strip to go back to — with tabs off a tab nobody can reach
+   * is a tab that is gone, which is why the button is not offered there.
+   */
+  const detachPane = (side) => {
+    const here = pairOf(activeId.value);
+    if (!here || !enabled.value) return null;
+    const staying = side === 'right' ? here.left : here.right;
+    if (!unpair(activeId.value)) return null;
     return activate(staying);
   };
 
@@ -1020,6 +1036,7 @@ export const useTabsStore = defineStore('tabs', () => {
     openInPane,
     paneTab,
     closePane,
+    detachPane,
     swapPanes,
     duplicate,
     pin,

@@ -205,24 +205,49 @@ const over = ref('');
  * What the strip draws: one entry per lone tab, and one per pair.
  *
  * A pair is two tabs, and drawing both of them would fill the row twice as fast
- * for something the reader thinks of as one place. So the pair's left member
- * carries the entry and the right one is not drawn on its own — it is reachable
- * through the chevron, which is the only thing the entry adds.
+ * for something the reader thinks of as one place. So one of the two carries the
+ * entry and the other is not drawn on its own — it is reachable through the
+ * chevron, which is the only thing the entry adds.
+ *
+ * Whichever of them comes *first in the row* carries it, rather than whichever is
+ * on the left of the screen. Swapping the two panes over is about the screen and
+ * has nothing to say about the row, but the left-hand one used to carry the entry:
+ * swapping moved it to wherever the other tab happened to sit, and the strip
+ * reordered itself under the reader's hand for a gesture that reordered nothing.
  */
 const entries = computed(() => {
-  const inside = new Set(tabs.pairs.map((one) => one.right));
+  const at = new Map(tabs.tabs.map((tab, index) => [tab.id, index]));
+  const held = new Map();
+  const inside = new Set();
+  for (const pair of tabs.pairs) {
+    if (!at.has(pair.left) || !at.has(pair.right)) continue;
+    const first = at.get(pair.left) <= at.get(pair.right) ? pair.left : pair.right;
+    held.set(first, pair);
+    inside.add(first === pair.left ? pair.right : pair.left);
+  }
   return tabs.tabs
     .filter((tab) => !inside.has(tab.id))
     .map((tab) => {
-      const pair = tabs.pairOf(tab.id);
-      const partner = pair ? tabs.tabs.find((one) => one.id === pair.right) : null;
-      return { tab, partner: partner || null };
+      const pair = held.get(tab.id) || null;
+      const other = pair ? (pair.left === tab.id ? pair.right : pair.left) : '';
+      return { tab, partner: tabs.tabs.find((one) => one.id === other) || null };
     });
 });
 
-/** Both names when there are two, which is what the comparison tab already does. */
-const labelFor = (tab, partner) =>
-  partner ? `${titleFor(tab)} ↔ ${titleFor(partner)}` : titleFor(tab);
+/**
+ * Both names when there are two, which is what the comparison tab already does —
+ * and in the order they are on *screen* rather than the order they sit in the row,
+ * because the entry is read against what it opens. The two differ: whichever of
+ * the pair comes first in the row carries the entry, and either of them may be the
+ * one on the left.
+ */
+const labelFor = (tab, partner) => {
+  if (!partner) return titleFor(tab);
+  const pair = tabs.pairOf(tab.id);
+  return pair && pair.left === partner.id
+    ? `${titleFor(partner)} ↔ ${titleFor(tab)}`
+    : `${titleFor(tab)} ↔ ${titleFor(partner)}`;
+};
 
 /** Which pair is unfolded, so the reader can go straight into one of its halves. */
 const openedPair = ref('');

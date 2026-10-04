@@ -1082,6 +1082,7 @@
     "unfoldPair": "Afficher les deux moitiés",
     "ungroup": "Dégrouper",
     "closeSplit": "Fermer ce volet",
+    "detachPane": "Remettre ce volet en onglet",
     "resizeSplit": "Redimensionner les volets",
     "openInRightPane": "Ouvrir dans un volet à droite",
     "swapPanes": "Échanger les volets",

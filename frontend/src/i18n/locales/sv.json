@@ -1082,6 +1082,7 @@
     "unfoldPair": "Visa båda halvorna",
     "ungroup": "Dela upp",
     "closeSplit": "Stäng den här rutan",
+    "detachPane": "Lägg tillbaka den här rutan som en flik",
     "resizeSplit": "Ändra storlek på rutorna",
     "openInRightPane": "Öppna i en panel till höger",
     "swapPanes": "Byt plats på panelerna",

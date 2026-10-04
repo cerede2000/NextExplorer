@@ -1082,6 +1082,7 @@
     "unfoldPair": "Mostrar as duas metades",
     "ungroup": "Desagrupar",
     "closeSplit": "Fechar este painel",
+    "detachPane": "Voltar este painel para uma aba",
     "resizeSplit": "Redimensionar os painéis",
     "openInRightPane": "Abrir em um painel à direita",
     "swapPanes": "Trocar os painéis",

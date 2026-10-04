@@ -1082,6 +1082,7 @@
     "unfoldPair": "Show both halves",
     "ungroup": "Ungroup",
     "closeSplit": "Close this pane",
+    "detachPane": "Put this pane back in a tab",
     "resizeSplit": "Resize the panes",
     "openInRightPane": "Open in a pane on the right",
     "swapPanes": "Swap the panes",

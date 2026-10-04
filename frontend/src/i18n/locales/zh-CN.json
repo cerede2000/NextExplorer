@@ -1082,6 +1082,7 @@
     "unfoldPair": "显示两个半边",
     "ungroup": "取消分组",
     "closeSplit": "关闭此窗格",
+    "detachPane": "将此窗格放回标签页",
     "resizeSplit": "调整窗格大小",
     "openInRightPane": "在右侧窗格中打开",
     "swapPanes": "交换窗格",
