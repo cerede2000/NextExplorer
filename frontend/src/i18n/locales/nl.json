@@ -572,6 +572,18 @@
     "userPreferences": {
       "title": "Gebruikersvoorkeuren",
       "subtitle": "Uw persoonlijke instellingen en voorkeuren aanpassen.",
+      "sections": {
+        "display": "Weergave",
+        "documents": "Documenten",
+        "tabs": "Tabbladen",
+        "sidebar": "Zijbalk",
+        "start": "Bij het openen",
+        "transfers": "Downloads en shares",
+        "quickActions": "Snelle acties"
+      },
+      "jumpTo": "Naar een thema",
+      "filter": "Voorkeuren filteren",
+      "noMatch": "Geen voorkeur komt overeen met ‘{text}’.",
       "showHiddenFiles": "Verborgen bestanden weergeven",
       "showHiddenFilesHelp": "Toon bestanden en mappen die overeenkomen met de geconfigureerde verborgen patronen ({patterns}) in de bestandsbrowser.",
       "showThumbnails": "Miniaturen weergeven",

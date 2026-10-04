@@ -572,6 +572,18 @@
     "userPreferences": {
       "title": "使用者偏好設定",
       "subtitle": "自訂你的個人設定。",
+      "sections": {
+        "display": "顯示",
+        "documents": "文件",
+        "tabs": "分頁",
+        "sidebar": "側邊欄",
+        "start": "開啟時",
+        "transfers": "下載與分享",
+        "quickActions": "快速動作"
+      },
+      "jumpTo": "跳至主題",
+      "filter": "篩選偏好設定",
+      "noMatch": "沒有偏好設定符合「{text}」。",
       "showHiddenFiles": "顯示隱藏檔案",
       "showHiddenFilesHelp": "在檔案瀏覽器中顯示符合已設定隱藏模式（{patterns}）的檔案和資料夾。",
       "showThumbnails": "顯示縮圖",

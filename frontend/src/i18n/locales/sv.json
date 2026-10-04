@@ -572,6 +572,18 @@
     "userPreferences": {
       "title": "Användarpreferenser",
       "subtitle": "Anpassa dina personliga inställningar.",
+      "sections": {
+        "display": "Visning",
+        "documents": "Dokument",
+        "tabs": "Flikar",
+        "sidebar": "Sidofält",
+        "start": "När du kommer",
+        "transfers": "Nedladdningar och delningar",
+        "quickActions": "Snabbåtgärder"
+      },
+      "jumpTo": "Gå till ett tema",
+      "filter": "Filtrera inställningar",
+      "noMatch": "Ingen inställning matchar ”{text}”.",
       "showHiddenFiles": "Visa dolda filer",
       "showHiddenFilesHelp": "Visar filer och mappar som matchar de konfigurerade dolda mönstren ({patterns}) i Utforskaren.",
       "showThumbnails": "Visa miniatyrbilder",

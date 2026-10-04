@@ -1643,6 +1643,13 @@
       "verdict": "PORT",
       "batch": "sign-in-says-what-happened",
       "note": "the sign-in screen stops acting on what it does not know — the batch after the panes. `utils/providerHandoff.js` is the two marks a trip to an identity provider leaves in the tab it was started from, each consumed the first time it is read: the sign-out mark was removed only by the single sign-on button, so anybody who signed out and then signed in some other way left it behind for the rest of the tab's life and the next session to run out there stopped at a button instead of going to the provider. The hand-off mark is new and is what closes the circle — the provider signs somebody in, this installation ends up with no session for them anyway, and the screen handed them back to the provider, which signed them in again. The store says when the status could not be read at all, because before the server has answered the strategies describe a password sign-in and one unanswered request drew a password form on an installation that has none; and it reads `authenticated` beside `user`, which is how an identity the provider vouches for and this server has no account for can be said in those words. `stores/features.js` releases the promise of a load that failed, which was the only one a page would ever make. `index.html` says, after twelve seconds, that the application never arrived — a file turned away by whatever stands in front of this server is indistinguishable from a page that is merely slow, and the logo spun either way."
+    },
+    {
+      "axis": "*",
+      "match": "^frontend/src/views/settings/(SettingsUserPreferences\\.vue|components/(PreferenceRow|SettingsSection)\\.vue)(:|$)",
+      "verdict": "PORT",
+      "batch": "preferences-by-theme",
+      "note": "the preferences, grouped by theme with a way straight to one — the batch after the sign-in screen. Twenty preferences in one unbroken column asked anybody looking for one of them to read all twenty; they are under seven headings now, with the list of the headings beside them, an address that carries the chosen one, and a field that narrows the twenty to whatever somebody has in mind. `components/PreferenceRow.vue` and `components/SettingsSection.vue` are what the screen was written out by hand as, eleven lines of markup per preference, twenty times over; a section hands its own element to the index rather than being looked up by id, because this application can draw the same screen in two panes at once. The screen itself also stopped keeping four copies of what it sends — filling the form, deciding whether anything changed, putting it back, saving — of which the fourth, discarding, was three preferences short: discarding a change to any of those three discarded nothing, and the next save wrote it."
     }
   ],
   "residue": [
@@ -1903,6 +1910,10 @@
     {
       "match": "^auth\\.login\\.askAgain$",
       "note": "the one thing worth pressing on a sign-in screen that could not ask the server how anybody signs in here. It used to draw a password form instead, built on the defaults the store falls back to before the server has answered — part of the same batch as the marks a trip to the provider leaves"
+    },
+    {
+      "match": "^settings\\.userPreferences\\.(filter|jumpTo|sections\\.[a-zA-Z]+)$",
+      "note": "the index of themes beside the preferences and the field that narrows them down — part of the same batch. Twenty preferences in one column asked anybody looking for one of them to read all twenty"
     }
   ],
   "literals": [

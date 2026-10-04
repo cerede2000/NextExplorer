@@ -572,6 +572,18 @@
     "userPreferences": {
       "title": "Preferencje użytkownika",
       "subtitle": "Dostosuj swoje osobiste ustawienia.",
+      "sections": {
+        "display": "Wyświetlanie",
+        "documents": "Dokumenty",
+        "tabs": "Karty",
+        "sidebar": "Panel boczny",
+        "start": "Przy otwarciu",
+        "transfers": "Pobierania i udostępnienia",
+        "quickActions": "Szybkie działania"
+      },
+      "jumpTo": "Przejdź do tematu",
+      "filter": "Filtruj preferencje",
+      "noMatch": "Żadna preferencja nie odpowiada „{text}”.",
       "showHiddenFiles": "Pokaż ukryte pliki",
       "showHiddenFilesHelp": "Pokazuje pliki i foldery pasujące do skonfigurowanych ukrytych wzorców ({patterns}) w eksploratorze.",
       "showThumbnails": "Pokaż miniatury",

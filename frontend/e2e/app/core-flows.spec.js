@@ -3943,6 +3943,7 @@ test('nothing is hidden on a phone either', async () => {
       ['the search results', '/search?q=many', 'text=/many-\\d{3}\\.txt/'],
       ['the accounts in the settings', '/settings/admin-users', 'text=admin@example.com'],
       ['the API tokens in the settings', '/settings/account-api-tokens', 'text=New token'],
+      ['the preferences in the settings', '/settings/user-preferences', 'text=Show thumbnails'],
     ];
     for (const [what, route, marker] of screens) {
       await page.goto(route);
@@ -3956,6 +3957,38 @@ test('nothing is hidden on a phone either', async () => {
         `${what} (${route}) hides content on a phone: ${JSON.stringify(found, null, 2)}`
       ).toEqual([]);
     }
+
+    /**
+     * And every switch in the preferences is on the screen.
+     *
+     * The sweep above cannot see this one: it looks for content below the
+     * bottom of its box, and a switch pushed off the right-hand edge is level
+     * with the label beside it. Neither can anything that measures a container
+     * — nothing between the switch and the window reported a width to scroll,
+     * so by every reading the page fitted. The switches were nine hundred
+     * pixels out all the same, and nothing about the screen looked broken: all
+     * the labels were there.
+     *
+     * The preferences now carry an index of seven themes, which is a row nine
+     * hundred pixels wide before it is told to scroll inside itself, and a grid
+     * with no column declared is sized by what is in it.
+     */
+    await page.goto('/settings/user-preferences');
+    await expect(page.locator('[data-test="preferences-filter"]')).toBeVisible();
+    const offScreen = await page.evaluate(() => {
+      const room = document.documentElement.clientWidth;
+      return [...document.querySelectorAll('[role="switch"]')]
+        .map((el) => ({
+          preference: el.dataset.test || el.className,
+          right: Math.round(el.getBoundingClientRect().right),
+          room,
+        }))
+        .filter((one) => one.right > one.room + 1);
+    });
+    expect(
+      offScreen,
+      `the preferences keep switches off the screen on a phone: ${JSON.stringify(offScreen, null, 2)}`
+    ).toEqual([]);
   } finally {
     await page.setViewportSize({ width: 1280, height: 720 });
   }

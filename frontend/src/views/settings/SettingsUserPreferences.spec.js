@@ -23,6 +23,16 @@ vi.mock('@/stores/quickActions', () => ({ useQuickActionsStore: () => quickActio
 const translate = (key, params) =>
   params && typeof params === 'object' ? `${key} ${JSON.stringify(params)}` : key;
 vi.mock('vue-i18n', () => ({ useI18n: () => ({ t: translate }) }));
+// The address is where the chosen theme is written, and where a link to one
+// arrives.
+const routing = { hash: '' };
+const replace = vi.fn((to) => {
+  routing.hash = to.hash;
+});
+vi.mock('vue-router', () => ({
+  useRoute: () => routing,
+  useRouter: () => ({ replace }),
+}));
 // A fixed set, so the list on the page does not change with the translations
 // that happen to be shipped.
 vi.mock('@/i18n', () => ({
@@ -68,24 +78,30 @@ const DEFAULTS = {
   markdownOpensInEditor: false,
 };
 
-const SWITCHES = [
-  'showHiddenFiles',
-  'showThumbnails',
-  'markdownOpensInEditor',
-  'documentsOpenInNewTab',
-  'browseInTabs',
-  'closeTabsOnDoubleClick',
-  'reopenTabs',
-  'preloadBackgroundTabs',
-  'showVersionMarks',
-  'showSidebarFavorites',
-  'showSidebarShares',
-  'showSidebarTools',
-  // Between the sidebar rows and the quick actions, which is where the screen
-  // puts it: this list is read by position.
-  'foldersFirst',
-  'quickActions',
-];
+/**
+ * Each switch, by the name the page tags it with.
+ *
+ * It used to be a list read by *position* — the nth switch on the screen —
+ * which is a selector that silently points at a different preference the moment
+ * anything is grouped, moved or hidden. The names are the page's own, and the
+ * browser journey reaches them the same way.
+ */
+const SWITCHES = {
+  showHiddenFiles: 'show-hidden-files',
+  showThumbnails: 'show-thumbnails',
+  markdownOpensInEditor: 'markdown-opens-in-editor',
+  documentsOpenInNewTab: 'documents-in-new-tab',
+  browseInTabs: 'browse-in-tabs',
+  closeTabsOnDoubleClick: 'close-tabs-on-double-click',
+  reopenTabs: 'reopen-tabs',
+  preloadBackgroundTabs: 'preload-background-tabs',
+  showVersionMarks: 'show-version-marks',
+  showSidebarFavorites: 'show-sidebar-favorites',
+  showSidebarShares: 'show-sidebar-shares',
+  showSidebarTools: 'show-sidebar-tools',
+  foldersFirst: 'folders-first',
+  quickActions: 'quick-actions',
+};
 
 let wrapper;
 
@@ -114,7 +130,16 @@ const open = async (user = STORED) => {
   return wrapper;
 };
 
-const toggle = (name) => wrapper.findAll('[role="switch"]')[SWITCHES.indexOf(name)];
+const jumpTo = (name) => wrapper.get(`[data-test="preferences-jump-${name}"]`);
+const rowLabels = () => wrapper.findAll('section .font-medium').map((row) => row.text());
+const sectionTitles = () => wrapper.findAll('section h3').map((title) => title.text());
+const indexTitles = () =>
+  wrapper.findAll('[data-test^="preferences-jump-"]').map((entry) => entry.text());
+const typeInFilter = async (text) => {
+  await wrapper.get('[data-test="preferences-filter"]').setValue(text);
+};
+
+const toggle = (name) => wrapper.get(`[data-test="${SWITCHES[name]}"]`);
 const expiryField = () => wrapper.get('input[type="number"]');
 const select = (name) => wrapper.get(`[data-test="preferences-${name}"]`);
 const unitSelect = () => select('expiry-unit');
@@ -138,6 +163,8 @@ const save = async () => {
 
 afterEach(() => {
   wrapper?.unmount();
+  routing.hash = '';
+  replace.mockClear();
 });
 
 describe('the preferences', () => {
@@ -359,4 +386,157 @@ describe('the quick-actions menu', () => {
     expect(button('common.save')).toBeUndefined();
     expect(appSettings.save).not.toHaveBeenCalled();
   });
+});
+
+/**
+ * Twenty preferences in one unbroken column asked anybody looking for one of
+ * them to read all twenty. They are grouped by theme now, with a list of the
+ * themes beside them.
+ */
+describe('finding one preference among twenty', () => {
+  it('draws every theme, in the order the index lists them', async () => {
+    await open();
+
+    expect(sectionTitles()).toEqual([
+      'settings.userPreferences.sections.display',
+      'settings.userPreferences.sections.documents',
+      'settings.userPreferences.sections.tabs',
+      'settings.userPreferences.sections.sidebar',
+      'settings.userPreferences.sections.start',
+      'settings.userPreferences.sections.transfers',
+      'settings.userPreferences.sections.quickActions',
+    ]);
+    // Read as well as listed: an index in one order over sections in another
+    // is a list that sends people to the wrong place and reads as if it did
+    // not.
+    expect(indexTitles()).toEqual(sectionTitles());
+  });
+
+  /** A theme the filter has hidden is not somewhere to be sent. */
+  it('goes nowhere for a theme that is not on screen', async () => {
+    await open();
+    await typeInFilter('thumbnail');
+
+    await jumpTo('tabs').trigger('click');
+
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  /** And says so, rather than leaving a row of entries that do nothing. */
+  it('puts out the themes the filter has emptied', async () => {
+    await open();
+
+    await typeInFilter('thumbnail');
+
+    expect(jumpTo('tabs').attributes('disabled')).toBeDefined();
+    expect(jumpTo('display').attributes('disabled')).toBeUndefined();
+  });
+
+  /** Nor does it go on pointing at a theme that is no longer there. */
+  it('drops the mark on a chosen theme the filter has emptied', async () => {
+    await open();
+    await jumpTo('tabs').trigger('click');
+
+    await typeInFilter('thumbnail');
+
+    expect(wrapper.findAll('[aria-current="true"]')).toHaveLength(0);
+  });
+
+  /** So the page somebody is looking at is the page they can send. */
+  it('writes the chosen theme into the address', async () => {
+    await open();
+
+    await jumpTo('tabs').trigger('click');
+
+    expect(replace).toHaveBeenCalledWith({ hash: '#tabs' });
+    expect(jumpTo('tabs').attributes('aria-current')).toBe('true');
+  });
+
+  it('opens on the theme an address names', async () => {
+    routing.hash = '#transfers';
+
+    await open();
+
+    expect(jumpTo('transfers').attributes('aria-current')).toBe('true');
+    // Arriving somewhere is not choosing it again: the address already says so.
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('ignores a theme nothing on this page is called', async () => {
+    routing.hash = '#whatever-this-is';
+
+    await open();
+
+    expect(wrapper.findAll('[aria-current="true"]')).toHaveLength(0);
+    expect(sectionTitles()).toHaveLength(7);
+  });
+
+  it('narrows to the preferences whose words match', async () => {
+    await open();
+
+    await typeInFilter('thumbnail');
+
+    expect(sectionTitles()).toEqual(['settings.userPreferences.sections.display']);
+    expect(rowLabels()).toEqual(['settings.userPreferences.showThumbnails']);
+  });
+
+  /**
+   * Matched against what a row shows, in the reader's own language, and folded
+   * the way the folder's own typeahead folds a key — which is where stripping
+   * the accents is proven, so that a French reader looking for
+   * "telechargement" finds "téléchargement". Here what is proven is that this
+   * screen folds at all: a reader typing in capitals is not told there is no
+   * such preference.
+   */
+  it('matches however it was typed', async () => {
+    await open();
+
+    await typeInFilter('THUMBNAIL');
+
+    expect(rowLabels()).toEqual(['settings.userPreferences.showThumbnails']);
+  });
+
+  it('says so when nothing matches, rather than drawing an empty page', async () => {
+    await open();
+
+    await typeInFilter('xylophone');
+
+    expect(sectionTitles()).toEqual([]);
+    expect(wrapper.get('[data-test="preferences-no-match"]').text()).toContain('xylophone');
+  });
+
+  it('gives everything back when the filter is emptied', async () => {
+    await open();
+    await typeInFilter('thumbnail');
+
+    await typeInFilter('');
+
+    expect(sectionTitles()).toHaveLength(7);
+  });
+});
+
+/**
+ * Discarding has to put back *every* preference.
+ *
+ * It was written out by hand beside the three other places that read the same
+ * list, and it was three preferences short — so discarding a change to any of
+ * those three discarded nothing: the switch stayed where it had been put, the
+ * bar kept saying there was something to save, and the next save wrote it.
+ */
+describe('discarding', () => {
+  it.each([['reopenTabs'], ['preloadBackgroundTabs'], ['closeTabsOnDoubleClick']])(
+    'puts %s back the way it was stored',
+    async (name) => {
+      await open();
+      const before = toggle(name).attributes('aria-checked');
+
+      await toggle(name).trigger('click');
+      expect(toggle(name).attributes('aria-checked')).not.toBe(before);
+      await button('common.discard').trigger('click');
+
+      expect(toggle(name).attributes('aria-checked')).toBe(before);
+      expect(button('common.save')).toBeUndefined();
+      expect(appSettings.save).not.toHaveBeenCalled();
+    }
+  );
 });

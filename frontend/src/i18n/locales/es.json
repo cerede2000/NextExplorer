@@ -572,6 +572,18 @@
     "userPreferences": {
       "title": "Preferencias de usuario",
       "subtitle": "Personaliza tus ajustes personales.",
+      "sections": {
+        "display": "Visualización",
+        "documents": "Documentos",
+        "tabs": "Pestañas",
+        "sidebar": "Barra lateral",
+        "start": "Al abrir",
+        "transfers": "Descargas y recursos compartidos",
+        "quickActions": "Acciones rápidas"
+      },
+      "jumpTo": "Ir a un tema",
+      "filter": "Filtrar preferencias",
+      "noMatch": "Ninguna preferencia coincide con «{text}».",
       "showHiddenFiles": "Mostrar archivos ocultos",
       "showHiddenFilesHelp": "Muestra archivos y carpetas que coinciden con los patrones ocultos configurados ({patterns}) en el explorador.",
       "showThumbnails": "Mostrar miniaturas",

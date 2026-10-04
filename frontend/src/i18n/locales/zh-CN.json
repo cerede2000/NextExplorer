@@ -572,6 +572,18 @@
     "userPreferences": {
       "title": "用户偏好",
       "subtitle": "自定义你的个人设置。",
+      "sections": {
+        "display": "显示",
+        "documents": "文档",
+        "tabs": "标签页",
+        "sidebar": "侧边栏",
+        "start": "打开时",
+        "transfers": "下载与分享",
+        "quickActions": "快捷操作"
+      },
+      "jumpTo": "跳转到主题",
+      "filter": "筛选偏好设置",
+      "noMatch": "没有偏好设置匹配“{text}”。",
       "showHiddenFiles": "显示隐藏文件",
       "showHiddenFilesHelp": "在文件浏览器中显示匹配已配置隐藏模式（{patterns}）的文件和文件夹。",
       "showThumbnails": "显示缩略图",

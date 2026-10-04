@@ -572,6 +572,18 @@
     "userPreferences": {
       "title": "Benutzereinstellungen",
       "subtitle": "Passen Sie Ihre persönlichen Einstellungen an.",
+      "sections": {
+        "display": "Anzeige",
+        "documents": "Dokumente",
+        "tabs": "Tabs",
+        "sidebar": "Seitenleiste",
+        "start": "Beim Öffnen",
+        "transfers": "Downloads und Freigaben",
+        "quickActions": "Schnellaktionen"
+      },
+      "jumpTo": "Zu einem Thema",
+      "filter": "Einstellungen filtern",
+      "noMatch": "Keine Einstellung passt zu „{text}“.",
       "showHiddenFiles": "Versteckte Dateien anzeigen",
       "showHiddenFilesHelp": "Zeigt Dateien und Ordner an, die den konfigurierten versteckten Mustern ({patterns}) entsprechen.",
       "showThumbnails": "Vorschaubilder anzeigen",

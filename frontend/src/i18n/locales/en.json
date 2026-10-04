@@ -572,6 +572,18 @@
     "userPreferences": {
       "title": "User Preferences",
       "subtitle": "Customize your personal settings and preferences.",
+      "sections": {
+        "display": "Display",
+        "documents": "Documents",
+        "tabs": "Tabs",
+        "sidebar": "Sidebar",
+        "start": "When you arrive",
+        "transfers": "Downloads and shares",
+        "quickActions": "Quick actions"
+      },
+      "jumpTo": "Go to a theme",
+      "filter": "Filter preferences",
+      "noMatch": "No preference matches “{text}”.",
       "showHiddenFiles": "Show hidden files",
       "showHiddenFilesHelp": "Display files and folders matching the configured hidden patterns ({patterns}) in the file browser.",
       "showThumbnails": "Show thumbnails",

@@ -572,6 +572,18 @@
     "userPreferences": {
       "title": "Preferințe utilizator",
       "subtitle": "Personalizează setările personale.",
+      "sections": {
+        "display": "Afișare",
+        "documents": "Documente",
+        "tabs": "Taburi",
+        "sidebar": "Bara laterală",
+        "start": "La deschidere",
+        "transfers": "Descărcări și partajări",
+        "quickActions": "Acțiuni rapide"
+      },
+      "jumpTo": "Mergi la o temă",
+      "filter": "Filtrează preferințele",
+      "noMatch": "Nicio preferință nu corespunde cu „{text}”.",
       "showHiddenFiles": "Afișează fișierele ascunse",
       "showHiddenFilesHelp": "Afișează fișierele și folderele care corespund modelelor ascunse configurate ({patterns}) în navigator.",
       "showThumbnails": "Afișează miniaturi",
