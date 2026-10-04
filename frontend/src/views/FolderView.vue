@@ -1461,6 +1461,15 @@ onBeforeUnmount(() => {
             :style="{ height: `${virtualTopSpacerHeight}px` }"
           ></div>
 
+          <!--
+            The marks below — the row a reader is on, and the folder a drag is
+            over — are drawn *inside* the row, never around it. They were rings
+            with an offset, three pixels outside the row's own box, and the list
+            begins exactly where the toolbar above it ends: that toolbar is
+            sticky and paints over whatever passes under it, so the mark on the
+            first row came out open along the top. Inside, nothing can cover it,
+            and nothing had to move down to make room for it.
+          -->
           <FileObject
             v-for="item in visibleItems"
             :key="(item.path || '') + '::' + item.name"
@@ -1470,12 +1479,12 @@ onBeforeUnmount(() => {
             :class="[
               'relative',
               getItemKey(item) === keyboardActiveItemKey
-                ? 'z-10 ring-2 ring-blue-500 dark:ring-blue-400 ring-offset-1 dark:ring-offset-zinc-800 rounded-lg'
+                ? 'z-10 ring-2 ring-inset ring-blue-500 dark:ring-blue-400 rounded-lg'
                 : '',
               item.kind === 'directory' && isDragTarget(item)
                 ? isCopyDragTarget(item)
-                  ? 'z-10 ring-2 ring-emerald-500 dark:ring-emerald-400 ring-offset-2 dark:ring-offset-zinc-800 rounded-lg'
-                  : 'z-10 ring-2 ring-blue-500 dark:ring-blue-400 ring-offset-2 dark:ring-offset-zinc-800 rounded-lg'
+                  ? 'z-10 ring-2 ring-inset ring-emerald-500 dark:ring-emerald-400 rounded-lg'
+                  : 'z-10 ring-2 ring-inset ring-blue-500 dark:ring-blue-400 rounded-lg'
                 : '',
             ]"
             @dragover="(e) => item.kind === 'directory' && handleDragOver(e, item)"

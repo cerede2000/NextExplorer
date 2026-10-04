@@ -22,6 +22,7 @@ import { useSettingsStore } from '@/stores/settings';
 import { useAuthStore } from '@/stores/auth';
 import { useFileStore } from '@/stores/fileStore';
 import { useRoute, useRouter } from 'vue-router';
+import { shareTokenOf } from '@/router/shareToken';
 import { ArrowDownTrayIcon, ArrowPathIcon, HomeIcon } from '@heroicons/vue/24/outline';
 import { useInputMode } from '@/composables/useInputMode';
 import InlineQuickActions from '@/components/InlineQuickActions.vue';
@@ -34,8 +35,19 @@ const router = useRouter();
 const { isTouchDevice } = useInputMode();
 const actions = useFileActions();
 
-// Check if we're at the volumes home view (no path selected)
+/**
+ * Whether this is the list of volumes, which is a page about nothing in
+ * particular: there is no folder to make something in, to sort, or to show one
+ * way rather than another, so everything this toolbar offers is left out.
+ *
+ * A share's root is not that. Its address carries the share in a parameter of
+ * its own, so the path beside it is empty at the top of the share — and the
+ * whole toolbar went with it: the New button, uploading, the sort, the view
+ * switcher, refreshing. A visitor who could write in a share had nothing to
+ * write with until they walked into a subfolder.
+ */
 const isVolumesView = computed(() => {
+  if (shareTokenOf(route)) return false;
   const p = route.params.path;
   const s = Array.isArray(p) ? p.join('/') : p || '';
   return !s || s.trim() === '';

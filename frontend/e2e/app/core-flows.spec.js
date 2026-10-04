@@ -4679,6 +4679,63 @@ test('a share lets nobody in without a reason, whatever address they walk at', a
 });
 
 /**
+ * The mark on the row a reader is on, where the list begins.
+ *
+ * It was a ring drawn *outside* the row's box — three pixels of it — and the list
+ * begins exactly where the toolbar above it ends. That toolbar is sticky and paints
+ * over whatever passes under it, and in the detail view so does the row of column
+ * headings, so the top of the mark on the first row was painted over: a rectangle
+ * open along the top, in every view and in a share as much as anywhere.
+ *
+ * It is drawn inside the row now, which is the one place nothing can cover it. And
+ * nothing had to move to make room, which is the other half of this: the first row
+ * still begins where the list does.
+ */
+test('the mark on the first row cannot be painted over by what sits above', async () => {
+  await page.goto('/browse/Projects');
+  const wasOn = await page.evaluate(
+    () => document.querySelector('[data-test="listing"]')?.dataset?.view
+  );
+
+  try {
+    for (const view of ['Grid view', 'Column view', 'List view']) {
+      await page.getByRole('button', { name: view }).click();
+      const first = page.locator('[data-keyboard-item-key]').first();
+      await expect(first).toBeVisible();
+      await first.click();
+
+      const drawn = await page.evaluate(() => {
+        const listing = document.querySelector('[data-test="listing"]');
+        const item = document.querySelector('[data-keyboard-item-key]');
+        const heading = listing.querySelector('.sticky');
+        const above = heading
+          ? heading.getBoundingClientRect().bottom
+          : listing.closest('.overflow-auto').getBoundingClientRect().top;
+        return {
+          mark: getComputedStyle(item).boxShadow,
+          room: item.getBoundingClientRect().top - above,
+        };
+      });
+
+      // Drawn within the row rather than around it, which is what keeps it out
+      // from under the toolbar — and the row did not move down to make room.
+      expect(drawn.mark, `${view}: nothing marks the row`).not.toBe('none');
+      expect(drawn.mark, `${view}: the mark is drawn outside the row`).toContain('inset');
+      expect(drawn.room, `${view}: the first row was moved down to make room`).toBeLessThan(3);
+    }
+  } finally {
+    // These journeys share one page, and a view left switched is the next test's.
+    const back = {
+      grid: 'Grid view',
+      tab: 'Column view',
+      list: 'List view',
+      photos: 'Photos view',
+    };
+    if (back[wasOn]) await page.getByRole('button', { name: back[wasOn] }).click();
+  }
+});
+
+/**
  * Folders ahead of files, or one list — the reader's own choice (nxzai#495).
  *
  * Bucketing folders first is what a listing program has always done, and it is
@@ -5018,6 +5075,20 @@ test('a visitor files a copy inside a share, and the picker never leaves it', as
 
     await visitor.goto(link);
     await expect(visitor.locator('[title="note.txt"]').first()).toBeVisible();
+
+    /**
+     * And the toolbar is there at the top of the share, where everything it
+     * offers about a folder had gone missing.
+     *
+     * A share's address carries its token in a parameter of its own, so the path
+     * beside it is empty at the top of the share — which the toolbar read as the
+     * list of volumes, a page about no folder at all. Nothing to make something
+     * with, nothing to upload with, no sort and no view switcher, until the
+     * visitor walked into a subfolder.
+     */
+    await expect(visitor.getByRole('button', { name: 'New' })).toBeVisible();
+    await expect(visitor.getByRole('button', { name: 'Grid view' })).toBeVisible();
+    await expect(visitor.getByRole('button', { name: 'Sort options' })).toBeVisible();
 
     await visitor.locator('[title="note.txt"]').first().click({ button: 'right' });
     await visitor.getByText('Copy to', { exact: true }).first().click();
