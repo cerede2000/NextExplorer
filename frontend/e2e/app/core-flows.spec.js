@@ -4816,7 +4816,9 @@ test('a visitor reaches all of a share from behind a front door', async ({ brows
         'in the archive'
       );
     }
-    await visitor.keyboard.press('Escape');
+    // By the dialog's own control rather than a key: reading an entry puts the
+    // focus inside the reader, and this walk is about where the bytes come from.
+    await visitor.getByRole('dialog').getByRole('button', { name: 'Close' }).first().click();
     await expect(visitor.locator('[data-testid="archive-preview"]')).toHaveCount(0);
 
     // A markdown file, which is read rather than edited.
