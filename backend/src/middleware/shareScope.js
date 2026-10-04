@@ -1,6 +1,7 @@
 const asyncHandler = require('../utils/asyncHandler');
 const { ForbiddenError, NotFoundError, UnauthorizedError } = require('../errors/AppError');
 const { getShareByToken, isShareExpired } = require('../services/sharesService');
+const { isConfiguredIntegrationCallback } = require('./integrationCallbacks');
 
 /**
  * The door in front of `/api/share/<token>/…`, where a visitor's whole visit now
@@ -23,6 +24,21 @@ const { getShareByToken, isShareExpired } = require('../services/sharesService')
  * is reachable through `/api/share/<token>/…` that the same caller could not
  * already reach at the handler's own address.
  */
+/**
+ * The two addresses an editing server is given, which nobody is signed in to.
+ *
+ * ONLYOFFICE fetches the document and reports back to it; Collabora fetches and
+ * saves through WOPI. Both do it from wherever they run, through the front door
+ * the reader came in by — which is why the document is handed to them under the
+ * share's prefix at all. Neither carries a session, and neither needs one: the
+ * address contains a token this server signed and the route verifies, which is
+ * what authorises them at their unprefixed addresses today. The middleware in
+ * front of this answers them before anybody is asked to identify themselves; this
+ * says the same thing here, so the two cannot disagree.
+ */
+const forTheEditingServer = (req) =>
+  isConfiguredIntegrationCallback(String(req.originalUrl || '').split('?')[0]);
+
 const requireShareScope = asyncHandler(async (req, _res, next) => {
   const token = req.params.shareToken;
   const share = token ? await getShareByToken(token) : null;
@@ -30,10 +46,10 @@ const requireShareScope = asyncHandler(async (req, _res, next) => {
   if (!share) throw new NotFoundError('Share not found');
   if (isShareExpired(share)) throw new ForbiddenError('Share has expired');
 
-  // Never anonymous. The endpoints behind this prefix are the application's own,
-  // and the door of a share — what it is, its password, the session typing it
-  // earns — is elsewhere.
-  if (!req.user && !req.guestSession) {
+  // Never anonymous, with one exception named below. The endpoints behind this
+  // prefix are the application's own, and the door of a share — what it is, its
+  // password, the session typing it earns — is elsewhere.
+  if (!req.user && !req.guestSession && !forTheEditingServer(req)) {
     throw new UnauthorizedError('Share access required');
   }
 

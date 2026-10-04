@@ -4,6 +4,7 @@ const { ForbiddenError, UnauthorizedError } = require('../errors/AppError');
 const logger = require('../utils/logger');
 const { applyApiToken } = require('./apiTokenAuth');
 const apiTokens = require('../services/apiTokens');
+const { isConfiguredIntegrationCallback } = require('./integrationCallbacks');
 
 /**
  * Whoever a request arrives as, when authentication is switched off.
@@ -67,28 +68,6 @@ const isPublicShareRoute = (requestPath) => {
  * Open only while the integration is configured — otherwise they are
  * unauthenticated endpoints for no reason.
  */
-const isConfiguredIntegrationCallback = (requestPath) => {
-  try {
-    const { onlyoffice, collabora } = require('../config/index');
-
-    if (
-      onlyoffice?.serverUrl &&
-      (requestPath.startsWith('/api/onlyoffice/file') ||
-        requestPath.startsWith('/api/onlyoffice/callback'))
-    ) {
-      return true;
-    }
-
-    if (collabora?.url && collabora?.secret && requestPath.startsWith('/api/collabora/wopi/')) {
-      return true;
-    }
-  } catch (_) {
-    /* an integration that cannot be read about is an integration that is off */
-  }
-
-  return false;
-};
-
 /** What is answered before anyone is asked to identify themselves. */
 const needsNoIdentity = (req, requestPath) => {
   if (!requestPath.startsWith('/api')) return true;

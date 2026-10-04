@@ -4660,13 +4660,63 @@ test('folders can be mixed into the listing instead of bucketed ahead of it', as
  * The hole is the three prefixes the application claims are enough: the share's
  * pages, the share's API, and the build's own files.
  */
+/**
+ * A zip holding one file, stored rather than deflated.
+ *
+ * Written by hand so a journey can put a real archive on the disk without
+ * running anything: the reader opens what the server can list, and a fixture
+ * that is not a zip proves nothing about either.
+ */
+const storedZip = (name, content) => {
+  const data = Buffer.from(content);
+  const nameBytes = Buffer.from(name);
+  const crcTable = [...Array(256)].map((_, n) => {
+    let c = n;
+    for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    return c >>> 0;
+  });
+  let crc = 0xffffffff;
+  for (const byte of data) crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  crc = (crc ^ 0xffffffff) >>> 0;
+
+  const local = Buffer.alloc(30);
+  local.writeUInt32LE(0x04034b50, 0);
+  local.writeUInt16LE(20, 4);
+  local.writeUInt32LE(crc, 14);
+  local.writeUInt32LE(data.length, 18);
+  local.writeUInt32LE(data.length, 22);
+  local.writeUInt16LE(nameBytes.length, 26);
+
+  const central = Buffer.alloc(46);
+  central.writeUInt32LE(0x02014b50, 0);
+  central.writeUInt16LE(20, 4);
+  central.writeUInt16LE(20, 6);
+  central.writeUInt32LE(crc, 16);
+  central.writeUInt32LE(data.length, 20);
+  central.writeUInt32LE(data.length, 24);
+  central.writeUInt16LE(nameBytes.length, 28);
+
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(1, 8);
+  end.writeUInt16LE(1, 10);
+  end.writeUInt32LE(central.length + nameBytes.length, 12);
+  end.writeUInt32LE(local.length + nameBytes.length + data.length, 16);
+
+  return Buffer.concat([local, nameBytes, data, central, nameBytes, end]);
+};
+
 test('a visitor reaches all of a share from behind a front door', async ({ browser }) => {
   test.slow();
 
   const dir = path.join(volume, 'Doorway');
   fs.mkdirSync(path.join(dir, 'Inner'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'notes.txt'), 'behind the door\n');
+  fs.writeFileSync(path.join(dir, 'readme.md'), '# Behind the door\n\nread me\n');
   fs.writeFileSync(path.join(dir, 'Inner', 'deep.txt'), 'deeper still\n');
+  // A real zip, so the archive reader opens it rather than offering a download:
+  // one stored (uncompressed) entry, written by hand so nothing has to be run.
+  fs.writeFileSync(path.join(dir, 'bundle.zip'), storedZip('inside.txt', 'in the archive\n'));
   fs.writeFileSync(
     path.join(dir, 'picture.png'),
     Buffer.from(
@@ -4744,6 +4794,37 @@ test('a visitor reaches all of a share from behind a front door', async ({ brows
     await visitor.keyboard.press('Escape');
     await expect(viewer).toHaveCount(0);
 
+    /**
+     * What is inside an archive, without unpacking it.
+     *
+     * Reading one needs 7-Zip on the server, which a developer's machine may not
+     * have — so what is always asked of this walk is the address, which is what
+     * this journey is about. Where the server can read archives, the entry itself
+     * is read too.
+     */
+    const [listed] = await Promise.all([
+      visitor.waitForResponse((response) => response.url().includes('/archive/list')),
+      visitor.locator('[title="bundle.zip"]').first().dblclick(),
+    ]);
+    await expect(visitor.locator('[data-testid="archive-preview"]')).toBeVisible();
+    expect(new URL(listed.url()).pathname).toBe(`/api/share/${token}/archive/list`);
+
+    const archiveReadable = listed.status() === 200;
+    if (archiveReadable) {
+      await visitor.getByText('inside.txt').first().click();
+      await expect(visitor.locator('[data-testid="archive-reader-text"]')).toContainText(
+        'in the archive'
+      );
+    }
+    await visitor.keyboard.press('Escape');
+    await expect(visitor.locator('[data-testid="archive-preview"]')).toHaveCount(0);
+
+    // A markdown file, which is read rather than edited.
+    await visitor.locator('[title="readme.md"]').first().dblclick();
+    await expect(visitor.getByRole('heading', { name: 'Behind the door' })).toBeVisible();
+    await visitor.keyboard.press('Escape');
+    await expect(visitor.getByRole('heading', { name: 'Behind the door' })).toHaveCount(0);
+
     // Opened in the editor.
     await visitor.locator('[title="notes.txt"]').first().dblclick();
     await expect(visitor).toHaveURL(new RegExp(`/share/${token}/editor/notes\\.txt$`));
@@ -4760,9 +4841,12 @@ test('a visitor reaches all of a share from behind a front door', async ({ brows
     const strayed = [...new Set(refused)].filter((pathname) => !doesWithout.has(pathname));
     expect(strayed, `asked outside the door:\n${strayed.join('\n')}`).toEqual([]);
 
-    // And not one refusal reached the reader: the three above are asked quietly,
-    // and nothing else was asked at all.
-    await expect(visitor.locator('[data-test="notification-count"]')).toHaveCount(0);
+    // And not one refusal reached the reader. Unless this server cannot read
+    // archives at all, which it is right to say out loud — 7-Zip is not on every
+    // developer's machine, and that refusal is the server's own, not the door's.
+    if (archiveReadable) {
+      await expect(visitor.locator('[data-test="notification-count"]')).toHaveCount(0);
+    }
   } finally {
     await stranger.close();
   }

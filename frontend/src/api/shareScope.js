@@ -58,6 +58,25 @@ export const shareTokenOfLocation = (pathname) => {
 };
 
 /**
+ * The first of several candidates that names a share: a destination, the thing
+ * being acted on, whatever the caller has. Written out because an operation on a
+ * selection is named by what it touches, not by a single path.
+ */
+export const shareScopedForAny = (endpoint, ...candidates) => {
+  const found = candidates.find((candidate) => shareTokenOfPath(pathOf(candidate)));
+  return shareScoped(endpoint, pathOf(found));
+};
+
+/** A path, or the path of a thing in a listing. */
+const pathOf = (candidate) => {
+  if (typeof candidate === 'string') return candidate;
+  if (!candidate || typeof candidate !== 'object') return '';
+  const base = typeof candidate.path === 'string' ? candidate.path : '';
+  const name = typeof candidate.name === 'string' ? candidate.name : '';
+  return base && name ? `${base}/${name}` : base || name;
+};
+
+/**
  * @param {string} endpoint an `/api/…` address
  * @param {string} [pathname] the address being read, for a test
  * @returns {string} the same endpoint, under the prefix of the share this page is

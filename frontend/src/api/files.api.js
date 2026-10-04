@@ -1,4 +1,4 @@
-import { shareScoped } from './shareScope';
+import { shareScoped, shareScopedForAny, shareScopedForPage, shareTokenOfPath } from './shareScope';
 import {
   requestJson,
   requestRaw,
@@ -210,7 +210,7 @@ async function copyItems(items, destination, options = {}) {
     items,
     TRANSFER_BATCH_SIZE,
     (batch, onEvent) =>
-      requestStream('/api/files/copy', {
+      requestStream(shareScopedForAny('/api/files/copy', destination, batch[0]), {
         method: 'POST',
         body: JSON.stringify({ items: batch, destination }),
         onEvent,
@@ -227,7 +227,7 @@ async function copyItems(items, destination, options = {}) {
  * offer them without checking each in turn.
  */
 async function fetchRecentDestinations() {
-  const payload = await requestJson('/api/files/recent-destinations');
+  const payload = await requestJson(shareScopedForPage('/api/files/recent-destinations'));
   return Array.isArray(payload?.items) ? payload.items : [];
 }
 
@@ -236,7 +236,7 @@ async function moveItems(items, destination, options = {}) {
     items,
     TRANSFER_BATCH_SIZE,
     (batch, onEvent) =>
-      requestStream('/api/files/move', {
+      requestStream(shareScopedForAny('/api/files/move', destination, batch[0]), {
         method: 'POST',
         body: JSON.stringify({ items: batch, destination }),
         onEvent,
@@ -250,7 +250,7 @@ async function moveItems(items, destination, options = {}) {
 async function deleteItems(items, options = {}) {
   const normalizedItems = Array.isArray(items) ? items : [];
   if (normalizedItems.length <= DELETE_BATCH_SIZE) {
-    return requestJson('/api/files', {
+    return requestJson(shareScopedForAny('/api/files', normalizedItems[0]), {
       method: 'DELETE',
       body: JSON.stringify({ items: normalizedItems, ...permanentFlag(options) }),
     });
@@ -259,7 +259,7 @@ async function deleteItems(items, options = {}) {
   const deletedItems = [];
   for (let index = 0; index < normalizedItems.length; index += DELETE_BATCH_SIZE) {
     const batch = normalizedItems.slice(index, index + DELETE_BATCH_SIZE);
-    const response = await requestJson('/api/files', {
+    const response = await requestJson(shareScopedForAny('/api/files', batch[0]), {
       method: 'DELETE',
       body: JSON.stringify({ items: batch, ...permanentFlag(options) }),
     });
@@ -274,7 +274,7 @@ async function deleteItemsStream(items, options = {}) {
     items,
     DELETE_STREAM_BATCH_SIZE,
     (batch, onEvent) =>
-      requestStream('/api/files/delete-stream', {
+      requestStream(shareScopedForAny('/api/files/delete-stream', batch[0]), {
         method: 'POST',
         body: JSON.stringify({ items: batch, ...permanentFlag(options) }),
         onEvent,
@@ -294,7 +294,7 @@ async function getDeleteImpact(items) {
   const normalizedItems = Array.isArray(items) ? items : [];
   if (normalizedItems.length <= DELETE_STREAM_BATCH_SIZE) {
     return summarizeDeleteImpact([
-      await requestJson('/api/files/delete-impact', {
+      await requestJson(shareScopedForAny('/api/files/delete-impact', normalizedItems[0]), {
         method: 'POST',
         body: JSON.stringify({ items: normalizedItems }),
       }),
@@ -311,7 +311,7 @@ async function getDeleteImpact(items) {
 
   const responses = await Promise.all(
     batches.map((batch) =>
-      requestJson('/api/files/delete-impact', {
+      requestJson(shareScopedForAny('/api/files/delete-impact', batch[0]), {
         method: 'POST',
         body: JSON.stringify({ items: batch }),
       })
@@ -329,7 +329,7 @@ async function createFolder(destination, name) {
     payload.name = name;
   }
 
-  return requestJson('/api/files/folder', {
+  return requestJson(shareScoped('/api/files/folder', normalizedDestination), {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -363,7 +363,7 @@ async function createOfficeDocument(destination, { format, name } = {}) {
     payload.name = name.trim();
   }
 
-  return requestJson('/api/files/office-document', {
+  return requestJson(shareScoped('/api/files/office-document', normalizedDestination), {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -377,7 +377,7 @@ async function createFile(destination, name) {
     payload.name = name;
   }
 
-  return requestJson('/api/files/file', {
+  return requestJson(shareScoped('/api/files/file', normalizedDestination), {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -385,7 +385,7 @@ async function createFile(destination, name) {
 
 async function renameItem(path, name, newName) {
   const normalizedPath = normalizePath(path || '');
-  return requestJson('/api/files/rename', {
+  return requestJson(shareScoped('/api/files/rename', normalizedPath), {
     method: 'POST',
     body: JSON.stringify({
       path: normalizedPath,
@@ -403,7 +403,20 @@ async function renameItem(path, name, newName) {
  * turns back into the copy it kept. Opening the editor from the preview used
  * to download the whole file a second time — a POST is never kept.
  */
+/**
+ * Inside a share this is the share's own endpoint, which already exists.
+ *
+ * Not `/api/editor` under the share's prefix: that address is the share's own
+ * editor — `/api/share/<token>/editor/<inner>` — and asking it with a `path`
+ * query would reach the share's root instead of the file. The Markdown preview
+ * reads a shared file through here, so it had to be told which door to use.
+ */
 async function fetchFileContent(path) {
+  const normalizedPath = normalizePath(path || '');
+  const token = shareTokenOfPath(normalizedPath);
+  if (token) {
+    return fetchSharedFileContent(token, normalizedPath.slice(`share/${token}`.length));
+  }
   return requestJson(`/api/editor?path=${encodeURIComponent(path)}`, { method: 'GET' });
 }
 
@@ -433,6 +446,11 @@ async function saveSharedFileContent(shareToken, innerPath = '', content) {
 }
 
 async function saveFileContent(path, content) {
+  const normalizedPath = normalizePath(path || '');
+  const token = shareTokenOfPath(normalizedPath);
+  if (token) {
+    return saveSharedFileContent(token, normalizedPath.slice(`share/${token}`.length), content);
+  }
   return requestJson('/api/editor', {
     method: 'PUT',
     body: JSON.stringify({ path, content }),
@@ -612,7 +630,7 @@ async function search(path = '', q = '', limit, { signal } = {}) {
   if (typeof q === 'string' && q.trim()) params.set('q', q.trim());
   if (Number.isFinite(limit) && limit > 0) params.set('limit', String(limit));
 
-  const endpoint = `/api/search?${params.toString()}`;
+  const endpoint = `${shareScoped('/api/search', normalizedPath)}?${params.toString()}`;
   // A search the caller has moved on from is aborted rather than waited out:
   // a deep one runs for seconds, and nobody is going to read its answer.
   return requestJson(endpoint, { method: 'GET', signal });

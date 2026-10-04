@@ -1,7 +1,7 @@
 // /api/onlyoffice.api.js
 
 import { buildUrl, requestJson, normalizePath } from './http';
-import { shareScoped } from './shareScope';
+import { shareScoped, shareScopedForPage } from './shareScope';
 
 /**
  * `theme` is 'light' or 'dark'. It has to travel with the request rather than
@@ -126,7 +126,10 @@ export async function fetchOnlyOfficeStorageFile(path, { c } = {}) {
  * so there is no search term to pass.
  */
 export async function fetchOnlyOfficeMentionUsers() {
-  return requestJson('/api/onlyoffice/users', { method: 'GET', suppressErrorHandler: true });
+  return requestJson(shareScopedForPage('/api/onlyoffice/users'), {
+    method: 'GET',
+    suppressErrorHandler: true,
+  });
 }
 
 /**
@@ -195,9 +198,15 @@ export async function endOnlyOfficeSession(path, { sessionId, beacon = false } =
   });
 }
 
+/**
+ * A long poll: the page holds this open waiting to be told the document changed,
+ * and asks again as soon as it is answered. About the page rather than a path —
+ * a share's visitor asks it under the share's prefix, where it is answered,
+ * instead of being refused once a second by the door in front.
+ */
 export async function waitForOnlyOfficeActivityVersion(since, options = {}) {
   const query = Number.isInteger(since) ? `?since=${since}` : '';
-  return requestJson(`/api/onlyoffice/activity-version${query}`, {
+  return requestJson(`${shareScopedForPage('/api/onlyoffice/activity-version')}${query}`, {
     method: 'GET',
     signal: options.signal,
     retryNetworkErrors: false,

@@ -54,6 +54,7 @@ const seedShare = async ({ suffix = '', password, accessMode } = {}) => {
   const root = path.join(envContext.tmpRoot, `scoped-volume${suffix}`);
   await fs.mkdir(path.join(root, 'handed-out'), { recursive: true });
   await fs.writeFile(path.join(root, 'handed-out', 'file.txt'), 'the shared bytes');
+  await fs.writeFile(path.join(root, 'handed-out', 'report.docx'), 'not really a document');
   // The viewer only opens what it can draw, so the preview is asked about this.
   await fs.writeFile(
     path.join(root, 'handed-out', 'picture.png'),
@@ -109,7 +110,13 @@ beforeEach(async () => {
     tag: 'share-scoped-',
     // The resumable uploader is off unless an administrator turns it on, and one
     // of these asks where it tells a client to send the rest of a file.
-    env: { USER_VOLUMES: 'true', UPLOAD_CHUNKED_ENABLED: 'true' },
+    env: {
+      USER_VOLUMES: 'true',
+      UPLOAD_CHUNKED_ENABLED: 'true',
+      ONLYOFFICE_URL: 'http://onlyoffice.invalid',
+      ONLYOFFICE_SECRET: 'test-secret',
+      PUBLIC_URL: 'https://files.example.test',
+    },
   });
 });
 
@@ -162,6 +169,61 @@ describe('what a share answers before anybody is identified', () => {
     // The same answer as the address every other page reads them at.
     expect(features.body).toEqual((await request(app).get('/api/features')).body);
     expect(branding.body).toEqual((await request(app).get('/api/branding')).body);
+  });
+});
+
+describe('an office document inside a share', () => {
+  /**
+   * The Document Server fetches the file and reports back to it, from wherever it
+   * runs — through the same front door the reader came in by. Told to fetch
+   * `/api/onlyoffice/file`, an authentication proxy that lets the public link
+   * through and nothing else refuses it, and the editor says it cannot download
+   * the document and then cannot save it.
+   */
+  it('is handed to the editing server under the share prefix', async () => {
+    const { token, guestSession } = await seedShare({
+      suffix: '-office',
+      accessMode: 'readwrite',
+    });
+
+    const config = await request(buildApp())
+      .post(`/api/share/${token}/onlyoffice/config`)
+      .set({ 'X-Guest-Session': guestSession })
+      .send({ path: `share/${token}/report.docx`, mode: 'edit' });
+
+    expect(config.status, config.text).toBe(200);
+    expect(config.body.config.document.url).toContain(`/api/share/${token}/onlyoffice/file`);
+    expect(config.body.config.editorConfig.callbackUrl).toContain(
+      `/api/share/${token}/onlyoffice/callback`
+    );
+  });
+
+  /** And those two are answered to it, which carries no session of any kind. */
+  it('is fetched by an editing server that is signed in to nothing', async () => {
+    const { token } = await seedShare({ suffix: '-callback' });
+    const authMiddleware = envContext.requireFresh('src/middleware/authMiddleware');
+
+    const reached = async (path) => {
+      let refused = false;
+      const res = {
+        status: () => ({
+          json: () => {
+            refused = true;
+          },
+        }),
+      };
+      await authMiddleware(
+        { path, method: 'GET', headers: {}, cookies: {}, session: {} },
+        res,
+        () => {}
+      );
+      return !refused;
+    };
+
+    expect(await reached(`/api/share/${token}/onlyoffice/file`)).toBe(true);
+    expect(await reached(`/api/share/${token}/onlyoffice/callback`)).toBe(true);
+    // Not everything under the prefix: only the two the editor is given.
+    expect(await reached(`/api/share/${token}/onlyoffice/config`)).toBe(false);
   });
 });
 

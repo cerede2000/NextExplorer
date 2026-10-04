@@ -1,3 +1,4 @@
+const { shareScopedApiPath } = require('../utils/shareScopedUrl');
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -468,7 +469,10 @@ const readOnlyFileUrl = (req, relativePath, absolutePath, ttlSeconds) => {
     onlyoffice.secret,
     { algorithm: 'HS256', expiresIn: ttlSeconds }
   );
-  const fileUrl = new URL('/api/onlyoffice/file', publicConfig.url);
+  const fileUrl = new URL(
+    shareScopedApiPath('/api/onlyoffice/file', relativePath),
+    publicConfig.url
+  );
   fileUrl.searchParams.set('path', relativePath);
   fileUrl.searchParams.set('backend', backendToken);
   return fileUrl.toString();
@@ -710,10 +714,19 @@ router.post(
       );
     }
 
-    const fileUrl = new URL(`/api/onlyoffice/file`, publicConfig.url);
+    // Under the share's prefix when the document is in one: these two are
+    // fetched by the Document Server through the same front door the reader came
+    // in by, and each carries its own signed token. See utils/shareScopedUrl.
+    const fileUrl = new URL(
+      shareScopedApiPath('/api/onlyoffice/file', relativePath),
+      publicConfig.url
+    );
     fileUrl.searchParams.set('path', relativePath);
 
-    const callbackUrl = new URL(`/api/onlyoffice/callback`, publicConfig.url);
+    const callbackUrl = new URL(
+      shareScopedApiPath('/api/onlyoffice/callback', relativePath),
+      publicConfig.url
+    );
     callbackUrl.searchParams.set('path', relativePath);
 
     // Shared with anyone already in this document, so they edit together rather
@@ -1057,7 +1070,10 @@ router.post(
       { algorithm: 'HS256', expiresIn: STORAGE_FILE_TOKEN_TTL_SECONDS }
     );
 
-    const fileUrl = new URL('/api/onlyoffice/file', publicConfig.url);
+    const fileUrl = new URL(
+      shareScopedApiPath('/api/onlyoffice/file', relativePath),
+      publicConfig.url
+    );
     fileUrl.searchParams.set('path', relativePath);
     fileUrl.searchParams.set('backend', backendToken);
 

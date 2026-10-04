@@ -1,3 +1,4 @@
+const { shareScopedApiPath } = require('../utils/shareScopedUrl');
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
@@ -212,8 +213,11 @@ router.post(
       throw new ValidationError(`Collabora discovery is missing a usable urlsrc for .${ext}.`);
     }
 
+    // Under the share's prefix when the document is in one: Collabora fetches
+    // and saves through the same front door the reader came in by, and the WOPI
+    // access token is what authorises it. See utils/shareScopedUrl.
     const wopiSrc = new URL(
-      `/api/collabora/wopi/files/${encodeURIComponent(fileId)}`,
+      shareScopedApiPath(`/api/collabora/wopi/files/${encodeURIComponent(fileId)}`, relativePath),
       publicConfig.url
     );
     const iframeUrl = new URL(urlTemplate);

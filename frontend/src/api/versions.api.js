@@ -1,4 +1,5 @@
 import { buildUrl, normalizePath, requestJson } from './http';
+import { shareScoped } from './shareScope';
 
 /**
  * A file's history: its earlier versions, and what can be done with them. A
@@ -7,34 +8,46 @@ import { buildUrl, normalizePath, requestJson } from './http';
  */
 
 const pathQuery = (path) => `path=${encodeURIComponent(normalizePath(path))}`;
-const versionEndpoint = (id, suffix = '') => `/api/versions/${encodeURIComponent(id)}${suffix}`;
+
+/**
+ * A version is always reached through the file it belongs to, so the address
+ * follows that file: inside a share it is the share's own, like everything else a
+ * visitor asks for. See `api/shareScope.js`.
+ */
+const versionEndpoint = (path, id, suffix = '') =>
+  shareScoped(`/api/versions/${encodeURIComponent(id)}${suffix}`, normalizePath(path || ''));
 
 const send = (endpoint, method, body) =>
   requestJson(endpoint, { method, body: JSON.stringify(body) });
 
 /** The versions of a file, newest first, what the file is now, and what may be done. */
 async function getVersions(path) {
-  return requestJson(`/api/versions?${pathQuery(path)}`, { method: 'GET' });
+  return requestJson(
+    `${shareScoped('/api/versions', normalizePath(path || ''))}?${pathQuery(path)}`,
+    {
+      method: 'GET',
+    }
+  );
 }
 
 /** Where a version downloads from: a plain link, so the browser saves it as it does any file. */
 function getVersionDownloadUrl(path, id) {
-  return buildUrl(`${versionEndpoint(id, '/content')}?${pathQuery(path)}`);
+  return buildUrl(`${versionEndpoint(path, id, '/content')}?${pathQuery(path)}`);
 }
 
 /** The text of a version, to read and never to change: `{ name, content, … }`. */
 async function getVersionText(path, id) {
-  return requestJson(`${versionEndpoint(id, '/text')}?${pathQuery(path)}`, { method: 'GET' });
+  return requestJson(`${versionEndpoint(path, id, '/text')}?${pathQuery(path)}`, { method: 'GET' });
 }
 
 /** Put the file back as the version had it; what it holds now becomes a version. */
 async function restoreVersion(path, id) {
-  return send(versionEndpoint(id, '/restore'), 'POST', { path: normalizePath(path) });
+  return send(versionEndpoint(path, id, '/restore'), 'POST', { path: normalizePath(path) });
 }
 
 /** Take a version out as a new file in `destination`. */
 async function copyVersionTo(path, id, destination) {
-  return send(versionEndpoint(id, '/copy'), 'POST', {
+  return send(versionEndpoint(path, id, '/copy'), 'POST', {
     path: normalizePath(path),
     destination: normalizePath(destination),
   });
@@ -42,7 +55,7 @@ async function copyVersionTo(path, id, destination) {
 
 /** Put a version's content over another existing file. */
 async function replaceWithVersion(path, id, target) {
-  return send(versionEndpoint(id, '/replace'), 'POST', {
+  return send(versionEndpoint(path, id, '/replace'), 'POST', {
     path: normalizePath(path),
     target: normalizePath(target),
   });
@@ -50,12 +63,12 @@ async function replaceWithVersion(path, id, target) {
 
 /** Name a version, or pin it: `{ label?, pinned? }`. */
 async function updateVersion(path, id, changes) {
-  return send(versionEndpoint(id), 'PATCH', { path: normalizePath(path), ...changes });
+  return send(versionEndpoint(path, id), 'PATCH', { path: normalizePath(path), ...changes });
 }
 
 /** Delete versions for good: `{ ids }`, or `{ all: true }`. */
 async function deleteVersions(path, { ids, all = false } = {}) {
-  return send('/api/versions/delete', 'POST', {
+  return send(shareScoped('/api/versions/delete', normalizePath(path || '')), 'POST', {
     path: normalizePath(path),
     ...(all ? { all: true } : { ids }),
   });

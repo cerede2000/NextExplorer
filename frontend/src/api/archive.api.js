@@ -60,12 +60,15 @@ async function extractFromArchive(path, entries, options = {}) {
   const destination = options.destination
     ? { destination: normalizePath(options.destination) }
     : {};
-  return requestStream('/api/archive/extract', {
-    method: 'POST',
-    body: JSON.stringify({ path: normalizePath(path), entries, ...destination }),
-    onEvent: options.onEvent,
-    signal: options.signal,
-  });
+  return requestStream(
+    shareScoped('/api/archive/extract', normalizePath(options.destination || path || '')),
+    {
+      method: 'POST',
+      body: JSON.stringify({ path: normalizePath(path), entries, ...destination }),
+      onEvent: options.onEvent,
+      signal: options.signal,
+    }
+  );
 }
 
 export { browseArchive, archiveEntryUrl, readArchiveEntry, extractFromArchive };

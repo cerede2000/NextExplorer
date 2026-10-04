@@ -17,8 +17,10 @@
   <transition v-else name="preview-fade">
     <div
       v-if="isOpen"
+      ref="surfaceEl"
+      tabindex="-1"
       data-test="preview-surface"
-      class="fixed left-[var(--pane-left)] top-[var(--pane-top)] h-[var(--pane-height)] w-[var(--pane-width)] z-2000 flex items-center justify-center bg-black/70"
+      class="fixed left-[var(--pane-left)] top-[var(--pane-top)] h-[var(--pane-height)] w-[var(--pane-width)] z-2000 flex items-center justify-center bg-black/70 outline-hidden"
       @click.self="handleClose"
       @keydown.esc="handleClose"
     >
@@ -144,7 +146,7 @@
 </template>
 
 <script setup>
-import { computed, shallowRef, watch } from 'vue';
+import { computed, nextTick, ref, shallowRef, watch } from 'vue';
 import {
   XMarkIcon,
   ArrowDownTrayIcon,
@@ -168,6 +170,25 @@ import LoadingIcon from '@/icons/LoadingIcon.vue';
 const props = defineProps({
   session: { type: Object, required: true },
 });
+
+/**
+ * The surface takes focus when it opens, which is what makes Escape close it.
+ *
+ * `@keydown.esc` is on this element, and a keypress only reaches an element that
+ * has the focus or holds it. Nothing here was focusable, so Escape did nothing
+ * until the reader had clicked something inside — a markdown file opened from a
+ * listing stayed open however hard they pressed it. `tabindex="-1"` makes it
+ * focusable without putting it in the tab order, which is what a dialog wants.
+ */
+const surfaceEl = ref(null);
+watch(
+  () => props.session.isOpen.value,
+  async (open) => {
+    if (!open) return;
+    await nextTick();
+    surfaceEl.value?.focus?.({ preventScroll: true });
+  }
+);
 
 const item = computed(() => props.session.item.value);
 const plugin = computed(() => props.session.plugin.value);
