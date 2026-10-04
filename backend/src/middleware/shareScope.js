@@ -46,21 +46,35 @@ const requireShareScope = asyncHandler(async (req, _res, next) => {
   if (!share) throw new NotFoundError('Share not found');
   if (isShareExpired(share)) throw new ForbiddenError('Share has expired');
 
-  // Never anonymous, with one exception named below. The endpoints behind this
-  // prefix are the application's own, and the door of a share — what it is, its
-  // password, the session typing it earns — is elsewhere.
-  if (!req.user && !req.guestSession && !forTheEditingServer(req)) {
+  req.shareScope = { token: share.shareToken, shareId: share.id };
+
+  // The one caller that carries nothing and needs nothing: it holds a token this
+  // server signed, and the route reads it. Answered before the rest, because the
+  // rest is about who is signed in and it is signed in to nothing.
+  if (forTheEditingServer(req)) {
+    next();
+    return;
+  }
+
+  // Never anonymous otherwise. The endpoints behind this prefix are the
+  // application's own, and the door of a share — what it is, its password, the
+  // session typing it earns — is elsewhere.
+  if (req.user) {
+    next();
+    return;
+  }
+
+  if (!req.guestSession) {
     throw new UnauthorizedError('Share access required');
   }
 
   // A guest session is issued for one share and is good for that one. Without
   // this, the prefix of a share anybody may open would be a way to carry a
   // session to the prefix of a share they may not.
-  if (!req.user && String(req.guestSession.shareId) !== String(share.id)) {
+  if (String(req.guestSession.shareId) !== String(share.id)) {
     throw new ForbiddenError('Invalid guest session for this share');
   }
 
-  req.shareScope = { token: share.shareToken, shareId: share.id };
   next();
 });
 

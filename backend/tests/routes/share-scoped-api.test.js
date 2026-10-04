@@ -198,6 +198,76 @@ describe('an office document inside a share', () => {
     );
   });
 
+  /**
+   * And that address answers the server it was given to.
+   *
+   * The Document Server carries no cookie, no session and no account — it has
+   * the signed token in the address and nothing else. This takes the URL the
+   * configuration hands out and fetches it exactly as it would: refused, the
+   * editor says it failed to download the document, and then that it cannot
+   * save it.
+   */
+  it('answers the server it was given to, which carries nothing', async () => {
+    const { token, guestSession } = await seedShare({ suffix: '-fetch' });
+
+    const config = await request(buildApp())
+      .post(`/api/share/${token}/onlyoffice/config`)
+      .set({ 'X-Guest-Session': guestSession })
+      .send({ path: `share/${token}/report.docx`, mode: 'edit' });
+    expect(config.status, config.text).toBe(200);
+
+    // Signed the way the Document Server signs its own requests: the shared
+    // secret, in an Authorization header, and nothing else about who it is.
+    const jwt = require('jsonwebtoken');
+    const asTheEditor = jwt.sign({ fetch: true }, 'test-secret', { algorithm: 'HS256' });
+
+    const handedOut = new URL(config.body.config.document.url);
+    const fetched = await request(buildApp())
+      .get(`${handedOut.pathname}${handedOut.search}`)
+      .set({ Authorization: `Bearer ${asTheEditor}` })
+      .buffer(true)
+      .parse((res, callback) => {
+        const chunks = [];
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => callback(null, Buffer.concat(chunks)));
+      });
+
+    expect(fetched.status, fetched.text).toBe(200);
+    expect(fetched.body.toString()).toContain('not really a document');
+  });
+
+  /**
+   * And it is heard when it reports back.
+   *
+   * Saving is the Document Server POSTing to the callback it was given. Refused
+   * there, the editor says it cannot save the document and offers a download
+   * instead — which is what a reader saw.
+   */
+  it('hears that server report the document back', async () => {
+    const { token, guestSession } = await seedShare({
+      suffix: '-callback-post',
+      accessMode: 'readwrite',
+    });
+
+    const config = await request(buildApp())
+      .post(`/api/share/${token}/onlyoffice/config`)
+      .set({ 'X-Guest-Session': guestSession })
+      .send({ path: `share/${token}/report.docx`, mode: 'edit' });
+    expect(config.status, config.text).toBe(200);
+
+    const jwt = require('jsonwebtoken');
+    const reported = new URL(config.body.config.editorConfig.callbackUrl);
+    // status 1 is "a user is editing": nothing to write, everything to check.
+    const body = { status: 1, key: config.body.config.document.key, users: [] };
+    const answer = await request(buildApp())
+      .post(`${reported.pathname}${reported.search}`)
+      .set({ Authorization: `Bearer ${jwt.sign({ payload: body }, 'test-secret')}` })
+      .send(body);
+
+    expect(answer.status, answer.text).toBe(200);
+    expect(answer.body).toMatchObject({ error: 0 });
+  });
+
   /** And those two are answered to it, which carries no session of any kind. */
   it('is fetched by an editing server that is signed in to nothing', async () => {
     const { token } = await seedShare({ suffix: '-callback' });
