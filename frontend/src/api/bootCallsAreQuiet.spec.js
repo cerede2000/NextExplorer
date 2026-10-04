@@ -49,3 +49,43 @@ describe('the calls a page makes before anybody has done anything', () => {
     expect(optionsOf('/api/auth/status').suppressErrorHandler).toBe(true);
   });
 });
+
+/**
+ * And asked where the visitor can reach them.
+ *
+ * Quiet was the answer when they could not be answered at all. Two of them can:
+ * the feature flags and the branding are answered to anybody, so they are
+ * answered under a share's prefix too — the only prefix a visitor behind an
+ * authentication proxy reaches. Falling back to the defaults was not good enough
+ * for these two: whether this installation has an office editor at all is one of
+ * those flags, so a share holding a spreadsheet offered no way to open it.
+ */
+describe('the two a share can still be told', () => {
+  const onPage = (pathname) => {
+    window.history.replaceState({}, '', pathname);
+  };
+
+  it('asks for them under the prefix of the share the page is about', async () => {
+    onPage('/share/TOKEN/browse/Deeper');
+
+    await fetchFeatures();
+    await getBranding();
+
+    expect(requestJson.mock.calls.map(([called]) => called)).toEqual([
+      '/api/share/TOKEN/features',
+      '/api/share/TOKEN/branding',
+    ]);
+  });
+
+  it('asks at the address it has always used anywhere else', async () => {
+    onPage('/browse/Projects');
+
+    await fetchFeatures();
+    await getBranding();
+
+    expect(requestJson.mock.calls.map(([called]) => called)).toEqual([
+      '/api/features',
+      '/api/branding',
+    ]);
+  });
+});

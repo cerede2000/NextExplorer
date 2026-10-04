@@ -129,6 +129,11 @@ describe('what goes through without any session at all', () => {
       '/api/share/abc123/access',
       '/api/share/abc123/file/notes.txt',
       '/api/share/abc123/editor/notes.txt',
+      // What the page draws itself with, answered to anybody at its own address
+      // already. A visitor behind an authentication proxy reaches nothing else,
+      // and whether this installation has an office editor is one of these flags.
+      '/api/share/abc123/features',
+      '/api/share/abc123/branding',
     ]) {
       expect((await ask({ path, method: 'GET' })).passed, path).toBe(true);
     }

@@ -45,8 +45,14 @@ const mountedRoutes = (requireFresh) => {
 
   const registerRoutes = requireFresh('src/routes');
   registerRoutes({
-    use: (prefix, router) => {
-      if (typeof prefix === 'string') walk(prefix, router, prefix);
+    // Several routers at one prefix, with a guard in front of them: that is how
+    // everything a share's visitor asks for is mounted a second time under the
+    // share's own prefix. Anything without a stack of its own is that guard.
+    use: (prefix, ...handlers) => {
+      if (typeof prefix !== 'string') return;
+      for (const handler of handlers) {
+        if (Array.isArray(handler?.stack)) walk(prefix, handler, prefix);
+      }
     },
   });
   walk('', requireFresh('src/routes/health'), '/');

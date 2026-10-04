@@ -1,4 +1,5 @@
 import { apiBase } from '@/api';
+import { shareScoped } from '@/api/shareScope';
 
 /**
  * Where a file is going, and whether it may go there.
@@ -32,8 +33,11 @@ export const directUploadEndpoint = (file) => {
     if (typeof meta[key] === 'string' && meta[key]) params.set(key, meta[key]);
   });
 
+  // Inside a share this is the share's own address, like every other request a
+  // visitor makes: see `api/shareScope.js`.
+  const endpoint = shareScoped('/api/upload', meta.uploadTo);
   const query = params.toString();
-  return query ? `${apiBase}/api/upload?${query}` : `${apiBase}/api/upload`;
+  return query ? `${apiBase}${endpoint}?${query}` : `${apiBase}${endpoint}`;
 };
 
 /**

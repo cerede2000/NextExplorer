@@ -22,6 +22,25 @@ const { InsufficientStorageError } = require('../errors/AppError');
 const logger = require('../utils/logger');
 
 const TUS_PATH = '/api/upload/tus';
+
+/**
+ * What the address ends with, wherever it is reached.
+ *
+ * A share's visitor asks under the share's prefix —
+ * `/api/share/<token>/upload/tus/…` — so that a public link works from behind an
+ * authentication proxy without `/api/upload` having to be opened to everyone.
+ * The handler is the same one, and the tail is what the two addresses share.
+ */
+const TUS_TAIL = '/upload/tus';
+
+/** Where the rest of an upload is sent: the prefix it arrived under, kept. */
+const tusBaseOf = (url) => {
+  const pathname = String(url || '')
+    .replace(/^[a-z]+:\/\/[^/]+/i, '')
+    .split('?')[0];
+  const index = pathname.lastIndexOf(TUS_TAIL);
+  return index === -1 ? TUS_PATH : pathname.slice(0, index + TUS_TAIL.length);
+};
 const TUS_CACHE_DIR = uploadConfig?.tusUploadDir;
 const TUS_INCOMPLETE_UPLOAD_TTL_MS = uploadConfig?.tusIncompleteUploadTtlMs ?? 60 * 60 * 1000;
 const CLEANUP_INTERVAL_MS = uploadConfig?.tusCleanupIntervalMs ?? 10 * 60 * 1000;
@@ -772,6 +791,15 @@ const buildServer = () =>
     path: TUS_PATH,
     datastore: store(),
     relativeLocation: false,
+    /**
+     * Where the client sends the rest of itself.
+     *
+     * Built from the address this request came in on rather than from the one
+     * path the server is configured with: an upload started under a share's
+     * prefix has to continue there, or every chunk after the first would be
+     * sent to an address the share's visitor cannot reach.
+     */
+    generateUrl: (req, { proto, host, id }) => `${proto}://${host}${tusBaseOf(req.url)}/${id}`,
     respectForwardedHeaders: true,
     allowedCredentials: true,
     allowedHeaders: [
@@ -841,7 +869,7 @@ const buildServer = () =>
 
 // The upload's id, the last segment after the TUS path — wherever the app is
 // mounted, as @tus/server itself reads it.
-const UPLOAD_ID_PATTERN = new RegExp(`${TUS_PATH}/([A-Za-z0-9_-]+)/?$`);
+const UPLOAD_ID_PATTERN = new RegExp(`${TUS_TAIL}/([A-Za-z0-9_-]+)/?$`);
 
 const uploadIdFromRequest = (req) => {
   const pathname = String(req.originalUrl || req.url || '').split('?')[0];

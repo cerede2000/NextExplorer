@@ -2,7 +2,6 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const {
-  getPublicSettings,
   getSettingsForUser,
   setUserSetting,
   setUserFolderSort,
@@ -27,6 +26,9 @@ const ffmpegRunner = require('../services/ffmpegRunner');
 
 const router = express.Router();
 
+// The name and the logo, which a share's page reads under its own prefix as well.
+router.use(require('./branding'));
+
 const LOGO_MAX_BYTES = 2 * 1024 * 1024;
 
 // Configure multer for logo uploads
@@ -48,19 +50,6 @@ const upload = multer({
 const acceptLogo = explainMultipartRefusals(upload.single('logo'), {
   LIMIT_FILE_SIZE: `A logo can be at most ${describeBytes(LOGO_MAX_BYTES)}.`,
 });
-
-/**
- * GET /api/branding
- * Returns public branding settings (no auth required)
- * Used for displaying branding on login page and public pages
- */
-router.get(
-  '/branding',
-  asyncHandler(async (req, res) => {
-    const publicSettings = await getPublicSettings();
-    res.json(publicSettings.branding);
-  })
-);
 
 /**
  * GET /api/settings

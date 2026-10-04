@@ -10,6 +10,7 @@ import { useVolumeUsageStore } from '@/stores/volumeUsage';
 import { useFolderSizeStore } from '@/stores/folderSize';
 import { useOperationTasksStore } from '@/stores/operationTasks';
 import { apiBase, normalizePath, reserveFolderUploadTarget } from '@/api';
+import { shareScoped } from '@/api/shareScope';
 import {
   directUploadEndpoint,
   folderUploadParts,
@@ -277,9 +278,10 @@ export const createUploadEngine = async () => {
 
       let items = [];
       try {
-        const response = await fetch(`${apiBase}/api/upload/finalizations`, {
-          credentials: 'include',
-        });
+        const response = await fetch(
+          `${apiBase}${shareScoped('/api/upload/finalizations', normalizePath(fileStore.currentPath || ''))}`,
+          { credentials: 'include' }
+        );
         if (response.ok) items = (await response.json())?.items || [];
       } catch (_) {
         // A dropped poll says nothing about the upload itself; try again.
@@ -575,6 +577,13 @@ export const createUploadEngine = async () => {
     }
 
     const uploadTo = normalizePath(fileStore.currentPath || '');
+    // Where the chunks go. The direct uploader builds its address per file; the
+    // resumable one holds a single endpoint, so it is pointed at the share
+    // whenever a file is queued inside one — and the server keeps that prefix in
+    // the address it answers with, so every chunk after the first goes there too.
+    uppy.getPlugin('Tus')?.setOptions?.({
+      endpoint: `${apiBase}${shareScoped('/api/upload/tus', uploadTo)}`,
+    });
     uppy.setFileMeta(file.id, {
       ...(file.meta || {}),
       uploadTo,

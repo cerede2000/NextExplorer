@@ -35,3 +35,36 @@ export const shareScoped = (endpoint, relativePath) => {
   if (!token) return endpoint;
   return `/api/share/${encodeURIComponent(token)}${endpoint.slice('/api'.length)}`;
 };
+
+/**
+ * The share the page itself is about, read from the address.
+ *
+ * Some requests are not about a path at all — the feature flags and the branding
+ * are about the page — and they are made before the router has settled, so the
+ * address is what there is to ask. Both shapes count: the share's own prefix, and
+ * the addresses a link handed out before the move still arrives at.
+ */
+const LOCATION_SHARE = /^\/(?:browse\/|open\/|editor\/)?share\/([^/?#]+)/;
+
+export const shareTokenOfLocation = (pathname) => {
+  const where =
+    typeof pathname === 'string'
+      ? pathname
+      : typeof window !== 'undefined'
+        ? window.location.pathname
+        : '';
+  const match = LOCATION_SHARE.exec(where);
+  return match ? match[1] : '';
+};
+
+/**
+ * @param {string} endpoint an `/api/…` address
+ * @param {string} [pathname] the address being read, for a test
+ * @returns {string} the same endpoint, under the prefix of the share this page is
+ *   about when it is about one
+ */
+export const shareScopedForPage = (endpoint, pathname) => {
+  const token = shareTokenOfLocation(pathname);
+  if (!token) return endpoint;
+  return `/api/share/${encodeURIComponent(token)}${endpoint.slice('/api'.length)}`;
+};

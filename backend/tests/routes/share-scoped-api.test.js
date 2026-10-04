@@ -48,7 +48,7 @@ const buildApp = ({ user } = {}) => {
 };
 
 /** An owner with a volume, and a public share of a folder on it. */
-const seedShare = async ({ suffix = '', password } = {}) => {
+const seedShare = async ({ suffix = '', password, accessMode } = {}) => {
   const usersService = envContext.requireFresh('src/services/users');
   const userVolumesService = envContext.requireFresh('src/services/userVolumesService');
   const root = path.join(envContext.tmpRoot, `scoped-volume${suffix}`);
@@ -84,6 +84,7 @@ const seedShare = async ({ suffix = '', password } = {}) => {
     .send({
       sourcePath: `ScopedVol${suffix}/handed-out`,
       sharingType: 'anyone',
+      ...(accessMode ? { accessMode } : {}),
       ...(password ? { password } : {}),
     });
   expect(created.status).toBe(201);
@@ -104,7 +105,12 @@ const seedShare = async ({ suffix = '', password } = {}) => {
 };
 
 beforeEach(async () => {
-  envContext = await setupTestEnv({ tag: 'share-scoped-', env: { USER_VOLUMES: 'true' } });
+  envContext = await setupTestEnv({
+    tag: 'share-scoped-',
+    // The resumable uploader is off unless an administrator turns it on, and one
+    // of these asks where it tells a client to send the rest of a file.
+    env: { USER_VOLUMES: 'true', UPLOAD_CHUNKED_ENABLED: 'true' },
+  });
 });
 
 afterEach(async () => {
@@ -134,6 +140,56 @@ describe('the application, answering under a share prefix', () => {
       .send({ paths: [`share/${token}/file.txt`], basePath: `share/${token}` });
 
     expect(download.status).toBe(200);
+  });
+});
+
+describe('what a share answers before anybody is identified', () => {
+  /**
+   * A visitor behind an authentication proxy reaches the share's prefix and
+   * nothing else. Both of these are already answered to anybody at their own
+   * addresses, and falling back to defaults is not good enough: whether this
+   * installation has an office editor at all is one of these flags.
+   */
+  it('tells the page what it is drawing itself with', async () => {
+    const { token } = await seedShare({ suffix: '-chrome' });
+    const app = buildApp();
+
+    const features = await request(app).get(`/api/share/${token}/features`);
+    const branding = await request(app).get(`/api/share/${token}/branding`);
+
+    expect(features.status).toBe(200);
+    expect(branding.status).toBe(200);
+    // The same answer as the address every other page reads them at.
+    expect(features.body).toEqual((await request(app).get('/api/features')).body);
+    expect(branding.body).toEqual((await request(app).get('/api/branding')).body);
+  });
+});
+
+describe('an upload begun under a share prefix', () => {
+  /**
+   * A resumable upload is told where to send the rest of itself by the answer to
+   * its first request. Built from the one path the server is configured with,
+   * that answer pointed at `/api/upload/tus` — an address the visitor cannot
+   * reach, so every chunk after the first was refused by the proxy.
+   */
+  it('is told to continue under the same prefix', async () => {
+    const { token, guestSession } = await seedShare({
+      suffix: '-tus',
+      accessMode: 'readwrite',
+    });
+
+    const created = await request(buildApp())
+      .post(`/api/share/${token}/upload/tus`)
+      .set({
+        'X-Guest-Session': guestSession,
+        'Tus-Resumable': '1.0.0',
+        'Upload-Length': '19',
+        'Upload-Metadata': `uploadTo ${Buffer.from(`share/${token}`).toString('base64')},name ${Buffer.from('left-here.txt').toString('base64')}`,
+      });
+
+    expect(created.status, created.text || JSON.stringify(created.body)).toBe(201);
+    expect(created.headers.location).toContain(`/api/share/${token}/upload/tus/`);
+    expect(created.headers.location).not.toContain('/api/upload/tus');
   });
 });
 

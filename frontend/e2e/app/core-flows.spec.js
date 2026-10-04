@@ -4696,15 +4696,20 @@ test('a visitor reaches all of a share from behind a front door', async ({ brows
       pathname.startsWith('/assets/');
 
     /**
-     * Three the application asks for and goes on without.
+     * The one the application asks for and goes on without.
      *
-     * This server answers all three to anybody — the feature flags, the branding,
-     * and whether anyone is signed in — so a proxy may well let them through. It
-     * does not have to: each is asked quietly and has a default, and a visitor who
-     * is refused them must still see the share and be told nothing about it. That
-     * is the second half of this journey's assertion.
+     * Whether anybody is signed in cannot be answered to somebody the proxy has
+     * not let in, and the honest answer for them is "nobody" — which is what the
+     * application falls back to, quietly.
+     *
+     * The feature flags and the branding were on this list, and falling back was
+     * not good enough for them: whether this installation has an office editor at
+     * all is one of those flags, so a share holding a spreadsheet offered no way
+     * to open it and nothing happened when somebody clicked. Both are answered to
+     * anybody at their own addresses already, so they are answered under the
+     * share's prefix as well — and this fails if either goes back outside it.
      */
-    const doesWithout = new Set(['/api/features', '/api/branding', '/api/auth/status']);
+    const doesWithout = new Set(['/api/auth/status']);
 
     await stranger.route('**/*', async (route) => {
       const { pathname } = new URL(route.request().url());

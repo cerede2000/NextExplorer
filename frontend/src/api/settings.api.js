@@ -1,9 +1,14 @@
 // /api/settings.api.js
 
 import { requestJson } from './http';
+import { shareScopedForPage } from './shareScope';
 
+/** Under the share's prefix when the page is a share: see `fetchFeatures`. */
 export async function getBranding() {
-  return requestJson('/api/branding', { method: 'GET', suppressErrorHandler: true });
+  return requestJson(shareScopedForPage('/api/branding'), {
+    method: 'GET',
+    suppressErrorHandler: true,
+  });
 }
 
 export async function getSettings() {

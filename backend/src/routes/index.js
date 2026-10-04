@@ -16,6 +16,7 @@ const metadataRoutes = require('./metadata');
 const onlyofficeRoutes = require('./onlyoffice');
 const collaboraRoutes = require('./collabora');
 const featuresRoutes = require('./features');
+const brandingRoutes = require('./branding');
 const terminalRoutes = require('./terminal');
 const permissionsRoutes = require('./permissions');
 const sharesRoutes = require('./shares');
@@ -81,12 +82,11 @@ const registerRoutes = (app) => {
    * `requireShareScope` runs first and is a narrowing: this prefix is never
    * anonymous, and a guest session is only good for the share it was issued for.
    *
-   * Uploading is not here. A resumable upload is told where to send the rest of
-   * itself by the answer to its first request, and that address is built inside
-   * @tus/server from a path it is configured with — so moving the upload under
-   * this prefix means moving it there too, which is not a change to make in
-   * passing. Somebody publishing a share that accepts uploads still has to let
-   * `/api/upload` through.
+   * Uploading is here too, which took a little more: a resumable upload is told
+   * where to send the rest of itself by the answer to its first request, and that
+   * address is built inside @tus/server. It now builds it from the address the
+   * request came in on, so an upload begun under a share's prefix continues
+   * there.
    */
   /**
    * A thumbnail is a file, fetched by an `<img>`, so it is served rather than
@@ -102,6 +102,22 @@ const registerRoutes = (app) => {
     express.static(directories.thumbnails)
   );
 
+  /**
+   * What the page draws itself with, before anybody has been identified.
+   *
+   * The feature flags and the branding are answered to anybody at their own
+   * addresses — the sign-in screen reads both before anyone has signed in — and
+   * they are read again here, under the share's prefix, because a visitor behind
+   * an authentication proxy reaches nothing else. Refused them, the application
+   * falls back to its defaults and a share holding an office document offers no
+   * way to open it: whether ONLYOFFICE exists at all is one of these flags.
+   *
+   * No gate, because there is nothing to gate: the same bytes are already public
+   * at `/api/features` and `/api/branding`, and the middleware names both under
+   * this prefix for the same reason.
+   */
+  app.use('/api/share/:shareToken', featuresRoutes, brandingRoutes);
+
   const forShareVisitors = [
     fileRoutes,
     thumbnailRoutes,
@@ -110,6 +126,9 @@ const registerRoutes = (app) => {
     folderSizeRoutes,
     zipRoutes,
     archiveRoutes,
+    usageRoutes,
+    editorRoutes,
+    uploadRoutes,
   ];
   if (onlyoffice && onlyoffice.serverUrl) forShareVisitors.push(onlyofficeRoutes);
   if (collabora && collabora.url && collabora.secret) forShareVisitors.push(collaboraRoutes);

@@ -42,6 +42,13 @@ const PUBLIC_SHARE_ENDPOINTS = new Set([
   'access',
   'file',
   'editor',
+  // What the page draws itself with. Both are answered to anybody at their own
+  // addresses already — the sign-in screen reads them before anyone has signed
+  // in — and a visitor behind an authentication proxy reaches nothing but this
+  // prefix. Refused them, a share holding an office document offers no way to
+  // open it: whether that editor exists at all is one of these flags.
+  'features',
+  'branding',
 ]);
 
 const SHARE_PREFIX = '/api/share/';

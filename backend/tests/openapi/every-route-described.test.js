@@ -72,8 +72,24 @@ const ALL_METHOD_ROUTES = {
  */
 const SHARE_MOUNTS = ['/api/shares', '/api/share'];
 
+/**
+ * Everything a share's visitor asks for answers under the share's own prefix as
+ * well, by the same handler: `/api/share/{token}/preview` *is* `/api/preview`,
+ * mounted a second time behind a gate so that a public link works from behind an
+ * authentication proxy without the instance's own addresses being opened to
+ * everyone. One operation, described where it lives.
+ */
+const SHARE_SCOPE = '/api/share/:shareToken';
+
 const candidatesFor = (route) => {
-  const template = asTemplate(route.path);
+  // Read as the endpoint it is before anything else: under the share's prefix it
+  // is the same operation, described where it lives. Templated on both sides,
+  // because `:shareToken` is `{shareToken}` once the path has been through
+  // `asTemplate` and the two spellings differ in length.
+  const template =
+    route.router === SHARE_SCOPE
+      ? `/api${asTemplate(route.path).slice(asTemplate(SHARE_SCOPE).length)}`
+      : asTemplate(route.path);
   if (route.method === 'ALL') return ALL_METHOD_ROUTES[template] || [`ALL ${shape(template)}`];
   if (SHARE_MOUNTS.includes(route.router)) {
     const inner = template.slice(route.router.length);

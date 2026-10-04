@@ -27,6 +27,20 @@ describe('the endpoint a direct upload posts to', () => {
     expect(endpoint).toContain('uploadTo=Documents');
   });
 
+  /**
+   * A visitor putting a file into a share reaches the share's prefix and nothing
+   * else: an authentication proxy lets a public link through by path, and
+   * `/api/upload` is the whole instance's. The resumable uploader is pointed at
+   * the same prefix when a file is queued, and the server keeps that prefix in the
+   * address it answers with, so every chunk after the first goes there too.
+   */
+  it('puts a file bound for a share under that share', () => {
+    const endpoint = directUploadEndpoint(fileWith({ uploadTo: 'share/TOKEN/Inner' }));
+
+    expect(endpoint).toContain('/api/share/TOKEN/upload?');
+    expect(endpoint).toContain('uploadTo=share%2FTOKEN%2FInner');
+  });
+
   it('carries every key the server reads', () => {
     const endpoint = directUploadEndpoint(
       fileWith({

@@ -59,10 +59,14 @@ location ~ ^/(share|api/share|assets)/ {
 }
 ```
 
-## What is still outside
+## Nothing else
 
-Uploading into a share that accepts uploads goes to `/api/upload`, which is the
-instance's own upload endpoint: a resumable upload is told where to send the rest
-of itself by the answer to its first request, and that address is built inside the
-upload server. A share published read-only — which is what a public link usually
-is — never touches it.
+Uploading into a share that accepts them is under the prefix too, including the
+resumable kind: the server keeps the prefix in the address it tells a client to
+continue at. A browser journey walks a visitor through a whole share with every
+other address refused, and fails if anything is asked outside these three.
+
+The one request that may be refused is `/api/auth/status`, which cannot be
+answered to somebody the proxy has not let in — and "nobody is signed in" is the
+honest answer for them, which is what the page falls back to without saying
+anything.

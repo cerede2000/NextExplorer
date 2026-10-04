@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { shareScoped, shareTokenOfPath } from './shareScope.js';
+import {
+  shareScoped,
+  shareScopedForPage,
+  shareTokenOfLocation,
+  shareTokenOfPath,
+} from './shareScope.js';
 
 describe('which share a path belongs to', () => {
   it('reads the token out of a path inside one', () => {
@@ -43,5 +48,27 @@ describe('where a request about a path is sent', () => {
   /** A token is a path segment, and what goes in one is encoded. */
   it('encodes the token it puts in the address', () => {
     expect(shareScoped('/api/preview', 'share/a b/x.png')).toBe('/api/share/a%20b/preview');
+  });
+});
+
+describe('where a request about the page itself is sent', () => {
+  it('is the share prefix when the page is a share', () => {
+    expect(shareScopedForPage('/api/features', '/share/TOKEN/browse/Deeper')).toBe(
+      '/api/share/TOKEN/features'
+    );
+    expect(shareScopedForPage('/api/branding', '/share/TOKEN')).toBe('/api/share/TOKEN/branding');
+  });
+
+  /** The addresses a link handed out before the move still arrives at. */
+  it('reads a share from the addresses a link was sent under', () => {
+    for (const where of ['/browse/share/TOKEN/x', '/open/share/TOKEN/x', '/editor/share/TOKEN/x']) {
+      expect(shareTokenOfLocation(where), where).toBe('TOKEN');
+    }
+  });
+
+  it('is the address it has always had anywhere else', () => {
+    expect(shareScopedForPage('/api/features', '/browse/Projects')).toBe('/api/features');
+    expect(shareScopedForPage('/api/features', '/')).toBe('/api/features');
+    expect(shareTokenOfLocation('/browse/shared/with-me')).toBe('');
   });
 });

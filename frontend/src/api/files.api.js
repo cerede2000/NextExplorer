@@ -341,7 +341,7 @@ async function reserveFolderUploadTarget(destination, sourceRoot) {
     throw new Error('A destination and folder name are required to start a folder upload.');
   }
 
-  return requestJson('/api/upload/folder-session', {
+  return requestJson(shareScoped('/api/upload/folder-session', uploadTo), {
     method: 'POST',
     body: JSON.stringify({ uploadTo, sourceRoot }),
   });
