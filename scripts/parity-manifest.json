@@ -1650,6 +1650,13 @@
       "verdict": "PORT",
       "batch": "preferences-by-theme",
       "note": "the preferences, grouped by theme with a way straight to one — the batch after the sign-in screen. Twenty preferences in one unbroken column asked anybody looking for one of them to read all twenty; they are under seven headings now, with the list of the headings beside them, an address that carries the chosen one, and a field that narrows the twenty to whatever somebody has in mind. `components/PreferenceRow.vue` and `components/SettingsSection.vue` are what the screen was written out by hand as, eleven lines of markup per preference, twenty times over; a section hands its own element to the index rather than being looked up by id, because this application can draw the same screen in two panes at once. The screen itself also stopped keeping four copies of what it sends — filling the form, deciding whether anything changed, putting it back, saving — of which the fourth, discarding, was three preferences short: discarding a change to any of those three discarded nothing, and the next save wrote it."
+    },
+    {
+      "axis": "*",
+      "match": "^frontend/src/utils/pageOf\\.js(:|$)",
+      "verdict": "PORT",
+      "batch": "preferences-by-theme",
+      "note": "which addresses count as the same page, and therefore when a pane replaces its screen rather than leaving it as it is. It was a line inside `TabPane.vue` that dropped the query — for a screen rewriting its own, which a comparison with its sides swapped over is — and kept the fragment, which is *where in this page* by definition. The preferences write one when a theme is chosen from the list beside them, so every click tore the screen down and built it again: the filter somebody had typed, the expiry they were halfway through and the switches they had changed and not yet saved all went. Out here it has its own spec, because the pane's own suite holds a store that is not reactive and a test of this through it passes either way."
     }
   ],
   "residue": [

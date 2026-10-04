@@ -10,6 +10,7 @@ import { providePaneTab } from '@/composables/paneTab';
 import { useTabNavigation } from '@/composables/tabNavigation';
 import { useTabsStore } from '@/stores/tabs';
 import { draggedTabId, isTabDrag } from '@/utils/tabDrag';
+import { pageOf } from '@/utils/pageOf';
 
 /**
  * One of the panes a split view is made of, and the only one there is when it
@@ -125,7 +126,7 @@ watch(
  * first and the address bar follows. The pane the reader is in draws the router's
  * own screen — which is still the screen for the tab they are *leaving*.
  */
-const inStep = computed(() => pathOf(props.routedKey) === pathOf(address.value));
+const inStep = computed(() => pageOf(props.routedKey) === pageOf(address.value));
 
 /**
  * The router's own screen for the pane the reader is in, and this pane's own
@@ -141,18 +142,6 @@ const drawn = computed(() =>
   focused.value && inStep.value ? props.routedComponent : resolved.value
 );
 /**
- * The key that decides when the screen is replaced rather than reused.
- *
- * The *path*, not the whole address. Walking into another folder changes the
- * path, and the folder view wants a new instance for it — it captures where it
- * is on the way in. A screen rewriting its own query does not: a comparison
- * whose two sides are swapped over is the same comparison, saying itself the
- * other way round, and it has lines taken across and not yet saved that exist
- * nowhere else. Keyed on the full address it was rebuilt from the file and threw
- * all of that away.
- */
-const pathOf = (address) => String(address || '').split('?')[0];
-/**
  * And the tab, because a pane given another tab is another *place* even when the
  * address is the same word.
  *
@@ -163,7 +152,7 @@ const pathOf = (address) => String(address || '').split('?')[0];
  * nothing asked of the server and nothing to click. Duplicating a tab does exactly
  * this, and so does dropping a tab into the half beside one already on that folder.
  */
-const drawnAddress = computed(() => pathOf(address.value));
+const drawnAddress = computed(() => pageOf(address.value));
 
 /**
  * Held still while this pane's tab and the address it draws are out of step.

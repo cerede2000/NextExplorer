@@ -4836,6 +4836,45 @@ test('the mark on the first row cannot be painted over by what sits above', asyn
  * the settings, a value stored on the account, a store that reads it, and the one
  * place a listing is arranged — and every link of it is somewhere else.
  */
+/**
+ * Choosing a theme in the preferences does not throw the screen away.
+ *
+ * The list beside the preferences writes the chosen theme into the address, and
+ * a pane keyed its screen on the whole address — so a fragment, which is *where
+ * in this page* by definition, read as another page. The screen was torn down
+ * and built again on every click: the filter somebody had typed, the expiry they
+ * were halfway through and the switches they had changed and not yet saved all
+ * went, silently. What they saw of it was the header jumping.
+ *
+ * Everything here is state that exists only on this screen, which is what makes
+ * it the assertion: nothing of it survives a rebuild.
+ */
+test('choosing a theme in the preferences keeps what the screen was in the middle of', async () => {
+  await page.goto('/settings/user-preferences');
+  const filter = page.locator('[data-test="preferences-filter"]');
+  const expiry = page.locator('input[type="number"]');
+  await expect(filter).toBeVisible();
+
+  await expiry.fill('9');
+  const save = page.getByRole('button', { name: 'Save' });
+  await expect(save).toBeVisible();
+
+  await page.locator('[data-test="preferences-jump-tabs"]').click();
+  await expect(page).toHaveURL(/#tabs$/);
+
+  await expect(expiry).toHaveValue('9');
+  await expect(save).toBeVisible();
+
+  // And what was typed to narrow the list down is still narrowing it.
+  await filter.fill('thumbnail');
+  await page.locator('[data-test="preferences-jump-display"]').click();
+  await expect(filter).toHaveValue('thumbnail');
+
+  await filter.fill('');
+  await page.getByRole('button', { name: 'Discard' }).click();
+  await expect(page.getByRole('button', { name: 'Save' })).toHaveCount(0);
+});
+
 test('folders can be mixed into the listing instead of bucketed ahead of it', async () => {
   test.slow();
 
