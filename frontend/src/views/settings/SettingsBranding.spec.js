@@ -294,7 +294,8 @@ describe('removing the custom logo', () => {
 
     await removeLogoButton().trigger('click');
 
-    expect(logoShown()).toBe('/logo.svg');
+    // Stored as `/logo.svg`, drawn from where it is served: see utils/brandingLogo.
+    expect(logoShown()).toBe('/assets/logo.svg');
     expect(removeLogoButton()).toBeUndefined();
 
     await save();
@@ -309,7 +310,8 @@ describe('removing the custom logo', () => {
     await chooseLogo(logoFile('logo.png', 'image/png'));
     await removeLogoButton().trigger('click');
 
-    expect(logoShown()).toBe('/logo.svg');
+    // Stored as `/logo.svg`, drawn from where it is served: see utils/brandingLogo.
+    expect(logoShown()).toBe('/assets/logo.svg');
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:preview-1');
   });
 });

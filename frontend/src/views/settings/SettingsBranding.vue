@@ -1,4 +1,5 @@
 <script setup>
+import { brandingLogoSrc } from '@/utils/brandingLogo';
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { useAppSettings } from '@/stores/appSettings';
 import { useI18n } from 'vue-i18n';
@@ -32,7 +33,9 @@ const forgetPendingLogo = () => {
   pendingLogo.value = null;
 };
 
-const logoPreviewUrl = computed(() => pendingLogo.value?.previewUrl ?? local.logoUrl);
+const logoPreviewUrl = computed(
+  () => pendingLogo.value?.previewUrl ?? brandingLogoSrc(local.logoUrl)
+);
 const showsDefaultLogo = computed(() => !pendingLogo.value && local.logoUrl === DEFAULT_LOGO_URL);
 
 const saving = ref(false);

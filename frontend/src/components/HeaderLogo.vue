@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { brandingLogoSrc } from '@/utils/brandingLogo';
 
 const props = defineProps({
   appname: { type: String, default: 'Explorer' },
@@ -9,10 +10,7 @@ const props = defineProps({
 
 const { t } = useI18n();
 
-const logoSrc = computed(() => {
-  const candidate = typeof props.logoUrl === 'string' ? props.logoUrl.trim() : '';
-  return candidate || '/logo.svg';
-});
+const logoSrc = computed(() => brandingLogoSrc(props.logoUrl));
 
 // The one piece of the header a screen reader has to be told, and it was the
 // English word "logo" whatever language the rest of the page was in.

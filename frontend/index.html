@@ -76,12 +76,20 @@
       })();
     </script>
 
-    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="shortcut icon" href="/favicon.ico?v=3" />
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <!--
+      Everything this page needs is under /assets/, including the icons.
+
+      A share is opened by somebody who may be on the far side of an
+      authentication proxy, which lets a public link through by path: the shorter
+      the list of paths, the likelier the hole is cut correctly. Icons sitting at
+      the root were three refusals before the first byte of the share arrived.
+    -->
+    <link rel="icon" type="image/png" href="/assets/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
+    <link rel="shortcut icon" href="/assets/favicon.ico?v=4" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-title" content="NextExplorer" />
-    <link rel="manifest" href="/site.webmanifest" crossorigin="use-credentials" />
+    <link rel="manifest" href="/assets/site.webmanifest" crossorigin="use-credentials" />
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Explorer</title>
@@ -98,7 +106,67 @@
         "
       >
         <div class="logo-loader" role="status" aria-label="Loading">
-          <img class="logo-loader__img" src="/logo.svg" alt="" />
+          <!--
+            Drawn rather than fetched: this is the first thing anybody sees, and a
+            request for it is one more thing that can be slow, cached away, or —
+            behind an authentication proxy — refused outright, leaving the broken
+            image somebody opening a share link would be greeted by.
+          -->
+          <svg
+            class="logo-loader__img"
+            viewBox="0 0 96 96"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <linearGradient
+              id="a"
+              gradientUnits="userSpaceOnUse"
+              x1="29.86"
+              x2="29.86"
+              y1="21.003"
+              y2="72.2939"
+            >
+              <stop offset="0" stop-color="#fecb50" />
+              <stop offset="1" stop-color="#f9b54b" />
+            </linearGradient>
+            <linearGradient
+              id="b"
+              gradientUnits="userSpaceOnUse"
+              x1="30.96"
+              x2="30.96"
+              y1="65.9392"
+              y2="20.3341"
+            >
+              <stop offset="0" stop-color="#f9a22f" />
+              <stop offset="1" stop-color="#f8ba37" />
+            </linearGradient>
+            <linearGradient
+              id="c"
+              gradientUnits="userSpaceOnUse"
+              x1="65.04"
+              x2="65.04"
+              y1="65.1732"
+              y2="29.7664"
+            >
+              <stop offset="0" stop-color="#f9a22f" />
+              <stop offset="1" stop-color="#f8ba37" />
+            </linearGradient>
+            <linearGradient
+              id="d"
+              gradientUnits="userSpaceOnUse"
+              x1="66.435"
+              x2="66.435"
+              y1="19.9817"
+              y2="75.7713"
+            >
+              <stop offset="0" stop-color="#fecb50" />
+              <stop offset="1" stop-color="#f9b54b" />
+            </linearGradient>
+            <path d="m43.57 66.49-27.42 10.17v-57.32z" fill="url(#a)" />
+            <path d="m45.77 30.9601v34.7199l-2.2.81-27.42-47.15z" fill="url(#b)" />
+            <path d="m79.85 76.66-29.62-10.98v-34.7199l2.79-1.0901z" fill="url(#c)" />
+            <path d="m79.85 19.34v57.32l-26.83-46.79z" fill="url(#d)" />
+          </svg>
         </div>
       </div>
     </div>
