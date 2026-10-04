@@ -101,7 +101,9 @@ const TAB_KINDS = [
     // stop somebody comparing another, which is the usual way of reviewing a change
     // across several files.
     id: 'compare',
-    match: /^\/compare([/?#]|$)/,
+    // Under a share's prefix as well, like the kinds above: a visitor comparing a
+    // shared file with one of its own versions stays inside the share.
+    match: /^\/compare([/?#]|$)|^\/share\/[^/?#]+\/compare([/?#]|$)/,
     icon: ArrowsRightLeftIcon,
     titleKey: 'compare.title',
     // Named after what it is comparing, because somebody with three comparisons

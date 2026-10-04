@@ -94,7 +94,8 @@ the prefix:
   which also cannot be sent above the share;
 - searching inside the share, from the box at the top or with `Ctrl+K`;
 - a file's earlier versions, where the share's owner turned that on — listed,
-  read, downloaded, put back, and the same history inside ONLYOFFICE;
+  read, downloaded, put back, compared side by side with the file as it is now,
+  and the same history inside ONLYOFFICE;
 - the name and the logo the page draws itself with, which is why a chosen logo
   is served under the prefix as well instead of at `/static/logos/…`.
 

@@ -27,6 +27,12 @@ describe('the kind an address belongs to', () => {
     ['/versions/view/3/Docs/a.txt', 'versions'],
     ['/shares/shared-with-me', 'shares'],
     ['/settings/about', 'settings'],
+    // A share's own addresses, which is where everything a visitor with no
+    // account touches lives.
+    ['/share/abc123/browse/Docs', 'folder'],
+    ['/share/abc123/open/notes.md', 'document'],
+    ['/share/abc123/editor/notes.md', 'editor'],
+    ['/share/abc123/compare?paths=share%2Fabc123%2Fa.txt&paths=share%2Fabc123%2Fa.txt', 'compare'],
   ])('reads %s as %s', (path, kind) => {
     expect(tabKindForPath(path).id).toBe(kind);
   });

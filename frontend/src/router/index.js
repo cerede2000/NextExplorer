@@ -282,6 +282,20 @@ const router = createRouter({
       component: DocumentView,
       meta: { requiresAuth: true, allowGuest: true },
     },
+    /**
+     * And two of them side by side, which the Versions panel offers for anything
+     * that reads as lines of text: a version of a shared file against the file as
+     * it is now. `/compare` asks for an account, so that offer sent a visitor to
+     * the sign-in screen. The sides are named in the query as they are everywhere
+     * else, by their logical paths — each inside this share — and each one is read
+     * through `/api/share/<token>/…` like everything else here.
+     */
+    {
+      path: '/share/:token/compare',
+      name: 'ShareCompare',
+      component: () => import('@/views/CompareView.vue'),
+      meta: { requiresAuth: true, allowGuest: true },
+    },
     // Where a share used to be. Links already handed out still resolve, and still
     // through the same guard: a redirect is a navigation like any other.
     {

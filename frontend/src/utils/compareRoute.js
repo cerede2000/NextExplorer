@@ -1,4 +1,5 @@
 import { normalizePath } from '@/api';
+import { shareTokenOfPath } from '@/api/shareScope';
 import { MAX_COMPARED, MIN_COMPARED } from '@/config/compare';
 
 /**
@@ -27,6 +28,21 @@ const asSide = (one) =>
     ? { path: normalizePath(one), versionId: '' }
     : { path: normalizePath(one?.path || ''), versionId: String(one?.versionId || '') };
 
+/**
+ * The share every side is in, or '' when they are not all in one.
+ *
+ * A comparison is reached as a page, and inside a share every page a visitor
+ * sees is `/share/<token>/…`: `/compare` asks for an account, so a visitor
+ * comparing a shared file with one of its own earlier versions — which the
+ * Versions panel offers them — was sent to the sign-in screen. Somebody with an
+ * account comparing a shared file against one of their own is not in one share,
+ * and keeps the application's own address.
+ */
+const theOneShare = (sides) => {
+  const tokens = new Set(sides.map((one) => shareTokenOfPath(one.path)));
+  return tokens.size === 1 ? [...tokens][0] : '';
+};
+
 export const compareRoute = (sides) => {
   const wanted = (Array.isArray(sides) ? sides : [sides]).map(asSide).filter((one) => one.path);
 
@@ -42,8 +58,10 @@ export const compareRoute = (sides) => {
   });
   if (unique.length < MIN_COMPARED || unique.length > MAX_COMPARED) return null;
 
+  const share = theOneShare(unique);
+
   return {
-    path: '/compare',
+    path: share ? `/share/${encodeURIComponent(share)}/compare` : '/compare',
     query: {
       paths: unique.map((one) => one.path),
       // Left off entirely when no side is a version, so the everyday address stays

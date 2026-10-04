@@ -20,6 +20,8 @@ describe('which share an address is about', () => {
       shareTokenOf({ name: 'ShareDocument', params: { token: 'tok2', path: ['a.pdf'] } })
     ).toBe('tok2');
     expect(shareTokenOf({ name: 'SharedEditor', params: { token: 'tok3' } })).toBe('tok3');
+    // Two of its files side by side, which the Versions panel offers a visitor.
+    expect(shareTokenOf({ name: 'ShareCompare', params: { token: 'tok6' } })).toBe('tok6');
   });
 
   /** Links already handed out still arrive in the shape the share used to have. */

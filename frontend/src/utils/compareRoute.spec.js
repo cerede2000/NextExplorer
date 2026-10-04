@@ -90,6 +90,42 @@ describe('the paths a comparison address names', () => {
  * needs a separator a file name cannot contain, and there is no such character.
  * Position is the join: the version at a place belongs to the path at that place.
  */
+/**
+ * Inside a share, a comparison is one of the share's own pages.
+ *
+ * `/compare` asks for an account, so the Versions panel's own offer — this
+ * version against the file as it is now — sent a visitor with no account to the
+ * sign-in screen. Everything a visitor sees is `/share/<token>/…`, and this is
+ * no exception.
+ */
+describe('a comparison inside a share', () => {
+  it("is at the share's own address", () => {
+    expect(
+      compareRoute([{ path: 'share/TOKEN/notes.txt', versionId: 'v7' }, 'share/TOKEN/notes.txt'])
+    ).toEqual({
+      path: '/share/TOKEN/compare',
+      query: {
+        paths: ['share/TOKEN/notes.txt', 'share/TOKEN/notes.txt'],
+        versions: ['v7', ''],
+      },
+    });
+  });
+
+  it("keeps the application's address where no side is in a share", () => {
+    expect(compareRoute(['Docs/a.txt', 'Docs/b.txt']).path).toBe('/compare');
+  });
+
+  /**
+   * Somebody with an account comparing a shared file against one of their own is
+   * not inside one share, and the share's prefix would be the wrong place for it:
+   * the other side is not in the share and is not reachable under it.
+   */
+  it('keeps it too where the sides are not all in the same share', () => {
+    expect(compareRoute(['share/TOKEN/notes.txt', 'Docs/mine.txt']).path).toBe('/compare');
+    expect(compareRoute(['share/ONE/a.txt', 'share/TWO/a.txt']).path).toBe('/compare');
+  });
+});
+
 describe('a comparison with an earlier version', () => {
   it('carries which version each side is', () => {
     expect(compareRoute([{ path: 'Docs/a.txt', versionId: 'v7' }, { path: 'Docs/a.txt' }])).toEqual(

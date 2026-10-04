@@ -4356,10 +4356,31 @@ test('a shared folder is browsed, read and edited without ever leaving the share
     )
   );
 
+  /**
+   * One save, so the shared file has a history for the visitor to open. The
+   * Versions panel is drawn over a share's listing like any other, and
+   * everything it asks is `/api/versions/…` — an address that was served under
+   * no share's prefix, so the panel opened in a share and answered 404.
+   */
+  await page.goto('/editor/Projects/Handout/Deeper/inside.txt');
+  const handout = page.locator('.cm-content');
+  await expect(handout).toContainText('inside the subfolder');
+  await handout.click();
+  await page.keyboard.press('ControlOrMeta+A');
+  await page.keyboard.type('inside the subfolder, said twice');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect
+    .poll(() => fs.readFileSync(path.join(dir, 'Deeper', 'inside.txt'), 'utf8'))
+    .toBe('inside the subfolder, said twice');
+
   await page.goto('/browse/Projects');
   await page.getByRole('button', { name: 'Select Handout' }).click();
   await page.getByRole('button', { name: 'Share selected item' }).click();
   const dialog = page.getByRole('dialog');
+  // This share shows its history, which is its owner's decision and off by
+  // default on a link for anyone.
+  await dialog.locator('[data-test="share-versions-visible"]').check();
+  await dialog.locator('[data-test="share-versions-download"]').check();
   await dialog.getByRole('button', { name: 'Create Share Link' }).click();
   const link = await dialog.locator('input[readonly]').first().inputValue();
   const token = link.split('/share/')[1];
@@ -4437,13 +4458,83 @@ test('a shared folder is browsed, read and edited without ever leaving the share
      */
     await visitor.locator('[title="Deeper"]').first().dblclick();
     await expect(visitor).toHaveURL(new RegExp(`/share/${token}/browse/Deeper$`));
+
+    /**
+     * The earlier version of a shared file, from the panel its mark opens.
+     *
+     * Drawn over a share's listing like any other, and everything it asks is
+     * `/api/versions/…` — an address that was served under no share's prefix, so
+     * the panel opened here and answered 404. What it may show is the share's own
+     * decision, which this one made when it was created.
+     */
+    const mark = visitor
+      .locator('.group\\/item')
+      .filter({ has: visitor.locator('[aria-label="Select inside.txt"]') })
+      .locator('[data-test="version-mark"]');
+    await expect(mark).toHaveText('1');
+    const [history] = await Promise.all([
+      visitor.waitForResponse((response) =>
+        response.url().includes(`/api/share/${token}/versions`)
+      ),
+      mark.click(),
+    ]);
+    expect(history.status(), `the history was answered ${history.status()}`).toBe(200);
+    const versions = visitor.getByRole('dialog', { name: 'File versions' });
+    await expect(versions).toContainText('inside.txt');
+    const rows = versions.locator('[data-test="version-row"]');
+    await expect(rows).toHaveCount(1);
+
+    /**
+     * And that version against the file as it is now, which the panel offers for
+     * anything that reads as lines of text.
+     *
+     * A comparison is a page, and its page was `/compare` — the signed-in
+     * application's, which asks for an account: the offer sent a visitor with no
+     * account to the sign-in screen. It is one of the share's own pages now, which
+     * the check below this walk holds for every address visited.
+     */
+    await rows.first().locator('[data-test="version-menu"]').click({ timeout: 5000 });
+    await versions.locator('[data-test="version-action-compare"]').click({ timeout: 5000 });
+    await expect(visitor).toHaveURL(new RegExp(`/share/${token}/compare\\?`));
+    await expect(visitor.locator('[data-test="compare"]')).toBeVisible();
+    await expect(visitor.locator('[data-test="compare-names"]')).toContainText('inside.txt');
+    // Both sides came through the share: the version, and the file as it is now.
+    await expect(visitor.locator('[data-test="compare-count"]')).toBeVisible();
+
+    await visitor.goBack();
+    await expect(visitor).toHaveURL(new RegExp(`/share/${token}/browse/Deeper$`));
+    // The panel is still open behind the comparison — it belongs to the window
+    // rather than to an address — and it covers the row opened next.
+    await visitor.keyboard.press('Escape');
+    await expect(versions).toHaveCount(0);
+
     await visitor.locator('[title="inside.txt"]').first().dblclick();
     await expect(visitor).toHaveURL(new RegExp(`/share/${token}/editor/Deeper/inside\\.txt$`));
-    await expect(visitor.locator('.cm-content')).toContainText('inside the subfolder');
+    await expect(visitor.locator('.cm-content')).toContainText('inside the subfolder, said twice');
 
     // Not one address outside the share, at any point.
     const strayed = visited.filter((address) => !address.startsWith(`/share/${token}`));
     expect(strayed, `addresses outside the share: ${strayed.join(', ')}`).toEqual([]);
+
+    /**
+     * And every one of those requests stayed under the share's prefix.
+     *
+     * The list rather than a handful of names: a proxy that lets the link
+     * through lets `/api/share/<token>/…` through and nothing else, so one
+     * request addressed anywhere else is one thing that does not work.
+     */
+    const outside = [
+      ...new Set(
+        asked.filter(
+          (address) =>
+            !address.startsWith(`/api/share/${token}`) &&
+            // The one thing every page asks before anything else, to find out
+            // whether anybody is signed in. It answers a visitor too.
+            address !== '/api/auth/status'
+        )
+      ),
+    ];
+    expect(outside, `asked outside the share: ${outside.join(', ')}`).toEqual([]);
 
     // And nothing was asked of the server that only an account could answer.
     const forAnAccountOnly = asked.filter((p) => p === '/api/favorites' || p === '/api/volumes');
@@ -4834,6 +4925,24 @@ test('a visitor reaches all of a share from behind a front door', async ({ brows
     await visitor.goBack();
     await expect(visitor.locator('[title="notes.txt"]').first()).toBeVisible();
 
+    /**
+     * What is known about a file, from the details panel.
+     *
+     * It asked for the file's mode, owner and group as well — `/api/permissions/…`,
+     * an address no visitor may ask and this door turns away. The panel showed the
+     * refusal, and under it a mode it had made up: 644, owner read and write,
+     * which is the component's own default and not anybody's answer.
+     */
+    await visitor.locator('[title="notes.txt"]').first().click({ button: 'right' });
+    await visitor.getByText('Get Info', { exact: true }).first().click();
+    const details = visitor.getByRole('heading', { name: 'notes.txt', level: 2 });
+    await expect(details).toBeVisible();
+    await expect(visitor.getByText('Sharing & Permissions')).toHaveCount(0);
+    // It slides out rather than being taken down, so it is out of the window
+    // that is asked for rather than out of the page.
+    await visitor.keyboard.press('Escape');
+    await expect(details).not.toBeInViewport();
+
     // And taken away.
     await visitor.locator('[title="notes.txt"]').first().click({ button: 'right' });
     const download = visitor.waitForEvent('download', { timeout: 10000 }).catch(() => null);
@@ -4849,6 +4958,96 @@ test('a visitor reaches all of a share from behind a front door', async ({ brows
     if (archiveReadable) {
       await expect(visitor.locator('[data-test="notification-count"]')).toHaveCount(0);
     }
+  } finally {
+    await stranger.close();
+  }
+});
+
+/**
+ * Filing something inside a share, from behind the same door.
+ *
+ * "Copy to" and the dialogs like it — "Move to", "Extract to", the file picker
+ * the editor opens, the Versions panel's "Restore a copy to" — walk folders, and
+ * they walked them at `/api/browse/…`: the signed-in application's address, which
+ * a door that lets a public link through turns away. The dialog opened on nothing
+ * and said the folder could not be listed. The walk goes through the share's own
+ * door now, and cannot be sent above the share — whose token is not a folder
+ * anybody chose and whose parent is not this visitor's to see.
+ */
+test('a visitor files a copy inside a share, and the picker never leaves it', async ({
+  browser,
+}) => {
+  test.slow();
+
+  const dir = path.join(volume, 'Workroom');
+  fs.mkdirSync(path.join(dir, 'Filed'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'note.txt'), 'to be filed\n');
+
+  await page.goto('/browse/Projects');
+  await page.getByRole('button', { name: 'Select Workroom' }).click();
+  await page.getByRole('button', { name: 'Share selected item' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Read & Write' }).click();
+  await dialog.getByRole('button', { name: 'Create Share Link' }).click();
+  const link = await dialog.locator('input[readonly]').first().inputValue();
+  const token = link.split('/share/')[1];
+  await page.keyboard.press('Escape');
+
+  const stranger = await browser.newContext({ locale: 'en-US' });
+  try {
+    const visitor = await stranger.newPage();
+
+    /** The same front door as the journey above, and the same one exception. */
+    const refused = [];
+    await stranger.route('**/*', async (route) => {
+      const { pathname } = new URL(route.request().url());
+      if (
+        pathname.startsWith('/share/') ||
+        pathname.startsWith('/api/share/') ||
+        pathname.startsWith('/assets/')
+      ) {
+        return route.continue();
+      }
+      refused.push(pathname);
+      return route.fulfill({
+        status: 401,
+        contentType: 'text/html',
+        body: '<html><body>Authentication required</body></html>',
+      });
+    });
+
+    await visitor.goto(link);
+    await expect(visitor.locator('[title="note.txt"]').first()).toBeVisible();
+
+    await visitor.locator('[title="note.txt"]').first().click({ button: 'right' });
+    await visitor.getByText('Copy to', { exact: true }).first().click();
+
+    const picker = visitor.getByRole('dialog').filter({ hasText: 'Copy to' });
+    const crumbs = picker.getByRole('navigation', { name: 'Folder path' });
+
+    // The share's own folders, and not one word about where the share sits.
+    await expect(picker.getByText('Filed')).toBeVisible();
+    await expect(crumbs).not.toContainText(token);
+    await expect(crumbs).not.toContainText('share');
+
+    /**
+     * The top of the walk is the share. Sent there — which is what the "Storage"
+     * crumb asks for — it stays, rather than asking for the whole instance's
+     * listing and being turned away at the door.
+     */
+    await crumbs.getByRole('button', { name: 'Storage' }).click();
+    await expect(picker.getByText('Filed')).toBeVisible();
+
+    await picker.getByText('Filed').click();
+    await picker.getByRole('button', { name: 'Copy here' }).click();
+
+    await expect
+      .poll(() => fs.existsSync(path.join(dir, 'Filed', 'note.txt')), { timeout: 15000 })
+      .toBe(true);
+    expect(fs.readFileSync(path.join(dir, 'Filed', 'note.txt'), 'utf8')).toBe('to be filed\n');
+
+    const strayed = [...new Set(refused)].filter((pathname) => pathname !== '/api/auth/status');
+    expect(strayed, `asked outside the door:\n${strayed.join('\n')}`).toEqual([]);
   } finally {
     await stranger.close();
   }
