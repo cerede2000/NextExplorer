@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { forgetGuestSession, guestSessionId, rememberGuestSession } from '@/api/guestSession';
 import { createPinia, setActivePinia } from 'pinia';
 
 /**
@@ -44,7 +45,7 @@ const USER = { id: 'u1', email: 'u@example.com', roles: ['admin'] };
 
 beforeEach(() => {
   setActivePinia(createPinia());
-  sessionStorage.clear();
+  forgetGuestSession();
   [fetchAuthStatus, loginApi, logoutApi, setupAccountApi].forEach((m) => m.mockReset());
   fetchAuthStatus.mockResolvedValue({
     authEnabled: true,
@@ -180,10 +181,30 @@ describe('a deployment with authentication switched off', () => {
 
 describe('the guest session', () => {
   it('makes a visitor a guest while nobody is signed in', async () => {
-    sessionStorage.setItem('guestSessionId', 'g1');
+    rememberGuestSession('g1', 'TOKEN');
     const store = useAuthStore();
 
     await store.initialize();
+
+    expect(store.isGuest).toBe(true);
+  });
+
+  /**
+   * The defect behind a proxy: something asked first.
+   *
+   * `isGuest` was a computed around `sessionStorage`, and with no session its one
+   * reactive value sat behind a `&&` that never got there — so the answer was
+   * cached with nothing able to invalidate it. The first refused request of the
+   * page woke the session-expiry handler, which asks this, and from then on a
+   * visitor with no account was drawn the sidebar of a signed-in one and had
+   * their favourites and their volumes asked for on their behalf.
+   */
+  it('becomes a guest even when something asked before the session existed', async () => {
+    const store = useAuthStore();
+    await store.initialize();
+    expect(store.isGuest).toBe(false);
+
+    rememberGuestSession('g1', 'TOKEN');
 
     expect(store.isGuest).toBe(true);
   });
@@ -208,7 +229,7 @@ describe('the guest session', () => {
       async (store) => store.setupAccount({ email: 'u@example.com', username: 'u', password: 'x' }),
     ],
   ])('is cleared by %s', async (_label, act) => {
-    sessionStorage.setItem('guestSessionId', 'g1');
+    rememberGuestSession('g1', 'TOKEN');
     fetchAuthStatus.mockResolvedValue({ authEnabled: true, user: USER });
     loginApi.mockResolvedValue({ user: USER });
     setupAccountApi.mockResolvedValue({ user: USER });
@@ -216,17 +237,17 @@ describe('the guest session', () => {
 
     await act(store);
 
-    expect(sessionStorage.getItem('guestSessionId')).toBeNull();
+    expect(guestSessionId.value).toBeNull();
     expect(store.isGuest).toBe(false);
   });
 
   it('is left alone when the status names nobody', async () => {
-    sessionStorage.setItem('guestSessionId', 'g1');
+    rememberGuestSession('g1', 'TOKEN');
     const store = useAuthStore();
 
     await store.initialize();
 
-    expect(sessionStorage.getItem('guestSessionId')).toBe('g1');
+    expect(guestSessionId.value).toBe('g1');
   });
 });
 

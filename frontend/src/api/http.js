@@ -1,3 +1,5 @@
+import { guestSessionId } from './guestSession';
+
 const DEFAULT_API_BASE = '/';
 const apiBase = (import.meta.env.VITE_API_URL || DEFAULT_API_BASE).replace(/\/$/, '');
 const NETWORK_RETRY_DELAYS_MS = [300, 900];
@@ -177,9 +179,8 @@ const requestRaw = async (endpoint, options = {}) => {
   }
 
   // Add guest session header if present
-  const guestSessionId = sessionStorage.getItem('guestSessionId');
-  if (guestSessionId) {
-    headers['X-Guest-Session'] = guestSessionId;
+  if (guestSessionId.value) {
+    headers['X-Guest-Session'] = guestSessionId.value;
   }
 
   for (let attempt = 0; ; attempt += 1) {

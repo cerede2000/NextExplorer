@@ -1,4 +1,5 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { forgetGuestSession, rememberGuestSession } from './guestSession';
 
 /**
  * The one module every request in the application goes through, at 12 % of its
@@ -344,12 +345,19 @@ describe('what comes back on success', () => {
   });
 
   it('carries the guest session along when the visitor holds one', async () => {
-    sessionStorage.getItem.mockReturnValue('guest-abc');
+    // Through the module that owns it: a direct write to sessionStorage is what
+    // the rest of the application is no longer allowed to do, because nothing
+    // watching would hear it.
+    rememberGuestSession('guest-abc', 'abc');
     fetchMock.mockResolvedValue(ok({}));
 
-    await settle(requestJson('/api/share/abc/browse/'));
+    try {
+      await settle(requestJson('/api/share/abc/browse/'));
 
-    expect(fetchMock.mock.calls[0][1].headers['X-Guest-Session']).toBe('guest-abc');
+      expect(fetchMock.mock.calls[0][1].headers['X-Guest-Session']).toBe('guest-abc');
+    } finally {
+      forgetGuestSession();
+    }
   });
 
   it('sends cookies, since every request relies on them', async () => {

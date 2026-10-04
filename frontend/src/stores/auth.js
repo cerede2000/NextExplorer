@@ -10,6 +10,7 @@ import {
   logout as logoutApi,
   fetchCurrentUser,
 } from '@/api';
+import { forgetGuestSession, guestSessionId } from '@/api/guestSession';
 
 export const useAuthStore = defineStore('auth', () => {
   const requiresSetup = ref(false);
@@ -45,10 +46,19 @@ export const useAuthStore = defineStore('auth', () => {
     return Boolean(currentUser.value);
   });
 
+  /**
+   * Somebody holding a share link rather than an account.
+   *
+   * Both halves are read before either is weighed: written as one expression the
+   * `&&` short-circuits on the session, and a reader arriving before the share
+   * handed one out would leave this with nothing reactive to invalidate it —
+   * which is how a visitor ended up being shown an account's sidebar for the
+   * rest of the page's life.
+   */
   const isGuest = computed(() => {
-    // Guest if we have a guest session but no authenticated user
-    const guestSessionId = sessionStorage.getItem('guestSessionId');
-    return Boolean(guestSessionId && !currentUser.value);
+    const carriesSession = Boolean(guestSessionId.value);
+    const signedIn = Boolean(currentUser.value);
+    return carriesSession && !signedIn;
   });
 
   const initialize = async () => {
@@ -73,7 +83,7 @@ export const useAuthStore = defineStore('auth', () => {
 
         // Clear guest session if user is now authenticated
         if (currentUser.value) {
-          sessionStorage.removeItem('guestSessionId');
+          forgetGuestSession();
         }
 
         // Cookies hold session; no token adjustments needed
@@ -98,7 +108,7 @@ export const useAuthStore = defineStore('auth', () => {
     currentUser.value = response?.user || null;
 
     // Clear guest session when user sets up account
-    sessionStorage.removeItem('guestSessionId');
+    forgetGuestSession();
   };
 
   const login = async ({ identifier, password }) => {
@@ -118,7 +128,7 @@ export const useAuthStore = defineStore('auth', () => {
     currentUser.value = response?.user || null;
 
     // Clear guest session when user logs in
-    sessionStorage.removeItem('guestSessionId');
+    forgetGuestSession();
     return { totpRequired: false };
   };
 
@@ -142,7 +152,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     totpPending.value = false;
     currentUser.value = response?.user || null;
-    sessionStorage.removeItem('guestSessionId');
+    forgetGuestSession();
     return { totpRequired: false };
   };
 
@@ -156,7 +166,7 @@ export const useAuthStore = defineStore('auth', () => {
     const response = await submitTotpCodeApi(code);
     totpPending.value = false;
     currentUser.value = response?.user || null;
-    sessionStorage.removeItem('guestSessionId');
+    forgetGuestSession();
     return {
       usedRecoveryCode: Boolean(response?.usedRecoveryCode),
       recoveryCodesLeft: response?.recoveryCodesLeft ?? null,

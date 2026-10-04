@@ -1,3 +1,4 @@
+import { forgetGuestSession, guestSessionShareToken, rememberGuestSession } from './guestSession';
 import { requestJson, normalizePath, encodePath } from './http';
 
 /**
@@ -115,22 +116,19 @@ async function browseShare(shareToken, innerPath = '', options = {}) {
 }
 
 /**
- * Store guest session ID in sessionStorage
+ * Keep the session a share handed this tab, or drop it.
+ *
+ * The value itself lives in `guestSession.js`, where it is a ref the rest of the
+ * application can watch — see the note there for why reading the store on demand
+ * was not enough.
  */
 function setGuestSession(sessionId, shareToken = '') {
-  if (sessionId) {
-    sessionStorage.setItem('guestSessionId', sessionId);
-    if (shareToken) {
-      sessionStorage.setItem('guestSessionShareToken', shareToken);
-    }
-  } else {
-    sessionStorage.removeItem('guestSessionId');
-    sessionStorage.removeItem('guestSessionShareToken');
-  }
+  if (sessionId) rememberGuestSession(sessionId, shareToken);
+  else forgetGuestSession();
 }
 
 function getGuestSessionShareToken() {
-  return sessionStorage.getItem('guestSessionShareToken');
+  return guestSessionShareToken.value;
 }
 
 /**

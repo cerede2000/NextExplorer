@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { forgetGuestSession, rememberGuestSession } from '@/api/guestSession';
 
 /**
  * This guard decides whether a visitor sees the shared files or a password
@@ -26,7 +27,7 @@ beforeEach(() => {
   resetShareInfoCache();
   getShareInfo.mockReset();
   getGuestSessionShareToken.mockReset();
-  sessionStorage.clear();
+  forgetGuestSession();
 });
 
 describe('Share guard', () => {
@@ -42,7 +43,7 @@ describe('Share guard', () => {
   });
 
   it('lets a verified guest session through without asking the backend', async () => {
-    sessionStorage.setItem('guestSessionId', 'guest-1');
+    rememberGuestSession('guest-1', 'TOKEN');
     getGuestSessionShareToken.mockReturnValue('TOKEN');
 
     expect(await open(anonymous)).toBe(true);
@@ -54,7 +55,7 @@ describe('Share guard', () => {
     // user. The router reads the session before that call and passes it in;
     // reading it here instead would send a visitor who already typed the
     // password back to the prompt on every reload.
-    sessionStorage.clear();
+    forgetGuestSession();
     getGuestSessionShareToken.mockReturnValue(null);
 
     const decision = await resolveShareAccess({
@@ -69,7 +70,7 @@ describe('Share guard', () => {
   });
 
   it('ignores a guest session belonging to another share', async () => {
-    sessionStorage.setItem('guestSessionId', 'guest-1');
+    rememberGuestSession('guest-1', 'TOKEN');
     getGuestSessionShareToken.mockReturnValue('OTHER-TOKEN');
 
     expect(await open(anonymous)).toMatchObject({ name: 'ShareLogin' });

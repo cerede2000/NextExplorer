@@ -1,5 +1,6 @@
 import { getShareInfo } from '@/api/shares.api';
 import { getGuestSessionShareToken } from '@/api';
+import { guestSessionId } from '@/api/guestSession';
 
 /**
  * Who may open a share link, decided before the view loads.
@@ -48,7 +49,7 @@ export const resetShareInfoCache = () => shareInfoCache.clear();
  * send them back to the prompt on every reload.
  */
 export const readGuestSession = () => ({
-  id: sessionStorage.getItem('guestSessionId'),
+  id: guestSessionId.value,
   shareToken: getGuestSessionShareToken(),
 });
 
