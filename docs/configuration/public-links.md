@@ -59,6 +59,28 @@ location ~ ^/(share|api/share|assets)/ {
 }
 ```
 
+## The editing server is not a reader
+
+ONLYOFFICE and Collabora fetch the document and report back to it themselves,
+from wherever they run. They carry a token this application signed and no account
+at all, so an authentication proxy has nothing to let them through on.
+
+For a document **inside a share** the address they are given is under
+`/api/share/<token>/…`, so the hole above already covers it. For every other
+document it is `/api/onlyoffice/file` and `/api/onlyoffice/callback`, which are
+the whole instance's and must not be opened in the proxy.
+
+Point the editing server at the application directly instead:
+
+```
+EDITOR_INTERNAL_URL=http://nextexplorer:3000
+```
+
+That is the address ONLYOFFICE or Collabora can reach this application at on the
+network they share — a container name, a LAN address — and it is only used for
+the addresses handed to them. Everything a person sees still uses `PUBLIC_URL`.
+Unset, it is `PUBLIC_URL`, and an editing server outside the proxy cannot save.
+
 ## Nothing else
 
 Uploading into a share that accepts them is under the prefix too, including the

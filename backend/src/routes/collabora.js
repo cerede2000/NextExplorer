@@ -218,7 +218,7 @@ router.post(
     // access token is what authorises it. See utils/shareScopedUrl.
     const wopiSrc = new URL(
       shareScopedApiPath(`/api/collabora/wopi/files/${encodeURIComponent(fileId)}`, relativePath),
-      publicConfig.url
+      publicConfig.editorUrl
     );
     const iframeUrl = new URL(urlTemplate);
     iframeUrl.searchParams.set('WOPISrc', wopiSrc.toString());

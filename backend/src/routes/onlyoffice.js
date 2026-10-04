@@ -471,7 +471,7 @@ const readOnlyFileUrl = (req, relativePath, absolutePath, ttlSeconds) => {
   );
   const fileUrl = new URL(
     shareScopedApiPath('/api/onlyoffice/file', relativePath),
-    publicConfig.url
+    publicConfig.editorUrl
   );
   fileUrl.searchParams.set('path', relativePath);
   fileUrl.searchParams.set('backend', backendToken);
@@ -719,13 +719,13 @@ router.post(
     // in by, and each carries its own signed token. See utils/shareScopedUrl.
     const fileUrl = new URL(
       shareScopedApiPath('/api/onlyoffice/file', relativePath),
-      publicConfig.url
+      publicConfig.editorUrl
     );
     fileUrl.searchParams.set('path', relativePath);
 
     const callbackUrl = new URL(
       shareScopedApiPath('/api/onlyoffice/callback', relativePath),
-      publicConfig.url
+      publicConfig.editorUrl
     );
     callbackUrl.searchParams.set('path', relativePath);
 
@@ -1072,7 +1072,7 @@ router.post(
 
     const fileUrl = new URL(
       shareScopedApiPath('/api/onlyoffice/file', relativePath),
-      publicConfig.url
+      publicConfig.editorUrl
     );
     fileUrl.searchParams.set('path', relativePath);
     fileUrl.searchParams.set('backend', backendToken);

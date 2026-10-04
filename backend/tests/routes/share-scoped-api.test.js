@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import request from 'supertest';
+import http from 'node:http';
 import { setupTestEnv, clearModuleCache } from '../helpers/env-test-utils.js';
 
 /**
@@ -25,6 +26,9 @@ import { setupTestEnv, clearModuleCache } from '../helpers/env-test-utils.js';
  */
 
 let envContext;
+
+/** The stand-in Document Server's port, named in the environment above. */
+const DOCUMENT_SERVER_PORT = 45197;
 
 const buildApp = ({ user } = {}) => {
   clearModuleCache('src/config/env');
@@ -99,6 +103,7 @@ const seedShare = async ({ suffix = '', password, accessMode } = {}) => {
 
   return {
     owner,
+    root,
     volume: `ScopedVol${suffix}`,
     token: created.body.shareToken,
     guestSession: access?.body?.guestSessionId || null,
@@ -116,6 +121,12 @@ beforeEach(async () => {
       ONLYOFFICE_URL: 'http://onlyoffice.invalid',
       ONLYOFFICE_SECRET: 'test-secret',
       PUBLIC_URL: 'https://files.example.test',
+      // Where the editing server reaches this application: not the way in from
+      // outside, which it cannot open.
+      EDITOR_INTERNAL_URL: 'http://nextexplorer.internal:3000',
+      // Where the bytes of a saved document may be fetched from: the stand-in
+      // Document Server below listens here.
+      ONLYOFFICE_DOWNLOAD_ORIGINS: `http://127.0.0.1:${DOCUMENT_SERVER_PORT}`,
     },
   });
 });
@@ -237,6 +248,34 @@ describe('an office document inside a share', () => {
   });
 
   /**
+   * And it is told to come back to an address it can actually reach.
+   *
+   * ONLYOFFICE fetches and reports from wherever it runs. Given the way in from
+   * outside, it meets the authentication proxy and has nothing to show it. Given
+   * the application's own address on the network it shares with it, it meets
+   * nothing at all — which is why a document outside a share works without a
+   * single path being opened in the proxy.
+   */
+  it('is told to come back to the address the editing server can reach', async () => {
+    const { token, guestSession } = await seedShare({ suffix: '-internal' });
+
+    const config = await request(buildApp())
+      .post(`/api/share/${token}/onlyoffice/config`)
+      .set({ 'X-Guest-Session': guestSession })
+      .send({ path: `share/${token}/report.docx`, mode: 'edit' });
+
+    expect(config.status, config.text).toBe(200);
+    expect(config.body.config.document.url.startsWith('http://nextexplorer.internal:3000/')).toBe(
+      true
+    );
+    expect(
+      config.body.config.editorConfig.callbackUrl.startsWith('http://nextexplorer.internal:3000/')
+    ).toBe(true);
+    // And the page itself is still told the name people reach it by.
+    expect(config.body.config.document.url).toContain(`/api/share/${token}/onlyoffice/file`);
+  });
+
+  /**
    * And it is heard when it reports back.
    *
    * Saving is the Document Server POSTing to the callback it was given. Refused
@@ -294,6 +333,113 @@ describe('an office document inside a share', () => {
     expect(await reached(`/api/share/${token}/onlyoffice/callback`)).toBe(true);
     // Not everything under the prefix: only the two the editor is given.
     expect(await reached(`/api/share/${token}/onlyoffice/config`)).toBe(false);
+  });
+});
+
+describe('an office document saved from inside a share', () => {
+  /**
+   * What saving is, from the server's side: the Document Server posts to the
+   * callback with the status that means "the document is finished" and a URL to
+   * fetch the new bytes from. This stands in for it, so that what is asserted is
+   * the file on the disk and the state it replaced — not that a route answered.
+   */
+  const asTheDocumentServer = async (run) => {
+    const stub = http.createServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/octet-stream' });
+      res.end('edited by a visitor');
+    });
+    await new Promise((resolve, reject) => {
+      stub.once('error', reject);
+      stub.listen(DOCUMENT_SERVER_PORT, '127.0.0.1', resolve);
+    });
+    try {
+      return await run(`http://127.0.0.1:${DOCUMENT_SERVER_PORT}`);
+    } finally {
+      await new Promise((resolve) => stub.close(resolve));
+    }
+  };
+
+  it('is written, and what it replaced is kept as a version', async () => {
+    const seeded = await seedShare({ suffix: '-saving', accessMode: 'readwrite' });
+    const { token, guestSession, owner, root } = seeded;
+    const onDisk = path.join(root, 'handed-out', 'report.docx');
+
+    await asTheDocumentServer(async (origin) => {
+      const app = buildApp();
+      const config = await request(app)
+        .post(`/api/share/${token}/onlyoffice/config`)
+        .set({ 'X-Guest-Session': guestSession })
+        .send({ path: `share/${token}/report.docx`, mode: 'edit' });
+      expect(config.status, config.text).toBe(200);
+
+      const jwt = require('jsonwebtoken');
+      const reported = new URL(config.body.config.editorConfig.callbackUrl);
+      // 2 is "everybody has left and this is the document": a save on purpose.
+      const body = {
+        status: 2,
+        key: config.body.config.document.key,
+        url: `${origin}/edited.docx`,
+        users: [],
+      };
+      const answer = await request(app)
+        .post(`${reported.pathname}${reported.search}`)
+        .set({ Authorization: `Bearer ${jwt.sign({ payload: body }, 'test-secret')}` })
+        .send(body);
+
+      expect(answer.status, answer.text).toBe(200);
+      expect(answer.body).toMatchObject({ error: 0 });
+    });
+
+    expect(await fs.readFile(onDisk, 'utf8')).toBe('edited by a visitor');
+
+    // And the owner can see what it replaced. A visitor editing somebody's file
+    // without a way back to what it said is the thing versions exist to prevent.
+    const history = await request(buildApp({ user: owner }))
+      .get('/api/versions')
+      .query({ path: `${seeded.volume}/handed-out/report.docx` });
+
+    expect(history.status, history.text).toBe(200);
+    expect(history.body.versions?.length || 0).toBeGreaterThan(0);
+  });
+});
+
+describe('a document that is not in a share at all', () => {
+  /**
+   * The same walk, for somebody with an account opening a document of their own.
+   *
+   * Everything above moved an address; none of it may move this one. The
+   * configuration must still point at `/api/onlyoffice/file`, and that must still
+   * answer the editing server.
+   */
+  it('is opened, fetched and reported back exactly as before', async () => {
+    const { owner, volume } = await seedShare({ suffix: '-plain' });
+    const mine = `${volume}/handed-out/report.docx`;
+    const app = buildApp({ user: owner });
+
+    const config = await request(app)
+      .post('/api/onlyoffice/config')
+      .send({ path: mine, mode: 'edit' });
+    expect(config.status, config.text).toBe(200);
+    expect(config.body.config.document.url).toContain('/api/onlyoffice/file');
+    expect(config.body.config.document.url).not.toContain('/api/share/');
+    expect(config.body.config.editorConfig.callbackUrl).not.toContain('/api/share/');
+
+    const jwt = require('jsonwebtoken');
+    const asTheEditor = jwt.sign({ fetch: true }, 'test-secret', { algorithm: 'HS256' });
+    const handedOut = new URL(config.body.config.document.url);
+
+    const fetched = await request(buildApp())
+      .get(`${handedOut.pathname}${handedOut.search}`)
+      .set({ Authorization: `Bearer ${asTheEditor}` })
+      .buffer(true)
+      .parse((res, callback) => {
+        const chunks = [];
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => callback(null, Buffer.concat(chunks)));
+      });
+
+    expect(fetched.status, fetched.text).toBe(200);
+    expect(fetched.body.toString()).toContain('not really a document');
   });
 });
 

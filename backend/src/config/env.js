@@ -55,6 +55,17 @@ module.exports = {
   // (no public-URL mismatch warning) and accepted by CORS, while PUBLIC_URL stays
   // the canonical URL used to build share links, OIDC callbacks, etc.
   INTERNAL_URL: process.env.INTERNAL_URL?.trim() || null,
+
+  // Where an editing server reaches this application.
+  //
+  // ONLYOFFICE and Collabora fetch the document and report back to it, from
+  // wherever they run — and the address they are given is built from PUBLIC_URL,
+  // which is the way in from outside. Behind an authentication proxy that is a
+  // door they cannot open: they have no account, only the token this server
+  // signed. Set this to the address they can reach the application at directly —
+  // `http://nextexplorer:3000` on the same network, say — and nothing about the
+  // proxy has to be opened for them. Defaults to PUBLIC_URL.
+  EDITOR_INTERNAL_URL: process.env.EDITOR_INTERNAL_URL?.trim() || null,
   TRUST_PROXY: process.env.TRUST_PROXY?.trim().toLowerCase(),
 
   // CORS

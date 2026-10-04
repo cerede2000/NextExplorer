@@ -164,6 +164,21 @@ if (env.PUBLIC_URL) {
   }
 }
 
+// --- Where an editing server reaches this application ---
+// ONLYOFFICE and Collabora are given an address to fetch the document from and
+// to report back to. By default that is PUBLIC_URL, the way in from outside —
+// which an authentication proxy guards, and which those servers cannot pass:
+// they carry the token this server signed and no account at all. Pointed at the
+// application directly, they never meet the proxy.
+let editorInternalUrl = null;
+if (env.EDITOR_INTERNAL_URL) {
+  try {
+    editorInternalUrl = new URL(env.EDITOR_INTERNAL_URL).href.replace(/\/$/, '');
+  } catch (_) {
+    console.warn(`[Config] Invalid EDITOR_INTERNAL_URL: ${env.EDITOR_INTERNAL_URL}`);
+  }
+}
+
 // --- Additional (internal) origins ---
 // Extra origins the app can be reached from (e.g. a LAN IP), comma-separated.
 // They are considered valid so accessing the app that way doesn't raise the
@@ -758,7 +773,14 @@ module.exports = {
     passwordConfig: path.join(configDir, 'app-config.json'),
   },
 
-  public: { url: publicUrl, origin: publicOrigin, origins: knownOrigins },
+  public: {
+    url: publicUrl,
+    origin: publicOrigin,
+    origins: knownOrigins,
+    // What an editing server is told to come back to; PUBLIC_URL unless an
+    // address of its own was given. See EDITOR_INTERNAL_URL.
+    editorUrl: editorInternalUrl || publicUrl,
+  },
 
   extensions: {
     images: constants.IMAGE_EXTENSIONS,
