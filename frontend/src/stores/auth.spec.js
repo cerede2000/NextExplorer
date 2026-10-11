@@ -616,11 +616,14 @@ describe('an identity with no account on this server', () => {
   });
 });
 
-/** A session in hand means the trip to the provider is over. */
-describe('the mark a trip to the provider leaves', () => {
-  it('is dropped once the status comes back with a user', async () => {
-    const { markHandedOff, takeHandedOffRecently } = await import('@/utils/providerHandoff');
+/** A session in hand means the circle is over. */
+describe('the laps a trip to the provider leaves behind', () => {
+  it('are dropped once the status comes back with a user', async () => {
+    const { goingInCircles, markHandedOff } = await import('@/utils/providerHandoff');
     markHandedOff();
+    markHandedOff();
+    markHandedOff();
+    expect(goingInCircles()).toBe(true);
     fetchAuthStatus.mockResolvedValue({
       authEnabled: true,
       requiresSetup: false,
@@ -633,6 +636,6 @@ describe('the mark a trip to the provider leaves', () => {
 
     await store.initialize();
 
-    expect(takeHandedOffRecently()).toBe(false);
+    expect(goingInCircles()).toBe(false);
   });
 });
