@@ -8,7 +8,11 @@ const { trackShareDownload } = require('../../services/sharesService');
 const { createPlan, readPlan, ownerKeyFor } = require('../../services/downloadPlans');
 const asyncHandler = require('../../utils/asyncHandler');
 const { mapWithConcurrency } = require('../../utils/mapWithConcurrency');
-const { collectArchiveEntries, appendEntries } = require('../../services/archiveTree');
+const {
+  collectArchiveEntries,
+  appendEntries,
+  appendUnreadableNotice,
+} = require('../../services/archiveTree');
 const { ValidationError, ForbiddenError, NotFoundError } = require('../../errors/AppError');
 const logger = require('../../utils/logger');
 const { collectInputPaths, encodeContentDisposition, stripBasePath, toPosix } = require('./utils');
@@ -143,8 +147,34 @@ const archiveNameFor = (targets, baseNormalized) => {
 };
 
 const sendArchive = async ({ context, res, targets, baseNormalized, archiveName }) => {
+  // Walked before anything is written, so the count of what could not be read
+  // is known while the response is still an ordinary one. The walk was already
+  // the first thing the download did; what changes is that its answer now has
+  // somewhere to go.
+  //
+  // Only what a listing of those folders would show: never a personal root
+  // inside the volume, a name listings leave out, or a path an access rule hides.
+  const collected = await collectArchiveEntries(
+    context,
+    targets.map(({ relativePath, absolutePath, stats }) => {
+      const entryNameRaw = isShareRootPath(relativePath)
+        ? getDownloadBaseName({ relativePath, absolutePath })
+        : stripBasePath(relativePath, baseNormalized);
+      const entryName = entryNameRaw
+        ? entryNameRaw.replace(/\\/g, '/').replace(/^\/+/, '')
+        : path.basename(absolutePath);
+      return { absolutePath, logicalPath: relativePath, entryName, stats };
+    })
+  );
+
   res.setHeader('Content-Type', 'application/zip');
   res.setHeader('Content-Disposition', encodeContentDisposition(archiveName));
+  // For whoever fetches the archive rather than navigating to it, which is how
+  // a download written into a folder the reader picked is taken. The note
+  // inside the archive is what the other ways read.
+  if (collected.unreadable > 0) {
+    res.setHeader('X-Unreadable-Entries', String(collected.unreadable));
+  }
 
   const archive = new ZipArchive({ zlib: { level: 1 } });
   archive.on('error', (archiveError) => {
@@ -158,21 +188,14 @@ const sendArchive = async ({ context, res, targets, baseNormalized, archiveName 
 
   archive.pipe(res);
 
-  // Only what a listing of those folders would show: never a personal root
-  // inside the volume, a name listings leave out, or a path an access rule hides.
-  const { entries } = await collectArchiveEntries(
-    context,
-    targets.map(({ relativePath, absolutePath, stats }) => {
-      const entryNameRaw = isShareRootPath(relativePath)
-        ? getDownloadBaseName({ relativePath, absolutePath })
-        : stripBasePath(relativePath, baseNormalized);
-      const entryName = entryNameRaw
-        ? entryNameRaw.replace(/\\/g, '/').replace(/^\/+/, '')
-        : path.basename(absolutePath);
-      return { absolutePath, logicalPath: relativePath, entryName, stats };
-    })
-  );
-  appendEntries(archive, entries);
+  appendEntries(archive, collected.entries);
+  appendUnreadableNotice(archive, collected);
+  if (collected.unreadable > 0) {
+    logger.warn(
+      { unreadable: collected.unreadable, sample: collected.unreadableSample, archiveName },
+      'Entries left out of an archive because their names could not be read'
+    );
+  }
 
   await archive.finalize();
 };

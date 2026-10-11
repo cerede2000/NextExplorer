@@ -280,7 +280,7 @@ router.post(
         { signal: controller.signal }
       );
 
-      const items = await extractIntoCurrentFolder({
+      const { items, unreadable, unreadableSample } = await extractIntoCurrentFolder({
         stagingDirectory: stagingAbsolutePath,
         destinationDirectory: destinationAbsolutePath,
         relativeParentPath: destinationRelativePath,
@@ -291,11 +291,18 @@ router.post(
       // go through the trash.
 
       await fs.rm(stagingAbsolutePath, { recursive: true, force: true });
+      if (unreadable > 0) {
+        logger.warn(
+          { archive: archive.relativePath, unreadable, sample: unreadableSample },
+          'Entries left out of an extraction because their names could not be read'
+        );
+      }
       writeEvent({
         type: 'done',
         success: true,
         item: items.length === 1 ? items[0] : null,
         items,
+        ...(unreadable > 0 ? { unreadable } : {}),
       });
     } catch (error) {
       logger.warn(

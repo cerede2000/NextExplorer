@@ -234,7 +234,16 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
   } = options;
 
   if (typeof shouldExclude === 'function' && shouldExclude(rootAbs)) {
-    return { folders: 0, files: 0, bytes: 0, entryCount: 0, batches: 0, pauses: 0, excluded: true };
+    return {
+      folders: 0,
+      files: 0,
+      bytes: 0,
+      entryCount: 0,
+      batches: 0,
+      pauses: 0,
+      unreadable: 0,
+      excluded: true,
+    };
   }
 
   const limit = pLimit(concurrency);
@@ -243,6 +252,11 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
   let files = 0;
   let batches = 0;
   let pauses = 0;
+  // Entries this scan found and could not open. A folder it cannot read is
+  // recorded at size 0 and a file it cannot stat contributes nothing, so a
+  // total that did not say how many there were was short by an amount nobody
+  // could name.
+  let unreadable = 0;
   let scanTimedOut = false;
 
   const throwIfAborted = () => {
@@ -338,6 +352,7 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
         throwIfAborted();
       } catch (err) {
         if (isIoTimeoutError(err) || isIoCircuitOpenError(err)) throw err;
+        unreadable += 1;
         frame.childDirs = [];
       }
 
@@ -373,6 +388,7 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
                   return (await guardedFs('stat', filePath, () => fs.stat(filePath))).size;
                 } catch (err) {
                   if (isIoTimeoutError(err) || isIoCircuitOpenError(err)) throw err;
+                  unreadable += 1;
                   return 0;
                 }
               })
@@ -419,7 +435,15 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
 
   throwIfAborted();
   flush();
-  return { folders, files, bytes: rootTotal, entryCount: rootEntryCount, batches, pauses };
+  return {
+    folders,
+    files,
+    bytes: rootTotal,
+    entryCount: rootEntryCount,
+    batches,
+    pauses,
+    unreadable,
+  };
 };
 
 /** Run a full authoritative scan of the configured volume root. */

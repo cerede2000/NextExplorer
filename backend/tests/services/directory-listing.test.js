@@ -44,13 +44,14 @@ describe('the read-only mark on a listed entry', () => {
     await fs.mkdir(path.join(env.volumeDir, 'Open'), { recursive: true });
     await fs.writeFile(path.join(env.volumeDir, 'Team', 'note.txt'), 'note');
 
-    return created.listDirectoryItems({
+    const { items } = await created.listDirectoryItems({
       absoluteDir: path.join(env.volumeDir, dir),
       parentLogicalPath: dir,
       context: { user: { id: 'u1', roles } },
       thumbsEnabled: false,
       access: { rules, applyToAdmins },
     });
+    return items;
   };
 
   const marks = (items) =>
@@ -117,7 +118,7 @@ describe('Directory listing service', () => {
     await fs.writeFile(path.join(envContext.volumeDir, '.env'), 'secret');
     await fs.mkdir(path.join(envContext.volumeDir, '.cache'));
 
-    const items = await listDirectoryItems({
+    const { items } = await listDirectoryItems({
       absoluteDir: envContext.volumeDir,
       parentLogicalPath: '',
       context: { user: { id: 'admin', roles: ['admin'] } },
@@ -134,7 +135,7 @@ describe('Directory listing service', () => {
     await fs.writeFile(path.join(envContext.volumeDir, 'visible.txt'), 'visible');
     await fs.writeFile(path.join(envContext.volumeDir, 'video.mkv.download'), 'temporary');
 
-    const hiddenItems = await listDirectoryItems({
+    const { items: hiddenItems } = await listDirectoryItems({
       absoluteDir: envContext.volumeDir,
       parentLogicalPath: '',
       context: { user: { id: 'admin', roles: ['admin'] } },
@@ -142,7 +143,7 @@ describe('Directory listing service', () => {
     });
     expect(hiddenItems.map((item) => item.name)).toEqual(['visible.txt']);
 
-    const allItems = await listDirectoryItems({
+    const { items: allItems } = await listDirectoryItems({
       absoluteDir: envContext.volumeDir,
       parentLogicalPath: '',
       context: { user: { id: 'admin', roles: ['admin'] } },
@@ -162,7 +163,7 @@ describe('Directory listing service', () => {
     await fs.writeFile(path.join(envContext.volumeDir, '@SynologyWorkingFile'), 'hidden');
     await fs.mkdir(path.join(envContext.volumeDir, '@eaDir'));
 
-    const items = await listDirectoryItems({
+    const { items } = await listDirectoryItems({
       absoluteDir: envContext.volumeDir,
       parentLogicalPath: '',
       context: { user: { id: 'admin', roles: ['admin'] } },
@@ -182,7 +183,7 @@ describe('Directory listing service', () => {
     await fs.writeFile(path.join(envContext.volumeDir, '.test'), 'hidden');
     await fs.mkdir(path.join(envContext.volumeDir, '@eaDir'));
 
-    const items = await listDirectoryItems({
+    const { items } = await listDirectoryItems({
       absoluteDir: envContext.volumeDir,
       parentLogicalPath: '',
       context: { user: { id: 'admin', roles: ['admin'] } },

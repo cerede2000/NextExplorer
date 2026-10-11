@@ -319,10 +319,17 @@
     "noPhotosHint": "Switch to another view mode to see all files",
     "empty": "This folder is empty",
     "emptyHint": "Upload or create files to get started.",
+    "unreadableEntries": "1 entry in this folder could not be read | {count} entries in this folder could not be read",
+    "unreadableHint": "Their names are not valid UTF-8 — usually written by Windows — so they cannot be opened, copied or put in an archive. Renaming them on the volume fixes it.",
     "scrollTop": "Top",
     "scrollBottom": "Bottom",
     "selectAll": "Select all",
     "deselectAll": "Deselect all"
+  },
+  "transfers": {
+    "unreadableHeading": "Some entries could not be read",
+    "unreadableBody": "1 entry could not be read and is missing from the result. | {count} entries could not be read and are missing from the result.",
+    "unreadableSourceKept": "The original was left where it is, since it holds the only copy of them."
   },
   "volumes": {
     "quickAccess": "Quick access",

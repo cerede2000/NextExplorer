@@ -319,10 +319,17 @@
     "noPhotosHint": "Wechseln Sie in einen anderen Ansichtsmodus, um alle Dateien zu sehen",
     "empty": "Dieser Ordner ist leer",
     "emptyHint": "Laden Sie Dateien hoch oder erstellen Sie neue, um loszulegen.",
+    "unreadableEntries": "1 Eintrag in diesem Ordner konnte nicht gelesen werden | {count} Einträge in diesem Ordner konnten nicht gelesen werden",
+    "unreadableHint": "Ihre Namen sind kein gültiges UTF-8 — meist von Windows geschrieben — sie lassen sich daher nicht öffnen, kopieren oder archivieren. Ein Umbenennen auf dem Volume behebt das.",
     "scrollTop": "Anfang",
     "scrollBottom": "Ende",
     "selectAll": "Alle auswählen",
     "deselectAll": "Alle abwählen"
+  },
+  "transfers": {
+    "unreadableHeading": "Einige Einträge konnten nicht gelesen werden",
+    "unreadableBody": "1 Eintrag konnte nicht gelesen werden und fehlt im Ergebnis. | {count} Einträge konnten nicht gelesen werden und fehlen im Ergebnis.",
+    "unreadableSourceKept": "Das Original bleibt, wo es ist, denn es enthält die einzige Kopie davon."
   },
   "volumes": {
     "quickAccess": "Schnellzugriff",

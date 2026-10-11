@@ -16,6 +16,7 @@ import {
   createOnlyofficeWarning,
 } from './files/onlyofficeActivity';
 import { createTransfers } from './files/transfers';
+import { createUnreadableWarning } from './files/unreadable';
 import { createOperations } from './files/operations';
 
 /**
@@ -213,6 +214,10 @@ export const useFileStore = defineStore('fileStore', () => {
     isItemBeingRenamed: (...args) => active.value.rename.isItemBeingRenamed(...args),
   };
 
+  // Whatever an operation could not read, said once: a copy, an archive or an
+  // extraction short of files must never read as finished.
+  const sayWhatWasNotRead = createUnreadableWarning(notificationsStore);
+
   const transfers = createTransfers({
     currentPath,
     selection,
@@ -220,6 +225,7 @@ export const useFileStore = defineStore('fileStore', () => {
     refreshSizes,
     operationTasksStore,
     warn: warnAboutOnlyOfficeActivity,
+    sayWhatWasNotRead,
   });
 
   const operations = createOperations({
@@ -232,6 +238,7 @@ export const useFileStore = defineStore('fileStore', () => {
     favoritesStore,
     operationTasksStore,
     warn: warnAboutOnlyOfficeActivity,
+    sayWhatWasNotRead,
   });
 
   const getCurrentPath = computed(() => currentPath.value);

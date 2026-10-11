@@ -319,10 +319,17 @@
     "noPhotosHint": "切換到其他檢視模式以查看所有檔案",
     "empty": "此檔案夾為空",
     "emptyHint": "上傳或建立檔案以開始。",
+    "unreadableEntries": "此檔案夾中有 1 個項目無法讀取 | 此檔案夾中有 {count} 個項目無法讀取",
+    "unreadableHint": "它們的名稱不是有效的 UTF-8（通常由 Windows 寫入），因此無法開啟、複製或壓縮。在磁碟區上重新命名即可解決。",
     "scrollTop": "頂部",
     "scrollBottom": "底部",
     "selectAll": "全選",
     "deselectAll": "取消全選"
+  },
+  "transfers": {
+    "unreadableHeading": "部分項目無法讀取",
+    "unreadableBody": "有 1 個項目無法讀取，結果中缺少它。 | 有 {count} 個項目無法讀取，結果中缺少它們。",
+    "unreadableSourceKept": "原件保留在原處，因為它保存著這些項目的唯一副本。"
   },
   "volumes": {
     "quickAccess": "快速訪問",

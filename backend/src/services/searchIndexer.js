@@ -225,6 +225,11 @@ const indexTree = async ({
   let skipped = 0;
   let folders = 0;
   let batches = 0;
+  // Entries this pass found and could not open, which is not the same as
+  // `skipped`: those are files it deliberately did not read because the index
+  // was already up to date for them. One of these is a file the search will
+  // never find, and the number used to be nowhere at all.
+  let unreadable = 0;
   let interrupted = false;
 
   const throwIfAborted = () => {
@@ -416,6 +421,7 @@ const indexTree = async ({
       onProgress({
         indexed,
         skipped,
+        unreadable,
         batches,
         reindexed: reindexedKnown,
         ...(worstFolder
@@ -434,7 +440,10 @@ const indexTree = async ({
     try {
       entries = await fs.readdir(dirAbs, { withFileTypes: true });
     } catch {
-      return; // A directory we cannot read is not a reason to stop.
+      // Not a reason to stop, but it is a reason to say so: nothing under this
+      // folder is in the index, so nothing under it can be found.
+      unreadable += 1;
+      return;
     }
 
     // What this directory holds, forgotten as soon as it is left.
@@ -472,7 +481,13 @@ const indexTree = async ({
       if (!entry.isFile()) continue;
 
       const stats = await fs.stat(absolutePath).catch(() => null);
-      if (!stats) continue;
+      if (!stats) {
+        // A name read a moment ago that leads nowhere: bytes that do not decode
+        // as UTF-8, or a file that went meanwhile. Either way it is not in the
+        // index and nobody will find it by searching.
+        unreadable += 1;
+        continue;
+      }
 
       seenHere.add(relativePath);
 
@@ -581,6 +596,7 @@ const indexTree = async ({
   return {
     indexed,
     skipped,
+    unreadable,
     folders,
     removed,
     batches,

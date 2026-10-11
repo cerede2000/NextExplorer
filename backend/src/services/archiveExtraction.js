@@ -4,6 +4,7 @@ const fs = require('fs/promises');
 const { ensureValidName } = require('../utils/pathUtils');
 const { placeWithoutOverwrite } = require('../utils/placeWithoutOverwrite');
 const { takeInventory } = require('../utils/ownedTree');
+const { createUnreachableTally } = require('../utils/unreachableEntries');
 const { ValidationError } = require('../errors/AppError');
 const { archives } = require('../config/index');
 const folderSizeHooks = require('./folderSizeHooks');
@@ -54,6 +55,14 @@ const buildItemMetadata = async (absolutePath, relativeParent, name) => {
  * move that never replaces or merges, and is taken stock of before it moves so
  * that undoing the extraction removes exactly what it wrote and not what
  * somebody put in a placed folder afterwards.
+ *
+ * An archive can hold a name whose bytes are not UTF-8, and 7-Zip writes it to
+ * the staging folder as it found it. Nothing here can then open that entry by
+ * name, so it is not placed: it goes with the staging folder its caller removes
+ * next, the extraction is short of it, and the count says so. The archive still
+ * holds it, so nothing is lost for good — but the person is told rather than
+ * handed a folder quietly missing files, and the whole extraction no longer
+ * fails over one name, which is what the throw from the inventory walk did.
  */
 const extractIntoCurrentFolder = async ({
   stagingDirectory,
@@ -63,34 +72,39 @@ const extractIntoCurrentFolder = async ({
 }) => {
   const stagedEntries = await fs.readdir(stagingDirectory, { withFileTypes: true });
   const items = [];
+  const unreachable = createUnreachableTally();
 
   for (const entry of stagedEntries) {
     const entryName = ensureValidName(entry.name);
     const sourcePath = path.join(stagingDirectory, entryName);
-    // Taken stock of before it moves: undoing the extraction removes exactly
-    // this, and not what someone puts in a placed folder afterwards.
-    const inventory = await takeInventory(sourcePath);
-    // The name is taken by the move itself, never looked at first and renamed
-    // into later: a file, or an empty folder, that appears under it meanwhile
-    // stays as it is, and the entry goes to "name (1)".
-    const { name: destinationName, path: destinationPath } = await placeWithoutOverwrite(
-      sourcePath,
-      destinationDirectory,
-      entryName
-    );
-    movedPaths.push({ path: destinationPath, inventory });
+    try {
+      // Taken stock of before it moves: undoing the extraction removes exactly
+      // this, and not what someone puts in a placed folder afterwards.
+      const inventory = await takeInventory(sourcePath);
+      // The name is taken by the move itself, never looked at first and renamed
+      // into later: a file, or an empty folder, that appears under it meanwhile
+      // stays as it is, and the entry goes to "name (1)".
+      const { name: destinationName, path: destinationPath } = await placeWithoutOverwrite(
+        sourcePath,
+        destinationDirectory,
+        entryName
+      );
+      movedPaths.push({ path: destinationPath, inventory });
 
-    if (entry.isDirectory()) {
-      folderSizeHooks.onDirectoryTreeCreated(destinationPath);
-    } else {
-      const stats = await fs.stat(destinationPath);
-      folderSizeHooks.onFileWritten(destinationPath, stats.size);
+      if (entry.isDirectory()) {
+        folderSizeHooks.onDirectoryTreeCreated(destinationPath);
+      } else {
+        const stats = await fs.stat(destinationPath);
+        folderSizeHooks.onFileWritten(destinationPath, stats.size);
+      }
+
+      items.push(await buildItemMetadata(destinationPath, relativeParentPath, destinationName));
+    } catch (error) {
+      unreachable.noteOrThrow(sourcePath, error);
     }
-
-    items.push(await buildItemMetadata(destinationPath, relativeParentPath, destinationName));
   }
 
-  return items;
+  return { items, unreadable: unreachable.count, unreadableSample: unreachable.sample };
 };
 
 module.exports = { ensureArchiveWithinLimits, buildItemMetadata, extractIntoCurrentFolder };

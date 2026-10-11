@@ -5,6 +5,7 @@ const { ZipArchive } = require('archiver');
 
 const { excludedFiles } = require('../config/index');
 const { combineRelativePath, isInsidePersonalRoot } = require('../utils/pathUtils');
+const { createUnreachableTally } = require('../utils/unreachableEntries');
 const { getAccessInfo } = require('./accessManager');
 const { createPermissionResolver } = require('./accessControlService');
 const { getSettings } = require('./settingsService');
@@ -38,7 +39,14 @@ const readAccess = async () => {
  *
  * Each source is `{ absolutePath, logicalPath, entryName, stats }`, as the
  * caller resolved and authorized it. Returns the entries in archive order, how
- * many were left out, and the bytes of the files kept.
+ * many were left out, how many could not be read at all, and the bytes of the
+ * files kept.
+ *
+ * `excluded` and `unreadable` are two different things and are never added up.
+ * An excluded entry was left out on purpose — a hidden name, a personal root, a
+ * path an access rule hides — and saying so would tell the caller what it is
+ * not allowed to know. An unreadable one is a defect: the folder holds
+ * something this archive does not, and whoever downloads it has to be told.
  */
 const collectArchiveEntries = async (context, sources) => {
   const access = await readAccess();
@@ -49,6 +57,7 @@ const collectArchiveEntries = async (context, sources) => {
     userVolumeCache: new Map(),
   };
   const entries = [];
+  const unreachable = createUnreachableTally();
   let excluded = 0;
   let totalBytes = 0;
 
@@ -63,7 +72,16 @@ const collectArchiveEntries = async (context, sources) => {
   };
 
   const walk = async ({ absoluteDir, logicalDir, entryDir, guardPersonalRoot }) => {
-    const children = await fs.readdir(absoluteDir, { withFileTypes: true });
+    let children;
+    try {
+      children = await fs.readdir(absoluteDir, { withFileTypes: true });
+    } catch (error) {
+      // The folder itself cannot be opened: everything under it is missing from
+      // the archive, so it counts as one entry nobody could read rather than as
+      // nothing at all.
+      unreachable.noteOrThrow(absoluteDir, error);
+      return;
+    }
     children.sort((a, b) => a.name.localeCompare(b.name));
     for (const child of children) {
       const absolutePath = path.join(absoluteDir, child.name);
@@ -75,7 +93,15 @@ const collectArchiveEntries = async (context, sources) => {
         continue;
       }
 
-      const stats = await fs.lstat(absolutePath);
+      let stats;
+      try {
+        stats = await fs.lstat(absolutePath);
+      } catch (error) {
+        // A name that leads nowhere, which is what an undecodable one does.
+        // One of them used to answer 500 for the whole download.
+        unreachable.noteOrThrow(absolutePath, error);
+        continue;
+      }
       if (stats.isSymbolicLink()) {
         // Kept as the link it is, never followed: its target is text, not content.
 
@@ -123,7 +149,13 @@ const collectArchiveEntries = async (context, sources) => {
     }
   }
 
-  return { entries, excluded, totalBytes };
+  return {
+    entries,
+    excluded,
+    totalBytes,
+    unreadable: unreachable.count,
+    unreadableSample: unreachable.sample,
+  };
 };
 
 /** Queue the entries on an archiver instance. */
@@ -139,11 +171,69 @@ const appendEntries = (archive, entries) => {
   }
 };
 
+const NOTICE_BASE_NAME = 'UNREADABLE-ENTRIES';
+
+/**
+ * The note an archive carries when it is not the whole folder, or null when it
+ * is.
+ *
+ * It goes inside the archive because that is the only channel every way of
+ * downloading one has. The zip of a folder is taken by submitting a form, which
+ * is a navigation: nothing in the page sees the response, so a header or a
+ * JSON field would reach no one. Whoever opens the archive — today, or in a
+ * year looking for a file that was supposed to be in it — reads the note.
+ *
+ * The name is the first one nothing in the archive already answers to, so a
+ * folder that happens to hold a file of that name does not end up with two
+ * entries spelled the same.
+ */
+const unreadableNotice = ({ unreadable, unreadableSample = [], entries = [] }) => {
+  if (!unreadable) return null;
+
+  const taken = new Set(entries.map((entry) => entry.name));
+  let name = `${NOTICE_BASE_NAME}.txt`;
+  for (let attempt = 1; taken.has(name); attempt += 1) {
+    name = `${NOTICE_BASE_NAME} (${attempt}).txt`;
+  }
+
+  const lines = [
+    `${unreadable} ${unreadable === 1 ? 'entry' : 'entries'} could not be read and ` +
+      `${unreadable === 1 ? 'is' : 'are'} missing from this archive.`,
+    '',
+    'Their names are stored on the volume in bytes that are not valid UTF-8 —',
+    'usually a name written by Windows — so the server cannot open them by name.',
+    'Renaming them on the volume makes them readable again; on Linux,',
+    '`convmv -f cp1252 -t utf8 -r <folder>` does it.',
+  ];
+  if (unreadableSample.length) {
+    lines.push(
+      '',
+      unreadableSample.length < unreadable
+        ? `The first ${unreadableSample.length}, as the server read them:`
+        : 'As the server read them:',
+      ...unreadableSample.map((entry) => `  ${entry}`)
+    );
+  }
+
+  return { name, body: `${lines.join('\n')}\n` };
+};
+
+/** Put the note inside the archive, when there is one to put. */
+const appendUnreadableNotice = (archive, collected) => {
+  const notice = unreadableNotice(collected);
+  if (notice) archive.append(notice.body, { name: notice.name });
+  return notice;
+};
+
 /**
  * Write the entries to a zip file on disk, streamed, reporting progress through
  * `onPercent(0-100)` and stopping when `signal` aborts.
  */
-const writeZipFile = (entries, destinationPath, { totalBytes = 0, onPercent, signal } = {}) =>
+const writeZipFile = (
+  entries,
+  destinationPath,
+  { totalBytes = 0, onPercent, signal, unreadable = 0, unreadableSample = [] } = {}
+) =>
   new Promise((resolve, reject) => {
     const cancelled = () => {
       const error = new Error('Operation cancelled.');
@@ -187,7 +277,14 @@ const writeZipFile = (entries, destinationPath, { totalBytes = 0, onPercent, sig
 
     archive.pipe(output);
     appendEntries(archive, entries);
+    appendUnreadableNotice(archive, { unreadable, unreadableSample, entries });
     archive.finalize().catch(finish);
   });
 
-module.exports = { collectArchiveEntries, appendEntries, writeZipFile };
+module.exports = {
+  collectArchiveEntries,
+  appendEntries,
+  appendUnreadableNotice,
+  unreadableNotice,
+  writeZipFile,
+};

@@ -5,6 +5,7 @@ const { excludedFiles, extensions, hiddenFiles } = require('../config/index');
 const { combineRelativePath, resolveLogicalPath } = require('../utils/pathUtils');
 const { getAccessInfo } = require('./accessManager');
 const { createPermissionResolver } = require('./accessControlService');
+const { createUnreachableTally } = require('../utils/unreachableEntries');
 const logger = require('../utils/logger');
 const onlyofficeActivity = require('./onlyofficeActivityService');
 
@@ -68,6 +69,11 @@ const linkLeavesTheSpace = async (context, logicalPath, access) => {
  *
  * - Uses accessManager for per-child visibility (covers shares + user volumes + hidden rules).
  * - Does not throw for child-level failures; unreadable / inaccessible children are skipped.
+ * - Answers `{ items, unreadable }`: an entry nobody can reach is left off the
+ *   list and counted, because a folder that quietly shows one row fewer than it
+ *   holds is how a name whose bytes do not decode as UTF-8 went unnoticed until
+ *   a download of the folder answered 500. An entry an access rule hides is not
+ *   counted — saying so would tell the caller what it is not allowed to know.
  * - A symbolic link that leads out of the space is listed as what it is — a link,
  *   marked `link: 'outside'` — and never followed. It used to be described by
  *   what it points at: the size and type of a file outside the volume, on a row
@@ -116,6 +122,7 @@ const listDirectoryItems = async ({
   const insideReadOnly = ruleSays(parentLogicalPath) === 'ro';
 
   const entries = await fs.readdir(absoluteDir);
+  const unreachable = createUnreachableTally();
 
   const filtered = entries
     .filter((name) => !excludedFiles.includes(name))
@@ -131,11 +138,9 @@ const listDirectoryItems = async ({
       entry = await fs.lstat(filePath);
       stats = entry.isSymbolicLink() ? null : entry;
     } catch (err) {
-      if (['EPERM', 'EACCES', 'ENOENT', 'ELOOP'].includes(err?.code)) {
-        logger.warn({ filePath, err }, 'Skipping unreadable entry');
-        return null;
-      }
-      throw err;
+      logger.warn({ filePath, err }, 'Skipping unreadable entry');
+      unreachable.noteOrThrow(filePath, err);
+      return null;
     }
 
     const childAccess = await getAccessInfo(context, logicalChildPath, accessOptions);
@@ -157,11 +162,9 @@ const listDirectoryItems = async ({
       try {
         stats = await fs.stat(filePath);
       } catch (err) {
-        if (['EPERM', 'EACCES', 'ENOENT', 'ELOOP'].includes(err?.code)) {
-          logger.warn({ filePath, err }, 'Skipping unreadable entry');
-          return null;
-        }
-        throw err;
+        logger.warn({ filePath, err }, 'Skipping unreadable entry');
+        unreachable.noteOrThrow(filePath, err);
+        return null;
       }
     }
 
@@ -193,7 +196,7 @@ const listDirectoryItems = async ({
     return item;
   });
 
-  return items.filter(Boolean);
+  return { items: items.filter(Boolean), unreadable: unreachable.count };
 };
 
 module.exports = {

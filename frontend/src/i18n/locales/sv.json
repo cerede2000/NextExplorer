@@ -319,10 +319,17 @@
     "noPhotosHint": "Växla till en annan vy för att se alla filer",
     "empty": "Den här mappen är tom",
     "emptyHint": "Ladda upp eller skapa filer för att komma igång.",
+    "unreadableEntries": "1 post i den här mappen kunde inte läsas | {count} poster i den här mappen kunde inte läsas",
+    "unreadableHint": "Deras namn är inte giltig UTF-8 — oftast skrivna av Windows — så de kan inte öppnas, kopieras eller arkiveras. Byt namn på dem på volymen för att lösa det.",
     "scrollTop": "Överst",
     "scrollBottom": "Nederst",
     "selectAll": "Markera allt",
     "deselectAll": "Avmarkera allt"
+  },
+  "transfers": {
+    "unreadableHeading": "Vissa poster kunde inte läsas",
+    "unreadableBody": "1 post kunde inte läsas och saknas i resultatet. | {count} poster kunde inte läsas och saknas i resultatet.",
+    "unreadableSourceKept": "Originalet lämnades kvar, eftersom det har den enda kopian av dem."
   },
   "volumes": {
     "quickAccess": "Snabbåtkomst",

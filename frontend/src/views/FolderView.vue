@@ -20,7 +20,7 @@ import { ImagesOutline } from '@vicons/ionicons5';
 import { useViewConfig } from '@/composables/useViewConfig';
 import { DragSelect } from '@coleqiu/vue-drag-select';
 import { useUppyDropTarget } from '@/composables/fileUploader';
-import { FolderOpenIcon } from '@heroicons/vue/24/outline';
+import { ExclamationTriangleIcon, FolderOpenIcon } from '@heroicons/vue/24/outline';
 import {
   ChevronDoubleDownIcon,
   ChevronDoubleUpIcon,
@@ -1254,9 +1254,30 @@ const showNoPhotosMessage = computed(() => {
   return !hasPhotos;
 });
 
+/**
+ * How many entries this folder holds that the server could not open at all.
+ *
+ * Their names are bytes that do not decode as UTF-8 — a volume brought over
+ * from Windows is full of them — so nothing can be done through a row and
+ * there is no row. What there is instead is this number, said out loud: the
+ * listing used to drop them without a word, so a folder was quietly short of
+ * files and the only way to find out was a download of it answering 500.
+ */
+const unreadableCount = computed(() => pane.currentPathData?.unreadable || 0);
+
 const showEmptyFolderMessage = computed(() => {
   if (loading.value) return false;
-  return pane.getCurrentPathItems.length === 0;
+  return pane.getCurrentPathItems.length === 0 && unreadableCount.value === 0;
+});
+
+/**
+ * A folder with nothing in it but what cannot be read says that, rather than
+ * "this folder is empty" — which is the one sentence it must not say, since
+ * the folder is not empty and what is in it is what somebody is looking for.
+ */
+const showOnlyUnreadableMessage = computed(() => {
+  if (loading.value) return false;
+  return pane.getCurrentPathItems.length === 0 && unreadableCount.value > 0;
 });
 
 const toggleSort = (by, defaultOrder = 'asc') => {
@@ -1513,9 +1534,40 @@ onBeforeUnmount(() => {
             </button>
           </div>
 
+          <!-- What the folder holds and nobody could open -->
+          <div
+            v-if="unreadableCount > 0 && !showOnlyUnreadableMessage"
+            class="-mx-2 mb-1 flex items-center gap-2 border-b border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-200"
+            data-test="unreadable-entries"
+            :data-unreadable="unreadableCount"
+          >
+            <ExclamationTriangleIcon class="h-4 w-4 shrink-0" />
+            <span>{{
+              $t('folder.unreadableEntries', { count: unreadableCount }, unreadableCount)
+            }}</span>
+          </div>
+
+          <!-- Nothing in it but what nobody could open: never "empty" -->
+          <div
+            v-if="showOnlyUnreadableMessage"
+            class="absolute inset-0 flex flex-col items-center justify-center min-h-[400px] text-center px-4"
+            data-test="unreadable-entries-only"
+            :data-unreadable="unreadableCount"
+          >
+            <div class="text-neutral-400 dark:text-neutral-500 mb-2">
+              <ExclamationTriangleIcon class="w-16 h-16 mb-4 opacity-40" />
+            </div>
+            <h3 class="text-lg font-medium text-neutral-700 dark:text-neutral-300 mb-2">
+              {{ $t('folder.unreadableEntries', { count: unreadableCount }, unreadableCount) }}
+            </h3>
+            <p class="text-sm text-neutral-500 dark:text-neutral-400">
+              {{ $t('folder.unreadableHint') }}
+            </p>
+          </div>
+
           <!-- No photos message -->
           <div
-            v-if="showNoPhotosMessage || showEmptyFolderMessage"
+            v-else-if="showNoPhotosMessage || showEmptyFolderMessage"
             class="absolute inset-0 flex flex-col items-center justify-center min-h-[400px] text-center px-4"
           >
             <div class="text-neutral-400 dark:text-neutral-500 mb-2">

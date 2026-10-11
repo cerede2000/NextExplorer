@@ -39,7 +39,11 @@ const env = require('../config/env');
 const { getSettings, getUserSettings } = require('../services/settingsService');
 const { listDirectoryItems } = require('../services/directoryListingService');
 const { encodeContentDisposition } = require('./files/utils');
-const { collectArchiveEntries, appendEntries } = require('../services/archiveTree');
+const {
+  collectArchiveEntries,
+  appendEntries,
+  appendUnreadableNotice,
+} = require('../services/archiveTree');
 const logger = require('../utils/logger');
 const {
   readTextFileHead,
@@ -333,7 +337,7 @@ const streamResolvedDirectoryZip = async ({
   // What the share lets its visitor see, not everything below its folder: the
   // trash zone, a personal root and the paths an access rule hides stay out.
   const stats = await fs.stat(absolutePath);
-  const { entries } = await collectArchiveEntries(context, [
+  const collected = await collectArchiveEntries(context, [
     {
       absolutePath,
       logicalPath,
@@ -341,7 +345,16 @@ const streamResolvedDirectoryZip = async ({
       stats,
     },
   ]);
-  appendEntries(archive, entries);
+  appendEntries(archive, collected.entries);
+  // A visitor to a share sees no screen of ours after the download starts, so
+  // the note inside the archive is the whole of what they are told.
+  appendUnreadableNotice(archive, collected);
+  if (collected.unreadable > 0) {
+    logger.warn(
+      { unreadable: collected.unreadable, sample: collected.unreadableSample, logicalPath },
+      'Entries left out of a shared archive because their names could not be read'
+    );
+  }
   await archive.finalize();
 };
 
@@ -1154,7 +1167,7 @@ router.get(
               return null;
             });
 
-      const items = await listDirectoryItems({
+      const { items, unreadable } = await listDirectoryItems({
         absoluteDir: resolved.absolutePath,
         parentLogicalPath: resolved.relativePath,
         context,
@@ -1193,6 +1206,10 @@ router.get(
 
       const response = {
         items,
+        // The same count the browser gets: a visitor to a share is told the
+        // folder holds entries nothing could open, rather than shown a folder
+        // that is quietly short of rows.
+        ...(unreadable > 0 ? { unreadable } : {}),
         access: {
           canRead: accessInfo.canRead,
           canWrite: accessInfo.canWrite,

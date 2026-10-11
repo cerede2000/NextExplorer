@@ -319,10 +319,17 @@
     "noPhotosHint": "Passez à un autre mode d’affichage pour voir tous les fichiers",
     "empty": "Ce dossier est vide",
     "emptyHint": "Importez ou créez des fichiers pour commencer.",
+    "unreadableEntries": "1 entrée de ce dossier n’a pas pu être lue | {count} entrées de ce dossier n’ont pas pu être lues",
+    "unreadableHint": "Leurs noms ne sont pas de l’UTF-8 valide — le plus souvent écrits par Windows — ils ne peuvent donc être ni ouverts, ni copiés, ni archivés. Les renommer sur le volume règle le problème.",
     "scrollTop": "Haut",
     "scrollBottom": "Bas",
     "selectAll": "Tout sélectionner",
     "deselectAll": "Tout désélectionner"
+  },
+  "transfers": {
+    "unreadableHeading": "Certaines entrées n’ont pas pu être lues",
+    "unreadableBody": "1 entrée n’a pas pu être lue et manque au résultat. | {count} entrées n’ont pas pu être lues et manquent au résultat.",
+    "unreadableSourceKept": "L’original a été laissé en place, puisqu’il en détient la seule copie."
   },
   "volumes": {
     "quickAccess": "Accès rapide",

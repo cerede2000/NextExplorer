@@ -319,10 +319,17 @@
     "noPhotosHint": "Schimbă modul de vizualizare pentru a vedea toate fișierele",
     "empty": "Acest dosar este gol",
     "emptyHint": "Încarcă sau creează fișiere pentru a începe.",
+    "unreadableEntries": "1 element din acest dosar nu a putut fi citit | {count} elemente din acest dosar nu au putut fi citite",
+    "unreadableHint": "Numele lor nu sunt UTF-8 valid — de obicei scrise de Windows — deci nu pot fi deschise, copiate sau arhivate. Redenumirea lor pe volum rezolvă problema.",
     "scrollTop": "Sus",
     "scrollBottom": "Jos",
     "selectAll": "Selectează tot",
     "deselectAll": "Deselectează tot"
+  },
+  "transfers": {
+    "unreadableHeading": "Unele elemente nu au putut fi citite",
+    "unreadableBody": "1 element nu a putut fi citit și lipsește din rezultat. | {count} elemente nu au putut fi citite și lipsesc din rezultat.",
+    "unreadableSourceKept": "Originalul a fost lăsat la locul lui, fiindcă păstrează singura copie a lor."
   },
   "volumes": {
     "quickAccess": "Acces rapid",

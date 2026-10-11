@@ -51,7 +51,21 @@ const transferDone = obj(
   {
     success: bool(),
     destination: str(),
-    items: arrayOf(obj({ from: str(), to: str() })),
+    items: arrayOf(
+      obj({
+        from: str(),
+        to: str(),
+        unreadable: int(
+          'How many entries under this one could not be read, so are not in the copy.'
+        ),
+        sourceKept: bool(
+          'A move whose copy is short of something: the original stays where it is, since it holds the only copy of what could not be read.'
+        ),
+      })
+    ),
+    unreadable: int(
+      'How many entries this transfer could not read at all — a name whose bytes are not valid UTF-8, usually written by Windows. They are missing from what arrived. Absent when there are none.'
+    ),
   },
   [],
   { additionalProperties: true }

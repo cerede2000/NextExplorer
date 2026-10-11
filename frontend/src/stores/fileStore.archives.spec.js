@@ -25,6 +25,7 @@ const updateOperation = vi.fn();
 const finishOperation = vi.fn();
 const scheduleVolumeRefresh = vi.fn();
 const scheduleFolderRefresh = vi.fn();
+const addNotification = vi.fn();
 
 vi.mock('@/api', () => ({
   browse: (...a) => browse(...a),
@@ -51,6 +52,9 @@ vi.mock('@/stores/appSettings', () => ({
   useAppSettings: () => ({ thumbnailsEnabledForSession: false }),
 }));
 vi.mock('@/stores/favorites', () => ({ useFavoritesStore: () => ({ loadFavorites: vi.fn() }) }));
+vi.mock('@/stores/notifications', () => ({
+  useNotificationsStore: () => ({ addNotification: (...a) => addNotification(...a) }),
+}));
 vi.mock('@/stores/volumeUsage', () => ({
   useVolumeUsageStore: () => ({ scheduleRefresh: scheduleVolumeRefresh }),
 }));
@@ -92,6 +96,7 @@ beforeEach(() => {
     finishOperation,
     scheduleVolumeRefresh,
     scheduleFolderRefresh,
+    addNotification,
   ].forEach((m) => m.mockReset());
   browse.mockResolvedValue({ items: [], path: '' });
   startOperation.mockReturnValue('op-1');
@@ -332,5 +337,44 @@ describe('zipping a selection', () => {
 
     await expect(store.compressSelectionToZip('a')).rejects.toThrow('no space');
     expect(finishOperation).toHaveBeenCalled();
+  });
+});
+
+/**
+ * An archive operation that could not read everything it was given.
+ *
+ * The server skips an entry whose name does not decode as UTF-8 rather than
+ * failing the whole extraction, or the whole zip, over it. The folder is then
+ * short of it and the archive is short of it, and the only thing that says so
+ * is the count the answer carries — which is worth nothing until somebody says
+ * it out loud.
+ */
+describe('what an archive operation says about the entries it could not read', () => {
+  it('says how many an extraction left out', async () => {
+    const store = await storeInDocs();
+    extractZipApi.mockResolvedValue({ item: { name: 'backup' }, unreadable: 2 });
+
+    await store.extractZipArchive('Docs/backup.zip');
+
+    expect(addNotification).toHaveBeenCalledTimes(1);
+    expect(addNotification.mock.calls[0][0]).toMatchObject({ type: 'warning' });
+  });
+
+  it('says how many a zip left out', async () => {
+    const store = await storeInDocs([item('Work', { kind: 'directory' })]);
+    store.selectedItems = [item('Work', { kind: 'directory' })];
+    compressToZipApi.mockResolvedValue({ item: { name: 'archive.zip' }, unreadable: 1 });
+
+    await store.compressSelectionToZip('archive.zip');
+
+    expect(addNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it('says nothing when everything was read', async () => {
+    const store = await storeInDocs();
+
+    await store.extractZipArchive('Docs/backup.zip');
+
+    expect(addNotification).not.toHaveBeenCalled();
   });
 });

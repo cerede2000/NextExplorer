@@ -1750,6 +1750,10 @@
                         "$ref": "#/components/schemas/Item"
                       }
                     },
+                    "unreadable": {
+                      "type": "integer",
+                      "description": "How many entries this folder holds that nothing could open — a name whose bytes are not valid UTF-8, usually written by Windows, or an entry the server may not read. Absent when there are none. They are not among `items`, so without this the folder would look shorter than it is."
+                    },
                     "access": {
                       "$ref": "#/components/schemas/Access"
                     },
@@ -1925,6 +1929,10 @@
                         },
                         "truncated": {
                           "type": "boolean"
+                        },
+                        "unreadable": {
+                          "type": "integer",
+                          "description": "How many entries under it could not be opened at all, so they count for nothing in `totalSize` or the counts. Zero when the figures are whole."
                         }
                       }
                     }
@@ -3473,9 +3481,21 @@
                                   },
                                   "to": {
                                     "type": "string"
+                                  },
+                                  "unreadable": {
+                                    "type": "integer",
+                                    "description": "How many entries under this one could not be read, so are not in the copy."
+                                  },
+                                  "sourceKept": {
+                                    "type": "boolean",
+                                    "description": "A move whose copy is short of something: the original stays where it is, since it holds the only copy of what could not be read."
                                   }
                                 }
                               }
+                            },
+                            "unreadable": {
+                              "type": "integer",
+                              "description": "How many entries this transfer could not read at all — a name whose bytes are not valid UTF-8, usually written by Windows. They are missing from what arrived. Absent when there are none."
                             }
                           },
                           "additionalProperties": true
@@ -3626,9 +3646,21 @@
                                   },
                                   "to": {
                                     "type": "string"
+                                  },
+                                  "unreadable": {
+                                    "type": "integer",
+                                    "description": "How many entries under this one could not be read, so are not in the copy."
+                                  },
+                                  "sourceKept": {
+                                    "type": "boolean",
+                                    "description": "A move whose copy is short of something: the original stays where it is, since it holds the only copy of what could not be read."
                                   }
                                 }
                               }
+                            },
+                            "unreadable": {
+                              "type": "integer",
+                              "description": "How many entries this transfer could not read at all — a name whose bytes are not valid UTF-8, usually written by Windows. They are missing from what arrived. Absent when there are none."
                             }
                           },
                           "additionalProperties": true
@@ -6154,6 +6186,10 @@
                         "$ref": "#/components/schemas/Item"
                       }
                     },
+                    "unreadable": {
+                      "type": "integer",
+                      "description": "How many entries this folder holds that nothing could open, and which are therefore not among `items`. Absent when there are none."
+                    },
                     "access": {
                       "$ref": "#/components/schemas/Access"
                     },
@@ -6950,6 +6986,10 @@
                     },
                     "path": {
                       "type": "string"
+                    },
+                    "unreadable": {
+                      "type": "integer",
+                      "description": "How many entries this folder holds that nothing could open, and which are therefore not among `entries`. Absent when there are none."
                     },
                     "entries": {
                       "type": "array",

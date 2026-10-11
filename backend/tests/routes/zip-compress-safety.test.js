@@ -7,7 +7,9 @@ import fss from 'node:fs';
 import AdmZip from 'adm-zip';
 import express from 'express';
 import request from 'supertest';
-import { setupTestEnv } from '../helpers/env-test-utils.js';
+import { modulePath, setupTestEnv } from '../helpers/env-test-utils.js';
+import { substituteModule } from '../helpers/substitute-module.js';
+import { withUndecodableEntry } from '../helpers/undecodable-name.js';
 
 /**
  * Compressing writes a new file into a folder somebody already keeps things
@@ -383,5 +385,70 @@ describe('an archive meeting a file that arrives under its name', () => {
       Buffer.from('PK archive written by 7-Zip')
     );
     expect(await listing(work)).toEqual(['bundle (1).zip', 'bundle.zip', 'one.txt', 'two.txt']);
+  });
+});
+
+/**
+ * An archive written from a folder holding a name nothing can read.
+ *
+ * `readdir` answers with text: Node puts U+FFFD where the bytes do not decode
+ * as UTF-8, and the path built back from that name leads nowhere, so `lstat`
+ * says ENOENT for a file plainly there. The condition is put on the module
+ * rather than on the disk because macOS refuses to create such a name at all —
+ * see `tests/helpers/undecodable-name.js`.
+ *
+ * The two engines answer differently and both answers are right. 7-Zip takes
+ * the folder whole and never decodes a name, so what it writes is complete and
+ * there is nothing to report. The archive assembled from the walk is short of
+ * it, and says so — a zip handed over as the folder, with files missing and
+ * nothing said, is a backup that lies.
+ */
+describe('an entry whose name could not be read', () => {
+  let restoreFs = null;
+
+  afterEach(() => {
+    restoreFs?.();
+    restoreFs = null;
+  });
+
+  /**
+   * The folder to compress has to sit inside another one: the root is not a
+   * destination anything may be written to.
+   */
+  const withUndecodableInside = async (env) => {
+    const work = await seed(env);
+    const inner = path.join(work, 'Inner');
+    await fs.mkdir(inner, { recursive: true });
+    await fs.writeFile(path.join(inner, 'readable.txt'), 'here\n');
+    restoreFs = substituteModule(
+      modulePath('src/services/archiveTree.js'),
+      'fs/promises',
+      withUndecodableEntry({ realFs: fs, directory: inner })
+    );
+    return compress({
+      items: [{ name: 'Inner', path: 'Work' }],
+      destination: 'Work',
+      name: 'bundle',
+    });
+  };
+
+  it('is counted on the archive assembled from the walk', async () => {
+    const response = await withUndecodableInside(WITHOUT_SEVEN_ZIP);
+
+    expect(response.status).toBe(200);
+    expect(events(response).at(-1)).toMatchObject({ type: 'done', unreadable: 1 });
+  });
+
+  it('is not reported when 7-Zip took the folder whole, which keeps it', async () => {
+    const sevenZip = await installSevenZip(
+      'whole-folder-7z',
+      `printf 'PK the whole folder, names and all' > "$5"; exit 0`
+    );
+
+    const response = await withUndecodableInside({ SEVEN_ZIP_PATH: sevenZip });
+
+    expect(response.status).toBe(200);
+    expect(events(response).at(-1)).toMatchObject({ type: 'done' });
+    expect(events(response).at(-1)).not.toHaveProperty('unreadable');
   });
 });

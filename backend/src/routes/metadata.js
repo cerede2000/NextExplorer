@@ -6,6 +6,7 @@ const ffmpegRunner = require('../services/ffmpegRunner');
 
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { readExifDetails } = require('../utils/exifDetails');
+const { createUnreachableTally } = require('../utils/unreachableEntries');
 const { extensions } = require('../config/index');
 const { resolvePathWithAccess } = require('../services/accessManager');
 const logger = require('../utils/logger');
@@ -25,12 +26,21 @@ const probeVideo = async (filePath) => {
   };
 };
 
+/**
+ * What a folder holds, and what it holds that could not be looked at.
+ *
+ * An entry nothing can reach counts for nothing in the size, so a figure that
+ * did not say how many of them there were was simply wrong by an unknown
+ * amount — and the folder with a name whose bytes do not decode as UTF-8 is
+ * exactly the folder whose size somebody is checking.
+ */
 const sumDirectory = async (dirPath, limit = 200000) => {
   const stack = [dirPath];
   let totalSize = 0;
   let fileCount = 0;
   let dirCount = 0;
   let visited = 0;
+  const unreachable = createUnreachableTally();
 
   while (stack.length) {
     const current = stack.pop();
@@ -38,7 +48,15 @@ const sumDirectory = async (dirPath, limit = 200000) => {
     if (visited > limit) {
       break;
     }
-    const entries = await fs.readdir(current, { withFileTypes: true });
+    let entries;
+    try {
+      entries = await fs.readdir(current, { withFileTypes: true });
+    } catch (error) {
+      // A folder that cannot be opened at all: one entry nobody could read,
+      // rather than an answer of 500 for the whole properties panel.
+      unreachable.noteOrThrow(current, error);
+      continue;
+    }
     for (const entry of entries) {
       const full = path.join(current, entry.name);
       try {
@@ -50,13 +68,19 @@ const sumDirectory = async (dirPath, limit = 200000) => {
           fileCount += 1;
           totalSize += stat.size;
         }
-      } catch (_) {
-        // skip unreadable entries
+      } catch (error) {
+        unreachable.noteOrThrow(full, error);
       }
     }
   }
 
-  return { totalSize, fileCount, dirCount, truncated: visited > limit };
+  return {
+    totalSize,
+    fileCount,
+    dirCount,
+    truncated: visited > limit,
+    unreadable: unreachable.count,
+  };
 };
 
 /**
@@ -172,3 +196,6 @@ router.get(
 );
 
 module.exports = router;
+// Exported for tests: what a folder's figures leave out is decided here, and a
+// route test cannot put an undecodable name on a macOS filesystem to ask.
+module.exports.sumDirectory = sumDirectory;

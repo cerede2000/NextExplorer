@@ -38,6 +38,7 @@ const failpoints = require('./failpoints');
 const { admission } = require('./policy');
 const store = require('./store');
 const zones = require('./zones');
+const { createUnreachableTally } = require('../../utils/unreachableEntries');
 
 /** Items with an operation running in this process; recovery leaves them alone. */
 const inflight = new Set();
@@ -380,15 +381,39 @@ const bytesReporter = (onBytes) => {
   };
 };
 
-/** Required when used: the transfer service itself requires the trash. */
-const copyTree = (source, destination, isDirectory, onBytes, signal) =>
-  require('../fileTransferService').copyEntryWithProgress(
+/**
+ * Copy a trashed tree out, across disks, and refuse to call it restored when
+ * part of it could not be read.
+ *
+ * The restore removes the trash's copy once the new one is whole, so this is
+ * the one walk where skipping an entry and carrying on would destroy the only
+ * copy of it. A name whose bytes do not decode is therefore not skipped here:
+ * the copy beside the destination is thrown away, the item stays in the trash,
+ * and the error says what it was — rather than the bare ENOENT for a file
+ * plainly there that this used to answer.
+ *
+ * Required when used: the transfer service itself requires the trash.
+ */
+const copyTree = async (source, destination, isDirectory, onBytes, signal) => {
+  const unreachable = createUnreachableTally();
+  await require('../fileTransferService').copyEntryWithProgress(
     source,
     destination,
     isDirectory,
     bytesReporter(onBytes),
-    signal
+    signal,
+    unreachable
   );
+  if (unreachable.count > 0) {
+    throw Object.assign(
+      new Error(
+        `${unreachable.count} ${unreachable.count === 1 ? 'entry' : 'entries'} could not be read, ` +
+          'so nothing was restored and this item stays in the trash.'
+      ),
+      { code: 'UNREADABLE_ENTRIES', unreadable: unreachable.count }
+    );
+  }
+};
 
 /** Far past any real race for one name; a bound so a filesystem answering EEXIST to everything ends in an error. */
 const MAX_NAMING_ATTEMPTS = 100;
@@ -802,11 +827,18 @@ const listEntries = async (itemId, entryPath = '') => {
 
   const names = await fsp.readdir(found.absolutePath);
   const entries = [];
+  let unreadable = 0;
   for (let index = 0; index < names.length; index += LIST_BATCH) {
     const batch = await Promise.all(
       names.slice(index, index + LIST_BATCH).map(async (name) => {
         const stats = await lstatOrNull(path.join(found.absolutePath, name));
-        if (!stats) return null;
+        if (!stats) {
+          // Listed by the directory and reachable by nobody, so the folder
+          // inside the trash is told to be short of rows rather than quietly
+          // showing fewer than it holds.
+          unreadable += 1;
+          return null;
+        }
         let kind = 'file';
         if (stats.isDirectory()) kind = 'directory';
         else if (stats.isSymbolicLink()) kind = 'symlink';
@@ -821,7 +853,7 @@ const listEntries = async (itemId, entryPath = '') => {
     entries.push(...batch.filter(Boolean));
   }
   entries.sort(directoriesFirst);
-  return { status: 'listed', item, entries };
+  return { status: 'listed', item, entries, ...(unreadable > 0 ? { unreadable } : {}) };
 };
 
 /**
@@ -1356,6 +1388,9 @@ module.exports = {
   ITEM_ID_PATTERN,
   inflight,
   measure,
+  // Exported for tests: this is the one copy in the application that must not
+  // skip an entry, because the trash's own copy goes once it finishes.
+  copyTree,
   entrySegments,
   STAGING_PREFIX,
   moveToTrash,

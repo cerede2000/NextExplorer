@@ -23,6 +23,9 @@ import { isAbortError, itemKey, serializeItems } from './items';
  * @param {object} options.favoritesStore
  * @param {object} options.operationTasksStore
  * @param {(items: Array, action: string) => boolean} options.warn
+ * @param {(result: object) => boolean} [options.sayWhatWasNotRead]  tells the
+ *   reader how many entries an archive operation could not read, so an archive
+ *   or an extraction short of files is never reported as finished
  */
 export const createOperations = ({
   currentPath,
@@ -34,6 +37,7 @@ export const createOperations = ({
   favoritesStore,
   operationTasksStore,
   warn,
+  sayWhatWasNotRead = () => false,
 }) => {
   const refreshAfterCancelledOperation = async () => {
     await fetchPathItems(currentPath.value);
@@ -201,6 +205,9 @@ export const createOperations = ({
     }
 
     if (!response) return null;
+    // The archive still holds whatever was left out, so nothing is lost — but
+    // the folder is short of it, and nobody would know from the listing.
+    sayWhatWasNotRead(response);
 
     const parent = (() => {
       const idx = normalized.lastIndexOf('/');
@@ -250,6 +257,7 @@ export const createOperations = ({
     }
 
     if (!response) return null;
+    sayWhatWasNotRead(response);
 
     await fetchPathItems(destination);
     refreshSizes();

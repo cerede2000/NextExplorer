@@ -1657,6 +1657,13 @@
       "verdict": "PORT",
       "batch": "preferences-by-theme",
       "note": "which addresses count as the same page, and therefore when a pane replaces its screen rather than leaving it as it is. It was a line inside `TabPane.vue` that dropped the query — for a screen rewriting its own, which a comparison with its sides swapped over is — and kept the fragment, which is *where in this page* by definition. The preferences write one when a theme is chosen from the list beside them, so every click tore the screen down and built it again: the filter somebody had typed, the expiry they were halfway through and the switches they had changed and not yet saved all went. Out here it has its own spec, because the pane's own suite holds a store that is not reactive and a test of this through it passes either way."
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/utils/unreachableEntries\\.js|frontend/src/stores/files/unreadable\\.js|backend/tests/helpers/undecodable-name\\.js|backend/src/openapi/paths/(keeping|shares)\\.js|backend/src/services/archiveService\\.js)(:|$)",
+      "verdict": "PORT",
+      "batch": "a-name-nothing-can-read",
+      "note": "an entry whose name cannot be read is skipped, counted and said — the batch after the preferences. `readdir` answers with text, so Node decodes a name's bytes as UTF-8 and puts U+FFFD where it cannot; that character re-encodes to three bytes where the disk holds one, so the path built back from the name leads nowhere and `lstat` answers ENOENT for a file plainly there. A volume carried over from Windows is full of such names. The zip download of a folder holding one answered 500 for the whole archive; the listing dropped it without a word, so the folder was quietly short of rows and a folder holding nothing else called itself empty. Silence is the worse of the two — \"download folder\" then hands back an archive missing files and calls it the folder. So `utils/unreachableEntries.js` is the one place that says which errors mean *this entry*, every walk skips and counts rather than dying or hiding, and the count travels to the screen: the listing says how many rows are missing, a copy, a zip and an extraction say how many entries they left out, and a downloaded archive carries a note inside it, which is the only channel it has — a zip of a folder is taken by submitting a form, a navigation no script sees. Two walks must not skip and do not: a move across disks keeps its source when its copy is short of something, because `rm -r` removes a name the copy could not read, and a restore from the trash refuses rather than letting the trash's copy go. One guard that could not answer its own question used to say yes — the check that an extraction produced no symbolic link swallowed the error from a folder it could not open, so a subtree under an undecodable directory name passed uninspected. `stores/files/unreadable.js` is the sentence, said once per operation. Reaching these files for real — reading directories as bytes, keeping the bytes as the entry's identity, decoding only where a name becomes JSON — is a separate piece of work that touches the API and the browser; this one makes sure nothing dies and nothing is lost in silence first."
     }
   ],
   "residue": [
@@ -1879,6 +1886,94 @@
     {
       "match": "^(frontend/src/views/AuthLoginView\\.vue|frontend/src/components/UserMenu\\.vue)$",
       "note": "the sign-in screen stops acting on what it does not know. It offers nothing while the status could not be read — before the server has answered, the strategies describe a password sign-in, so one unanswered request drew a username and a password field on an installation that has neither, under an error naming CORS. It says when an installation has no way in configured at all, where it used to draw a heading over an empty box. And it hands a sign-in to the identity provider on its own account only when nothing says not to: not straight after a sign-out, not straight after a hand-off that came back without a session, not for somebody the provider vouches for and this server has no account for, and not towards a provider the server already said could not be reached — each of which was a circle through the provider that never reached a person. The two marks those decisions read live in `utils/providerHandoff.js`, which is why the menu's sign-out writes one through it rather than into `sessionStorage` itself."
+    },
+    {
+      "match": "^backend/src/openapi/paths/browsing\\.js$",
+      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^backend/src/openapi/paths/files\\.js$",
+      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^backend/src/openapi/paths/keeping\\.js$",
+      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^backend/src/openapi/paths/shares\\.js$",
+      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^backend/src/routes/archive\\.js$",
+      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^backend/src/routes/browse\\.js$",
+      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^backend/src/routes/files/download\\.js$",
+      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^backend/src/routes/metadata\\.js$",
+      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^backend/src/routes/shares\\.js$",
+      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^backend/src/routes/zip\\.js$",
+      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^backend/src/services/archiveExtraction\\.js$",
+      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^backend/src/services/archiveService\\.js$",
+      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^backend/src/services/archiveTree\\.js$",
+      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^backend/src/services/directoryListingService\\.js$",
+      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^backend/src/services/folderSizeIndexer\\.js$",
+      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^backend/src/services/searchIndexer\\.js$",
+      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^backend/src/services/trash/index\\.js$",
+      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^backend/src/services/trash/operations\\.js$",
+      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^backend/src/utils/ownedTree\\.js$",
+      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^frontend/src/stores/files/listing\\.js$",
+      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^frontend/src/stores/files/operations\\.js$",
+      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^frontend/src/stores/files/transfers\\.js$",
+      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
     }
   ],
   "controls": [

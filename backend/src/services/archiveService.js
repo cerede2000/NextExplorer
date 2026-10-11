@@ -490,6 +490,12 @@ const watchExtractionSize = (destinationAbsolutePath, maxBytes, onExceeded) => {
  * `-snl-` already tells 7-Zip not to restore links, but this is the check
  * that actually protects the volume boundary, so it does not rely on a
  * single switch of an external tool.
+ *
+ * A folder it cannot open is a refusal, not a skip. Swallowing that error left
+ * everything under such a folder uninspected: an archive holding a directory
+ * whose name does not decode as UTF-8 — which 7-Zip writes out as it found it —
+ * had its whole subtree pass this check without being looked at. A guard that
+ * cannot answer its own question has to say no.
  */
 const assertNoSymlinks = async (rootAbsolutePath) => {
   const stack = [rootAbsolutePath];
@@ -498,8 +504,14 @@ const assertNoSymlinks = async (rootAbsolutePath) => {
     let entries;
     try {
       entries = await fs.readdir(current, { withFileTypes: true });
-    } catch {
-      continue;
+    } catch (readError) {
+      if (readError?.code === 'ENOTDIR') continue;
+      const error = new Error(
+        'Part of this archive could not be inspected for symbolic links and was not extracted.'
+      );
+      error.code = 'ARCHIVE_NOT_INSPECTABLE';
+      error.cause = readError;
+      throw error;
     }
     for (const entry of entries) {
       if (entry.isSymbolicLink()) {
@@ -589,4 +601,7 @@ module.exports = {
   archiveBaseName,
   normalizeArchivePassword,
   isArchivePasswordError,
+  // Exported for tests: a guard that refuses what it cannot inspect is only
+  // worth having if that refusal is checked.
+  assertNoSymlinks,
 };

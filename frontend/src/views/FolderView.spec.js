@@ -1754,3 +1754,58 @@ describe('a folder tab coming back', () => {
     expect(stores.file.fetchPathItems).toHaveBeenCalledWith('Docs');
   });
 });
+
+/**
+ * What a folder says about the entries nobody could open.
+ *
+ * Their names are bytes that do not decode as UTF-8 — a volume brought over
+ * from Windows is full of them — so there is no row that could be acted on and
+ * the server leaves them off the listing. It used to leave them off in silence,
+ * which made the folder quietly short of files and, where there was nothing
+ * else in it, made it announce itself as empty. The sentence it must not say.
+ */
+describe('a folder holding entries that could not be read', () => {
+  /**
+   * The count is read from the attribute rather than from the sentence: the
+   * i18n in this file carries no catalogue, so a message key renders as itself
+   * and asserting its text would prove the layout and nothing else.
+   */
+  const counted = (which) => wrapper.find(`[data-test="${which}"]`).attributes('data-unreadable');
+
+  it('says how many, above the rows', async () => {
+    stores.file.items = [file('readable.txt')];
+    stores.file.currentPathData = { unreadable: 3 };
+
+    await mountFolder();
+
+    expect(counted('unreadable-entries')).toBe('3');
+  });
+
+  it('says nothing when every entry was read', async () => {
+    stores.file.items = [file('readable.txt')];
+    stores.file.currentPathData = { unreadable: 0 };
+
+    await mountFolder();
+
+    expect(wrapper.find('[data-test="unreadable-entries"]').exists()).toBe(false);
+  });
+
+  it('does not call itself empty when that is all it holds', async () => {
+    stores.file.items = [];
+    stores.file.currentPathData = { unreadable: 2 };
+
+    await mountFolder();
+
+    expect(counted('unreadable-entries-only')).toBe('2');
+    expect(wrapper.text()).not.toContain('folder.empty');
+  });
+
+  it('still calls an empty folder empty', async () => {
+    stores.file.items = [];
+    stores.file.currentPathData = { unreadable: 0 };
+
+    await mountFolder();
+
+    expect(wrapper.find('[data-test="unreadable-entries-only"]').exists()).toBe(false);
+  });
+});

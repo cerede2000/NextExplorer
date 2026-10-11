@@ -319,10 +319,17 @@
     "noPhotosHint": "Cambia a otro modo de vista para ver todos los archivos",
     "empty": "Esta carpeta está vacía",
     "emptyHint": "Sube o crea archivos para comenzar.",
+    "unreadableEntries": "1 entrada de esta carpeta no se pudo leer | {count} entradas de esta carpeta no se pudieron leer",
+    "unreadableHint": "Sus nombres no son UTF-8 válido —normalmente escritos por Windows—, así que no se pueden abrir, copiar ni archivar. Renombrarlos en el volumen lo resuelve.",
     "scrollTop": "Arriba",
     "scrollBottom": "Abajo",
     "selectAll": "Seleccionar todo",
     "deselectAll": "Deseleccionar todo"
+  },
+  "transfers": {
+    "unreadableHeading": "Algunas entradas no se pudieron leer",
+    "unreadableBody": "1 entrada no se pudo leer y falta en el resultado. | {count} entradas no se pudieron leer y faltan en el resultado.",
+    "unreadableSourceKept": "El original se dejó en su sitio, ya que conserva la única copia de ellas."
   },
   "volumes": {
     "quickAccess": "Acceso rápido",

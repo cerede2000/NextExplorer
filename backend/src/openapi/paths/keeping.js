@@ -140,6 +140,9 @@ module.exports = {
             {
               item: ref('TrashItem'),
               path: str(),
+              unreadable: int(
+                'How many entries this folder holds that nothing could open, and which are therefore not among `entries`. Absent when there are none.'
+              ),
               entries: arrayOf(
                 obj(
                   {

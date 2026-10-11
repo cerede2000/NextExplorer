@@ -243,6 +243,9 @@ module.exports = {
           obj(
             {
               items: arrayOf(ref('Item')),
+              unreadable: int(
+                'How many entries this folder holds that nothing could open, and which are therefore not among `items`. Absent when there are none.'
+              ),
               access: ref('Access'),
               current: obj({ isDirectory: bool() }),
               path: str('`share/<token>/…`'),

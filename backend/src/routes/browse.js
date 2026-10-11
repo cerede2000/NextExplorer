@@ -82,7 +82,7 @@ router.get(
       throw new NotFoundError('Path not found.');
     }
 
-    const fileData = await listDirectoryItems({
+    const { items: fileData, unreadable } = await listDirectoryItems({
       absoluteDir: directoryPath,
       parentLogicalPath: relativePath,
       context,
@@ -98,6 +98,11 @@ router.get(
 
     const response = {
       items: fileData,
+      // How many entries this folder holds that nothing here could open. Said
+      // rather than left out in silence: a folder with three such names used
+      // to look three rows shorter than it is, and an empty one holding
+      // nothing else announced itself as empty.
+      ...(unreadable > 0 ? { unreadable } : {}),
       access: {
         canRead: access.canRead,
         canWrite: access.canWrite,

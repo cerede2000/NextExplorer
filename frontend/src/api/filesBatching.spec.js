@@ -308,3 +308,31 @@ describe('what a deletion is about to break', () => {
     expect(await getDeleteImpact(items(5))).toEqual({ shareCount: 0, shares: [], trash: null });
   });
 });
+
+/**
+ * One gesture, several requests, one count.
+ *
+ * The server counts the entries it could not read per request. A selection the
+ * client chose to split is still one copy to the person who asked for it, so a
+ * count taken from the last batch alone would be short by everything that came
+ * before it — and short is exactly the failure being reported here.
+ */
+describe('the entries a batched transfer could not read', () => {
+  it('adds up across the batches', async () => {
+    requestStream
+      .mockResolvedValueOnce({ items: [], unreadable: 2 })
+      .mockResolvedValueOnce({ items: [], unreadable: 3 })
+      .mockResolvedValueOnce({ items: [], unreadable: 1 });
+
+    const result = await copyItems(items(1001), 'Archive');
+
+    expect(requestStream).toHaveBeenCalledTimes(3);
+    expect(result.unreadable).toBe(6);
+  });
+
+  it('is zero when every batch read everything', async () => {
+    const result = await copyItems(items(501), 'Archive');
+
+    expect(result.unreadable).toBe(0);
+  });
+});

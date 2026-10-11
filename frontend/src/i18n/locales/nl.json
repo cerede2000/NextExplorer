@@ -319,10 +319,17 @@
     "noPhotosHint": "Schakel over naar een andere weergavemodus om alle bestanden te zien",
     "empty": "Deze map is leeg",
     "emptyHint": "Upload of maak bestanden om te beginnen.",
+    "unreadableEntries": "1 item in deze map kon niet worden gelezen | {count} items in deze map konden niet worden gelezen",
+    "unreadableHint": "Hun namen zijn geen geldige UTF-8 — meestal door Windows geschreven — dus ze kunnen niet worden geopend, gekopieerd of ingepakt. Hernoemen op het volume lost dit op.",
     "scrollTop": "Omhoog",
     "scrollBottom": "Omlaag",
     "selectAll": "Alles selecteren",
     "deselectAll": "Selectie opheffen"
+  },
+  "transfers": {
+    "unreadableHeading": "Sommige items konden niet worden gelezen",
+    "unreadableBody": "1 item kon niet worden gelezen en ontbreekt in het resultaat. | {count} items konden niet worden gelezen en ontbreken in het resultaat.",
+    "unreadableSourceKept": "Het origineel blijft staan, want dat bevat de enige kopie ervan."
   },
   "volumes": {
     "quickAccess": "Snelle toegang",

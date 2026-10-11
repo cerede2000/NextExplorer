@@ -217,18 +217,29 @@ router.post(
         // Extract to a private sibling first, then move each root entry into the
         // current folder. This avoids partial writes and lets us apply the same
         // collision rule used everywhere else: name, name (1), name (2), ...
-        const items = await extractIntoCurrentFolder({
+        const {
+          items,
+          unreadable: unreadableEntries,
+          unreadableSample: unreadableEntrySample,
+        } = await extractIntoCurrentFolder({
           stagingDirectory: stagingAbsolutePath,
           destinationDirectory: parentAbsolutePath,
           relativeParentPath: parentRelativePath,
           movedPaths,
         });
         await fs.rm(stagingAbsolutePath, { recursive: true, force: true });
+        if (unreadableEntries > 0) {
+          logger.warn(
+            { zipAbsolutePath, unreadable: unreadableEntries, sample: unreadableEntrySample },
+            'Entries left out of an extraction because their names could not be read'
+          );
+        }
         writeEvent({
           type: 'done',
           success: true,
           item: items.length === 1 ? items[0] : null,
           items,
+          ...(unreadableEntries > 0 ? { unreadable: unreadableEntries } : {}),
         });
       }
     } catch (error) {
@@ -373,19 +384,26 @@ router.post(
 
     try {
       // What the archive may hold: only what a listing of those folders shows.
-      const { entries, excluded, totalBytes } = await collectArchiveEntries(
-        context,
-        sourceTargets.map(({ name: entryName, absolutePath, logicalPath, stats }) => ({
-          absolutePath,
-          logicalPath,
-          entryName,
-          stats,
-        }))
-      );
+      const { entries, excluded, totalBytes, unreadable, unreadableSample } =
+        await collectArchiveEntries(
+          context,
+          sourceTargets.map(({ name: entryName, absolutePath, logicalPath, stats }) => ({
+            absolutePath,
+            logicalPath,
+            entryName,
+            stats,
+          }))
+        );
 
       // 7-Zip takes folders whole, so it only writes archives with nothing to
       // leave out; anything else is written from the list, still streamed.
-      if (excluded === 0 && (await isSevenZipAvailable())) {
+      //
+      // Taking a folder whole is also what makes it the one engine that keeps
+      // the names nothing here can read: 7-Zip never decodes them, so an
+      // archive it wrote is complete and says nothing about them. The count
+      // below is reported only for the archive assembled from the list.
+      const sevenZipTookEverything = excluded === 0 && (await isSevenZipAvailable());
+      if (sevenZipTookEverything) {
         // 7-Zip streams the archive to disk instead of assembling it in RAM.
         const sourceParent = path.dirname(sourceTargets[0].absolutePath);
         const hasCommonParent = sourceTargets.every(
@@ -404,6 +422,8 @@ router.post(
           totalBytes,
           onPercent,
           signal: controller.signal,
+          unreadable,
+          unreadableSample,
         });
       }
 
@@ -416,7 +436,21 @@ router.post(
       await folderSizeHooks.onFileWritten(placed.path, zipStats.size);
 
       const item = await buildItemMetadata(placed.path, normalizedDestination, placed.name);
-      writeEvent({ type: 'done', success: true, item });
+      // The one archive somebody watches being made, so the count has a screen
+      // to reach: the page says how many entries are missing from it.
+      const missed = sevenZipTookEverything ? 0 : unreadable;
+      if (missed > 0) {
+        logger.warn(
+          { unreadable: missed, sample: unreadableSample, archive: placed.path },
+          'Entries left out of a written archive because their names could not be read'
+        );
+      }
+      writeEvent({
+        type: 'done',
+        success: true,
+        item,
+        ...(missed > 0 ? { unreadable: missed } : {}),
+      });
     } catch (error) {
       logger.warn({ temporaryPath, err: error }, 'Archive creation failed; cleaning up file');
       // Only the hidden archive this compression wrote: whatever holds the name

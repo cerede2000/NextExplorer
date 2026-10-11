@@ -319,10 +319,17 @@
     "noPhotosHint": "Mude para outro modo de exibição para ver todos os arquivos",
     "empty": "Esta pasta está vazia",
     "emptyHint": "Envie ou crie arquivos para começar.",
+    "unreadableEntries": "1 item desta pasta não pôde ser lido | {count} itens desta pasta não puderam ser lidos",
+    "unreadableHint": "Seus nomes não são UTF-8 válido — normalmente escritos pelo Windows — então não podem ser abertos, copiados nem arquivados. Renomeá-los no volume resolve.",
     "scrollTop": "Início",
     "scrollBottom": "Fim",
     "selectAll": "Selecionar tudo",
     "deselectAll": "Desmarcar tudo"
+  },
+  "transfers": {
+    "unreadableHeading": "Alguns itens não puderam ser lidos",
+    "unreadableBody": "1 item não pôde ser lido e está faltando no resultado. | {count} itens não puderam ser lidos e estão faltando no resultado.",
+    "unreadableSourceKept": "O original foi mantido onde está, pois guarda a única cópia deles."
   },
   "volumes": {
     "quickAccess": "Acesso rápido",

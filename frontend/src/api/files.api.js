@@ -63,12 +63,20 @@ const summarizeDeleteImpact = (responses) => {
 /** Only sent when asked for, so a request without it means what it always meant. */
 const permanentFlag = (options = {}) => (options.permanent === true ? { permanent: true } : {});
 
+/**
+ * One answer for a transfer the client sent in batches.
+ *
+ * `unreadable` is added up rather than taken from the last batch: a selection
+ * split across requests is one gesture to the person who made it, and a count
+ * that only described the final batch would be short by everything before it.
+ */
 const mergeTransferResults = (results) => {
   if (!Array.isArray(results)) return results;
-  const merged = { success: true, items: [] };
+  const merged = { success: true, items: [], unreadable: 0 };
   for (const result of results) {
     if (Array.isArray(result?.items)) merged.items.push(...result.items);
     if (result?.destination != null) merged.destination = result.destination;
+    merged.unreadable += Number(result?.unreadable) || 0;
   }
   return merged;
 };

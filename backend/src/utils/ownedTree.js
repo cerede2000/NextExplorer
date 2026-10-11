@@ -1,6 +1,8 @@
 const fs = require('fs/promises');
 const path = require('path');
 
+const { isUnreachableEntry } = require('./unreachableEntries');
+
 /**
  * What an operation wrote, told apart from what someone else put beside it.
  *
@@ -32,17 +34,40 @@ const identityOf = (stats) => {
   return `${stats.dev}:${stats.ino}:${born}:${stats.size}:${stats.mtimeMs}`;
 };
 
-/** Every entry under `root`, `root` included, by identity. */
+/**
+ * Every entry under `root`, `root` included, by identity.
+ *
+ * An entry whose name does not decode is not in the inventory, which is the
+ * safe way round: the undo removes what it is sure it wrote, and anything it
+ * could not identify stays — reported by `removeInventoried` as kept, like
+ * anything else that is not the operation's own. Walking it used to throw, and
+ * an extraction of an archive holding one such name failed as a whole.
+ */
 const takeInventory = async (root) => {
   const owned = new Set();
+
   const walk = async (entryPath) => {
-    const stats = await fs.lstat(entryPath);
+    let stats;
+    try {
+      stats = await fs.lstat(entryPath);
+    } catch (error) {
+      if (!isUnreachableEntry(error)) throw error;
+      return;
+    }
     owned.add(identityOf(stats));
     if (!stats.isDirectory()) return;
-    for (const name of await fs.readdir(entryPath)) {
+    let names;
+    try {
+      names = await fs.readdir(entryPath);
+    } catch (error) {
+      if (!isUnreachableEntry(error)) throw error;
+      return;
+    }
+    for (const name of names) {
       await walk(path.join(entryPath, name));
     }
   };
+
   await walk(root);
   return owned;
 };
@@ -61,7 +86,11 @@ const removeInventoried = async (root, inventory) => {
       stats = await fs.lstat(entryPath);
     } catch (error) {
       if (error.code === 'ENOENT') return;
-      throw error;
+      if (!isUnreachableEntry(error)) throw error;
+      // Cannot be identified, so it cannot be one of the operation's own: it
+      // stays, and is reported as kept.
+      kept.push(entryPath);
+      return;
     }
     const ours = inventory.has(identityOf(stats));
 
@@ -71,7 +100,17 @@ const removeInventoried = async (root, inventory) => {
       return;
     }
 
-    for (const name of await fs.readdir(entryPath)) {
+    let names;
+    try {
+      names = await fs.readdir(entryPath);
+    } catch (error) {
+      if (!isUnreachableEntry(error)) throw error;
+      // Nothing inside can be looked at, so nothing inside is removed and the
+      // folder is kept: it is not empty as far as anyone here can tell.
+      kept.push(entryPath);
+      return;
+    }
+    for (const name of names) {
       await visit(path.join(entryPath, name));
     }
     if (!ours) {

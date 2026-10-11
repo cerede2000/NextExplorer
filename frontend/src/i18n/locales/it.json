@@ -319,10 +319,17 @@
     "noPhotosHint": "Passa a un'altra modalità di visualizzazione per vedere tutti i file",
     "empty": "Questa cartella è vuota",
     "emptyHint": "Carica o crea file per iniziare.",
+    "unreadableEntries": "1 voce di questa cartella non è stata letta | {count} voci di questa cartella non sono state lette",
+    "unreadableHint": "I loro nomi non sono UTF-8 valido — in genere scritti da Windows — quindi non possono essere aperti, copiati o archiviati. Rinominarli sul volume risolve.",
     "scrollTop": "Inizio",
     "scrollBottom": "Fine",
     "selectAll": "Seleziona tutto",
     "deselectAll": "Deseleziona tutto"
+  },
+  "transfers": {
+    "unreadableHeading": "Alcune voci non sono state lette",
+    "unreadableBody": "1 voce non è stata letta e manca dal risultato. | {count} voci non sono state lette e mancano dal risultato.",
+    "unreadableSourceKept": "L’originale è stato lasciato dov’è, perché ne conserva l’unica copia."
   },
   "volumes": {
     "quickAccess": "Accesso rapido",

@@ -319,10 +319,17 @@
     "noPhotosHint": "切换到其他视图模式以查看所有文件",
     "empty": "此文件夹为空",
     "emptyHint": "上传或创建文件以开始。",
+    "unreadableEntries": "此文件夹中有 1 个条目无法读取 | 此文件夹中有 {count} 个条目无法读取",
+    "unreadableHint": "它们的名称不是有效的 UTF-8（通常由 Windows 写入），因此无法打开、复制或压缩。在卷上重命名即可解决。",
     "scrollTop": "顶部",
     "scrollBottom": "底部",
     "selectAll": "全选",
     "deselectAll": "取消全选"
+  },
+  "transfers": {
+    "unreadableHeading": "部分条目无法读取",
+    "unreadableBody": "有 1 个条目无法读取，结果中缺少它。 | 有 {count} 个条目无法读取，结果中缺少它们。",
+    "unreadableSourceKept": "原件保留在原处，因为它保存着这些条目的唯一副本。"
   },
   "volumes": {
     "quickAccess": "快速访问",

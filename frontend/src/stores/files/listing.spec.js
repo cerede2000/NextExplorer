@@ -111,3 +111,17 @@ describe('what the folder allows', () => {
     expect(folderData([{ name: 'a' }], 'Docs')).toBeNull();
   });
 });
+
+/**
+ * The count of what the folder holds and nobody could open has to survive the
+ * trip from the answer into the folder's own data, or no screen can say it.
+ */
+describe('what a folder says about the entries nobody could open', () => {
+  it('carries the count the server sent', () => {
+    expect(folderData({ items: [], unreadable: 3 }, 'Docs').unreadable).toBe(3);
+  });
+
+  it('reads the absence of the field as nothing to say', () => {
+    expect(folderData({ items: [] }, 'Docs').unreadable).toBe(0);
+  });
+});

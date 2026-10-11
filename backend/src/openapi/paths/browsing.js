@@ -62,6 +62,9 @@ module.exports = {
           obj(
             {
               items: arrayOf(ref('Item')),
+              unreadable: int(
+                'How many entries this folder holds that nothing could open — a name whose bytes are not valid UTF-8, usually written by Windows, or an entry the server may not read. Absent when there are none. They are not among `items`, so without this the folder would look shorter than it is.'
+              ),
               access: ref('Access'),
               current: obj({ isDirectory: bool() }),
               path: str('The folder, as it was resolved.'),
@@ -122,6 +125,9 @@ module.exports = {
                 fileCount: int(),
                 dirCount: int(),
                 truncated: bool(),
+                unreadable: int(
+                  'How many entries under it could not be opened at all, so they count for nothing in `totalSize` or the counts. Zero when the figures are whole.'
+                ),
               }),
             },
             ['path', 'name', 'kind'],

@@ -417,6 +417,10 @@ const listEntries = async (id, entryPath, context) => {
   return {
     item: present(outcome.item, zone, user, settings, true, kept.length),
     path: normalized,
+    // How many entries this folder holds that nothing here could open, said
+    // rather than left off the list in silence — the same answer the browser
+    // gives for a folder on the volume.
+    ...(outcome.unreadable > 0 ? { unreadable: outcome.unreadable } : {}),
     entries: outcome.entries.map((entry) => ({
       ...entry,
       shareCount: trashShares.underEntry(

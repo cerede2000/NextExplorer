@@ -319,10 +319,17 @@
     "noPhotosHint": "파일을 보려면 다른 보기 모드로 전환하세요.",
     "empty": "폴더가 비었습니다",
     "emptyHint": "파일을 업로드하거나 새 파일을 만들어주세요.",
+    "unreadableEntries": "이 폴더의 항목 1개를 읽을 수 없습니다 | 이 폴더의 항목 {count}개를 읽을 수 없습니다",
+    "unreadableHint": "이름이 올바른 UTF-8이 아니어서(대개 Windows에서 기록됨) 열기, 복사, 압축이 모두 되지 않습니다. 볼륨에서 이름을 바꾸면 해결됩니다.",
     "scrollTop": "맨 위",
     "scrollBottom": "맨 아래",
     "selectAll": "전체 선택",
     "deselectAll": "전체 선택 해제"
+  },
+  "transfers": {
+    "unreadableHeading": "일부 항목을 읽을 수 없었습니다",
+    "unreadableBody": "항목 1개를 읽을 수 없어 결과에 빠져 있습니다. | 항목 {count}개를 읽을 수 없어 결과에 빠져 있습니다.",
+    "unreadableSourceKept": "원본에만 사본이 남아 있어 원본을 그대로 두었습니다."
   },
   "volumes": {
     "quickAccess": "빠른 접근",

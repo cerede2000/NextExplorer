@@ -27,6 +27,7 @@ const {
 } = require('./sharesService');
 const pathBindings = require('./pathBindingsService');
 const folderSizeHooks = require('./folderSizeHooks');
+const { createUnreachableTally } = require('../utils/unreachableEntries');
 const config = require('../config/index');
 const { getIndexDb } = require('./indexDb');
 const folderSizeIndex = require('./folderSizeIndex');
@@ -568,9 +569,24 @@ const copySymbolicLink = async (sourcePath, destinationPath) => {
   await fs.symlink(await fs.readlink(sourcePath), destinationPath);
 };
 
-// Recursively copy a file/dir, reporting copied bytes. It returns the actual
-// copied byte count, so folder-size updates never need a second filesystem walk.
-const copyEntryWithProgress = async (sourcePath, destinationPath, isDirectory, onBytes, signal) => {
+/**
+ * Recursively copy a file/dir, reporting copied bytes. It returns the actual
+ * copied byte count, so folder-size updates never need a second filesystem walk.
+ *
+ * `unreachable`, when given, collects the entries this copy could not reach —
+ * a name whose bytes do not decode, an entry that went while the copy ran — and
+ * the copy goes on without them. Without it, one such name inside a folder took
+ * the whole copy down. Skipping them silently would be worse: a copy missing
+ * files, reported as finished, is how somebody loses the only other version.
+ */
+const copyEntryWithProgress = async (
+  sourcePath,
+  destinationPath,
+  isDirectory,
+  onBytes,
+  signal,
+  unreachable = null
+) => {
   throwIfCancelled(signal);
   if (nativeTransferEnabled() && nativeToolUsable('rsync')) {
     const stats = await fs.lstat(sourcePath);
@@ -617,7 +633,23 @@ const copyEntryWithProgress = async (sourcePath, destinationPath, isDirectory, o
     throwIfCancelled(signal);
     const src = path.join(sourcePath, entry.name);
     const dest = path.join(destinationPath, entry.name);
-    copiedBytes += await copyEntryWithProgress(src, dest, entry.isDirectory(), onBytes, signal);
+    try {
+      copiedBytes +=
+        (await copyEntryWithProgress(
+          src,
+          dest,
+          entry.isDirectory(),
+          onBytes,
+          signal,
+          unreachable
+        )) || 0;
+    } catch (error) {
+      // Only a child nothing can reach, and only when the caller asked to be
+      // told how many: a copy that cannot say what it left out still fails, so
+      // nobody is handed an incomplete copy believing it whole.
+      if (!unreachable) throw error;
+      unreachable.noteOrThrow(src, error);
+    }
   }
   return copiedBytes;
 };
@@ -646,6 +678,7 @@ const copyIntoPlace = async ({
   holdsFolderSize,
   onBytes,
   signal,
+  unreachable = null,
 }) => {
   throwIfCancelled(signal);
   const inFlight = trackInFlight(stagingPath, 'staging-copy');
@@ -656,7 +689,8 @@ const copyIntoPlace = async ({
       stagingPath,
       entryIsDirectory,
       onBytes,
-      signal
+      signal,
+      unreachable
     );
     throwIfCancelled(signal);
     const placed = await placeWithoutOverwrite(stagingPath, directory, desiredName);
@@ -695,6 +729,7 @@ const moveIntoPlace = async ({
   onBytes,
   signal,
   onLanded,
+  unreachable = null,
 }) => {
   throwIfCancelled(signal);
   let placed = null;
@@ -718,8 +753,20 @@ const moveIntoPlace = async ({
     holdsFolderSize,
     onBytes,
     signal,
+    unreachable,
   });
   await onLanded?.(copied.placed);
+
+  // The copy is missing something, so the source is the only place that still
+  // holds it and it stays where it is. `rm -r` and `fs.rm` both remove a name
+  // this copy could not read — they never decode it — so removing the source
+  // here would destroy the only copy of those entries while reporting the move
+  // as done. A move that kept its source is said so, and the entries are left
+  // for somebody to look at.
+  if (unreachable?.count > 0) {
+    return { ...copied, sourceKept: true };
+  }
+
   if (shouldRemoveNatively(entryIsDirectory)) await removeWithNativeRm(sourcePath, signal);
   else await fs.rm(sourcePath, { recursive: entryIsDirectory, force: true });
   return copied;
@@ -901,6 +948,10 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
   }
 
   const results = [];
+  // What the whole operation could not reach, so the answer says it once. The
+  // names are only for the log; the count is what the caller is told.
+  let unreadableTotal = 0;
+  const unreadableNames = [];
   let copiedBytes = 0;
   let lastEmit = 0;
   let currentName = '';
@@ -993,6 +1044,11 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
         }
       };
 
+      // One tally per entry, not one for the operation: a move asks its own
+      // whether anything is missing from its copy before it removes the source,
+      // and a count carried over from the entry before it would keep a source
+      // that is whole.
+      const unreachable = createUnreachableTally();
       const placement = {
         sourcePath: plan.sourceAbsolute,
         stagingPath,
@@ -1002,7 +1058,9 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
         holdsFolderSize: plan.isDirectory,
         onBytes: onCopyProgress,
         signal: writeOperation.signal,
+        unreachable,
       };
+      let sourceKept = false;
 
       if (operation === 'copy') {
         const copied = await copyIntoPlace(placement);
@@ -1015,6 +1073,7 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
         });
       } else if (operation === 'move') {
         const moved = await moveIntoPlace({ ...placement, size: plan.size, onLanded: land });
+        sourceKept = Boolean(moved.sourceKept);
         await folderSizeHooks.onEntryMoved(plan.sourceAbsolute, target.landedAt, {
           isDirectory: plan.isDirectory,
           size: moved.size ?? plan.size,
@@ -1034,14 +1093,25 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
       // A move takes the folder's bindings with it — favorites, shares, recent
       // destinations, per-folder preferences. A copy leaves the original where
       // it is, so its bindings stay put and the copy starts with none.
-      if (operation === 'move') {
+      // A move whose source stayed is a copy as far as everything attached to
+      // the old path is concerned: the favourites, shares and histories there
+      // still name something that exists.
+      if (operation === 'move' && !sourceKept) {
         await pathBindings.movePath(plan.sourceRelative, targetRelative);
         // And the histories, whose versions stay where they were kept: even to
         // another volume, nothing is copied for them. A copy starts with none.
         await require('./versions/lifecycle').onMoved(plan.sourceAbsolute, targetAbsolute);
       }
 
-      results.push({ from: plan.sourceRelative, to: targetRelative });
+      unreadableTotal += unreachable.count;
+      if (unreadableNames.length < 5) unreadableNames.push(...unreachable.sample);
+
+      results.push({
+        from: plan.sourceRelative,
+        to: targetRelative,
+        ...(unreachable.count > 0 ? { unreadable: unreachable.count } : {}),
+        ...(sourceKept ? { sourceKept: true } : {}),
+      });
       activeWriteOperation.finish();
       activeWriteOperation = null;
       activeTarget = null;
@@ -1057,7 +1127,23 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
     // transfer and makes the eventual size authoritative.
     folderSizeHooks.refreshTransferredDirectories(transferredDirectories);
 
-    return { destination: destinationRelative, items: results };
+    if (unreadableTotal > 0) {
+      logger.warn(
+        {
+          unreadable: unreadableTotal,
+          sample: unreadableNames.slice(0, 5),
+          destination: destinationRelative,
+          operation,
+        },
+        'Entries left out of a transfer because their names could not be read'
+      );
+    }
+
+    return {
+      destination: destinationRelative,
+      items: results,
+      ...(unreadableTotal > 0 ? { unreadable: unreadableTotal } : {}),
+    };
   } catch (error) {
     try {
       // An entry that had not landed left nothing under a visible name: its

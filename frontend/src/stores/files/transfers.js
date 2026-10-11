@@ -15,6 +15,9 @@ import { collectTransferredNames, isAbortError, itemKey, serializeItems } from '
  * @param {() => void} options.refreshSizes  volume usage and folder sizes, later
  * @param {object} options.operationTasksStore
  * @param {(items: Array, action: string) => boolean} options.warn
+ * @param {(result: object) => boolean} [options.sayWhatWasNotRead]  tells the
+ *   reader how many entries a transfer could not read, so a copy short of
+ *   files is never reported as finished
  */
 export const createTransfers = ({
   currentPath,
@@ -23,6 +26,7 @@ export const createTransfers = ({
   refreshSizes,
   operationTasksStore,
   warn,
+  sayWhatWasNotRead = () => false,
 }) => {
   const copiedItems = useStorage('nextExplorer_clipboard_copied', []);
   const cutItems = useStorage('nextExplorer_clipboard_cut', []);
@@ -139,6 +143,7 @@ export const createTransfers = ({
             onEvent: onTransferEvent,
             signal: controller.signal,
           });
+          sayWhatWasNotRead(result);
           collectTransferredNames(result, pastedNames);
           if (result?.destination != null) finalDestination = normalizePath(result.destination);
         }
@@ -151,6 +156,7 @@ export const createTransfers = ({
             onEvent: onTransferEvent,
             signal: controller.signal,
           });
+          sayWhatWasNotRead(result);
           collectTransferredNames(result, pastedNames);
           if (result?.destination != null) finalDestination = normalizePath(result.destination);
         }

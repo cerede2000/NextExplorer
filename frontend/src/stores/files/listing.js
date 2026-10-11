@@ -87,6 +87,17 @@ export const folderData = (response, normalizedPath) => {
     // whether the menu offers what would be refused.
     canSeeVersions: access?.canSeeVersions ?? true,
     isDirectory: response.current?.isDirectory ?? null,
+    /**
+     * How many entries this folder holds that the server could not open, and
+     * which are therefore not among the rows.
+     *
+     * Read from the answer rather than worked out from it: there is no way to
+     * tell from a list of rows that something is missing from it. The server
+     * leaves the field out when there is nothing to say, and 0 is the right
+     * reading of that — a folder nobody has asked about yet, or an older
+     * server, says nothing and nothing is shown.
+     */
+    unreadable: Number(response.unreadable) || 0,
     // Include share metadata if present
     shareInfo: response.shareInfo || null,
   };
