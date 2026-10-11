@@ -28,10 +28,22 @@ import { withUndecodableEntry } from '../helpers/undecodable-name.js';
  * backup that lies, and that is worse than the 500 this used to answer.
  */
 
+/**
+ * `FILE_TRANSFER_ENGINE: 'stream'` because the engine decides whether there is
+ * anything to decide.
+ *
+ * `nativeTransferEnabled()` is true by default on Linux, and rsync copies a
+ * directory whole without ever turning a name into text — so on the CI runner a
+ * copy of such a folder is complete and has nothing to report, exactly as 7-Zip
+ * does for an archive. The walk in JavaScript is the one that reads names, so it
+ * is the one these tests ask. Left to the host, the same test would check the
+ * stream engine on this Mac (whose rsync is too old for the native path anyway)
+ * and the rsync engine in CI, which is two different questions under one name.
+ */
 const context = async (tag, modules) =>
   setupTestEnv({
     tag,
-    env: { NATIVE_TRANSFER_TOOLS: 'false' },
+    env: { FILE_TRANSFER_ENGINE: 'stream' },
     modules: ['src/config/env', 'src/config/index', ...modules],
   });
 
@@ -349,7 +361,7 @@ describe('an entry whose name cannot be decoded', () => {
     const move = async () => {
       env = await setupTestEnv({
         tag: 'undecodable-move-',
-        env: { NATIVE_TRANSFER_TOOLS: 'false', FOLDER_SIZE_MODE: 'off' },
+        env: { FILE_TRANSFER_ENGINE: 'stream', FOLDER_SIZE_MODE: 'off' },
       });
       const db = await env.requireFresh('src/services/db').getDb();
       const now = new Date().toISOString();
