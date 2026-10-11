@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import {
   forgetHandedOff,
+  goingInCircles,
   markHandedOff,
   markSignedOut,
-  takeHandedOffRecently,
   takeSignedOut,
 } from './providerHandoff';
 
@@ -37,40 +37,7 @@ describe('a mark left for the screen the browser comes back to', () => {
 
   it('says nothing when nobody left one', () => {
     expect(takeSignedOut()).toBe(false);
-    expect(takeHandedOffRecently()).toBe(false);
-  });
-
-  it('remembers a hand-off that has just happened', () => {
-    markHandedOff();
-
-    expect(takeHandedOffRecently()).toBe(true);
-  });
-
-  /**
-   * A round trip through a provider takes seconds. An hour later the same mark
-   * says nothing about the session that has just run out, and reading it as
-   * "you came back with nothing" would refuse a hand-off that would have
-   * worked.
-   */
-  it('says nothing about a hand-off from hours ago', () => {
-    markHandedOff();
-
-    expect(takeHandedOffRecently(Date.now() + 60 * 60 * 1000)).toBe(false);
-  });
-
-  /** Consumed whether it was acted on or not, or it would refuse the next one. */
-  it('is consumed even when it was too old to matter', () => {
-    markHandedOff();
-    takeHandedOffRecently(Date.now() + 60 * 60 * 1000);
-
-    expect(window.sessionStorage.getItem('oidcHandoff')).toBeNull();
-  });
-
-  it('is dropped outright once a session was obtained', () => {
-    markHandedOff();
-    forgetHandedOff();
-
-    expect(takeHandedOffRecently()).toBe(false);
+    expect(goingInCircles()).toBe(false);
   });
 
   it('survives a browser that refuses to remember anything', () => {
@@ -86,5 +53,83 @@ describe('a mark left for the screen the browser comes back to', () => {
     expect(takeSignedOut()).toBe(false);
 
     Object.defineProperty(window, 'sessionStorage', { configurable: true, value: held });
+  });
+});
+
+/**
+ * Telling a circle from somebody trying again.
+ *
+ * One hand-off that came back without a session says almost nothing. Somebody
+ * who walked away from the provider's page and then opened the address again
+ * has done exactly that, and what they want is to be sent to the provider.
+ * Reading their one unfinished trip as a circle stopped them at a wall they
+ * had done nothing to deserve — which is how this was reported.
+ *
+ * A circle is repetition: the lap takes well under a second because nobody is
+ * typing anything.
+ */
+describe('going round in circles', () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
+  });
+
+  it('is not what one unfinished trip is', () => {
+    markHandedOff();
+
+    expect(goingInCircles()).toBe(false);
+  });
+
+  it('is not what somebody who tried twice is doing', () => {
+    markHandedOff();
+    markHandedOff();
+
+    expect(goingInCircles()).toBe(false);
+  });
+
+  it('is three laps in the same breath', () => {
+    markHandedOff();
+    markHandedOff();
+    markHandedOff();
+
+    expect(goingInCircles()).toBe(true);
+  });
+
+  /** Three laps spread over an afternoon are three people trying, not a circle. */
+  it('is not three laps spread out', () => {
+    const start = Date.now();
+    markHandedOff(start);
+    markHandedOff(start + 60 * 1000);
+    markHandedOff(start + 120 * 1000);
+
+    expect(goingInCircles(start + 120 * 1000)).toBe(false);
+  });
+
+  /** Asking is not answering: the laps are what the next hand-off counts from. */
+  it('is still true when asked twice', () => {
+    markHandedOff();
+    markHandedOff();
+    markHandedOff();
+
+    expect(goingInCircles()).toBe(true);
+    expect(goingInCircles()).toBe(true);
+  });
+
+  it('is over once a session was obtained', () => {
+    markHandedOff();
+    markHandedOff();
+    markHandedOff();
+
+    forgetHandedOff();
+
+    expect(goingInCircles()).toBe(false);
+  });
+
+  /** A single timestamp is what an earlier version left in this tab. */
+  it('reads what an older version wrote as no laps at all', () => {
+    window.sessionStorage.setItem('oidcHandoff', String(Date.now()));
+
+    expect(goingInCircles()).toBe(false);
+    markHandedOff();
+    expect(goingInCircles()).toBe(false);
   });
 });

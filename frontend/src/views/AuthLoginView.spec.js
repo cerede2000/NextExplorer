@@ -80,7 +80,7 @@ vi.mock('@/layouts/AuthLayout.vue', () => ({
   default: { name: 'AuthLayoutStub', template: '<div><slot name="heading" /><slot /></div>' },
 }));
 
-const { forgetHandedOff } = await import('@/utils/providerHandoff');
+const { forgetHandedOff, markHandedOff } = await import('@/utils/providerHandoff');
 const AuthLoginView = (await import('./AuthLoginView.vue')).default;
 
 let wrapper = null;
@@ -856,31 +856,66 @@ describe('an installation that offers no way in', () => {
  * provider, which signs them in again.
  *
  * Nothing in that circle ever reaches a person. The only account of it is a
- * logo spinning for as long as anybody is willing to watch it, so the hand-off
- * is marked on the way out and the screen the browser comes back to reads it.
+ * logo spinning for as long as anybody is willing to watch it, so the hand-offs
+ * are counted on the way out and the screen the browser comes back to reads the
+ * count.
+ *
+ * What is counted is *laps in a few seconds*, not one trip. The first version
+ * stopped on a single hand-off that had not come back with a session — and the
+ * commonest way to produce one of those is to walk away from the provider's
+ * page and then open the address again, which is somebody asking to sign in,
+ * not a circle.
  */
 describe('a trip to the provider that came back with nothing', () => {
   beforeEach(() => {
     auth.store.strategies = { local: false, oidc: true };
   });
 
-  it('does not hand off again straight away', async () => {
-    const view = await mountLogin();
-    view.handleOidcLogin();
-    navigatedTo = '';
+  const comeBackTo = async () => {
     wrapper.unmount();
     wrapper = null;
+    navigatedTo = '';
+    return mountLogin();
+  };
 
+  /**
+   * Somebody who walked away from the provider's page and opened the address
+   * again wants to be sent to the provider. This is the way it was reported:
+   * arrive, be sent to the provider, leave it, come back — and be stopped.
+   */
+  it('hands off again after one unfinished trip', async () => {
     await mountLogin();
+    expect(navigatedTo).toContain('/api/auth/oidc/login');
+
+    await comeBackTo();
+
+    expect(navigatedTo).toContain('/api/auth/oidc/login');
+  });
+
+  it('hands off again after a second one', async () => {
+    await mountLogin();
+    await comeBackTo();
+
+    await comeBackTo();
+
+    expect(navigatedTo).toContain('/api/auth/oidc/login');
+  });
+
+  /** Three laps in the same breath is a machine, and nothing else is. */
+  it('stops once the laps make a circle', async () => {
+    await mountLogin();
+    await comeBackTo();
+    await comeBackTo();
+
+    await comeBackTo();
 
     expect(navigatedTo).toBe('');
   });
 
   it('says what happened instead', async () => {
-    const view = await mountLogin();
-    view.handleOidcLogin();
-    wrapper.unmount();
-    wrapper = null;
+    markHandedOff();
+    markHandedOff();
+    markHandedOff();
 
     await mountLogin();
 
@@ -889,10 +924,9 @@ describe('a trip to the provider that came back with nothing', () => {
 
   /** One stop, not a screen nobody can ever leave: the button still works. */
   it('still goes when somebody presses the button', async () => {
-    const first = await mountLogin();
-    first.handleOidcLogin();
-    wrapper.unmount();
-    wrapper = null;
+    markHandedOff();
+    markHandedOff();
+    markHandedOff();
     const view = await mountLogin();
     navigatedTo = '';
 
@@ -903,11 +937,9 @@ describe('a trip to the provider that came back with nothing', () => {
 
   /** A session obtained in between is the proof the trip worked. */
   it('hands off on its own once a session has been obtained', async () => {
-    const view = await mountLogin();
-    view.handleOidcLogin();
-    navigatedTo = '';
-    wrapper.unmount();
-    wrapper = null;
+    markHandedOff();
+    markHandedOff();
+    markHandedOff();
     // What the store does when the status comes back with a user.
     forgetHandedOff();
 

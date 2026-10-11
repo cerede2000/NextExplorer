@@ -25,14 +25,23 @@ const SIGNED_OUT = 'oidcSignedOut';
 const HANDED_OFF = 'oidcHandoff';
 
 /**
- * How long a hand-off that came back with nothing counts as the reason this
- * screen is here.
+ * What tells a circle from somebody trying again.
  *
- * A round trip through a provider takes seconds. An hour later the same mark
- * says nothing about the session that has just run out, so it is ignored
- * rather than used to refuse a hand-off that would have worked.
+ * One hand-off that came back without a session says almost nothing. Somebody
+ * who walked away from the provider's page and then opened this address again
+ * has done exactly that, and what they want is to be sent to the provider —
+ * which is what they came here for. Reading their *one* unfinished trip as a
+ * circle stopped them at a wall they had done nothing to deserve.
+ *
+ * A circle is not one trip, it is *repetition*: the provider signs somebody in,
+ * this application has no session for them anyway, the screen sends them back,
+ * and the whole lap takes well under a second because nobody is typing
+ * anything. So what is counted is laps within a few seconds — three of them is
+ * a machine, and no hand is fast enough to leave for a provider and come back
+ * three times in ten.
  */
-const HANDOFF_WINDOW_MS = 2 * 60 * 1000;
+const HANDOFF_WINDOW_MS = 10 * 1000;
+const HANDOFFS_THAT_MAKE_A_CIRCLE = 3;
 
 const store = () => {
   try {
@@ -69,11 +78,34 @@ export const markSignedOut = () => write(SIGNED_OUT, '1');
 /** And the screen that reads it, once. */
 export const takeSignedOut = () => take(SIGNED_OUT) === '1';
 
+/** The laps still inside the window, oldest first. */
+const lapsHeld = (now) => {
+  const held = store();
+  if (!held) return [];
+  let raw;
+  try {
+    raw = held.getItem(HANDED_OFF);
+  } catch (_) {
+    return [];
+  }
+  let times;
+  try {
+    times = JSON.parse(raw || '[]');
+  } catch (_) {
+    // Including the single timestamp earlier versions wrote here.
+    times = [];
+  }
+  if (!Array.isArray(times)) return [];
+  return times.filter((at) => Number.isFinite(at) && now - at < HANDOFF_WINDOW_MS).slice(-10);
+};
+
 /** A sign-in is being handed to the provider now. */
-export const markHandedOff = () => write(HANDED_OFF, String(Date.now()));
+export const markHandedOff = (now = Date.now()) => {
+  write(HANDED_OFF, JSON.stringify([...lapsHeld(now), now]));
+};
 
 /**
- * Whether this screen is here because a hand-off came back without a session.
+ * Whether this screen is going round in a circle.
  *
  * The one thing that stops an endless round trip: the provider signs somebody
  * in, this application ends up with no session for them anyway — no account
@@ -83,16 +115,14 @@ export const markHandedOff = () => write(HANDED_OFF, String(Date.now()));
  * only account of it is a logo spinning for as long as they are willing to
  * watch it.
  *
- * Consumed whether it is acted on or not: a mark left behind would refuse the
- * next hand-off too.
+ * Asked without consuming anything: the laps are what the next hand-off counts
+ * from, and they fall out of the window on their own. A session obtained is
+ * what clears them, because that is what ends the circle.
  */
-export const takeHandedOffRecently = (now = Date.now()) => {
-  const at = Number(take(HANDED_OFF));
-  if (!Number.isFinite(at) || at <= 0) return false;
-  return now - at < HANDOFF_WINDOW_MS;
-};
+export const goingInCircles = (now = Date.now()) =>
+  lapsHeld(now).length >= HANDOFFS_THAT_MAKE_A_CIRCLE;
 
-/** A session was obtained, so no trip is outstanding. */
+/** A session was obtained, so there is no circle to be in. */
 export const forgetHandedOff = () => {
   take(HANDED_OFF);
 };

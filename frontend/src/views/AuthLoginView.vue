@@ -9,7 +9,7 @@ import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 import { useFeaturesStore } from '@/stores/features';
 import { useAppSettings } from '@/stores/appSettings';
-import { markHandedOff, takeHandedOffRecently, takeSignedOut } from '@/utils/providerHandoff';
+import { goingInCircles, markHandedOff, takeSignedOut } from '@/utils/providerHandoff';
 
 const auth = useAuthStore();
 const featuresStore = useFeaturesStore();
@@ -68,13 +68,20 @@ const oidcUnavailableMessage = computed(() => {
 /**
  * The two things that happened before this screen existed.
  *
- * Both are read once, here, and removed as they are read — see
+ * The sign-out mark is read once, here, and removed as it is read — see
  * utils/providerHandoff.js. A mark that outlives the screen it was left for
- * answers the wrong question later: the sign-out mark used to stop a hand-off
- * hours after the sign-out it described, and nothing ever cleared it.
+ * answers the wrong question later: it used to stop a hand-off hours after the
+ * sign-out it described, and nothing ever cleared it.
  */
 const returnedFromLogout = ref(takeSignedOut());
-const providerSentThemBackWithNothing = ref(takeHandedOffRecently());
+/**
+ * Whether this screen has been round this way several times in a few seconds,
+ * which is a circle and not somebody trying again.
+ *
+ * Read rather than consumed: the laps are what the next hand-off counts from,
+ * and they fall out of their window on their own.
+ */
+const providerSentThemBackWithNothing = ref(goingInCircles());
 
 /**
  * Whether this screen is showing because a session ran out.
