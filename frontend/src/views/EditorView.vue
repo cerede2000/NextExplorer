@@ -1,10 +1,30 @@
 <template>
   <div class="flex h-full w-full flex-col bg-white dark:bg-default">
+    <!--
+      One row, whatever is in it.
+
+      The strip used to wrap, and what decided whether it wrapped was the state
+      of the document: "unsaved changes" appears on the first character typed,
+      and in a narrow window that one phrase pushed the controls onto a second
+      line. The strip grew by its own height and the editor below it moved down
+      and shrank — on the keystroke that caused it. The text somebody is typing
+      slides out from under their finger, and CodeMirror remeasures and redraws
+      its content in the middle of whatever the keyboard is doing, which on a
+      touch device is a composition.
+
+      Measured on a 412 px window: the strip went from 57 px to 105 px and the
+      editor lost 48 px, on the first character. Two panes side by side put a
+      desktop window in the same narrow place.
+
+      So the strip keeps one row and what is in it gives way instead: the path
+      and the messages shorten, the controls never do. Nothing about the editor
+      below depends on what has been typed into it.
+    -->
     <header
-      class="sticky top-0 z-40 flex flex-wrap items-center gap-4 border-b border-neutral-200 bg-white/90 px-4 py-2 shadow-xs backdrop-blur dark:border-neutral-900 dark:bg-default"
+      class="sticky top-0 z-40 flex items-center gap-4 border-b border-neutral-200 bg-white/90 px-4 py-2 shadow-xs backdrop-blur dark:border-neutral-900 dark:bg-default"
     >
       <div class="min-w-0">
-        <p class="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+        <p class="truncate text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
           {{
             isTrashViewer
               ? t('editor.trashReadOnly')
@@ -19,13 +39,13 @@
           {{ displayPath || '—' }}
         </h1>
       </div>
-      <div class="ml-auto flex items-center gap-2">
-        <span v-if="saveError" class="text-sm text-red-600 dark:text-red-400">
+      <div class="ml-auto flex min-w-0 items-center gap-2">
+        <span v-if="saveError" class="truncate text-sm text-red-600 dark:text-red-400">
           {{ saveError }}
         </span>
         <p
           v-if="hasUnsavedChanges && !isViewerOnly"
-          class="mr-4 text-xs text-amber-600 dark:text-amber-400"
+          class="mr-4 truncate text-xs text-amber-600 dark:text-amber-400"
         >
           {{ t('editor.unsavedChanges') }}
         </p>
@@ -34,7 +54,7 @@
           type="button"
           @click="openRaw"
           :disabled="isLoading || !displayPath"
-          class="rounded-md px-2 py-1 text-xs font-semibold uppercase tracking-wide text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-800 disabled:cursor-not-allowed disabled:opacity-60 dark:text-neutral-300 dark:hover:bg-white/10 dark:hover:text-white border dark:border-zinc-700"
+          class="shrink-0 rounded-md px-2 py-1 text-xs font-semibold uppercase tracking-wide text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-800 disabled:cursor-not-allowed disabled:opacity-60 dark:text-neutral-300 dark:hover:bg-white/10 dark:hover:text-white border dark:border-zinc-700"
           :title="t('editor.raw')"
         >
           {{ t('editor.raw') }}
@@ -44,13 +64,13 @@
           type="button"
           @click="openDownload"
           :disabled="isLoading || !displayPath"
-          class="rounded-md px-2 py-1 text-xs font-semibold uppercase tracking-wide text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-800 disabled:cursor-not-allowed disabled:opacity-60 dark:text-neutral-300 dark:hover:bg-white/10 dark:hover:text-white border dark:border-zinc-700"
+          class="shrink-0 rounded-md px-2 py-1 text-xs font-semibold uppercase tracking-wide text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-800 disabled:cursor-not-allowed disabled:opacity-60 dark:text-neutral-300 dark:hover:bg-white/10 dark:hover:text-white border dark:border-zinc-700"
           :aria-label="t('share.directLinkModes.download')"
           :title="t('share.directLinkModes.download')"
         >
           {{ t('share.directLinkModes.download') }}
         </button>
-        <div ref="themeMenuRef" class="relative">
+        <div ref="themeMenuRef" class="relative shrink-0">
           <button
             type="button"
             class="rounded-md p-1 text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-800 dark:text-neutral-300 dark:hover:bg-white/10 dark:hover:text-white"
@@ -95,7 +115,7 @@
           type="button"
           @click="saveFile"
           :disabled="!canSave"
-          class="rounded-md p-1 text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-800 disabled:cursor-not-allowed disabled:opacity-60 dark:text-neutral-300 dark:hover:bg-white/10 dark:hover:text-white"
+          class="shrink-0 rounded-md p-1 text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-800 disabled:cursor-not-allowed disabled:opacity-60 dark:text-neutral-300 dark:hover:bg-white/10 dark:hover:text-white"
           :aria-label="$t('common.save')"
           :title="$t('common.save')"
         >
@@ -103,7 +123,7 @@
           <Save20Regular v-else class="h-6 w-6 shrink-0" />
         </button>
 
-        <div ref="settingsMenuRef" class="relative">
+        <div ref="settingsMenuRef" class="relative shrink-0">
           <button
             type="button"
             class="rounded-full p-1 text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-800 dark:text-neutral-300 dark:hover:bg-white/10 dark:hover:text-white"
@@ -138,7 +158,7 @@
           type="button"
           @click="requestClose"
           :disabled="isSaving"
-          class="rounded-md p-1 text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-800 disabled:cursor-not-allowed disabled:opacity-60 dark:text-neutral-300 dark:hover:bg-white/10 dark:hover:text-white"
+          class="shrink-0 rounded-md p-1 text-neutral-600 transition hover:bg-neutral-100 hover:text-neutral-800 disabled:cursor-not-allowed disabled:opacity-60 dark:text-neutral-300 dark:hover:bg-white/10 dark:hover:text-white"
           :aria-label="$t('common.close')"
           :title="$t('common.close')"
           data-test="editor-close"

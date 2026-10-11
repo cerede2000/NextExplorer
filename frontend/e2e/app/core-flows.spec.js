@@ -530,6 +530,60 @@ test('a file longer than the window scrolls inside the editor', async () => {
 });
 
 /**
+ * What is typed must not move what it is typed into.
+ *
+ * The strip above the editor carries the controls and, while anything is
+ * unsaved, a phrase saying so — and that phrase appears on the first character
+ * typed. The strip used to wrap, so in a narrow window that one phrase pushed
+ * the controls onto a second line: the strip grew by its own height, and the
+ * editor below it moved down and shrank, on the keystroke that caused it. The
+ * line being typed slides out from under the finger typing it, and CodeMirror
+ * remeasures and redraws its content in the middle of whatever the keyboard is
+ * doing — which on a touch device is a composition, the one thing its own
+ * source says it handles badly when the content changes underneath it.
+ *
+ * A narrow window rather than a phone in particular, because width is what
+ * decides it: two panes side by side put a desktop window in the same place.
+ * It is checked in a browser because nothing below one can see it — it is a
+ * line break in a flex container, decided by the widths of eight siblings and
+ * the length of a translated phrase.
+ */
+test('typing does not move the editor in a narrow window', async ({ browser, baseURL }) => {
+  fs.writeFileSync(path.join(volume, 'narrow.txt'), 'the quick brown fox\n'.repeat(40));
+
+  // The administrator's own session, in a window the width of a phone — or of
+  // half a split screen.
+  const narrow = await browser.newContext({
+    storageState: await page.context().storageState(),
+    viewport: { width: 412, height: 800 },
+    baseURL,
+    locale: 'en-US',
+  });
+  try {
+    const small = await narrow.newPage();
+    await small.goto('/editor/Projects/narrow.txt');
+    await expect(small.locator('.cm-content')).toContainText('the quick brown fox');
+
+    const where = () =>
+      small.locator('.cm-scroller').evaluate((el) => {
+        const box = el.getBoundingClientRect();
+        return { top: Math.round(box.top), height: Math.round(box.height) };
+      });
+    const before = await where();
+
+    await small.locator('.cm-line').first().click();
+    await small.keyboard.type('x');
+
+    // The phrase this is about is really there — otherwise the editor would be
+    // steady for the uninteresting reason that nothing was added to the strip.
+    await expect(small.getByText('Unsaved changes')).toBeVisible();
+    expect(await where()).toEqual(before);
+  } finally {
+    await narrow.close();
+  }
+});
+
+/**
  * A document in a browser tab of its own.
  *
  * The request was to keep documents open while browsing elsewhere, several at
