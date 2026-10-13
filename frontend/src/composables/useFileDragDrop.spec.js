@@ -6,9 +6,22 @@ const moveItems = vi.fn();
 const fetchPathItems = vi.fn();
 const scheduleUsageRefresh = vi.fn();
 const scheduleFolderRefresh = vi.fn();
-const startOperation = vi.fn(() => 'operation-test');
-const updateOperation = vi.fn();
-const finishOperation = vi.fn();
+/**
+ * The panel a transfer registers itself with.
+ *
+ * `startTransfer` is where a bar, the operation's own numbers and a cancel that
+ * asks the server all come from — one implementation for both gestures that
+ * start a transfer, so this spec asks that this gesture goes through it.
+ */
+const startTransfer = vi.fn(() => ({
+  id: 'operation-test',
+  onEvent: onTransferEvent,
+  onTask: onTransferTask,
+  finish: finishTransfer,
+}));
+const onTransferEvent = vi.fn();
+const onTransferTask = vi.fn();
+const finishTransfer = vi.fn();
 const requestConfirmation = vi.fn(() => Promise.resolve(true));
 
 /**
@@ -52,7 +65,7 @@ vi.mock('@/stores/folderSize', () => ({
   useFolderSizeStore: () => ({ scheduleRefresh: scheduleFolderRefresh }),
 }));
 vi.mock('@/stores/operationTasks', () => ({
-  useOperationTasksStore: () => ({ startOperation, updateOperation, finishOperation }),
+  useOperationTasksStore: () => ({ startTransfer }),
 }));
 vi.mock('@/composables/useInputMode', () => ({
   useInputMode: () => ({ isTouchDevice: ref(false) }),
@@ -95,9 +108,10 @@ describe('useFileDragDrop', () => {
     paneBeside.path.value = 'Destination';
     scheduleUsageRefresh.mockReset();
     scheduleFolderRefresh.mockReset();
-    startOperation.mockClear();
-    updateOperation.mockReset();
-    finishOperation.mockReset();
+    startTransfer.mockClear();
+    onTransferEvent.mockReset();
+    onTransferTask.mockReset();
+    finishTransfer.mockReset();
     requestConfirmation.mockReset();
     requestConfirmation.mockResolvedValue(true);
     fileStore.currentPathItems = [];
@@ -118,11 +132,13 @@ describe('useFileDragDrop', () => {
     expect(copyItems).toHaveBeenCalledWith(
       [{ name: 'report.txt', path: 'Source', kind: 'file' }],
       'Volume/Target',
-      expect.objectContaining({ onEvent: expect.any(Function), signal: expect.any(AbortSignal) })
+      // The operation's own events and its name, both from the registration
+      // above: nothing is watched or stopped here that is not registered there.
+      expect.objectContaining({ onEvent: onTransferEvent, onTask: onTransferTask })
     );
     expect(moveItems).not.toHaveBeenCalled();
-    expect(startOperation).toHaveBeenCalledWith(expect.objectContaining({ type: 'copy' }));
-    expect(finishOperation).toHaveBeenCalledWith('operation-test');
+    expect(startTransfer).toHaveBeenCalledWith(expect.objectContaining({ type: 'copy' }));
+    expect(finishTransfer).toHaveBeenCalled();
   });
 
   it('moves by default', async () => {
@@ -134,10 +150,12 @@ describe('useFileDragDrop', () => {
     expect(moveItems).toHaveBeenCalledWith(
       [{ name: 'report.txt', path: 'Source', kind: 'file' }],
       'Volume/Target',
-      expect.objectContaining({ onEvent: expect.any(Function), signal: expect.any(AbortSignal) })
+      // The operation's own events and its name, both from the registration
+      // above: nothing is watched or stopped here that is not registered there.
+      expect.objectContaining({ onEvent: onTransferEvent, onTask: onTransferTask })
     );
     expect(copyItems).not.toHaveBeenCalled();
-    expect(startOperation).toHaveBeenCalledWith(expect.objectContaining({ type: 'move' }));
+    expect(startTransfer).toHaveBeenCalledWith(expect.objectContaining({ type: 'move' }));
   });
 
   /**
@@ -201,7 +219,7 @@ describe('useFileDragDrop', () => {
     await dragDrop.handleDrop(transferEvent(), target);
 
     expect(moveItems).not.toHaveBeenCalled();
-    expect(startOperation).not.toHaveBeenCalled();
+    expect(startTransfer).not.toHaveBeenCalled();
   });
 
   it('uses a favorite destination path instead of its display label', async () => {

@@ -1,75 +1,153 @@
 const { sanitizeClientMessage } = require('../../middleware/errorHandler');
 const { prepareTransfer, executeTransfer } = require('../../services/fileTransferService');
 const recentDestinations = require('../../services/recentDestinationsService');
+const operationTasks = require('../../services/operationTasks');
 const { ACTIONS, authorizeAndResolve } = require('../../services/authorizationService');
 const fs = require('node:fs/promises');
 const asyncHandler = require('../../utils/asyncHandler');
-const { startNdjsonStream } = require('../../utils/ndjsonStream');
+const { normalizeRelativePath } = require('../../utils/pathUtils');
+const { streamTask } = require('../../utils/taskStream');
+const { ConflictError, NotFoundError, UnauthorizedError } = require('../../errors/AppError');
 
 const router = require('express').Router();
 
+/**
+ * A new transfer task, with the answer it will build and what to do once it is
+ * built.
+ *
+ * Where things were put is recorded from the transfer itself rather than asked
+ * of the client, so every route into a folder counts — the picker, a drag onto
+ * a favorite, a paste — and the list reflects where things really go. Only once
+ * the whole task succeeded, and only for an account: a visitor has no list.
+ */
+const openTransferTask = ({ operation, owner, shareId, prep, req }) => {
+  const bag = { destination: prep.destinationRelative, items: [], unreadable: 0 };
+  const handle = operationTasks.open({
+    kind: operation,
+    owner,
+    shareId,
+    destination: prep.destinationRelative,
+    bag,
+    collect: () => ({
+      destination: bag.destination,
+      items: bag.items,
+      ...(bag.unreadable > 0 ? { unreadable: bag.unreadable } : {}),
+    }),
+  });
+
+  const userId = req.user?.id;
+  if (userId) {
+    handle.settled.then((view) => {
+      if (view.state !== 'done') return;
+      recentDestinations.record(userId, prep.destinationRelative).catch(() => {});
+    });
+  }
+
+  return handle;
+};
+
 // Copy/move stream newline-delimited JSON events so the client can render a
 // determinate progress bar:
-//   {type:'start',    totalBytes, totalItems, destination}
-//   {type:'progress', copiedBytes, totalBytes, currentName}   (throttled)
+//   {type:'start',    taskId, totalBytes, totalItems, destination}
+//   {type:'progress', copiedBytes, totalBytes, completedItems, currentName}
 //   {type:'done',     success, destination, items}
 //   {type:'error',    message, code}
-// Validation/authorization runs first (prepareTransfer); if it throws, no
-// streaming header has been sent yet, so asyncHandler forwards it to the error
-// middleware and the client gets a normal HTTP error response.
+//
+// The work itself is not in this handler any more. It is registered as a task
+// (services/operationTasks) and the response is a window onto it: a transfer
+// used to be aborted by its own socket closing, so closing the tab left half a
+// folder at the destination and said nothing. `taskId` in the `start` event is
+// what a tab opened later uses to watch the same operation again, and
+// `POST /api/tasks/<id>/cancel` is now the way to stop one.
+//
+// Validation and authorization still run first, before any work is queued: if
+// they throw, nothing has been written to the response and the client gets an
+// ordinary HTTP error.
+//
+// A selection too large for one request body arrives as several, all naming the
+// same task through `taskId`, and `continues: true` says another one is coming.
+// Only the first request streams; the rest are answered at once, because one
+// window onto the task is enough. A task that is never told it is complete
+// closes itself on what it received (SEAL_WITHIN_MS).
 const runTransfer = (operation) =>
   asyncHandler(async (req, res) => {
-    const { items = [], destination = '' } = req.body || {};
-    const controller = new AbortController();
-    const abort = () => controller.abort();
-    const onClose = () => {
-      if (!res.writableEnded) abort();
-    };
-    req.once('aborted', abort);
-    const options = { user: req.user, guestSession: req.guestSession, signal: controller.signal };
-    let streaming = false;
-    let writeEvent = () => {};
+    const { items = [], destination = '', taskId = null, continues = false } = req.body || {};
+    const owner = operationTasks.ownerOf(req);
+    if (!owner) throw new UnauthorizedError('Authentication required.');
+    const shareId = req.shareScope?.shareId ?? null;
 
+    // The operation this part belongs to, found before its items are checked:
+    // an id that names nothing of this caller's is refused whatever it carries.
+    // The same answer as one that names nothing at all, so this cannot be asked
+    // which ids exist.
+    const running = taskId
+      ? operationTasks.reopen(taskId, owner, {
+          shareId,
+          kind: operation,
+          destination: normalizeRelativePath(destination),
+        })
+      : null;
+    if (taskId && !running) throw new NotFoundError('No such operation.');
+
+    let prep;
     try {
-      const prep = await prepareTransfer(items, destination, operation, options);
-
-      streaming = true;
-      writeEvent = startNdjsonStream(res, { onClose });
-
-      writeEvent({
-        type: 'start',
-        totalBytes: prep.totalBytes,
-        totalItems: prep.totalItems,
-        destination: prep.destinationRelative,
+      prep = await prepareTransfer(items, destination, operation, {
+        user: req.user,
+        guestSession: req.guestSession,
       });
-
-      const result = await executeTransfer(
-        prep,
-        operation,
-        (progress) => writeEvent({ type: 'progress', ...progress }),
-        { signal: controller.signal }
-      );
-
-      // Recorded from the transfer itself rather than asked of the client, so
-      // every route into a folder counts — the picker, a drag onto a favorite,
-      // a paste — and the list reflects where things really go.
-      await recentDestinations.record(req.user?.id, prep.destinationRelative);
-
-      writeEvent({ type: 'done', success: true, ...result });
     } catch (error) {
-      // Keep authorization/validation failures as ordinary HTTP errors. Once
-      // streaming starts, the error belongs to the NDJSON operation stream.
-      if (!streaming) throw error;
-      writeEvent({
-        type: 'error',
-        message: sanitizeClientMessage(error.message || 'Transfer failed.'),
-        code: error.code || 'TRANSFER_FAILED',
-      });
-    } finally {
-      req.off('aborted', abort);
-      res.off('close', onClose);
-      if (streaming && !res.writableEnded) res.end();
+      // A part that is refused is the end of the selection: the operation
+      // finishes on what it has rather than waiting for the rest of a selection
+      // the caller has just been told it cannot send.
+      running?.seal();
+      throw error;
     }
+
+    const handle = running || openTransferTask({ operation, owner, shareId, prep, req });
+
+    handle.grow({
+      totalItems: prep.totalItems,
+      totalBytes: prep.totalBytes,
+      bytesKnown: prep.totalBytes > 0 || prep.totalItems === 0,
+      names: prep.plans.filter((plan) => !plan.skipped).map((plan) => plan.sourceRelative),
+    });
+
+    const queued = handle.enqueue(
+      async () => {
+        const result = await executeTransfer(
+          prep,
+          operation,
+          ({ copiedBytes, currentName, percent }) =>
+            handle.report({ unitBytes: copiedBytes, currentName, percent }),
+          { signal: handle.signal }
+        );
+        handle.bag.items.push(...(Array.isArray(result.items) ? result.items : []));
+        handle.bag.unreadable += Number(result.unreadable) || 0;
+        handle.bag.destination = result.destination ?? handle.bag.destination;
+        handle.advance({ items: prep.totalItems, bytes: Math.max(0, prep.totalBytes) });
+      },
+      (error) => ({
+        message: sanitizeClientMessage(error?.message || 'Transfer failed.'),
+        code: error?.code || 'TRANSFER_FAILED',
+      })
+    );
+
+    // An operation that ended while this part was being checked: checking can
+    // take a while on slow storage, and an operation waiting for the rest of a
+    // selection does not wait forever. Said rather than swallowed — answering
+    // 202 to items nothing will carry is how a selection goes missing quietly.
+    if (!queued) throw new ConflictError('That operation has already finished.');
+
+    if (!continues) handle.seal();
+
+    // One window is enough: the request that opened the task carries it, and the
+    // rest of a large selection is answered as soon as it has been queued.
+    if (taskId) {
+      res.status(202).json({ taskId: handle.id, accepted: prep.totalItems });
+      return;
+    }
+
+    streamTask(res, handle.id, owner, shareId);
   });
 
 /**

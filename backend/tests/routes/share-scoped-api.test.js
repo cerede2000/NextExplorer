@@ -822,3 +822,86 @@ describe('what the share prefix refuses', () => {
     expect(preview.status).toBe(401);
   });
 });
+
+/**
+ * A visitor's own operation, which outlives the tab they started it from.
+ *
+ * A copy runs in the server now and a tab is a window onto it, so a visitor
+ * filling a shared folder needs the same window back — and a guest session is
+ * issued for one share, so what they started inside it is answered under that
+ * share and at no other address.
+ */
+describe('an operation a visitor started inside a share', () => {
+  const eventsOf = (response) =>
+    response.text
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line));
+
+  it('is answered under that share, and is not listed outside it', async () => {
+    const { token, guestSession } = await seedShare({
+      suffix: '-visitor-tasks',
+      accessMode: 'readwrite',
+    });
+
+    const copy = await request(buildApp())
+      .post(`/api/share/${token}/files/copy`)
+      .set({ 'X-Guest-Session': guestSession })
+      .send({
+        items: [{ path: `share/${token}`, name: 'file.txt' }],
+        destination: `share/${token}`,
+      });
+
+    expect(copy.status, copy.text).toBe(200);
+    const events = eventsOf(copy);
+    const start = events.find((event) => event.type === 'start');
+    expect(start.taskId).toBeTypeOf('string');
+    expect(events.at(-1)).toMatchObject({ type: 'done', success: true });
+
+    const underTheShare = await request(buildApp())
+      .get(`/api/share/${token}/tasks`)
+      .set({ 'X-Guest-Session': guestSession });
+    expect(underTheShare.status).toBe(200);
+    expect(underTheShare.body.items.map((task) => task.id)).toContain(start.taskId);
+
+    // The same session asking at the application's own address: a task opened
+    // inside a share is not one of the tasks outside it.
+    const outside = await request(buildApp())
+      .get('/api/tasks')
+      .set({ 'X-Guest-Session': guestSession });
+    expect(outside.body.items).toEqual([]);
+
+    // And the copy really happened, beside the name it was taken from: nothing
+    // is ever written over, so the second one takes the next free name.
+    expect(events.at(-1).items.map((item) => item.to)).toEqual([`share/${token}/file (1).txt`]);
+  });
+
+  it('is stopped by the visitor who started it, under the share prefix', async () => {
+    const { token, guestSession } = await seedShare({
+      suffix: '-visitor-cancel',
+      accessMode: 'readwrite',
+    });
+
+    const copy = await request(buildApp())
+      .post(`/api/share/${token}/files/copy`)
+      .set({ 'X-Guest-Session': guestSession })
+      .send({
+        items: [{ path: `share/${token}`, name: 'file.txt' }],
+        destination: `share/${token}`,
+      });
+    const start = eventsOf(copy).find((event) => event.type === 'start');
+
+    // It has already finished — these are a few bytes — so stopping it is the
+    // answer to "is this mine to stop", which is what the address has to hold.
+    const stopped = await request(buildApp())
+      .post(`/api/share/${token}/tasks/${start.taskId}/cancel`)
+      .set({ 'X-Guest-Session': guestSession });
+    expect(stopped.status).toBe(200);
+
+    const atTheWrongAddress = await request(buildApp())
+      .post(`/api/tasks/${start.taskId}/cancel`)
+      .set({ 'X-Guest-Session': guestSession });
+    expect(atTheWrongAddress.status).toBe(404);
+  });
+});

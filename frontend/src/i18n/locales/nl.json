@@ -328,7 +328,16 @@
   "transfers": {
     "unreadableHeading": "Sommige items konden niet worden gelezen",
     "unreadableBody": "1 item kon niet worden gelezen en ontbreekt in het resultaat. | {count} items konden niet worden gelezen en ontbreken in het resultaat.",
-    "unreadableSourceKept": "Het origineel blijft staan, want dat bevat de enige kopie ervan."
+    "unreadableSourceKept": "Het origineel blijft staan, want dat bevat de enige kopie ervan.",
+    "interruptedCopy": "Een kopie is niet voltooid",
+    "interruptedMove": "Een verplaatsing is niet voltooid",
+    "interruptedOther": "Een bewerking is niet voltooid",
+    "interruptedBody": "De server is opnieuw gestart terwijl hij aan {destination} werkte. Wat er al was aangekomen staat daar; de rest staat nog waar het stond.",
+    "interruptedCarrying": "Betrokken items: {paths}",
+    "finishedCopy": "Het kopiëren is voltooid",
+    "finishedMove": "Het verplaatsen is voltooid",
+    "finishedOther": "De bewerking is voltooid",
+    "finishedBody": "Alles is aangekomen in {destination}."
   },
   "volumes": {
     "quickAccess": "Snelle toegang",

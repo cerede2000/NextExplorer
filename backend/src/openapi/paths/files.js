@@ -167,9 +167,25 @@ module.exports = {
       description: 'A name already taken there becomes `name (1)`.',
       tag: TAG,
       access: 'account',
-      body: body(obj({ items: arrayOf(itemRef), destination: str() }, ['items', 'destination'])),
+      body: body(
+        obj(
+          {
+            items: arrayOf(itemRef),
+            destination: str(),
+            taskId: str(
+              'Add these items to an operation already running, for a selection too large for one body. The operation must be the caller\u2019s own, the same kind, and into the same folder.'
+            ),
+            continues: bool('More items for this operation are still to be sent.'),
+          },
+          ['items', 'destination']
+        )
+      ),
       responses: {
         200: ndjson(transferDone, 'Progress as it goes, and what landed where.'),
+        202: json(
+          obj({ taskId: str(), accepted: int() }, ['taskId', 'accepted']),
+          'These items were added to the operation named by `taskId`, which is being watched elsewhere.'
+        ),
         ...errors(400, 401, 403, 404, 507),
       },
     }),
@@ -181,11 +197,131 @@ module.exports = {
       description: 'What was bound to the old paths follows them.',
       tag: TAG,
       access: 'account',
-      body: body(obj({ items: arrayOf(itemRef), destination: str() }, ['items', 'destination'])),
+      body: body(
+        obj(
+          {
+            items: arrayOf(itemRef),
+            destination: str(),
+            taskId: str(
+              'Add these items to an operation already running, for a selection too large for one body. The operation must be the caller\u2019s own, the same kind, and into the same folder.'
+            ),
+            continues: bool('More items for this operation are still to be sent.'),
+          },
+          ['items', 'destination']
+        )
+      ),
       responses: {
         200: ndjson(transferDone, 'Progress as it goes, and what landed where.'),
+        202: json(
+          obj({ taskId: str(), accepted: int() }, ['taskId', 'accepted']),
+          'These items were added to the operation named by `taskId`, which is being watched elsewhere.'
+        ),
         ...errors(400, 401, 403, 404, 507),
       },
+    }),
+  },
+  '/api/tasks': {
+    get: op({
+      id: 'listOperations',
+      summary: 'Operations of the caller that are running or have just finished',
+      description: `A copy or a move runs in the server, not in the request that asked for it: the
+response to \`/api/files/copy\` is a window onto an operation, and closing it
+stops nothing. This is how a window is reopened — after a reload, in another
+tab — and it answers for the caller's own operations only.
+
+\`interrupted\` is something else: nothing is resumed across a restart, so this
+is the record of what was in flight when the server stopped, with the paths,
+kept until the account that started it has been told.
+
+What an operation *did* is not here, however it ended: every page load asks this,
+and a copy of a hundred thousand files would answer it with all of them. It is in
+the \`done\` event of the operation's own stream.`,
+      tag: TAG,
+      access: 'account',
+      responses: {
+        200: json(
+          obj(
+            {
+              items: arrayOf(
+                obj(
+                  {
+                    id: str(),
+                    kind: str(null, { examples: ['copy', 'move'] }),
+                    state: str(null, { examples: ['running', 'done', 'failed', 'cancelled'] }),
+                    destination: str(),
+                    itemNames: arrayOf(str('What it is carrying, the first few.')),
+                    totalItems: int(),
+                    completedItems: int(),
+                    totalBytes: int('Zero when a folder of unknown size is involved.'),
+                    copiedBytes: int(),
+                    currentName: str(),
+                    percent: nullable(int('Only when the bytes are not known.')),
+                    startedAt: num(),
+                    finishedAt: nullable(num()),
+                    error: obj({ message: str(), code: str() }, [], {
+                      description: 'Why it did not finish, when it did not.',
+                    }),
+                  },
+                  ['id', 'kind', 'state', 'destination']
+                )
+              ),
+              interrupted: arrayOf(
+                obj(
+                  {
+                    id: str(),
+                    kind: str(),
+                    destination: str(),
+                    paths: arrayOf(str()),
+                    startedAt: dateTime(),
+                    interruptedAt: dateTime(),
+                  },
+                  ['id', 'kind', 'destination']
+                )
+              ),
+            },
+            ['items', 'interrupted']
+          )
+        ),
+        ...errors(401),
+      },
+    }),
+  },
+  '/api/tasks/interrupted/ack': {
+    post: op({
+      id: 'forgetInterruptedOperations',
+      summary: 'Acknowledge what a restart interrupted',
+      description: 'Without `ids`, everything of the caller\u2019s that is waiting to be reported.',
+      tag: TAG,
+      access: 'account',
+      body: body(obj({ ids: arrayOf(str()) })),
+      responses: { 200: json(obj({ forgotten: int() }, ['forgotten'])), ...errors(401) },
+    }),
+  },
+  '/api/tasks/{id}/stream': {
+    get: op({
+      id: 'watchOperation',
+      summary: 'Follow one operation, from wherever it has got to',
+      description:
+        'The stream opens with a `start` event built from the operation as it is now, then reports as it goes. An operation that is not the caller\u2019s answers 404, exactly as one that does not exist.',
+      tag: TAG,
+      access: 'account',
+      params: [{ name: 'id', in: 'path', required: true, schema: str() }],
+      responses: {
+        200: ndjson(transferDone, 'Progress as it goes, and what landed where.'),
+        ...errors(401, 404, 429),
+      },
+    }),
+  },
+  '/api/tasks/{id}/cancel': {
+    post: op({
+      id: 'cancelOperation',
+      summary: 'Stop one operation',
+      description:
+        'What has already landed stays where it is; a move that was stopped keeps its source. An operation that is not the caller\u2019s answers 404.',
+      tag: TAG,
+      access: 'account',
+      params: [{ name: 'id', in: 'path', required: true, schema: str() }],
+      responses: { 200: json(obj({ cancelled: bool() }, ['cancelled'])), ...errors(401, 404) },
     }),
   },
   '/api/files/recent-destinations': {

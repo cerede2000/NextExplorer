@@ -328,7 +328,16 @@
   "transfers": {
     "unreadableHeading": "Alcune voci non sono state lette",
     "unreadableBody": "1 voce non è stata letta e manca dal risultato. | {count} voci non sono state lette e mancano dal risultato.",
-    "unreadableSourceKept": "L’originale è stato lasciato dov’è, perché ne conserva l’unica copia."
+    "unreadableSourceKept": "L’originale è stato lasciato dov’è, perché ne conserva l’unica copia.",
+    "interruptedCopy": "Una copia non è stata completata",
+    "interruptedMove": "Uno spostamento non è stato completato",
+    "interruptedOther": "Un’operazione non è stata completata",
+    "interruptedBody": "Il server è stato riavviato mentre lavorava su {destination}. Ciò che era già arrivato è lì; il resto è rimasto dov’era.",
+    "interruptedCarrying": "Elementi interessati: {paths}",
+    "finishedCopy": "La copia è terminata",
+    "finishedMove": "Lo spostamento è terminato",
+    "finishedOther": "L’operazione è terminata",
+    "finishedBody": "Tutto è arrivato in {destination}."
   },
   "volumes": {
     "quickAccess": "Accesso rapido",

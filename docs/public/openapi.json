@@ -3420,6 +3420,14 @@
                   },
                   "destination": {
                     "type": "string"
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "description": "Add these items to an operation already running, for a selection too large for one body. The operation must be the caller’s own, the same kind, and into the same folder."
+                  },
+                  "continues": {
+                    "type": "boolean",
+                    "description": "More items for this operation are still to be sent."
                   }
                 },
                 "required": ["items", "destination"]
@@ -3523,6 +3531,25 @@
                       "additionalProperties": true
                     }
                   ]
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "These items were added to the operation named by `taskId`, which is being watched elsewhere.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "taskId": {
+                      "type": "string"
+                    },
+                    "accepted": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": ["taskId", "accepted"]
                 }
               }
             }
@@ -3585,6 +3612,14 @@
                   },
                   "destination": {
                     "type": "string"
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "description": "Add these items to an operation already running, for a selection too large for one body. The operation must be the caller’s own, the same kind, and into the same folder."
+                  },
+                  "continues": {
+                    "type": "boolean",
+                    "description": "More items for this operation are still to be sent."
                   }
                 },
                 "required": ["items", "destination"]
@@ -3692,6 +3727,25 @@
               }
             }
           },
+          "202": {
+            "description": "These items were added to the operation named by `taskId`, which is being watched elsewhere.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "taskId": {
+                      "type": "string"
+                    },
+                    "accepted": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": ["taskId", "accepted"]
+                }
+              }
+            }
+          },
           "400": {
             "$ref": "#/components/responses/E400"
           },
@@ -3706,6 +3760,385 @@
           },
           "507": {
             "$ref": "#/components/responses/E507"
+          }
+        }
+      }
+    },
+    "/api/tasks": {
+      "get": {
+        "operationId": "listOperations",
+        "summary": "Operations of the caller that are running or have just finished",
+        "description": "A copy or a move runs in the server, not in the request that asked for it: the\nresponse to `/api/files/copy` is a window onto an operation, and closing it\nstops nothing. This is how a window is reopened — after a reload, in another\ntab — and it answers for the caller's own operations only.\n\n`interrupted` is something else: nothing is resumed across a restart, so this\nis the record of what was in flight when the server stopped, with the paths,\nkept until the account that started it has been told.\n\nWhat an operation *did* is not here, however it ended: every page load asks this,\nand a copy of a hundred thousand files would answer it with all of them. It is in\nthe `done` event of the operation's own stream.",
+        "tags": ["Files"],
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "x-access": "account",
+        "responses": {
+          "200": {
+            "description": "Done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "examples": ["copy", "move"]
+                          },
+                          "state": {
+                            "type": "string",
+                            "examples": ["running", "done", "failed", "cancelled"]
+                          },
+                          "destination": {
+                            "type": "string"
+                          },
+                          "itemNames": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "description": "What it is carrying, the first few."
+                            }
+                          },
+                          "totalItems": {
+                            "type": "integer"
+                          },
+                          "completedItems": {
+                            "type": "integer"
+                          },
+                          "totalBytes": {
+                            "type": "integer",
+                            "description": "Zero when a folder of unknown size is involved."
+                          },
+                          "copiedBytes": {
+                            "type": "integer"
+                          },
+                          "currentName": {
+                            "type": "string"
+                          },
+                          "percent": {
+                            "type": ["integer", "null"],
+                            "description": "Only when the bytes are not known."
+                          },
+                          "startedAt": {
+                            "type": "number"
+                          },
+                          "finishedAt": {
+                            "type": ["number", "null"]
+                          },
+                          "error": {
+                            "type": "object",
+                            "properties": {
+                              "message": {
+                                "type": "string"
+                              },
+                              "code": {
+                                "type": "string"
+                              }
+                            },
+                            "description": "Why it did not finish, when it did not."
+                          }
+                        },
+                        "required": ["id", "kind", "state", "destination"]
+                      }
+                    },
+                    "interrupted": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string"
+                          },
+                          "destination": {
+                            "type": "string"
+                          },
+                          "paths": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "startedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "interruptedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": ["id", "kind", "destination"]
+                      }
+                    }
+                  },
+                  "required": ["items", "interrupted"]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        }
+      }
+    },
+    "/api/tasks/interrupted/ack": {
+      "post": {
+        "operationId": "forgetInterruptedOperations",
+        "summary": "Acknowledge what a restart interrupted",
+        "description": "Without `ids`, everything of the caller’s that is waiting to be reported.",
+        "tags": ["Files"],
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "x-access": "account",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "forgotten": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": ["forgotten"]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        }
+      }
+    },
+    "/api/tasks/{id}/stream": {
+      "get": {
+        "operationId": "watchOperation",
+        "summary": "Follow one operation, from wherever it has got to",
+        "description": "The stream opens with a `start` event built from the operation as it is now, then reports as it goes. An operation that is not the caller’s answers 404, exactly as one that does not exist.",
+        "tags": ["Files"],
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "x-access": "account",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Progress as it goes, and what landed where.",
+            "content": {
+              "application/x-ndjson": {
+                "schema": {
+                  "description": "One line; the stream is a sequence of these.",
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "const": "start"
+                        }
+                      },
+                      "required": ["type"],
+                      "additionalProperties": true
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "const": "progress"
+                        }
+                      },
+                      "required": ["type"],
+                      "additionalProperties": true
+                    },
+                    {
+                      "allOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "const": "done"
+                            }
+                          },
+                          "required": ["type"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "success": {
+                              "type": "boolean"
+                            },
+                            "destination": {
+                              "type": "string"
+                            },
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "from": {
+                                    "type": "string"
+                                  },
+                                  "to": {
+                                    "type": "string"
+                                  },
+                                  "unreadable": {
+                                    "type": "integer",
+                                    "description": "How many entries under this one could not be read, so are not in the copy."
+                                  },
+                                  "sourceKept": {
+                                    "type": "boolean",
+                                    "description": "A move whose copy is short of something: the original stays where it is, since it holds the only copy of what could not be read."
+                                  }
+                                }
+                              }
+                            },
+                            "unreadable": {
+                              "type": "integer",
+                              "description": "How many entries this transfer could not read at all — a name whose bytes are not valid UTF-8, usually written by Windows. They are missing from what arrived. Absent when there are none."
+                            }
+                          },
+                          "additionalProperties": true
+                        }
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "const": "error"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["type", "message"],
+                      "additionalProperties": true
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "429": {
+            "$ref": "#/components/responses/E429"
+          }
+        }
+      }
+    },
+    "/api/tasks/{id}/cancel": {
+      "post": {
+        "operationId": "cancelOperation",
+        "summary": "Stop one operation",
+        "description": "What has already landed stays where it is; a move that was stopped keeps its source. An operation that is not the caller’s answers 404.",
+        "tags": ["Files"],
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "x-access": "account",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "cancelled": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["cancelled"]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
           }
         }
       }

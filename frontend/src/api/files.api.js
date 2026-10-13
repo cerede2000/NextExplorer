@@ -23,8 +23,11 @@ const DELETE_BATCH_SIZE = 100;
 const DELETE_STREAM_BATCH_SIZE = 500;
 
 /**
- * Items per streamed copy or move request. Same reason as the deletion batch:
- * the whole selection in one body is refused as too large.
+ * Paths per request when a copy or a move is described.
+ *
+ * Same reason as the deletion batch: the whole selection in one body is refused
+ * as too large. Unlike deletion, these are not separate operations — every batch
+ * names the same one — so this is only how much of a selection fits in a body.
  */
 const TRANSFER_BATCH_SIZE = 500;
 
@@ -229,20 +232,102 @@ async function streamInBatches(items, batchSize, runBatch, onEvent) {
   return results;
 }
 
-async function copyItems(items, destination, options = {}) {
-  const results = await streamInBatches(
-    items,
-    TRANSFER_BATCH_SIZE,
-    (batch, onEvent) =>
-      requestStream(shareScopedForAny('/api/files/copy', destination, batch[0]), {
+/**
+ * One copy or move, however many requests it takes to describe it.
+ *
+ * The work happens in the server now and the response is a window onto it, so a
+ * transfer is no longer bound to the tab that asked for it. Two things follow
+ * from that, and they are what this function is.
+ *
+ * The whole selection is one operation. The paths still go out in batches —
+ * several thousand of them in one body is refused as too large — but they all
+ * name the same operation: the first request opens it and says that more is
+ * coming, the rest are added to it and answered at once, and only the first
+ * carries the stream. A reader who closes the tab half a second in no longer
+ * loses the parts that had not been sent, because they are already sent.
+ *
+ * And it says which operation it is. `onTask` is called with the id as soon as
+ * the server gives it, which is what lets the caller stop it — a transfer is
+ * stopped by asking the server to, not by hanging up.
+ *
+ * `address` is already under the share's prefix when the transfer is inside one:
+ * each caller below spells its own endpoint out, because that rule is enforced
+ * where the address is built and enumerated by reading those call sites — an
+ * address assembled out of pieces cannot be compared with what the server
+ * mounts (see `tests/routes/share-prefix-answers-what-is-asked`).
+ */
+async function transferAsOneTask(address, items, destination, options = {}) {
+  const all = Array.isArray(items) ? items : [];
+  const batches = [];
+  for (let index = 0; index < all.length; index += TRANSFER_BATCH_SIZE) {
+    batches.push(all.slice(index, index + TRANSFER_BATCH_SIZE));
+  }
+  // Nothing to transfer is for the server to refuse, as it always has.
+  if (batches.length === 0) batches.push([]);
+
+  let announce = () => {};
+  const operation = new Promise((resolve) => {
+    announce = resolve;
+  });
+
+  const theRest = (async () => {
+    if (batches.length < 2) return;
+    const taskId = await operation;
+    // No id means the first request never got as far as opening one; there is
+    // nothing for the rest of the selection to be added to.
+    if (!taskId) return;
+    for (let index = 1; index < batches.length; index += 1) {
+      await requestJson(address, {
         method: 'POST',
-        body: JSON.stringify({ items: batch, destination }),
-        onEvent,
-        signal: options.signal,
-      }),
-    options.onEvent
+        body: JSON.stringify({
+          items: batches[index],
+          destination,
+          taskId,
+          continues: index < batches.length - 1,
+        }),
+      });
+    }
+  })();
+
+  const watched = requestStream(address, {
+    method: 'POST',
+    body: JSON.stringify({
+      items: batches[0],
+      destination,
+      ...(batches.length > 1 ? { continues: true } : {}),
+    }),
+    onEvent: (event) => {
+      if (event?.type === 'start') {
+        announce(event.taskId || null);
+        if (typeof options.onTask === 'function') options.onTask(event.taskId || null);
+      }
+      if (typeof options.onEvent === 'function') options.onEvent(event);
+    },
+    signal: options.signal,
+    suppressErrorCodes: ['OPERATION_CANCELLED'],
+  });
+  // However that request ends, nothing more is waiting on an id from it.
+  watched.then(
+    () => announce(null),
+    () => announce(null)
   );
-  return mergeTransferResults(results);
+
+  // Both are awaited before either is thrown: a refused part must not leave the
+  // stream's own failure unhandled.
+  const settled = await Promise.allSettled([watched, theRest]);
+  const refused = settled.find((outcome) => outcome.status === 'rejected');
+  if (refused) throw refused.reason;
+  return mergeTransferResults([settled[0].value]);
+}
+
+async function copyItems(items, destination, options = {}) {
+  const first = (Array.isArray(items) ? items : [])[0];
+  return transferAsOneTask(
+    shareScopedForAny('/api/files/copy', destination, first),
+    items,
+    destination,
+    options
+  );
 }
 
 /**
@@ -256,19 +341,13 @@ async function fetchRecentDestinations() {
 }
 
 async function moveItems(items, destination, options = {}) {
-  const results = await streamInBatches(
+  const first = (Array.isArray(items) ? items : [])[0];
+  return transferAsOneTask(
+    shareScopedForAny('/api/files/move', destination, first),
     items,
-    TRANSFER_BATCH_SIZE,
-    (batch, onEvent) =>
-      requestStream(shareScopedForAny('/api/files/move', destination, batch[0]), {
-        method: 'POST',
-        body: JSON.stringify({ items: batch, destination }),
-        onEvent,
-        signal: options.signal,
-      }),
-    options.onEvent
+    destination,
+    options
   );
-  return mergeTransferResults(results);
 }
 
 async function deleteItems(items, options = {}) {

@@ -28,6 +28,12 @@ const mayDeleteFromDisk = [
   'backend/src/services/indexDb.js',
   // What an operation recorded itself as writing, after a stop interrupted it.
   'backend/src/services/inFlightFiles.js',
+  // Its own record of an operation that is running, under the cache directory:
+  // written when the operation starts and taken away when it ends, so that a
+  // stop in the middle of one is not silent. It never names anything in a
+  // volume — what the operation was carrying is kept in it as text, to be told
+  // to whoever started it.
+  'backend/src/services/operationTasks.js',
   // A rename that refuses to overwrite: the old name of a file it has just
   // linked, or an empty placeholder of its own.
   'backend/src/utils/placeWithoutOverwrite.js',

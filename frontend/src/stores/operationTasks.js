@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 import { createRateMeter } from '@/utils/transferRate';
+import { cancelOperationTask, fetchOperationTasks, watchOperationTask } from '@/api/tasks.api';
 
 // File operations can run concurrently (for example an extraction while a ZIP
 // is being created). Keep each operation isolated so a new stream never
@@ -144,6 +145,166 @@ export const useOperationTasksStore = defineStore('operationTasks', () => {
     }
   };
 
+  /**
+   * The operations the server is carrying for this reader, taken into the panel.
+   *
+   * A copy or a move runs in the server now, so closing the tab no longer stops
+   * one — and a tab opened afterwards would otherwise show nothing at all while
+   * twenty gigabytes went on moving. So it asks, and follows what it finds from
+   * wherever each one has got to.
+   *
+   * Kept by task id as well as by operation id: the same operation must not be
+   * adopted twice, which is what a second look would do.
+   */
+  const adoptedByTask = new Map();
+  const settledListeners = new Set();
+
+  /** Called when an operation that was adopted ends, however it ends. */
+  const whenAdoptedSettles = (listener) => {
+    settledListeners.add(listener);
+    return () => settledListeners.delete(listener);
+  };
+
+  const announceSettled = (report) => {
+    for (const listener of [...settledListeners]) {
+      try {
+        listener(report);
+      } catch (_) {
+        /* one listener's failure is not the operation's */
+      }
+    }
+  };
+
+  const numbersOf = (event) => ({
+    ...(event.totalBytes != null ? { totalBytes: Number(event.totalBytes) || 0 } : {}),
+    ...(event.copiedBytes != null ? { copiedBytes: Number(event.copiedBytes) || 0 } : {}),
+    ...(event.totalItems != null ? { itemCount: Number(event.totalItems) || 0 } : {}),
+    ...(event.percent != null ? { percent: Number(event.percent) || 0 } : {}),
+  });
+
+  /**
+   * A transfer this tab is starting, registered so the panel can show it and so
+   * the reader can stop it.
+   *
+   * Both gestures that start one — pasting, and dragging onto a folder — need
+   * the same three things, and they are the same three things in both: a bar,
+   * the operation's own numbers folded into it, and a cancel that asks the
+   * server rather than hanging up. Written once, because hanging up no longer
+   * stops anything: the work runs in the server, so a cancel button wired to an
+   * abort is one that silently does nothing.
+   *
+   * The operation is named a moment after it starts — its id arrives with the
+   * first event — so a cancel pressed inside that moment is remembered and sent
+   * as soon as there is something to send it about.
+   */
+  const startTransfer = ({ type, destination, itemCount }) => {
+    let runningTask = null;
+    let stopAsked = false;
+    const askTheServer = (taskId) => cancelOperationTask(taskId).catch(() => {});
+
+    const id = startOperation({
+      type,
+      destination,
+      itemCount,
+      cancellable: true,
+      cancel: () => {
+        if (!runningTask) {
+          stopAsked = true;
+          return;
+        }
+        askTheServer(runningTask);
+      },
+    });
+
+    return {
+      id,
+      /** The operation the server registered for this transfer. */
+      onTask: (taskId) => {
+        runningTask = taskId || null;
+        if (!runningTask) return;
+        updateOperation(id, { taskId: runningTask });
+        if (stopAsked) askTheServer(runningTask);
+      },
+      onEvent: (event) => {
+        if (event?.type === 'start' || event?.type === 'progress') {
+          updateOperation(id, numbersOf(event));
+        }
+      },
+      finish: () => finishOperation(id),
+    };
+  };
+
+  /**
+   * Put a server operation on screen and follow it.
+   *
+   * It is already running, so there is nothing to start and nothing to abort
+   * here: stopping it is asking the server to, and the stream is only a window —
+   * closing this tab again leaves it running, as it should.
+   */
+  const adoptOperation = (view) => {
+    if (!view?.id || adoptedByTask.has(view.id)) return adoptedByTask.get(view.id) || null;
+    // One the panel is already showing, because this tab started it: adopting it
+    // would draw the same transfer twice, with two bars and two cancel buttons.
+    const alreadyShown = operations.value.find((entry) => entry.taskId === view.id);
+    if (alreadyShown) return alreadyShown.id;
+
+    const operationId = startOperation({
+      type: view.kind,
+      destination: view.destination,
+      itemCount: Number(view.totalItems) || 0,
+      totalBytes: Number(view.totalBytes) || 0,
+      copiedBytes: Number(view.copiedBytes) || 0,
+      percent: view.percent ?? null,
+      taskId: view.id,
+      adopted: true,
+      cancellable: true,
+      cancel: () => {
+        cancelOperationTask(view.id).catch(() => {});
+      },
+    });
+    adoptedByTask.set(view.id, operationId);
+
+    watchOperationTask(view.id, {
+      onEvent: (event) => {
+        if (event?.type === 'start' || event?.type === 'progress') {
+          updateOperation(operationId, numbersOf(event));
+        }
+      },
+    })
+      .then((result) =>
+        announceSettled({
+          taskId: view.id,
+          kind: view.kind,
+          destination: view.destination,
+          result,
+        })
+      )
+      .catch((error) =>
+        announceSettled({ taskId: view.id, kind: view.kind, destination: view.destination, error })
+      )
+      .finally(() => {
+        adoptedByTask.delete(view.id);
+        finishOperation(operationId);
+      });
+
+    return operationId;
+  };
+
+  /**
+   * Ask what is running, and what a restart interrupted.
+   *
+   * The interrupted ones are not adopted — nothing is resumed across a stop, by
+   * design — they are handed back for somebody to be told about.
+   */
+  const adoptServerOperations = async () => {
+    const { items, interrupted } = await fetchOperationTasks();
+    const adopted = items
+      .filter((view) => view.state === 'running')
+      .map((view) => adoptOperation(view))
+      .filter(Boolean);
+    return { adopted, interrupted };
+  };
+
   const cancelOperation = (id) => {
     const operation = operations.value.find((entry) => entry.id === id);
     if (!operation?.cancellable || operation.cancelling) return;
@@ -169,5 +330,9 @@ export const useOperationTasksStore = defineStore('operationTasks', () => {
     pauseOperation,
     resumeOperation,
     cancelOperation,
+    startTransfer,
+    adoptOperation,
+    adoptServerOperations,
+    whenAdoptedSettles,
   };
 });

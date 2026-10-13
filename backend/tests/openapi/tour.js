@@ -339,6 +339,32 @@ const tour = async (app, { volume, requireFresh }) => {
     })
   );
   await call('GET /api/files/recent-destinations', admin.get('/api/files/recent-destinations'));
+
+  // A transfer is an operation of its own, which the request only watches: a
+  // selection too large for one body is sent in parts that all name it, and it
+  // is followed and stopped by asking about it.
+  const longCopy = await call(
+    'POST /api/files/copy',
+    admin.post('/api/files/copy').send({
+      items: [{ path: 'Documents', name: 'photo.png' }],
+      destination: 'Documents/Projets',
+      continues: true,
+    })
+  );
+  const taskId = JSON.parse(longCopy.text.split('\n').find(Boolean)).taskId;
+  await call(
+    'POST /api/files/copy',
+    admin.post('/api/files/copy').send({
+      items: [{ path: 'Documents', name: 'notes.md' }],
+      destination: 'Documents/Projets',
+      taskId,
+    })
+  );
+  await call('GET /api/tasks', admin.get('/api/tasks'));
+  await call('GET /api/tasks/{id}/stream', admin.get(`/api/tasks/${taskId}/stream`));
+  await call('POST /api/tasks/{id}/cancel', admin.post(`/api/tasks/${taskId}/cancel`));
+  await call('POST /api/tasks/{id}/cancel', admin.post('/api/tasks/not-an-operation/cancel'));
+  await call('POST /api/tasks/interrupted/ack', admin.post('/api/tasks/interrupted/ack').send({}));
   await call(
     'POST /api/files/delete-impact',
     admin

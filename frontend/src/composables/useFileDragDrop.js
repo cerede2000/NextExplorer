@@ -7,7 +7,7 @@ import { useInputMode } from '@/composables/useInputMode';
 import { useOperationTasksStore } from '@/stores/operationTasks';
 import { useOnlyOfficeTransferConfirm } from '@/composables/useOnlyOfficeTransferConfirm';
 import { useTabsStore } from '@/stores/tabs';
-import { pathNameOf } from '@/stores/files/items';
+import { isAbortError, pathNameOf } from '@/stores/files/items';
 
 // A drag can cross from the file view into the sidebar, where a different
 // composable instance handles dragover. Keep the preview state module-wide so
@@ -355,41 +355,24 @@ export function useFileDragDrop() {
       );
       if (!confirmed) return;
 
-      const controller = new AbortController();
-      const operationId = operationTasksStore.startOperation({
+      // The same registration a paste makes: a bar, the operation's own numbers,
+      // and a cancel that asks the server rather than hanging up. Dragging onto
+      // a folder is the other way into a transfer, and a transfer is no longer
+      // stopped by closing the connection that watches it.
+      const watched = operationTasksStore.startTransfer({
         type: copy ? 'copy' : 'move',
         destination,
         itemCount: transferPayload.length,
-        cancellable: true,
-        cancel: () => controller.abort(),
       });
-
-      const onTransferEvent = (streamEvent) => {
-        if (!streamEvent) return;
-        if (streamEvent.type === 'start') {
-          operationTasksStore.updateOperation(operationId, {
-            totalBytes: Number(streamEvent.totalBytes) || 0,
-            copiedBytes: 0,
-          });
-        } else if (streamEvent.type === 'progress') {
-          operationTasksStore.updateOperation(operationId, {
-            ...(streamEvent.totalBytes != null
-              ? { totalBytes: Number(streamEvent.totalBytes) || 0 }
-              : {}),
-            copiedBytes: Number(streamEvent.copiedBytes) || 0,
-            ...(streamEvent.percent != null ? { percent: Number(streamEvent.percent) || 0 } : {}),
-          });
-        }
-      };
 
       try {
         const transfer = copy ? copyItems : moveItems;
         await transfer(transferPayload, destination, {
-          signal: controller.signal,
-          onEvent: onTransferEvent,
+          onEvent: watched.onEvent,
+          onTask: watched.onTask,
         });
       } finally {
-        operationTasksStore.finishOperation(operationId);
+        watched.finish();
       }
 
       // Refresh the current path to show the changes
@@ -398,7 +381,10 @@ export function useFileDragDrop() {
       volumeUsageStore.scheduleRefresh();
       folderSizeStore.scheduleRefresh();
     } catch (error) {
-      if (error?.name === 'AbortError' || /aborted/i.test(error?.message || '')) {
+      // A transfer the reader stopped: the server says so with its own code now,
+      // rather than the connection being dropped under us. One answer to "was
+      // this cancelled", so the two cannot drift apart (see `stores/files/items`).
+      if (isAbortError(error)) {
         await fileStore.fetchPathItems(fileStore.currentPath);
         await refreshDestination(destination);
         volumeUsageStore.scheduleRefresh();

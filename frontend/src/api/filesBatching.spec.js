@@ -4,15 +4,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * Cutting a large selection into requests a server will accept.
  *
  * The whole selection in one body came back as "request entity too large"
- * before anything read it, so copy, move and delete are sent in batches. What
- * makes this worth testing is not the slicing — it is the progress accounting
- * on top of it. Batches run concurrently, so per-batch counters cannot be
- * offset into a global one; each batch advances the total by its own delta.
- * Get that wrong and the bar goes backwards, or stops at a third, on exactly
- * the operations long enough for anyone to watch.
+ * before anything read it, so copy, move and delete are sent in parts.
  *
- * And a failure must stop the batches queued behind it. `Promise.all` rejects
- * on the first failure without cancelling the rest, so a cancelled delete would
+ * What the parts are differs, and that is the point of this file. A deletion is
+ * several operations: each request is one, each counts from zero, and the bar is
+ * added up here — batches cannot be offset into a global counter, so each
+ * advances the total by its own delta, or the bar goes backwards or stops at a
+ * third on exactly the operations long enough for anyone to watch. A transfer is
+ * one operation however many requests describe it: the server registers it, the
+ * parts all name it, and the counting is its. A reader who closes the tab half a
+ * second in used to lose every part that had not been sent yet.
+ *
+ * And a failure must stop what is queued behind it. `Promise.all` rejects on the
+ * first failure without cancelling the rest, so a cancelled delete would
  * otherwise keep deleting.
  */
 
@@ -34,6 +38,28 @@ const items = (count, prefix = 'Docs/file') =>
   Array.from({ length: count }, (_, i) => `${prefix}${i}.txt`);
 
 const bodiesSent = () => requestStream.mock.calls.map(([, opts]) => JSON.parse(opts.body));
+/** The parts of a transfer that are added to an operation already open. */
+const partsAdded = () =>
+  requestJson.mock.calls
+    .filter(([, opts]) => opts?.body)
+    .map(([, opts]) => JSON.parse(opts.body))
+    .filter((body) => body.taskId);
+const transferBodies = () => [...bodiesSent(), ...partsAdded()];
+
+/**
+ * A server that registers the transfer and names it.
+ *
+ * Nothing else can be sent until it has: the parts of one selection are added to
+ * an operation by its id, so a stream that never says `start` is a transfer with
+ * no second part.
+ */
+const namesTheOperation = (taskId = 'task-1', answer = { items: [], destination: 'Archive' }) => {
+  requestStream.mockImplementation((_url, { onEvent }) => {
+    onEvent?.({ type: 'start', taskId, totalItems: 1, totalBytes: 0 });
+    return Promise.resolve(answer);
+  });
+  requestJson.mockResolvedValue({ taskId, accepted: 1 });
+};
 
 beforeEach(() => {
   requestStream.mockReset();
@@ -47,6 +73,9 @@ describe('how a selection is cut up', () => {
 
     expect(requestStream).toHaveBeenCalledTimes(1);
     expect(bodiesSent()[0].items).toHaveLength(10);
+    // Nothing more is coming, so the server may finish the operation on this.
+    expect(bodiesSent()[0].continues).toBeUndefined();
+    expect(bodiesSent()[0].taskId).toBeUndefined();
   });
 
   it('sends exactly one request at the batch size, not two', async () => {
@@ -55,28 +84,73 @@ describe('how a selection is cut up', () => {
     expect(requestStream).toHaveBeenCalledTimes(1);
   });
 
-  it('splits one item past the batch size into two', async () => {
+  /**
+   * One operation, in two requests: the first opens it, carries the stream and
+   * says that more is coming; the second is added to it by id and answered at
+   * once, because one window onto an operation is enough.
+   */
+  it('describes one item past the batch size in two requests, as one operation', async () => {
+    namesTheOperation('task-7');
+
     await copyItems(items(501), 'Archive');
 
-    expect(requestStream).toHaveBeenCalledTimes(2);
-    expect(bodiesSent().map((b) => b.items.length)).toEqual([500, 1]);
+    expect(requestStream).toHaveBeenCalledTimes(1);
+    expect(bodiesSent()[0]).toMatchObject({ continues: true });
+    expect(bodiesSent()[0].items).toHaveLength(500);
+    expect(partsAdded()).toHaveLength(1);
+    expect(partsAdded()[0]).toMatchObject({ taskId: 'task-7', continues: false });
+    expect(partsAdded()[0].items).toHaveLength(1);
   });
 
-  it('loses nothing and duplicates nothing across the batches', async () => {
+  it('says which part is the last one, and not before', async () => {
+    namesTheOperation();
+
+    await copyItems(items(1501), 'Archive');
+
+    expect(bodiesSent()[0].continues).toBe(true);
+    expect(partsAdded().map((body) => body.continues)).toEqual([true, true, false]);
+  });
+
+  it('loses nothing and duplicates nothing across the parts', async () => {
+    namesTheOperation();
     const all = items(1250);
 
     await copyItems(all, 'Archive');
 
-    const sent = bodiesSent().flatMap((b) => b.items);
+    const sent = transferBodies().flatMap((b) => b.items);
     expect(sent).toHaveLength(1250);
     expect(new Set(sent).size).toBe(1250);
     expect(sent.sort()).toEqual([...all].sort());
   });
 
-  it('carries the destination on every batch', async () => {
+  it('carries the destination on every part', async () => {
+    namesTheOperation();
+
     await copyItems(items(1200), 'Archive/2026');
 
-    expect(bodiesSent().every((b) => b.destination === 'Archive/2026')).toBe(true);
+    expect(transferBodies().every((b) => b.destination === 'Archive/2026')).toBe(true);
+  });
+
+  /**
+   * And nothing is sent that has nowhere to go: the parts are added to an
+   * operation by its id, so a first request that never named one is the end of
+   * it rather than a selection sent into the void.
+   */
+  it('adds no part to an operation the server never named', async () => {
+    requestStream.mockResolvedValue({ items: [], destination: 'Archive' });
+
+    await copyItems(items(1200), 'Archive');
+
+    expect(partsAdded()).toEqual([]);
+  });
+
+  it('names the operation to its caller, so it can be stopped', async () => {
+    namesTheOperation('task-42');
+    const named = [];
+
+    await copyItems(items(3), 'Archive', { onTask: (id) => named.push(id) });
+
+    expect(named).toEqual(['task-42']);
   });
 
   it('deletes in batches of 500 too', async () => {
@@ -87,11 +161,18 @@ describe('how a selection is cut up', () => {
   });
 });
 
-describe('progress accounting across batches', () => {
+/**
+ * Several operations, one bar.
+ *
+ * A deletion still goes out as one operation per request — each counting from
+ * zero — so what the reader watches is added up here. A transfer no longer
+ * needs any of this: it is one operation, and the counting is the server's.
+ */
+describe('progress accounting across the requests of one deletion', () => {
   /**
-   * Batches run one after another here (copy and move pass no concurrency), so
-   * the harness hands back a controller per batch as it opens: emit into it,
-   * then finish it to let the next one start.
+   * The requests run one after another (no concurrency is passed), so the
+   * harness hands back a controller per batch as it opens: emit into it, then
+   * finish it to let the next one start.
    */
   const batchRunner = () => {
     const opened = [];
@@ -116,7 +197,7 @@ describe('progress accounting across batches', () => {
   it('reports the whole selection, not one batch, at the start', async () => {
     const seen = [];
     const runner = batchRunner();
-    const run = copyItems(items(800), 'Archive', { onEvent: (e) => seen.push(e) });
+    const run = deleteItemsStream(items(800), { onEvent: (e) => seen.push(e) });
 
     const first = await runner.waitFor(0);
     first.emit({ type: 'start', totalItems: 500, totalBytes: 1000 });
@@ -130,7 +211,7 @@ describe('progress accounting across batches', () => {
   it('emits one start for the run, however many batches open', async () => {
     const seen = [];
     const runner = batchRunner();
-    const run = copyItems(items(800), 'Archive', { onEvent: (e) => seen.push(e) });
+    const run = deleteItemsStream(items(800), { onEvent: (e) => seen.push(e) });
 
     const first = await runner.waitFor(0);
     first.emit({ type: 'start', totalItems: 500, totalBytes: 1000 });
@@ -151,7 +232,7 @@ describe('progress accounting across batches', () => {
   it('never goes backwards when the next batch restarts its own count', async () => {
     const seen = [];
     const runner = batchRunner();
-    const run = copyItems(items(1000), 'Archive', { onEvent: (e) => seen.push(e) });
+    const run = deleteItemsStream(items(1000), { onEvent: (e) => seen.push(e) });
 
     const first = await runner.waitFor(0);
     first.emit({ type: 'progress', completedItems: 250 });
@@ -171,7 +252,7 @@ describe('progress accounting across batches', () => {
   it('turns the running total into a percentage of the whole selection', async () => {
     const seen = [];
     const runner = batchRunner();
-    const run = copyItems(items(1000), 'Archive', { onEvent: (e) => seen.push(e) });
+    const run = deleteItemsStream(items(1000), { onEvent: (e) => seen.push(e) });
 
     const first = await runner.waitFor(0);
     first.emit({ type: 'progress', completedItems: 500 });
@@ -186,7 +267,7 @@ describe('progress accounting across batches', () => {
   it('passes an event it does not understand through untouched', async () => {
     const seen = [];
     const runner = batchRunner();
-    const run = copyItems(items(800), 'Archive', { onEvent: (e) => seen.push(e) });
+    const run = deleteItemsStream(items(800), { onEvent: (e) => seen.push(e) });
 
     const first = await runner.waitFor(0);
     first.emit({ type: 'skipped', name: 'locked.txt' });
@@ -199,7 +280,7 @@ describe('progress accounting across batches', () => {
 
   it('says nothing to a caller that asked for no events', async () => {
     const runner = batchRunner();
-    const run = copyItems(items(800), 'Archive');
+    const run = deleteItemsStream(items(800));
 
     const first = await runner.waitFor(0);
     expect(() => first.emit({ type: 'progress', completedItems: 10 })).not.toThrow();
@@ -210,22 +291,22 @@ describe('progress accounting across batches', () => {
   });
 });
 
-describe('when a batch fails', () => {
+describe('when a part fails', () => {
   /**
-   * The batches run one after another, deliberately — the server resolves name
-   * collisions with a check-then-use that is only safe while a transfer walks
-   * its items in order. So a failure stops the run where it stands, and the
-   * batches behind it are never sent.
+   * The requests of a deletion run one after another, deliberately — the server
+   * resolves name collisions with a check-then-use that is only safe while one
+   * operation walks its items in order. So a failure stops the run where it
+   * stands, and what is behind it is never sent.
    */
   it('stops at the first failure rather than working through the rest', async () => {
-    const total = 5000; // ten batches
+    const total = 5000; // ten requests
     requestStream.mockImplementation(async () => {
       throw new Error('cancelled');
     });
 
-    await expect(copyItems(items(total), 'Archive')).rejects.toThrow('cancelled');
+    await expect(deleteItemsStream(items(total))).rejects.toThrow('cancelled');
 
-    // Only the batches already in flight may have gone out — never all ten.
+    // Only what was already in flight may have gone out — never all ten.
     expect(requestStream.mock.calls.length).toBeLessThan(10);
   });
 
@@ -234,38 +315,60 @@ describe('when a batch fails', () => {
 
     await expect(deleteItemsStream(items(1200))).rejects.toThrow('server said no');
   });
+
+  /**
+   * A transfer has two things in flight at once — the window onto the operation
+   * and the parts still being added to it — and either can fail. Both are waited
+   * for before either is thrown: throwing the refusal and walking away would
+   * leave the window's own failure unhandled, which is a warning in the console
+   * of anybody whose copy was refused.
+   */
+  it('reports a refused part of a transfer', async () => {
+    namesTheOperation();
+    requestJson.mockRejectedValue(new Error('no room left'));
+
+    await expect(copyItems(items(600), 'Archive')).rejects.toThrow('no room left');
+  });
+
+  it('reports a refused transfer, however many parts it had', async () => {
+    requestStream.mockRejectedValue(new Error('not allowed there'));
+
+    await expect(copyItems(items(600), 'Archive')).rejects.toThrow('not allowed there');
+  });
 });
 
-describe('folding the batch answers back together', () => {
-  it('concatenates the transferred items', async () => {
-    requestStream
-      .mockResolvedValueOnce({ items: ['a', 'b'], destination: 'Archive' })
-      .mockResolvedValueOnce({ items: ['c'], destination: 'Archive (2)' });
+describe('the answer a transfer gives', () => {
+  /**
+   * One answer for the whole gesture, whatever it took to describe it: the
+   * operation collects what each of its parts did, so the caller is told once
+   * where everything landed. It used to be folded together here, out of one
+   * answer per request.
+   */
+  it('is the operation\u2019s own, covering every part of the selection', async () => {
+    namesTheOperation('task-1', {
+      items: ['a', 'b', 'c'],
+      destination: 'Archive (2)',
+      unreadable: 2,
+    });
 
     const result = await copyItems(items(600), 'Archive');
 
     expect(result.items).toEqual(['a', 'b', 'c']);
-  });
-
-  /** The server may rename to dodge a collision; the caller needs where it landed. */
-  it('keeps the destination the server settled on', async () => {
-    requestStream
-      .mockResolvedValueOnce({ items: [], destination: 'Archive' })
-      .mockResolvedValueOnce({ items: [], destination: 'Archive (2)' });
-
-    const result = await copyItems(items(600), 'Archive');
-
+    // The server may rename to dodge a collision; the caller needs where it landed.
     expect(result.destination).toBe('Archive (2)');
+    expect(result.unreadable).toBe(2);
   });
 
-  it('returns the single response untouched when there was no batching', async () => {
+  it('is the same shape for a selection that fitted in one request', async () => {
     requestStream.mockResolvedValue({ items: ['a'], destination: 'Archive' });
 
     const result = await copyItems(items(3), 'Archive');
 
-    expect(result).toMatchObject({ items: ['a'], destination: 'Archive' });
+    expect(result).toMatchObject({ items: ['a'], destination: 'Archive', unreadable: 0 });
   });
+});
 
+describe('folding the batch answers of a deletion back together', () => {
   it('flattens the deleted items from every batch', async () => {
     requestStream
       .mockResolvedValueOnce({ items: ['a'] })
@@ -310,27 +413,25 @@ describe('what a deletion is about to break', () => {
 });
 
 /**
- * One gesture, several requests, one count.
+ * One gesture, one count of what it could not read.
  *
- * The server counts the entries it could not read per request. A selection the
- * client chose to split is still one copy to the person who asked for it, so a
- * count taken from the last batch alone would be short by everything that came
- * before it — and short is exactly the failure being reported here.
+ * A selection the client chose to split is still one copy to the person who
+ * asked for it, and a copy short of files reported as finished is the failure
+ * this guards. The count is now the operation's, added up across its parts
+ * where the parts are — on the server — rather than folded together here.
  */
-describe('the entries a batched transfer could not read', () => {
-  it('adds up across the batches', async () => {
-    requestStream
-      .mockResolvedValueOnce({ items: [], unreadable: 2 })
-      .mockResolvedValueOnce({ items: [], unreadable: 3 })
-      .mockResolvedValueOnce({ items: [], unreadable: 1 });
+describe('the entries a transfer could not read', () => {
+  it('is the count the operation gives, for the whole selection', async () => {
+    namesTheOperation('task-1', { items: [], unreadable: 6 });
 
     const result = await copyItems(items(1001), 'Archive');
 
-    expect(requestStream).toHaveBeenCalledTimes(3);
     expect(result.unreadable).toBe(6);
   });
 
-  it('is zero when every batch read everything', async () => {
+  it('is zero when everything was read', async () => {
+    namesTheOperation();
+
     const result = await copyItems(items(501), 'Archive');
 
     expect(result.unreadable).toBe(0);

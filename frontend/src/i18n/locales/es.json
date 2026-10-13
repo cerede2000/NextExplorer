@@ -328,7 +328,16 @@
   "transfers": {
     "unreadableHeading": "Algunas entradas no se pudieron leer",
     "unreadableBody": "1 entrada no se pudo leer y falta en el resultado. | {count} entradas no se pudieron leer y faltan en el resultado.",
-    "unreadableSourceKept": "El original se dejó en su sitio, ya que conserva la única copia de ellas."
+    "unreadableSourceKept": "El original se dejó en su sitio, ya que conserva la única copia de ellas.",
+    "interruptedCopy": "Una copia no llegó a terminar",
+    "interruptedMove": "Un movimiento no llegó a terminar",
+    "interruptedOther": "Una operación no llegó a terminar",
+    "interruptedBody": "El servidor se reinició mientras trabajaba en {destination}. Lo que ya había llegado está allí; el resto sigue donde estaba.",
+    "interruptedCarrying": "Elementos afectados: {paths}",
+    "finishedCopy": "La copia ha terminado",
+    "finishedMove": "El movimiento ha terminado",
+    "finishedOther": "La operación ha terminado",
+    "finishedBody": "Todo llegó a {destination}."
   },
   "volumes": {
     "quickAccess": "Acceso rápido",

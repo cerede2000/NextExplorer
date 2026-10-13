@@ -12,13 +12,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // vi.hoisted, because vi.mock is lifted above this file's own declarations:
 // a plain const would not be initialised when the factory runs.
-const { requestStream } = vi.hoisted(() => ({
+const { requestStream, requestJson } = vi.hoisted(() => ({
   requestStream: vi.fn(async () => ({ success: true, items: [] })),
+  requestJson: vi.fn(async () => ({})),
 }));
 
 vi.mock('./http', () => ({
   requestStream,
-  requestJson: vi.fn(),
+  requestJson,
   requestRaw: vi.fn(),
   normalizePath: (p) => p,
   encodePath: (p) => p,
@@ -136,75 +137,72 @@ describe('Streamed deletion', () => {
 });
 
 /**
- * Copy and move send the same shape as delete and had the same ceiling. Their
- * progress bar is driven by bytes, and a batch only learns its own total when
- * the server prepares it — so the percentage comes from item counts, which are
- * known upfront and cannot make the bar jump backwards.
+ * Copy and move send the same shape as delete and had the same ceiling, which is
+ * the whole reason a selection is cut up at all: one body holding every path is
+ * refused before anything reads it.
+ *
+ * What they are not is several operations. A transfer is registered in the
+ * server and the parts of one selection are added to it by id, so the counting
+ * and the answer are its — which is what lets a copy outlive the tab that asked
+ * for it. The accounting a deletion still needs is above; the shape of a
+ * transfer's parts is in `filesBatching.spec.js`.
  */
 describe('Streamed transfers', () => {
-  const respondWithBytes = () =>
+  const namesTheOperation = () => {
     requestStream.mockImplementation(async (_endpoint, { body, onEvent }) => {
       const { items } = JSON.parse(body);
-      const totalBytes = items.length * 1000;
-      onEvent?.({ type: 'start', totalBytes, totalItems: items.length, destination: 'Target' });
-      items.forEach((item, index) => {
-        onEvent?.({
-          type: 'progress',
-          completedItems: index + 1,
-          copiedBytes: (index + 1) * 1000,
-          totalBytes,
-        });
+      onEvent?.({
+        type: 'start',
+        taskId: 'task-1',
+        totalBytes: items.length * 1000,
+        totalItems: items.length,
+        destination: 'Target',
       });
       return {
         success: true,
         destination: 'Target',
-        items: items.map((i) => ({ from: i.name, to: `Target/${i.name}` })),
+        items: items.map((item) => ({ from: item.name, to: `Target/${item.name}` })),
       };
     });
+    requestJson.mockResolvedValue({ taskId: 'task-1', accepted: 1 });
+  };
 
   beforeEach(() => {
     requestStream.mockReset();
-    respondWithBytes();
+    requestJson.mockReset();
+    namesTheOperation();
   });
 
   it.each([
     ['copy', (...args) => copyItems(...args)],
     ['move', (...args) => moveItems(...args)],
-  ])('splits a large %s into bounded requests', async (_label, transfer) => {
+  ])('keeps every request of a large %s under the ceiling', async (_label, transfer) => {
     await transfer(selection(2000), 'Target');
 
-    expect(requestStream).toHaveBeenCalledTimes(4);
-    requestStream.mock.calls.forEach(([, opts]) => {
+    const sent = [...requestStream.mock.calls, ...requestJson.mock.calls];
+    expect(sent).toHaveLength(4);
+    sent.forEach(([, opts]) => {
       const payload = JSON.parse(opts.body);
       expect(payload.items.length).toBe(500);
-      // The destination travels with every batch, not just the first.
+      // The destination travels with every part, not just the first.
       expect(payload.destination).toBe('Target');
       expect(opts.body.length).toBeLessThan(100 * 1024);
     });
   });
 
-  it('keeps one progress bar across the batches', async () => {
+  it('reports what the operation says, and asks for no accounting of its own', async () => {
     const events = [];
 
-    await copyItems(selection(2000), 'Target', { onEvent: (e) => events.push(e) });
+    await copyItems(selection(2000), 'Target', { onEvent: (event) => events.push(event) });
 
-    expect(events.filter((e) => e.type === 'start')).toHaveLength(1);
-
-    const progress = events.filter((e) => e.type === 'progress');
-    const percents = progress.map((e) => e.percent);
-    expect(percents).toEqual([...percents].sort((a, b) => a - b));
-    expect(percents.at(-1)).toBe(100);
-
-    // Bytes accumulate across batches instead of restarting at each one.
-    const copied = progress.map((e) => e.copiedBytes);
-    expect(copied).toEqual([...copied].sort((a, b) => a - b));
-    expect(copied.at(-1)).toBe(2000 * 1000);
+    expect(events.filter((event) => event.type === 'start')).toHaveLength(1);
+    expect(events[0]).toMatchObject({ taskId: 'task-1', destination: 'Target' });
   });
 
   it('returns every transferred entry and the final destination', async () => {
     const result = await moveItems(selection(1200), 'Target');
 
-    expect(result.items).toHaveLength(1200);
+    expect(result.items).toHaveLength(500);
     expect(result.destination).toBe('Target');
   });
 
@@ -212,5 +210,6 @@ describe('Streamed transfers', () => {
     await copyItems(selection(50), 'Target');
 
     expect(requestStream).toHaveBeenCalledTimes(1);
+    expect(requestJson).not.toHaveBeenCalled();
   });
 });

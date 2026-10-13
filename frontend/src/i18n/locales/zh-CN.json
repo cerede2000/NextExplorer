@@ -328,7 +328,16 @@
   "transfers": {
     "unreadableHeading": "部分条目无法读取",
     "unreadableBody": "有 1 个条目无法读取，结果中缺少它。 | 有 {count} 个条目无法读取，结果中缺少它们。",
-    "unreadableSourceKept": "原件保留在原处，因为它保存着这些条目的唯一副本。"
+    "unreadableSourceKept": "原件保留在原处，因为它保存着这些条目的唯一副本。",
+    "interruptedCopy": "复制未完成",
+    "interruptedMove": "移动未完成",
+    "interruptedOther": "操作未完成",
+    "interruptedBody": "服务器在处理 {destination} 时重新启动。已经到达的内容在那里，其余仍在原处。",
+    "interruptedCarrying": "涉及的项目：{paths}",
+    "finishedCopy": "复制已完成",
+    "finishedMove": "移动已完成",
+    "finishedOther": "操作已完成",
+    "finishedBody": "全部已到达 {destination}。"
   },
   "volumes": {
     "quickAccess": "快速访问",

@@ -102,36 +102,18 @@ export const createTransfers = ({
     warn(cutItems.value, 'Move');
     const moveSourceParents = new Set(movePayload.map((item) => normalizePath(item.path || '')));
     const totalCount = copyPayload.length + movePayload.length;
-    const controller = new AbortController();
 
-    const operationId =
+    // Shown in the panel, stoppable, and fed the operation's own numbers — all
+    // three in one place, because the other gesture that starts a transfer needs
+    // exactly the same (see `stores/operationTasks`).
+    const transfer =
       totalCount > 0
-        ? operationTasksStore.startOperation({
+        ? operationTasksStore.startTransfer({
             type: movePayload.length > 0 && copyPayload.length === 0 ? 'move' : 'copy',
             destination,
             itemCount: totalCount,
-            cancellable: true,
-            cancel: () => controller.abort(),
           })
         : null;
-
-    // Fold streamed transfer events into the reactive operation so the progress
-    // bar tracks real bytes copied against the pre-computed total.
-    const onTransferEvent = (event) => {
-      if (!operationId || !event) return;
-      if (event.type === 'start') {
-        operationTasksStore.updateOperation(operationId, {
-          totalBytes: Number(event.totalBytes) || 0,
-          copiedBytes: 0,
-        });
-      } else if (event.type === 'progress') {
-        operationTasksStore.updateOperation(operationId, {
-          ...(event.totalBytes != null ? { totalBytes: Number(event.totalBytes) || 0 } : {}),
-          copiedBytes: Number(event.copiedBytes) || 0,
-          ...(event.percent != null ? { percent: Number(event.percent) || 0 } : {}),
-        });
-      }
-    };
 
     try {
       const pastedNames = [];
@@ -140,8 +122,8 @@ export const createTransfers = ({
       if (copiedItems.value.length > 0) {
         if (copyPayload.length > 0) {
           const result = await copyItems(copyPayload, destination, {
-            onEvent: onTransferEvent,
-            signal: controller.signal,
+            onEvent: transfer?.onEvent,
+            onTask: transfer?.onTask,
           });
           sayWhatWasNotRead(result);
           collectTransferredNames(result, pastedNames);
@@ -153,8 +135,8 @@ export const createTransfers = ({
       if (cutItems.value.length > 0) {
         if (movePayload.length > 0) {
           const result = await moveItems(movePayload, destination, {
-            onEvent: onTransferEvent,
-            signal: controller.signal,
+            onEvent: transfer?.onEvent,
+            onTask: transfer?.onTask,
           });
           sayWhatWasNotRead(result);
           collectTransferredNames(result, pastedNames);
@@ -178,7 +160,7 @@ export const createTransfers = ({
       refreshSizes();
       return null;
     } finally {
-      if (operationId) operationTasksStore.finishOperation(operationId);
+      transfer?.finish();
     }
   };
 

@@ -328,7 +328,16 @@
   "transfers": {
     "unreadableHeading": "Some entries could not be read",
     "unreadableBody": "1 entry could not be read and is missing from the result. | {count} entries could not be read and are missing from the result.",
-    "unreadableSourceKept": "The original was left where it is, since it holds the only copy of them."
+    "unreadableSourceKept": "The original was left where it is, since it holds the only copy of them.",
+    "interruptedCopy": "A copy did not finish",
+    "interruptedMove": "A move did not finish",
+    "interruptedOther": "An operation did not finish",
+    "interruptedBody": "The server restarted while it was working on {destination}. What had already arrived is there, and the rest is where it was.",
+    "interruptedCarrying": "Items involved: {paths}",
+    "finishedCopy": "The copy has finished",
+    "finishedMove": "The move has finished",
+    "finishedOther": "The operation has finished",
+    "finishedBody": "Everything arrived in {destination}."
   },
   "volumes": {
     "quickAccess": "Quick access",

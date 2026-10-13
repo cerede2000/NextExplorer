@@ -58,6 +58,14 @@ vi.mock('@/stores/notifications', () => ({
 }));
 vi.mock('@/stores/operationTasks', () => ({
   useOperationTasksStore: () => ({
+    // One registration for a transfer: a bar, the operation's own numbers and a
+    // cancel that asks the server (see `stores/operationTasks`).
+    startTransfer: vi.fn(() => ({
+      id: 'op-1',
+      onEvent: vi.fn(),
+      onTask: vi.fn(),
+      finish: vi.fn(),
+    })),
     startOperation: vi.fn(() => 'op-1'),
     updateOperation: vi.fn(),
     finishOperation: vi.fn(),

@@ -31,6 +31,7 @@ const { reportOrphanedBindings } = require('./services/orphanedBindingsService')
 const { reportLegacyCache } = require('./services/legacyCacheCheck');
 const { sweepUnreferencedLogos } = require('./services/brandingLogo');
 const { sweepInterrupted } = require('./services/inFlightFiles');
+const operationTasks = require('./services/operationTasks');
 const trashMaintenance = require('./services/trash/maintenance');
 const { sweepActivity } = require('./services/activityLog');
 const databaseMaintenance = require('./services/databaseMaintenance');
@@ -44,6 +45,9 @@ const startServer = async () => {
 
   // Before anything writes: what operations a stop interrupted left behind.
   sweepInterrupted();
+  // And what those operations were, so whoever started one is told rather than
+  // left to discover half a copy at the destination.
+  operationTasks.reportInterrupted();
 
   const app = await createApp();
 

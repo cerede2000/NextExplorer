@@ -36,6 +36,18 @@ const cachedForRequest = (namespace, key, compute) => {
   return value;
 };
 
+/**
+ * Run something with no request context at all, however it was started.
+ *
+ * An operation that outlives the request that asked for it — a copy that keeps
+ * going after the tab closed — would otherwise inherit that request's store and
+ * keep it for as long as it runs, because the store follows the async chain.
+ * The cache it holds resolves paths for a containment check, and one taken half
+ * an hour ago is exactly what that cache is documented never to be. Outside a
+ * request `cachedForRequest` simply computes, which is what a task wants.
+ */
+const runDetached = (fn) => storage.exit(fn);
+
 /** Whether a per-request cache is available to memoize into. */
 const hasRequestContext = () => storage.getStore() !== undefined;
 
@@ -45,6 +57,7 @@ const requestContextMiddleware = (_req, _res, next) => {
 
 module.exports = {
   runInRequestContext,
+  runDetached,
   cachedForRequest,
   hasRequestContext,
   requestContextMiddleware,

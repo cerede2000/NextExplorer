@@ -4,6 +4,7 @@ import { RouterView, useRoute } from 'vue-router';
 import { useEventListener, useStorage } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 import { useAccountLanguage } from '@/composables/useAccountLanguage';
+import { useAdoptedOperations } from '@/composables/adoptedOperations';
 import { useConfigErrorGate } from '@/composables/useConfigErrorGate';
 import { useTabNavigation, useTabRouteSync } from '@/composables/tabNavigation';
 import ConfigErrorScreen from '@/components/ConfigErrorScreen.vue';
@@ -57,6 +58,16 @@ const terminalStore = useTerminalStore();
 const tabsStore = useTabsStore();
 const appSettings = useAppSettings();
 const fileStore = useFileStore();
+
+// The copies and moves this reader already has running in the server, taken up
+// again: they outlive the tab that started them, so a tab opened later shows
+// them rather than nothing at all.
+//
+// After the stores above, and that matters: this one reaches for the file store
+// too, and the tabs are built from whichever of them is asked for first — the
+// address, the tab in front and the listing have to be put together in the
+// order they always were.
+useAdoptedOperations();
 
 /**
  * Whether this address is a *place* — somewhere a tab can be.

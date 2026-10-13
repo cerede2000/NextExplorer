@@ -109,6 +109,26 @@
       "file": "^frontend/src/components/CreateNew\\.spec\\.js$",
       "cases": ["creates the document under the name given, then opens it"],
       "note": "renamed to `creates the document under the name given, then opens it the way the listing does`, and the longer name is the point: the case used to watch the preview manager be asked, which is what was wrong. A .txt, a .md and a .csv have no preview plugin, so the manager answered false in silence and the button that promised to open the document only created it. It watches `openItem` now — the door a double click on a row already goes through — and two cases beside it say the rest: a text file, which has no preview, opens the same way, and the other button creates the document and opens nothing."
+    },
+    {
+      "file": "^frontend/src/api/filesBatching\\.spec\\.js$",
+      "cases": [
+        "^splits one item past the batch size into two$",
+        "^loses nothing and duplicates nothing across the batches$",
+        "^carries the destination on every batch$",
+        "^concatenates the transferred items$",
+        "^keeps the destination the server settled on$",
+        "^returns the single response untouched when there was no batching$"
+      ],
+      "note": "a transfer stopped being several operations, so the cases that held the accounting over several of them hold something else or hold it elsewhere. The work runs in the server now and the parts of one selection all name the same operation, which is what lets a copy outlive the tab that asked for it — so the counting and the single answer are the operation's. `splits one item past the batch size into two` is `describes one item past the batch size in two requests, as one operation`, beside `says which part is the last one, and not before`; `loses nothing and duplicates nothing across the batches` and `carries the destination on every batch` are the same two over the parts rather than the batches, and read both the streamed request and the ones added to the operation; `concatenates the transferred items` and `keeps the destination the server settled on` are one case now, `is the operation’s own, covering every part of the selection`, because there is one answer to fold rather than several; and `returns the single response untouched when there was no batching` is `is the same shape for a selection that fitted in one request`. What those batches used to prove about a progress bar across several operations is still proved, for the operation that is still several — a deletion — under `progress accounting across the requests of one deletion` in this same file."
+    },
+    {
+      "file": "^frontend/src/api/deleteItemsStream\\.spec\\.js$",
+      "cases": [
+        "^splits a large %s into bounded requests$",
+        "^keeps one progress bar across the batches$"
+      ],
+      "note": "the same two properties, for a transfer that is one operation rather than several. The body ceiling is the whole reason a selection is cut up at all, and it is still asserted of every request a large transfer makes, under `keeps every request of a large %s under the ceiling`. The bar is no longer added up here: the operation counts for the whole selection, so what this file asks is that the client passes those figures through and invents none of its own, under `reports what the operation says, and asks for no accounting of its own`. The cross-request accounting that remains — a deletion, which is still one operation per request — is held in filesBatching.spec.js."
     }
   ]
 }

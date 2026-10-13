@@ -328,7 +328,16 @@
   "transfers": {
     "unreadableHeading": "Einige Einträge konnten nicht gelesen werden",
     "unreadableBody": "1 Eintrag konnte nicht gelesen werden und fehlt im Ergebnis. | {count} Einträge konnten nicht gelesen werden und fehlen im Ergebnis.",
-    "unreadableSourceKept": "Das Original bleibt, wo es ist, denn es enthält die einzige Kopie davon."
+    "unreadableSourceKept": "Das Original bleibt, wo es ist, denn es enthält die einzige Kopie davon.",
+    "interruptedCopy": "Ein Kopiervorgang wurde nicht abgeschlossen",
+    "interruptedMove": "Ein Verschiebevorgang wurde nicht abgeschlossen",
+    "interruptedOther": "Ein Vorgang wurde nicht abgeschlossen",
+    "interruptedBody": "Der Server wurde neu gestartet, während er an {destination} arbeitete. Was bereits angekommen war, ist dort, der Rest liegt dort, wo er war.",
+    "interruptedCarrying": "Betroffene Einträge: {paths}",
+    "finishedCopy": "Das Kopieren ist abgeschlossen",
+    "finishedMove": "Das Verschieben ist abgeschlossen",
+    "finishedOther": "Der Vorgang ist abgeschlossen",
+    "finishedBody": "Alles ist in {destination} angekommen."
   },
   "volumes": {
     "quickAccess": "Schnellzugriff",

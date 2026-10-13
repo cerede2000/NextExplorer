@@ -328,7 +328,16 @@
   "transfers": {
     "unreadableHeading": "部分項目無法讀取",
     "unreadableBody": "有 1 個項目無法讀取，結果中缺少它。 | 有 {count} 個項目無法讀取，結果中缺少它們。",
-    "unreadableSourceKept": "原件保留在原處，因為它保存著這些項目的唯一副本。"
+    "unreadableSourceKept": "原件保留在原處，因為它保存著這些項目的唯一副本。",
+    "interruptedCopy": "複製未完成",
+    "interruptedMove": "移動未完成",
+    "interruptedOther": "操作未完成",
+    "interruptedBody": "伺服器在處理 {destination} 時重新啟動。已經抵達的內容在那裡，其餘仍在原處。",
+    "interruptedCarrying": "涉及的項目：{paths}",
+    "finishedCopy": "複製已完成",
+    "finishedMove": "移動已完成",
+    "finishedOther": "操作已完成",
+    "finishedBody": "全部已抵達 {destination}。"
   },
   "volumes": {
     "quickAccess": "快速訪問",

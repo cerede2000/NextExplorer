@@ -328,7 +328,16 @@
   "transfers": {
     "unreadableHeading": "Niektórych wpisów nie udało się odczytać",
     "unreadableBody": "1 wpisu nie udało się odczytać i brakuje go w wyniku. | {count} wpisów nie udało się odczytać i brakuje ich w wyniku. | {count} wpisów nie udało się odczytać i brakuje ich w wyniku.",
-    "unreadableSourceKept": "Oryginał pozostał na miejscu, bo zawiera ich jedyną kopię."
+    "unreadableSourceKept": "Oryginał pozostał na miejscu, bo zawiera ich jedyną kopię.",
+    "interruptedCopy": "Kopiowanie nie zostało ukończone",
+    "interruptedMove": "Przenoszenie nie zostało ukończone",
+    "interruptedOther": "Operacja nie została ukończona",
+    "interruptedBody": "Serwer został ponownie uruchomiony w trakcie pracy nad {destination}. To, co już dotarło, jest na miejscu; reszta została tam, gdzie była.",
+    "interruptedCarrying": "Elementy: {paths}",
+    "finishedCopy": "Kopiowanie zakończone",
+    "finishedMove": "Przenoszenie zakończone",
+    "finishedOther": "Operacja zakończona",
+    "finishedBody": "Wszystko dotarło do {destination}."
   },
   "volumes": {
     "quickAccess": "Szybki dostęp",

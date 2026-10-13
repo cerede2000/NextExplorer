@@ -5585,6 +5585,90 @@ test('a page whose files were turned away says so instead of spinning for ever',
   }
 });
 
+/**
+ * A copy that belongs to the person who asked for it, not to the tab.
+ *
+ * The work used to run inside the request: closing the tab closed the socket,
+ * the socket aborted the transfer, and half a folder was left at the destination
+ * with nothing said about it. A transfer of twenty gigabytes is not something to
+ * hold a tab open for.
+ *
+ * Only a browser can hold this. The unit suites prove the register, the route and
+ * the panel each on their own, and all three can be right while the tab that goes
+ * away still takes the copy with it — the one thing that decides it is whether a
+ * real connection closing stops real work. So: a folder of two and a half
+ * thousand files, a tab closed an instant after the copy starts, and the disk
+ * read afterwards.
+ */
+test('a copy keeps going after the tab that asked for it has gone', async ({
+  browser,
+  baseURL,
+}) => {
+  const heap = path.join(volume, 'Heap');
+  const landing = path.join(volume, 'Landing');
+  fs.mkdirSync(heap, { recursive: true });
+  fs.mkdirSync(landing, { recursive: true });
+  // Enough entries that the copy is unmistakably still running a moment after
+  // it started, which is when the tab below goes away.
+  for (let index = 0; index < 2500; index += 1) {
+    fs.writeFileSync(path.join(heap, `item-${String(index).padStart(5, '0')}.txt`), `${index}\n`);
+  }
+  const arrived = () => {
+    try {
+      return fs.readdirSync(path.join(landing, 'Heap')).length;
+    } catch {
+      return 0;
+    }
+  };
+
+  const context = await browser.newContext({
+    storageState: await page.context().storageState(),
+    baseURL,
+    locale: 'en-US',
+  });
+  const asked = [];
+  context.on('request', (request) => asked.push(request.url()));
+
+  try {
+    const starting = await context.newPage();
+    await starting.goto('/browse/Projects');
+    await starting.getByRole('button', { name: 'Select Heap' }).click();
+    await starting.keyboard.press('ControlOrMeta+c');
+
+    await starting.goto('/browse/Projects/Landing');
+    // Waited for: a paste is into the folder on screen, and `goto` comes back
+    // before the application has settled on which folder that is — pasting into
+    // one it does not know yet is pasting into the top level, which is refused.
+    await expect(starting.getByRole('heading', { name: 'This folder is empty' })).toBeVisible();
+    await starting.keyboard.press('ControlOrMeta+v');
+
+    // The copy has started and is being watched here.
+    await expect(starting.getByRole('status').filter({ hasText: 'Copying' })).toBeVisible();
+    expect(arrived()).toBeLessThan(2500);
+
+    // And now the reader closes the tab, which says nothing to anybody.
+    await starting.close();
+
+    const returning = await context.newPage();
+    const from = asked.length;
+    await returning.goto('/browse/Projects/Landing');
+    // A tab opened later asks what is running for whoever is reading it: that is
+    // how the operation comes back on screen rather than being invisible until
+    // it is over.
+    await expect
+      .poll(() => asked.slice(from).some((url) => /\/api\/tasks(\?|$)/.test(url)), {
+        timeout: 15000,
+      })
+      .toBe(true);
+
+    // The whole folder arrived, although nothing was left watching it.
+    await expect.poll(arrived, { timeout: 60000 }).toBe(2500);
+    expect(fs.readFileSync(path.join(landing, 'Heap', 'item-02499.txt'), 'utf8')).toBe('2499\n');
+  } finally {
+    await context.close();
+  }
+});
+
 test('the page threw nothing along the way', () => {
   expect(thrown, `the page threw:\n${thrown.join('\n')}`).toEqual([]);
 });

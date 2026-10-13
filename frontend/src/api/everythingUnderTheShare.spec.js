@@ -43,6 +43,7 @@ import * as versions from './versions.api';
 import * as onlyoffice from './onlyoffice.api';
 import { fetchCollaboraConfig } from './collabora.api';
 import { directUploadEndpoint } from '@/composables/uploadTarget';
+import * as tasks from './tasks.api';
 import { fetchFeatures } from './features.api';
 import { getBranding } from './settings.api';
 
@@ -170,6 +171,13 @@ describe('a request about the page a share is on', () => {
     ['who can be mentioned in a document', () => onlyoffice.fetchOnlyOfficeMentionUsers()],
     ['word that a document changed', () => onlyoffice.waitForOnlyOfficeActivityVersion(1)],
     ['where things were last moved to', () => files.fetchRecentDestinations()],
+    // A transfer runs in the server and outlives the tab that started it, so a
+    // visitor filling a shared folder asks for theirs again under the prefix —
+    // the only addresses they reach from behind an authentication proxy.
+    ['the operations of whoever is reading', () => tasks.fetchOperationTasks()],
+    ['one of them followed again', () => tasks.watchOperationTask('task-1')],
+    ['one of them stopped', () => tasks.cancelOperationTask('task-1')],
+    ['what a restart took, acknowledged', () => tasks.forgetInterruptedTasks(['lost-1'])],
   ];
 
   it.each(PAGE_CALLS)('goes under the share: %s', async (_what, call) => {

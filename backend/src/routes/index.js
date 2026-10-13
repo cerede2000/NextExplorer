@@ -28,6 +28,7 @@ const versionsRoutes = require('./versions');
 const versionsAdminRoutes = require('./versionsAdmin');
 const activityRoutes = require('./activity');
 const capabilitiesRoutes = require('./capabilities');
+const tasksRoutes = require('./tasks');
 const openapiRoutes = require('./openapi');
 const { onlyoffice, collabora } = require('../config/index');
 const { requireShareScope } = require('../middleware/shareScope');
@@ -61,6 +62,8 @@ const registerRoutes = (app) => {
   app.use('/api', versionsRoutes);
   app.use('/api', activityRoutes);
   app.use('/api', capabilitiesRoutes);
+  // The operations of whoever is asking, which outlive the tab that started them
+  app.use('/api', tasksRoutes);
   // User volumes management (admin only, requires USER_VOLUMES feature)
   app.use('/api', userVolumesRoutes);
   // Share routes (supports guest sessions)
@@ -128,6 +131,9 @@ const registerRoutes = (app) => {
     archiveRoutes,
     usageRoutes,
     editorRoutes,
+    // A visitor's copy keeps going when they close the tab too, so they need the
+    // same window back onto it. Their own, and only the ones of this share.
+    tasksRoutes,
     uploadRoutes,
     searchRoutes,
     // The history of a file, which a share hands out only when its owner turned
