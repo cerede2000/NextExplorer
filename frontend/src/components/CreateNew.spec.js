@@ -20,6 +20,7 @@ let features;
 const openDialog = vi.fn(async () => {});
 const addNotification = vi.fn();
 const openPreview = vi.fn();
+const openItem = vi.fn();
 
 vi.mock('@/composables/fileUploader', () => ({ useFileUploader: () => ({ openDialog }) }));
 vi.mock('@/stores/fileStore', () => ({ useFileStore: () => fileStore }));
@@ -28,6 +29,7 @@ vi.mock('@/stores/notifications', () => ({
   useNotificationsStore: () => ({ addNotification }),
 }));
 vi.mock('@/plugins/preview/manager', () => ({ usePreviewManager: () => ({ open: openPreview }) }));
+vi.mock('@/composables/navigation', () => ({ useNavigation: () => ({ openItem }) }));
 vi.mock('vue-i18n', async (importOriginal) => ({
   ...(await importOriginal()),
   useI18n: () => ({ t: (key) => key }),
@@ -96,7 +98,7 @@ beforeEach(() => {
     createOfficeDocument: vi.fn(async () => null),
   });
   features = reactive({ onlyofficeEnabled: false, collaboraEnabled: false });
-  [openDialog, addNotification, openPreview].forEach((fn) => fn.mockClear());
+  [openDialog, addNotification, openPreview, openItem].forEach((fn) => fn.mockClear());
 });
 
 afterEach(() => {
@@ -353,23 +355,57 @@ describe('a new document from the drawer', () => {
     expect(fileStore.createOfficeDocument).not.toHaveBeenCalled();
   });
 
-  it('creates the document under the name given, then opens it', async () => {
+  /**
+   * Opened the way the listing opens anything, not through the preview manager.
+   *
+   * A .txt, a .md and a .csv have no preview plugin, so the preview manager
+   * answered that nothing could open them — by returning false, silently — and
+   * "Create and open" created the document and went no further. `openItem` is
+   * the door a double-click on a row goes through, and it covers all of them.
+   */
+  it('creates the document under the name given, then opens it the way the listing does', async () => {
     const created = { name: 'Budget.xlsx', path: 'Docs', kind: 'xlsx' };
     fileStore.createOfficeDocument.mockResolvedValue(created);
     await mountMenu();
 
-    dialog().vm.$emit('create', { format: 'xlsx', name: 'Budget' });
+    dialog().vm.$emit('create', { format: 'xlsx', name: 'Budget', open: true });
     await flushPromises();
 
     expect(fileStore.createOfficeDocument).toHaveBeenCalledWith({ format: 'xlsx', name: 'Budget' });
-    expect(openPreview).toHaveBeenCalledWith(created);
+    expect(openItem).toHaveBeenCalledWith(created);
+    expect(openPreview).not.toHaveBeenCalled();
+  });
+
+  it('opens a text file, which has no preview, the same way', async () => {
+    const created = { name: 'Notes.txt', path: 'Docs', kind: 'txt' };
+    fileStore.createOfficeDocument.mockResolvedValue(created);
+    await mountMenu();
+
+    dialog().vm.$emit('create', { format: 'txt', name: 'Notes', open: true });
+    await flushPromises();
+
+    expect(openItem).toHaveBeenCalledWith(created);
+  });
+
+  // The other button: the document is wanted in the folder, not on screen.
+  it('creates the document and opens nothing when that is all that was asked', async () => {
+    const created = { name: 'Budget.xlsx', path: 'Docs', kind: 'xlsx' };
+    fileStore.createOfficeDocument.mockResolvedValue(created);
+    await mountMenu();
+
+    dialog().vm.$emit('create', { format: 'xlsx', name: 'Budget', open: false });
+    await flushPromises();
+
+    expect(fileStore.createOfficeDocument).toHaveBeenCalledWith({ format: 'xlsx', name: 'Budget' });
+    expect(openItem).not.toHaveBeenCalled();
+    expect(openPreview).not.toHaveBeenCalled();
   });
 
   it('says why a document could not be created, and opens nothing', async () => {
     fileStore.createOfficeDocument.mockRejectedValue(new Error('Quota exceeded'));
     await mountMenu();
 
-    dialog().vm.$emit('create', { format: 'docx', name: 'Letter' });
+    dialog().vm.$emit('create', { format: 'docx', name: 'Letter', open: true });
     await flushPromises();
 
     expect(addNotification).toHaveBeenCalledWith({
@@ -377,6 +413,7 @@ describe('a new document from the drawer', () => {
       heading: 'create.documentFailed',
       body: 'Quota exceeded',
     });
+    expect(openItem).not.toHaveBeenCalled();
     expect(openPreview).not.toHaveBeenCalled();
   });
 
@@ -384,9 +421,9 @@ describe('a new document from the drawer', () => {
     fileStore.createOfficeDocument.mockRejectedValueOnce(new Error('Quota exceeded'));
     await mountMenu();
 
-    dialog().vm.$emit('create', { format: 'docx', name: 'Letter' });
+    dialog().vm.$emit('create', { format: 'docx', name: 'Letter', open: true });
     await flushPromises();
-    dialog().vm.$emit('create', { format: 'docx', name: 'Letter' });
+    dialog().vm.$emit('create', { format: 'docx', name: 'Letter', open: true });
     await flushPromises();
 
     expect(fileStore.createOfficeDocument).toHaveBeenCalledTimes(2);

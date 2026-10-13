@@ -38,7 +38,7 @@ import { useFileUploader } from '@/composables/fileUploader';
 import { useFileStore } from '@/stores/fileStore';
 import { useFeaturesStore } from '@/stores/features';
 import { useNotificationsStore } from '@/stores/notifications';
-import { usePreviewManager } from '@/plugins/preview/manager';
+import { useNavigation } from '@/composables/navigation';
 import NewOfficeDocumentDialog from '@/components/NewOfficeDocumentDialog.vue';
 
 const { openDialog } = useFileUploader();
@@ -46,7 +46,7 @@ const { t } = useI18n();
 const fileStore = useFileStore();
 const featuresStore = useFeaturesStore();
 const notifications = useNotificationsStore();
-const previewManager = usePreviewManager();
+const { openItem } = useNavigation();
 const isCreating = ref(false);
 const canCreateFolder = computed(() => fileStore.currentPathData?.canCreateFolder ?? true);
 const canCreateFile = computed(() => fileStore.currentPathData?.canCreateFile ?? true);
@@ -151,17 +151,27 @@ const promptOfficeDocument = (document) => {
 };
 
 /**
- * Create the document, then open it in the editor it was made for. Landing
- * back in the file list would leave the user to find and open a document they
- * just asked for by name.
+ * Create the document, and open it when that is what was asked for.
+ *
+ * Through `openItem`, the one door the listing itself opens files with, rather
+ * than the preview manager: a .txt, a .md or a .csv has no preview plugin, so
+ * the preview manager answered "nothing here opens this" by returning false,
+ * and a document named and created on purpose was left sitting in a folder
+ * nobody had been taken back to. `openItem` knows the whole of it — the editor
+ * for a text file, the preview or the editor for markdown depending on what
+ * this account asked for, ONLYOFFICE or Collabora for an office document, and
+ * which tab any of them belongs in.
+ *
+ * Nothing records a version here: creating a file is not a revision of it, and
+ * an editor opened and left alone saves nothing either.
  */
-const createOfficeDocument = async ({ format, name }) => {
+const createOfficeDocument = async ({ format, name, open = true }) => {
   if (isCreating.value) return;
 
   isCreating.value = true;
   try {
     const item = await fileStore.createOfficeDocument({ format, name });
-    if (item) previewManager.open(item);
+    if (item && open) openItem(item);
   } catch (error) {
     notifications.addNotification({
       type: 'error',

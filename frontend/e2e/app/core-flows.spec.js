@@ -857,6 +857,85 @@ test('a file with versions is marked in the listing, and an administrator can cl
 });
 
 /**
+ * A new document named in the dialog, and the two things that can happen next.
+ *
+ * The chain is the point, and it is the chain that was broken: the menu creates
+ * the document through one route, and what opens it is worked out from its type
+ * by code the listing shares. "Create and open" asked the preview manager, which
+ * has no plugin for a .txt, a .md or a .csv — so it answered false, in silence,
+ * and a button that said it would open the document created it and stopped. No
+ * unit test could see that: each half worked.
+ *
+ * In a folder of its own so that nothing else in this journey has to know these
+ * files exist.
+ */
+test('a new document is created on its own, or created and opened in its editor', async () => {
+  const folder = path.join(volume, 'new-documents');
+  fs.mkdirSync(folder, { recursive: true });
+
+  /** Walk the menu to a type in the drawer and name the document. */
+  const nameADocument = async (type, name) => {
+    await page.getByRole('button', { name: 'New', exact: true }).click();
+    await page.getByRole('button', { name: 'New File', exact: true }).hover();
+    await page.getByRole('menuitem', { name: type }).click();
+    const field = page.getByLabel('Document name');
+    await expect(field).toBeVisible();
+    await field.fill(name);
+  };
+
+  await page.goto('/browse/Projects/new-documents');
+
+  // A text file: the case that did nothing. Its editor is the only thing that
+  // opens it, and that is where this has to land.
+  await nameADocument('New text file', 'Shopping list');
+  await page.locator('[data-test="create-and-open"]').click();
+
+  await expect(page).toHaveURL(/\/editor\/Projects\/new-documents\/Shopping(%20| )list\.txt$/);
+  await expect(page.locator('.cm-content')).toBeVisible();
+  await page.locator('.cm-content').click();
+  await page.keyboard.type('bread');
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect
+    .poll(() => fs.readFileSync(path.join(folder, 'Shopping list.txt'), 'utf8'))
+    .toContain('bread');
+
+  // Markdown, which has a preview as well as an editor: with the preference as
+  // it comes, the preview is what opens — and something opens, which is the
+  // whole of what was missing.
+  await page.goto('/browse/Projects/new-documents');
+  await nameADocument('New Markdown file', 'Readme');
+  await page.locator('[data-test="create-and-open"]').click();
+
+  await expect(page.locator('[data-test="preview-surface"]')).toBeVisible();
+  await expect(page.locator('[data-test="preview-surface"]')).toContainText('Readme.md');
+  await page.keyboard.press('Escape');
+
+  // The other button: the document is wanted in the folder, not on screen.
+  await nameADocument('New CSV file', 'Figures');
+  await page.locator('[data-test="create-only"]').click();
+
+  await expect(page).toHaveURL(/\/browse\/Projects\/new-documents$/);
+  await expect(page.locator('[data-test="preview-surface"]')).toHaveCount(0);
+  // By the row's own selection control: it is a button in the grid views and a
+  // checkbox in the list, so the label is what both of them have.
+  await expect(page.locator('[aria-label="Select Figures.csv"]')).toBeVisible();
+  expect(fs.existsSync(path.join(folder, 'Figures.csv'))).toBe(true);
+
+  // Nothing was written to any of them on the way in, so none of them has a
+  // history — the one that was saved in the editor above has one version, from
+  // the empty document it was.
+  const markFor = (name) =>
+    page
+      .locator('.group\\/item')
+      .filter({ has: page.locator(`[aria-label="Select ${name}"]`) })
+      .locator('[data-test="version-mark"]');
+
+  await expect(markFor('Figures.csv')).toHaveCount(0);
+  await expect(markFor('Readme.md')).toHaveCount(0);
+  await expect(markFor('Shopping list.txt')).toHaveCount(1);
+});
+
+/**
  * Two background workers switched on from Settings rather than from the
  * environment, and the report of which optional tools are here (#9).
  *

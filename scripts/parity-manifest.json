@@ -1978,6 +1978,10 @@
     {
       "match": "^docs/(integrations/oidc\\.md|reference/troubleshooting\\.md)$",
       "note": "what the sign-in screen says when a trip to the identity provider ends badly, and what a folder short of rows means. Both pages describe behaviour that belongs to batches which have not gone up yet — the sign-in screen that stops acting on what it does not know, and the entry nothing can read that is skipped and counted rather than hidden or fatal — so the prose travels with them rather than ahead of them. Four endings, each naming a different thing for an administrator to go and look at: a server that could not be asked, an identity the provider vouches for and this installation has no account for, a hand-off that keeps coming back without a session, and an installation with no way in configured at all."
+    },
+    {
+      "match": "^frontend/src/components/(CreateNew|NewOfficeDocumentDialog)\\.vue$",
+      "note": "touched by `create-or-create-and-open`, which has not been sent: \"Create and open\" created the document and, for a .txt, a .md or a .csv, opened nothing. It asked the preview manager, which has no plugin for a text file, so the answer was false and silent; markdown, which has one, opened its preview and ignored the account that had asked for markdown to open in the editor. The creation goes through `openItem` now — the one door a double click on a row already opens files with, which knows the editor for a text file, the preference for markdown, the office editors, the viewer for a PDF and which tab any of them belongs in — rather than a second, narrower opener covering half the types. The single button becomes two, `Create` and `Create and open`, because naming a document for later and writing it now are two separate wants, and both reuse `common.create`, which every catalogue already has. The difference stands until that batch goes up."
     }
   ],
   "controls": [

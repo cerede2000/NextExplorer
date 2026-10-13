@@ -37,11 +37,19 @@ const isSubmitting = ref(false);
 
 const canSubmit = computed(() => name.value.trim().length > 0 && !isSubmitting.value);
 
-const submit = async () => {
+/**
+ * Hand the name back, saying whether the document is to be opened as well.
+ *
+ * `open` travels with the name rather than being the caller's own business: it
+ * is the button that was pressed, and only this dialog knows which one that
+ * was. Enter is the form's own submit, which is the opening one — the gesture
+ * of somebody who typed a name and wants to start writing.
+ */
+const submit = async ({ open = true } = {}) => {
   if (!canSubmit.value) return;
   isSubmitting.value = true;
   try {
-    emit('create', { format: props.format, name: name.value.trim() });
+    emit('create', { format: props.format, name: name.value.trim(), open });
     isOpen.value = false;
   } finally {
     isSubmitting.value = false;
@@ -66,7 +74,7 @@ watch(
   <ModalDialog v-model="isOpen">
     <template #title>{{ title }}</template>
 
-    <form class="flex flex-col gap-4" @submit.prevent="submit">
+    <form class="flex flex-col gap-4" @submit.prevent="submit({ open: true })">
       <label class="flex flex-col gap-1">
         <span class="text-xs text-neutral-500 dark:text-neutral-400">
           {{ t('create.documentName') }}
@@ -83,7 +91,14 @@ watch(
         </span>
       </label>
 
-      <div class="flex justify-end gap-2">
+      <!--
+        Two ways out, because naming a document and writing it are two separate
+        wants. One button did both and promised both, and the document it
+        promised to open never appeared for a .txt, a .md or a .csv — so what it
+        looked like it did was nothing but create. Now the choice is said out
+        loud: leave it in the folder, or go and write it.
+      -->
+      <div class="flex flex-wrap justify-end gap-2">
         <button
           type="button"
           class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-100 dark:border-neutral-600 dark:hover:bg-zinc-800"
@@ -92,7 +107,17 @@ watch(
           {{ t('common.cancel') }}
         </button>
         <button
+          type="button"
+          data-test="create-only"
+          class="rounded-md border border-blue-600 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-60 dark:border-blue-400 dark:text-blue-300 dark:hover:bg-blue-500/10"
+          :disabled="!canSubmit"
+          @click="submit({ open: false })"
+        >
+          {{ t('common.create') }}
+        </button>
+        <button
           type="submit"
+          data-test="create-and-open"
           class="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-60"
           :disabled="!canSubmit"
         >

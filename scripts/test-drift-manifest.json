@@ -104,6 +104,11 @@
     {
       "file": "^frontend/src/views/ShareLoginView\\.spec\\.js$",
       "note": "`follows a path inside the site` is `follows a path inside the site, without starting the application again` here, and the longer name is the point: it used to follow by reloading the page, so the application started, read the share, let the visitor in and started again from nothing. The case asserts the navigation is the router's now, and that nothing was assigned to the window's location."
+    },
+    {
+      "file": "^frontend/src/components/CreateNew\\.spec\\.js$",
+      "cases": ["creates the document under the name given, then opens it"],
+      "note": "renamed to `creates the document under the name given, then opens it the way the listing does`, and the longer name is the point: the case used to watch the preview manager be asked, which is what was wrong. A .txt, a .md and a .csv have no preview plugin, so the manager answered false in silence and the button that promised to open the document only created it. It watches `openItem` now — the door a double click on a row already goes through — and two cases beside it say the rest: a text file, which has no preview, opens the same way, and the other button creates the document and opens nothing."
     }
   ]
 }
