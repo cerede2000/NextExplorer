@@ -3,7 +3,11 @@ const path = require('path');
 const fs = require('fs/promises');
 
 const { createUploadMiddleware } = require('../services/uploadService');
-const { handleTusUpload, listFinalizations } = require('../services/tusUploadService');
+const {
+  handleTusUpload,
+  listFinalizations,
+  listUnfinished,
+} = require('../services/tusUploadService');
 const { reserveFolderUploadTarget } = require('../services/uploadFolderTargetService');
 const { responseEndCompat } = require('../middleware/responseEndCompat');
 const { describeBytes, explainMultipartRefusals } = require('../middleware/multipartRefusals');
@@ -47,6 +51,28 @@ router.get(
   '/upload/finalizations',
   asyncHandler(async (req, res) => {
     res.json({ items: listFinalizations(req) });
+  })
+);
+
+/**
+ * Files this person started sending and did not finish.
+ *
+ * An upload cannot carry on by itself the way a copy does: the bytes are in the
+ * browser, so when the tab goes away nobody is sending any. What can be done is
+ * keep what arrived and continue from there — which the chunked uploader does,
+ * and which a reader has to be able to *find*. This is that list: what did not
+ * arrive, how far it got, and where it was going. Handing the same file over
+ * again continues it instead of sending it all over.
+ *
+ * Only the caller's own, and only the ones started under the share they are
+ * asking from. A direct upload is never here: one request carrying a whole body
+ * has no position to come back to, which is why a file too big for one goes in
+ * chunks.
+ */
+router.get(
+  '/upload/unfinished',
+  asyncHandler(async (req, res) => {
+    res.json({ items: await listUnfinished(req) });
   })
 );
 

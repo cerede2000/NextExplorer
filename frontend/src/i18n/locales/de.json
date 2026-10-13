@@ -329,15 +329,18 @@
     "unreadableHeading": "Einige Einträge konnten nicht gelesen werden",
     "unreadableBody": "1 Eintrag konnte nicht gelesen werden und fehlt im Ergebnis. | {count} Einträge konnten nicht gelesen werden und fehlen im Ergebnis.",
     "unreadableSourceKept": "Das Original bleibt, wo es ist, denn es enthält die einzige Kopie davon.",
-    "interruptedCopy": "Ein Kopiervorgang wurde nicht abgeschlossen",
-    "interruptedMove": "Ein Verschiebevorgang wurde nicht abgeschlossen",
-    "interruptedOther": "Ein Vorgang wurde nicht abgeschlossen",
-    "interruptedBody": "Der Server wurde neu gestartet, während er an {destination} arbeitete. Was bereits angekommen war, ist dort, der Rest liegt dort, wo er war.",
+    "interruptedBody": "Der Server wurde vor dem Ende neu gestartet. Was bereits angekommen war, ist am Ziel, der Rest liegt dort, wo er war.",
     "interruptedCarrying": "Betroffene Einträge: {paths}",
-    "finishedCopy": "Das Kopieren ist abgeschlossen",
-    "finishedMove": "Das Verschieben ist abgeschlossen",
-    "finishedOther": "Der Vorgang ist abgeschlossen",
-    "finishedBody": "Alles ist in {destination} angekommen."
+    "interruptedHeading": "Ein Vorgang wurde nicht abgeschlossen | {count} Vorgänge wurden nicht abgeschlossen",
+    "finishedHeading": "Ein Vorgang wurde abgeschlossen, während niemand zusah | {count} Vorgänge wurden abgeschlossen, während niemand zusah",
+    "failedHeading": "Ein Vorgang ist fehlgeschlagen | {count} Vorgänge sind fehlgeschlagen",
+    "newsKindCopy": "Kopieren",
+    "newsKindMove": "Verschieben",
+    "newsKindDelete": "Löschen",
+    "newsKindExtract": "Entpacken",
+    "newsKindCompress": "Packen",
+    "newsKindRestore": "Wiederherstellen",
+    "newsKindOther": "Vorgang"
   },
   "volumes": {
     "quickAccess": "Schnellzugriff",
@@ -432,7 +435,9 @@
     "pauseUploads": "Uploads pausieren",
     "resumeUploads": "Uploads fortsetzen",
     "uploads": "{count} {items} werden hochgeladen",
-    "finalizing": "Wird abgeschlossen"
+    "finalizing": "Wird abgeschlossen",
+    "notArrivedHeading": "Eine Datei ist nicht vollständig angekommen | {count} Dateien sind nicht vollständig angekommen",
+    "notArrivedBody": "Dieselbe Datei erneut übergeben, um dort weiterzumachen, wo sie stehen geblieben ist — nichts bereits Gesendetes wird zweimal gesendet."
   },
   "info": {
     "aria": "Info-Panel",

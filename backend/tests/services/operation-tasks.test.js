@@ -440,7 +440,7 @@ describe('stopping an operation', () => {
 });
 
 describe('what a restart took', () => {
-  it('is recorded while it runs and released when it ends', async () => {
+  it('is recorded while it runs, and released once somebody has been told', async () => {
     const { tasks, journal } = await setup();
     const { handle, release } = openHeldTask(tasks);
 
@@ -453,9 +453,82 @@ describe('what a restart took', () => {
       owner: alice,
     });
 
+    // Somebody is watching, so the end of it is news they are given at once.
+    tasks.watch(handle.id, alice, {}, () => {});
     release();
     handle.seal();
     await handle.settled;
+    expect(records(journal)).toHaveLength(0);
+    expect(tasks.untoldFor(alice, null).unreported).toEqual([]);
+  });
+
+  /**
+   * And kept when nobody was.
+   *
+   * It is the other half of an operation outliving its tab: it also *ends* out
+   * of sight. An end nobody saw is an end nobody was told about, so what became
+   * of it waits with the rest of the news.
+   */
+  it('keeps what ended with no window open on it, and hands it over once', async () => {
+    const { tasks, journal } = await setup();
+    const { handle, release } = openHeldTask(tasks);
+
+    release();
+    handle.seal();
+    await handle.settled;
+
+    expect(records(journal)).toHaveLength(1);
+    expect(tasks.untoldFor(alice, null)).toMatchObject({
+      interrupted: [],
+      unreported: [
+        {
+          id: handle.id,
+          kind: 'copy',
+          outcome: 'done',
+          destination: 'Projects/Dropbox',
+          items: 1,
+        },
+      ],
+    });
+    expect(tasks.untoldFor(bob, null).unreported).toEqual([]);
+
+    expect(tasks.forgetUntold(alice, null, [handle.id])).toEqual({ forgotten: 1 });
+    expect(tasks.untoldFor(alice, null).unreported).toEqual([]);
+    expect(records(journal)).toHaveLength(0);
+  });
+
+  it('keeps a failure the same way, which is news worth more than a success', async () => {
+    const { tasks } = await setup();
+    const handle = tasks.open({ kind: 'copy', owner: alice, destination: 'Dropbox' });
+    handle.enqueue(
+      async () => {
+        throw new Error('no room');
+      },
+      () => ({ message: 'Transfer failed.', code: 'TRANSFER_FAILED' })
+    );
+    handle.seal();
+    await handle.settled;
+
+    expect(tasks.untoldFor(alice, null).unreported).toMatchObject([
+      { kind: 'copy', outcome: 'failed' },
+    ]);
+  });
+
+  // A cancellation is not news: it is what its owner asked for, wherever from.
+  it('says nothing about an operation its owner stopped', async () => {
+    const { tasks, journal } = await setup();
+    const handle = tasks.open({ kind: 'copy', owner: alice, destination: 'Dropbox' });
+    handle.enqueue(async () => {
+      await new Promise((resolve) => handle.signal.addEventListener('abort', resolve));
+      const stopped = new Error('Operation cancelled.');
+      stopped.code = 'OPERATION_CANCELLED';
+      throw stopped;
+    });
+
+    expect(tasks.cancel(handle.id, alice, {})).toBe(true);
+    expect((await handle.settled).state).toBe('cancelled');
+
+    expect(tasks.untoldFor(alice, null).unreported).toEqual([]);
     expect(records(journal)).toHaveLength(0);
   });
 
@@ -476,38 +549,65 @@ describe('what a restart took', () => {
       })
     );
 
-    expect(tasks.reportInterrupted()).toEqual({ interrupted: 1 });
-    expect(tasks.interruptedFor(alice, null)).toEqual([
+    expect(tasks.reportInterrupted()).toEqual({ interrupted: 1, unreported: 0 });
+    expect(tasks.untoldFor(alice, null).interrupted).toEqual([
       {
         id: 'lost-1',
         kind: 'move',
         destination: 'Archive/2026',
         paths: ['Docs/report.txt', 'Docs/plan.md'],
         startedAt: '2026-10-01T10:00:00Z',
-        interruptedAt: expect.any(String),
       },
     ]);
-    expect(tasks.interruptedFor(bob, null)).toEqual([]);
-    expect(tasks.interruptedFor(alice, 'share-a')).toEqual([]);
+    expect(tasks.untoldFor(bob, null).interrupted).toEqual([]);
+    expect(tasks.untoldFor(alice, 'share-a').interrupted).toEqual([]);
 
     // Stamped, so the next start does not log it a second time.
     const kept = JSON.parse(fs.readFileSync(path.join(journal, 'lost-1.json'), 'utf8'));
-    expect(kept.interruptedAt).toBeTypeOf('string');
+    expect(kept.noticedAt).toBeTypeOf('string');
 
-    expect(tasks.forgetInterrupted(bob, null, [])).toEqual({ forgotten: 0 });
+    expect(tasks.forgetUntold(bob, null, [])).toEqual({ forgotten: 0 });
     expect(records(journal)).toHaveLength(1);
-    expect(tasks.forgetInterrupted(alice, null, [])).toEqual({ forgotten: 1 });
+    expect(tasks.forgetUntold(alice, null, [])).toEqual({ forgotten: 1 });
     expect(records(journal)).toHaveLength(0);
-    expect(tasks.interruptedFor(alice, null)).toEqual([]);
+    expect(tasks.untoldFor(alice, null).interrupted).toEqual([]);
+  });
+
+  it('tells an outcome an earlier run never got to report', async () => {
+    const { tasks, journal } = await setup();
+    fs.mkdirSync(journal, { recursive: true });
+    fs.writeFileSync(
+      path.join(journal, 'ended-1.json'),
+      JSON.stringify({
+        id: 'ended-1',
+        runId: 'an-earlier-run',
+        kind: 'compress',
+        owner: alice,
+        shareId: null,
+        destination: 'Archive',
+        name: 'bundle.zip',
+        paths: [],
+        startedAt: '2026-10-01T10:00:00Z',
+        outcome: 'done',
+        items: 3,
+        finishedAt: '2026-10-01T10:04:00Z',
+      })
+    );
+
+    expect(tasks.reportInterrupted()).toEqual({ interrupted: 0, unreported: 1 });
+    expect(tasks.untoldFor(alice, null)).toMatchObject({
+      interrupted: [],
+      unreported: [{ id: 'ended-1', kind: 'compress', outcome: 'done', name: 'bundle.zip' }],
+    });
   });
 
   it('leaves the records of this very run alone', async () => {
     const { tasks, journal } = await setup();
     const { handle, release } = openHeldTask(tasks);
 
-    expect(tasks.reportInterrupted()).toEqual({ interrupted: 0 });
+    expect(tasks.reportInterrupted()).toEqual({ interrupted: 0, unreported: 0 });
     expect(records(journal)).toHaveLength(1);
-    expect(tasks.interruptedFor(alice, null)).toEqual([]);
+    expect(tasks.untoldFor(alice, null).interrupted).toEqual([]);
 
     release();
     handle.seal();

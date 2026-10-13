@@ -329,15 +329,18 @@
     "unreadableHeading": "कुछ प्रविष्टियाँ पढ़ी नहीं जा सकीं",
     "unreadableBody": "1 प्रविष्टि पढ़ी नहीं जा सकी और परिणाम में नहीं है। | {count} प्रविष्टियाँ पढ़ी नहीं जा सकीं और परिणाम में नहीं हैं।",
     "unreadableSourceKept": "मूल को यथावत छोड़ दिया गया, क्योंकि उसी में उनकी एकमात्र प्रति है।",
-    "interruptedCopy": "एक कॉपी पूरी नहीं हुई",
-    "interruptedMove": "एक स्थानांतरण पूरा नहीं हुआ",
-    "interruptedOther": "एक कार्य पूरा नहीं हुआ",
-    "interruptedBody": "{destination} पर काम करते समय सर्वर पुनः आरंभ हो गया। जो पहले पहुँच चुका था वह वहीं है, बाकी अपनी जगह पर है।",
+    "interruptedBody": "पूरा होने से पहले सर्वर पुनः आरंभ हो गया। जो पहले पहुँच चुका था वह गंतव्य पर है, बाकी अपनी जगह पर है।",
     "interruptedCarrying": "संबंधित आइटम: {paths}",
-    "finishedCopy": "कॉपी पूरी हो गई",
-    "finishedMove": "स्थानांतरण पूरा हो गया",
-    "finishedOther": "कार्य पूरा हो गया",
-    "finishedBody": "सब कुछ {destination} में पहुँच गया।"
+    "interruptedHeading": "एक कार्य पूरा नहीं हुआ | {count} कार्य पूरे नहीं हुए",
+    "finishedHeading": "एक कार्य पूरा हुआ, कोई देख नहीं रहा था | {count} कार्य पूरे हुए, कोई देख नहीं रहा था",
+    "failedHeading": "एक कार्य विफल हुआ | {count} कार्य विफल हुए",
+    "newsKindCopy": "कॉपी",
+    "newsKindMove": "स्थानांतरण",
+    "newsKindDelete": "हटाना",
+    "newsKindExtract": "निकालना",
+    "newsKindCompress": "संपीड़न",
+    "newsKindRestore": "पुनर्स्थापना",
+    "newsKindOther": "कार्य"
   },
   "volumes": {
     "quickAccess": "त्वरित पहुँच",
@@ -432,7 +435,9 @@
     "pauseUploads": "अपलोड रोकें",
     "resumeUploads": "अपलोड फिर शुरू करें",
     "uploads": "{count} {items} अपलोड हो रहे हैं",
-    "finalizing": "पूरा किया जा रहा है"
+    "finalizing": "पूरा किया जा रहा है",
+    "notArrivedHeading": "एक फ़ाइल पूरी नहीं पहुँची | {count} फ़ाइलें पूरी नहीं पहुँचीं",
+    "notArrivedBody": "जहाँ रुकी थी वहीं से जारी रखने के लिए वही फ़ाइल दोबारा दें — जो पहले भेजा जा चुका है वह दोबारा नहीं भेजा जाता।"
   },
   "info": {
     "aria": "जानकारी पैनल",

@@ -29,6 +29,7 @@ export const fetchOperationTasks = async () => {
   return {
     items: Array.isArray(payload?.items) ? payload.items : [],
     interrupted: Array.isArray(payload?.interrupted) ? payload.interrupted : [],
+    unreported: Array.isArray(payload?.unreported) ? payload.unreported : [],
   };
 };
 
@@ -53,15 +54,16 @@ export const cancelOperationTask = (taskId) =>
   });
 
 /**
- * What a restart took, acknowledged.
+ * The news, acknowledged.
  *
- * Nothing is resumed across a stop — half a copy is a state on disk, and picking
- * it up would mean deciding about what is already there — so what the server has
- * is a record of what was in flight, kept until the person who started it has
- * been told. Without `ids`, all of theirs.
+ * Two kinds of it: what a restart was carrying, and what ended while no window
+ * was open on it. Nothing is resumed across a stop — half a copy is a state on
+ * disk, and picking it up would mean deciding about what is already there — so
+ * what the server keeps is the news itself, until whoever started it has been
+ * told. Without `ids`, all of theirs.
  */
-export const forgetInterruptedTasks = (ids = []) =>
-  requestJson(shareScopedForPage('/api/tasks/interrupted/ack'), {
+export const forgetTaskNews = (ids = []) =>
+  requestJson(shareScopedForPage('/api/tasks/told'), {
     method: 'POST',
     body: JSON.stringify({ ids }),
   });

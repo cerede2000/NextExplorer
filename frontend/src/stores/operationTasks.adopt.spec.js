@@ -73,7 +73,7 @@ beforeEach(() => {
   cancelOperationTask.mockReset();
   cancelOperationTask.mockResolvedValue({ cancelled: true });
   watchOperationTask.mockResolvedValue({ type: 'done', destination: 'Archive/2026' });
-  fetchOperationTasks.mockResolvedValue({ items: [], interrupted: [] });
+  fetchOperationTasks.mockResolvedValue({ items: [], interrupted: [], unreported: [] });
 });
 
 /**
@@ -284,6 +284,7 @@ describe('asking what is running', () => {
         running({ id: 'task-3', state: 'cancelled' }),
       ],
       interrupted: [],
+      unreported: [],
     });
 
     const { adopted } = await store.adoptServerOperations();
@@ -296,18 +297,27 @@ describe('asking what is running', () => {
    * And hands back what a restart took without adopting it: nothing is resumed
    * across a stop, so there is nothing to follow — only somebody to tell.
    */
-  it('hands back what a restart interrupted, with its paths', async () => {
+  /**
+   * And hands back the news without adopting any of it: nothing is resumed
+   * across a stop, and an operation that already ended has nothing to follow —
+   * only somebody to tell.
+   */
+  it('hands back what a restart interrupted and what ended unseen', async () => {
     const store = useOperationTasksStore();
     fetchOperationTasks.mockResolvedValue({
       items: [],
       interrupted: [{ id: 'lost-1', kind: 'move', destination: 'Archive', paths: ['Docs/a.txt'] }],
+      unreported: [{ id: 'done-1', kind: 'copy', outcome: 'done', destination: 'Archive' }],
     });
 
-    const { adopted, interrupted } = await store.adoptServerOperations();
+    const { adopted, interrupted, unreported } = await store.adoptServerOperations();
 
     expect(adopted).toEqual([]);
     expect(interrupted).toEqual([
       { id: 'lost-1', kind: 'move', destination: 'Archive', paths: ['Docs/a.txt'] },
+    ]);
+    expect(unreported).toEqual([
+      { id: 'done-1', kind: 'copy', outcome: 'done', destination: 'Archive' },
     ]);
     expect(store.operations).toHaveLength(0);
     expect(watchOperationTask).not.toHaveBeenCalled();

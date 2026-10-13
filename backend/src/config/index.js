@@ -273,9 +273,18 @@ const tusUploadDir = env.TUS_UPLOAD_DIR
   ? path.resolve(env.TUS_UPLOAD_DIR)
   : path.join(cacheDir, 'tus-uploads');
 
+/**
+ * How long an unfinished upload waits to be resumed.
+ *
+ * It is a file somebody started sending, kept in the cache with the position it
+ * reached: handing them the same file again continues from there instead of
+ * sending it all over. A day, because the reader who closed their laptop at six
+ * is the reader this exists for — and bounded, because a half-sent film takes
+ * its place on the disk until it is finished or swept.
+ */
 const tusIncompleteUploadTtlMs = (() => {
   const value = env.TUS_INCOMPLETE_UPLOAD_TTL_MS;
-  return Number.isFinite(value) && value >= 0 ? Math.floor(value) : 60 * 60 * 1000;
+  return Number.isFinite(value) && value >= 0 ? Math.floor(value) : 24 * 60 * 60 * 1000;
 })();
 
 const tusCleanupIntervalMs = (() => {

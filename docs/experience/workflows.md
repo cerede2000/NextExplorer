@@ -25,7 +25,7 @@ These are the day-to-day actions your team will take in nextExplorer. Every work
 - **Create menu upload:** Select Upload files/folders from the Create menu if you prefer a dialog.
 - **Download:** Select one or more items and hit the Download button; multiple items or folders produce a ZIP archive.
 - **Transfer control:** Pause, resume, or cancel uploads directly from the footer panel, which also shows the current rate. With several files in flight, the summary adds them up and expanding the list gives each file its own figure.
-- **Large files:** With chunked uploads enabled, a transfer resumes from where it stopped rather than starting over, and gets past reverse proxies that reject large bodies. Once every byte is sent, the server may still be writing the file into place — that phase is shown separately, so a long copy is not mistaken for a stalled upload. If the file cannot be put in its folder, the upload fails with the server’s reason instead of showing as done.
+- **Large files:** With chunked uploads enabled, a transfer resumes from where it stopped rather than starting over, and gets past reverse proxies that reject large bodies. That holds across more than a dropped packet: close the tab, reload, or restart the server, and giving the same file again continues from the position it reached — the part that arrived is kept for a day. What did not arrive is named when you come back, with how far it got. Once every byte is sent, the server may still be writing the file into place — that phase is shown separately, so a long copy is not mistaken for a stalled upload. If the file cannot be put in its folder, the upload fails with the server’s reason instead of showing as done.
 
 ## Search
 

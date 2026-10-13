@@ -329,15 +329,18 @@
     "unreadableHeading": "Vissa poster kunde inte läsas",
     "unreadableBody": "1 post kunde inte läsas och saknas i resultatet. | {count} poster kunde inte läsas och saknas i resultatet.",
     "unreadableSourceKept": "Originalet lämnades kvar, eftersom det har den enda kopian av dem.",
-    "interruptedCopy": "En kopiering slutfördes inte",
-    "interruptedMove": "En flytt slutfördes inte",
-    "interruptedOther": "En åtgärd slutfördes inte",
-    "interruptedBody": "Servern startades om medan den arbetade med {destination}. Det som redan hade kommit fram finns där, resten ligger kvar där det låg.",
+    "interruptedBody": "Servern startades om innan den var klar. Det som redan hade kommit fram finns på plats, resten ligger kvar där det låg.",
     "interruptedCarrying": "Berörda objekt: {paths}",
-    "finishedCopy": "Kopieringen är klar",
-    "finishedMove": "Flytten är klar",
-    "finishedOther": "Åtgärden är klar",
-    "finishedBody": "Allt kom fram till {destination}."
+    "interruptedHeading": "En åtgärd slutfördes inte | {count} åtgärder slutfördes inte",
+    "finishedHeading": "En åtgärd blev klar utan att någon såg det | {count} åtgärder blev klara utan att någon såg det",
+    "failedHeading": "En åtgärd misslyckades | {count} åtgärder misslyckades",
+    "newsKindCopy": "Kopiering",
+    "newsKindMove": "Flytt",
+    "newsKindDelete": "Borttagning",
+    "newsKindExtract": "Uppackning",
+    "newsKindCompress": "Packning",
+    "newsKindRestore": "Återställning",
+    "newsKindOther": "Åtgärd"
   },
   "volumes": {
     "quickAccess": "Snabbåtkomst",
@@ -432,7 +435,9 @@
     "pauseUploads": "Pausa uppladdningar",
     "resumeUploads": "Återuppta uppladdningar",
     "uploads": "Laddar upp {count} {items}",
-    "finalizing": "Slutför"
+    "finalizing": "Slutför",
+    "notArrivedHeading": "En fil kom inte fram helt | {count} filer kom inte fram helt",
+    "notArrivedBody": "Lämna samma fil igen för att fortsätta där den stannade — inget som redan skickats skickas två gånger."
   },
   "info": {
     "aria": "Infopanel",

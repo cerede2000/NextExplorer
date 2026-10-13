@@ -329,15 +329,18 @@
     "unreadableHeading": "Sommige items konden niet worden gelezen",
     "unreadableBody": "1 item kon niet worden gelezen en ontbreekt in het resultaat. | {count} items konden niet worden gelezen en ontbreken in het resultaat.",
     "unreadableSourceKept": "Het origineel blijft staan, want dat bevat de enige kopie ervan.",
-    "interruptedCopy": "Een kopie is niet voltooid",
-    "interruptedMove": "Een verplaatsing is niet voltooid",
-    "interruptedOther": "Een bewerking is niet voltooid",
-    "interruptedBody": "De server is opnieuw gestart terwijl hij aan {destination} werkte. Wat er al was aangekomen staat daar; de rest staat nog waar het stond.",
+    "interruptedBody": "De server is opnieuw gestart voordat het klaar was. Wat er al was aangekomen staat op zijn bestemming; de rest staat nog waar het stond.",
     "interruptedCarrying": "Betrokken items: {paths}",
-    "finishedCopy": "Het kopiëren is voltooid",
-    "finishedMove": "Het verplaatsen is voltooid",
-    "finishedOther": "De bewerking is voltooid",
-    "finishedBody": "Alles is aangekomen in {destination}."
+    "interruptedHeading": "Een bewerking is niet voltooid | {count} bewerkingen zijn niet voltooid",
+    "finishedHeading": "Een bewerking is voltooid terwijl niemand keek | {count} bewerkingen zijn voltooid terwijl niemand keek",
+    "failedHeading": "Een bewerking is mislukt | {count} bewerkingen zijn mislukt",
+    "newsKindCopy": "Kopiëren",
+    "newsKindMove": "Verplaatsen",
+    "newsKindDelete": "Verwijderen",
+    "newsKindExtract": "Uitpakken",
+    "newsKindCompress": "Inpakken",
+    "newsKindRestore": "Terugzetten",
+    "newsKindOther": "Bewerking"
   },
   "volumes": {
     "quickAccess": "Snelle toegang",
@@ -432,7 +435,9 @@
     "uploads": "{count} {items} uploaden",
     "pauseUploads": "Uploads pauzeren",
     "resumeUploads": "Uploads hervatten",
-    "finalizing": "Bezig met afronden"
+    "finalizing": "Bezig met afronden",
+    "notArrivedHeading": "Een bestand is niet volledig aangekomen | {count} bestanden zijn niet volledig aangekomen",
+    "notArrivedBody": "Geef hetzelfde bestand opnieuw om verder te gaan waar het stopte — niets wat al verstuurd is, gaat opnieuw."
   },
   "info": {
     "aria": "Infopaneel",

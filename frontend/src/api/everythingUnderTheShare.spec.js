@@ -177,7 +177,10 @@ describe('a request about the page a share is on', () => {
     ['the operations of whoever is reading', () => tasks.fetchOperationTasks()],
     ['one of them followed again', () => tasks.watchOperationTask('task-1')],
     ['one of them stopped', () => tasks.cancelOperationTask('task-1')],
-    ['what a restart took, acknowledged', () => tasks.forgetInterruptedTasks(['lost-1'])],
+    ['the news about them, acknowledged', () => tasks.forgetTaskNews(['lost-1'])],
+    // A visitor filling a shared folder can lose an upload half-way too, and
+    // theirs is the one address they reach from behind a proxy.
+    ['the uploads that did not arrive', () => files.fetchUnfinishedUploads()],
   ];
 
   it.each(PAGE_CALLS)('goes under the share: %s', async (_what, call) => {

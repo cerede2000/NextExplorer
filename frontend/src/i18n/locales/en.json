@@ -329,15 +329,18 @@
     "unreadableHeading": "Some entries could not be read",
     "unreadableBody": "1 entry could not be read and is missing from the result. | {count} entries could not be read and are missing from the result.",
     "unreadableSourceKept": "The original was left where it is, since it holds the only copy of them.",
-    "interruptedCopy": "A copy did not finish",
-    "interruptedMove": "A move did not finish",
-    "interruptedOther": "An operation did not finish",
-    "interruptedBody": "The server restarted while it was working on {destination}. What had already arrived is there, and the rest is where it was.",
+    "interruptedBody": "The server restarted before it was done. What had already arrived is where it was going, and the rest is where it was.",
     "interruptedCarrying": "Items involved: {paths}",
-    "finishedCopy": "The copy has finished",
-    "finishedMove": "The move has finished",
-    "finishedOther": "The operation has finished",
-    "finishedBody": "Everything arrived in {destination}."
+    "interruptedHeading": "An operation did not finish | {count} operations did not finish",
+    "finishedHeading": "An operation finished while nothing was watching | {count} operations finished while nothing was watching",
+    "failedHeading": "An operation failed | {count} operations failed",
+    "newsKindCopy": "Copy",
+    "newsKindMove": "Move",
+    "newsKindDelete": "Deletion",
+    "newsKindExtract": "Extraction",
+    "newsKindCompress": "Compression",
+    "newsKindRestore": "Restore",
+    "newsKindOther": "Operation"
   },
   "volumes": {
     "quickAccess": "Quick access",
@@ -432,7 +435,9 @@
     "pauseUploads": "Pause uploads",
     "resumeUploads": "Resume uploads",
     "uploads": "Uploading {count} {items}",
-    "finalizing": "Finishing up"
+    "finalizing": "Finishing up",
+    "notArrivedHeading": "A file did not arrive in full | {count} files did not arrive in full",
+    "notArrivedBody": "Give the same file again to carry on from where it stopped — nothing already sent is sent twice."
   },
   "info": {
     "aria": "Info panel",

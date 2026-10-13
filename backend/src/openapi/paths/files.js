@@ -231,7 +231,10 @@ tab — and it answers for the caller's own operations only.
 
 \`interrupted\` is something else: nothing is resumed across a restart, so this
 is the record of what was in flight when the server stopped, with the paths,
-kept until the account that started it has been told.
+kept until the account that started it has been told. \`unreported\` is the other
+half of an operation outliving its tab: one that *ended* with no window open on
+it ended out of sight, so what became of it is kept as news too \u2014 a
+cancellation apart, which is what its owner asked for.
 
 What an operation *did* is not here, however it ended: every page load asks this,
 and a copy of a hundred thousand files would answer it with all of them. It is in
@@ -276,26 +279,43 @@ the \`done\` event of the operation's own stream.`,
                     id: str(),
                     kind: str(),
                     destination: str(),
+                    name: str(),
                     paths: arrayOf(str()),
                     startedAt: dateTime(),
-                    interruptedAt: dateTime(),
                   },
                   ['id', 'kind', 'destination']
                 )
               ),
+              unreported: arrayOf(
+                obj(
+                  {
+                    id: str(),
+                    kind: str(),
+                    outcome: str(null, { examples: ['done', 'failed'] }),
+                    destination: str(),
+                    name: str(),
+                    paths: arrayOf(str()),
+                    items: int('How many it got through.'),
+                    startedAt: dateTime(),
+                    finishedAt: dateTime(),
+                  },
+                  ['id', 'kind', 'outcome']
+                )
+              ),
             },
-            ['items', 'interrupted']
+            ['items', 'interrupted', 'unreported']
           )
         ),
         ...errors(401),
       },
     }),
   },
-  '/api/tasks/interrupted/ack': {
+  '/api/tasks/told': {
     post: op({
-      id: 'forgetInterruptedOperations',
-      summary: 'Acknowledge what a restart interrupted',
-      description: 'Without `ids`, everything of the caller\u2019s that is waiting to be reported.',
+      id: 'acknowledgeOperationNews',
+      summary: 'Acknowledge the news about operations',
+      description:
+        'What a restart was carrying, and what ended with no window open on it. Without `ids`, everything of the caller\u2019s that is waiting to be reported.',
       tag: TAG,
       access: 'account',
       body: body(obj({ ids: arrayOf(str()) })),
@@ -688,6 +708,49 @@ operation.`,
       access: 'account',
       responses: {
         200: json(obj({ items: arrayOf(obj({}, [], { additionalProperties: true })) }, ['items'])),
+        ...errors(401),
+      },
+    }),
+  },
+  '/api/upload/unfinished': {
+    get: op({
+      id: 'listUnfinishedUploads',
+      summary: 'Uploads the caller started and did not finish',
+      description: `An upload cannot carry on by itself the way a copy does: the bytes are in the
+browser, so when the tab goes away nobody is sending any. What arrived is kept
+with the position it reached (\`TUS_INCOMPLETE_UPLOAD_TTL_MS\`, a day by
+default), and sending the same file again continues from \`offset\` instead of
+sending it all over. This is how a client finds out there is anything to
+continue \u2014 including from another browser, where it has no record of its own.
+
+The caller's own, and only the ones started under the share they are asking
+from. A direct upload is never here: one request carrying a whole body has no
+position to come back to.`,
+      tag: 'Uploads',
+      access: 'account',
+      responses: {
+        200: json(
+          obj(
+            {
+              items: arrayOf(
+                obj(
+                  {
+                    id: str('The upload, as `/api/upload/tus/{id}`.'),
+                    name: str('What it will be called where it is going.'),
+                    size: nullable(int()),
+                    offset: int('How many bytes arrived.'),
+                    destination: str(),
+                    uploadTo: str('The folder it is going into.'),
+                    lastModified: nullable(int('Of the file it is waiting for.')),
+                    startedAt: dateTime(),
+                  },
+                  ['id', 'name', 'offset']
+                )
+              ),
+            },
+            ['items']
+          )
+        ),
         ...errors(401),
       },
     }),

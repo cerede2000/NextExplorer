@@ -25,13 +25,17 @@ const asking = (req) => {
 };
 
 /**
- * What is running, what has just finished, and what a restart took.
+ * What is running, and the news nobody has given this caller yet.
  *
- * The interrupted ones are not tasks: nothing is resumed across a stop, by
- * design — half a copy is a state on disk, and picking it up would mean deciding
- * about what is already there. They are a record of what was in flight when the
- * server went down, kept so the person who started it is told, with the paths,
- * rather than left to find out by looking.
+ * Two kinds of news, and neither is a task. `interrupted` is what was in flight
+ * when the server stopped: nothing is resumed across a stop, by design — half a
+ * copy is a state on disk, and picking it up would mean deciding about what is
+ * already there — so what it was carrying is written down instead, with the
+ * paths. `unreported` is the other half of taking the work out of the request:
+ * an operation that outlives its tab also *ends* out of sight, and an end nobody
+ * saw is an end nobody was told about.
+ *
+ * Handed over once. `POST /api/tasks/told` is how a caller says it has been.
  */
 router.get(
   '/tasks',
@@ -39,18 +43,18 @@ router.get(
     const { owner, shareId } = asking(req);
     res.json({
       items: operationTasks.listFor(owner, { shareId }),
-      interrupted: operationTasks.interruptedFor(owner, shareId),
+      ...operationTasks.untoldFor(owner, shareId),
     });
   })
 );
 
-// Told, and no longer waiting to be. Without `ids`, all of them.
+// Told, and no longer waiting to be. Without `ids`, everything of this caller's.
 router.post(
-  '/tasks/interrupted/ack',
+  '/tasks/told',
   asyncHandler(async (req, res) => {
     const { owner, shareId } = asking(req);
     const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
-    res.json(operationTasks.forgetInterrupted(owner, shareId, ids));
+    res.json(operationTasks.forgetUntold(owner, shareId, ids));
   })
 );
 

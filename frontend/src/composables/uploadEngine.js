@@ -398,9 +398,29 @@ export const createUploadEngine = async () => {
           'relativePath',
           'resolvedRelativePath',
           'uploadBatchId',
+          // When the file was last changed, which is what tells one file from
+          // another of the same name and size — so what the server keeps of an
+          // unfinished upload can say which file it was waiting for.
+          'lastModified',
         ],
         removeFingerprintOnSuccess: true,
-        storeFingerprintForResuming: false,
+        /**
+         * Remember where an upload got to, so the same file continues instead of
+         * starting again.
+         *
+         * The bytes are in the browser: an upload cannot carry on by itself when
+         * the tab goes away, the way a copy in the server does. What it can do is
+         * come back to where it stopped — the server keeps the part that arrived
+         * for a day — and that needs the address of the upload to survive the
+         * page, which is what this stores. Without it a reader who lost their
+         * connection at ninety per cent sent the whole file again.
+         *
+         * Safe because the fingerprint tells the destination apart: see the
+         * per-file endpoint in `file-added`. A fingerprint that did not would
+         * resume an upload bound for another folder, and the file would land
+         * where it was never sent.
+         */
+        storeFingerprintForResuming: true,
         // Resume a dropped chunk a few times before giving up. The browser File is
         // disk-backed and @tus/server resumes from the last stored offset, so a
         // retry re-sends only the unacknowledged bytes — not the whole file, and
@@ -614,8 +634,30 @@ export const createUploadEngine = async () => {
     // resumable one holds a single endpoint, so it is pointed at the share
     // whenever a file is queued inside one — and the server keeps that prefix in
     // the address it answers with, so every chunk after the first goes there too.
-    uppy.getPlugin('Tus')?.setOptions?.({
-      endpoint: `${apiBase}${shareScoped('/api/upload/tus', uploadTo)}`,
+    const tusEndpoint = `${apiBase}${shareScoped('/api/upload/tus', uploadTo)}`;
+    uppy.getPlugin('Tus')?.setOptions?.({ endpoint: tusEndpoint });
+    /**
+     * And the same address again, per file, with the folder it is going to.
+     *
+     * The folder is the one thing missing from what decides whether an upload
+     * may be resumed. tus-js-client looks a previous upload up by a fingerprint
+     * that Uppy builds as `['tus', file.id, endpoint]` — where `file.id` is the
+     * name, type, size and date of the file, and the endpoint is the same for
+     * every folder, since where the file goes travels in the metadata. So the
+     * same file sent to two folders had one fingerprint between them: interrupt
+     * the first and start the second, and the second would resume the first and
+     * land the file in a folder nobody sent it to.
+     *
+     * Nothing reads this on the server — the destination is the metadata's, and
+     * is authorized from there (`resolveTusUploadTarget`). It is here to tell
+     * two uploads apart, and the address the server answers with for the chunks
+     * carries no query at all.
+     */
+    uppy.setFileState(file.id, {
+      tus: {
+        ...(file.tus || {}),
+        endpoint: `${tusEndpoint}?for=${encodeURIComponent(uploadTo)}`,
+      },
     });
     uppy.setFileMeta(file.id, {
       ...(file.meta || {}),
@@ -625,6 +667,8 @@ export const createUploadEngine = async () => {
       // the file or not, so a field left unset reaches the server as the
       // literal "undefined". Only folder uploads fill this one in.
       resolvedRelativePath: file?.meta?.resolvedRelativePath || '',
+      // What tells this file from another of the same name and size.
+      lastModified: String(file?.data?.lastModified ?? ''),
     });
     startUploadTask(file, uploadTo);
   });

@@ -329,15 +329,18 @@
     "unreadableHeading": "部分項目無法讀取",
     "unreadableBody": "有 1 個項目無法讀取，結果中缺少它。 | 有 {count} 個項目無法讀取，結果中缺少它們。",
     "unreadableSourceKept": "原件保留在原處，因為它保存著這些項目的唯一副本。",
-    "interruptedCopy": "複製未完成",
-    "interruptedMove": "移動未完成",
-    "interruptedOther": "操作未完成",
-    "interruptedBody": "伺服器在處理 {destination} 時重新啟動。已經抵達的內容在那裡，其餘仍在原處。",
+    "interruptedBody": "伺服器在結束前重新啟動。已經抵達的內容在目標位置，其餘仍在原處。",
     "interruptedCarrying": "涉及的項目：{paths}",
-    "finishedCopy": "複製已完成",
-    "finishedMove": "移動已完成",
-    "finishedOther": "操作已完成",
-    "finishedBody": "全部已抵達 {destination}。"
+    "interruptedHeading": "一項操作未完成 | {count} 項操作未完成",
+    "finishedHeading": "一項操作在無人查看時完成 | {count} 項操作在無人查看時完成",
+    "failedHeading": "一項操作失敗 | {count} 項操作失敗",
+    "newsKindCopy": "複製",
+    "newsKindMove": "移動",
+    "newsKindDelete": "刪除",
+    "newsKindExtract": "解壓縮",
+    "newsKindCompress": "壓縮",
+    "newsKindRestore": "還原",
+    "newsKindOther": "操作"
   },
   "volumes": {
     "quickAccess": "快速訪問",
@@ -432,7 +435,9 @@
     "pauseUploads": "暫停上傳",
     "resumeUploads": "繼續上傳",
     "uploads": "正在上傳 {count} 個{items}",
-    "finalizing": "正在收尾"
+    "finalizing": "正在收尾",
+    "notArrivedHeading": "一個檔案沒有完整抵達 | {count} 個檔案沒有完整抵達",
+    "notArrivedBody": "再次提供同一個檔案即可從中斷處繼續，已經傳送的部分不會重傳。"
   },
   "info": {
     "aria": "資訊面板",

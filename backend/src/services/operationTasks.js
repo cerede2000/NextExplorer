@@ -60,16 +60,26 @@ const MAX_WATCHERS_PER_TASK = 8;
 /** Source paths kept in the record a restart leaves behind. */
 const MAX_RECORDED_PATHS = 10;
 
-/** Interrupted reports nobody collected are dropped after this. */
-const RETAIN_INTERRUPTED_MS = 7 * 24 * 60 * 60 * 1000;
+/** News nobody collected is dropped after this. */
+const RETAIN_UNTOLD_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** News one owner may have waiting, oldest first out. */
+const MAX_UNTOLD_PER_OWNER = 50;
 
 // Records written by this process belong to tasks of this run.
 const RUN_ID = generateId();
 
 const tasks = new Map();
 
-/** Reports of tasks an earlier run was carrying, read once at start. */
-let interrupted = [];
+/**
+ * What this instance has not told anybody about yet.
+ *
+ * Two kinds, and the difference is one field: a record with no `outcome` is an
+ * operation a stop interrupted, and one with an outcome is an operation that
+ * ended while nobody had a window open on it. Read from disk once at start, and
+ * added to as operations end unwatched.
+ */
+let untold = [];
 
 const journalDirectory = () => path.join(directories.cache, 'tasks');
 
@@ -196,10 +206,15 @@ const tell = (task, event) => {
 const recordPath = (id) => path.join(journalDirectory(), `${id}.json`);
 
 /**
- * Write down what this task is about, so a stop in the middle of it is not
- * silent. Never throws: a task must not fail because it could not be recorded.
+ * Write down what this task is about, so neither a stop in the middle of it nor
+ * an end nobody saw is silent. Never throws: a task must not fail because it
+ * could not be recorded.
+ *
+ * `outcome` is what became of it, where that is already known and nobody was
+ * watching — see `settle`. While it runs there is none, and a record without one
+ * at the next start is an operation a stop interrupted.
  */
-const record = (task) => {
+const record = (task, outcome = null) => {
   try {
     fs.mkdirSync(journalDirectory(), { recursive: true });
     fs.writeFileSync(
@@ -211,12 +226,20 @@ const record = (task) => {
         owner: task.owner,
         shareId: task.shareId ?? null,
         destination: task.destination,
+        name: task.label || null,
         paths: task.itemNames.slice(0, MAX_RECORDED_PATHS),
         startedAt: new Date(task.startedAt).toISOString(),
+        ...(outcome
+          ? {
+              outcome,
+              items: task.completedItems,
+              finishedAt: new Date(task.finishedAt || Date.now()).toISOString(),
+            }
+          : {}),
       })
     );
   } catch (error) {
-    logger.debug({ err: error, taskId: task.id }, 'Could not record a running operation');
+    logger.debug({ err: error, taskId: task.id }, 'Could not record an operation');
   }
 };
 
@@ -246,7 +269,7 @@ const reportInterrupted = () => {
   try {
     names = fs.readdirSync(journalDirectory());
   } catch {
-    return { interrupted: 0 };
+    return { interrupted: 0, unreported: 0 };
   }
 
   const collected = [];
@@ -257,85 +280,145 @@ const reportInterrupted = () => {
       const data = JSON.parse(fs.readFileSync(file, 'utf8'));
       if (data?.runId === RUN_ID) continue;
 
-      const interruptedAt = data.interruptedAt || new Date().toISOString();
-      if (Date.parse(interruptedAt) < Date.now() - RETAIN_INTERRUPTED_MS) {
+      const noticedAt = data.noticedAt || new Date().toISOString();
+      if (Date.parse(noticedAt) < Date.now() - RETAIN_UNTOLD_MS) {
         fs.rmSync(file, { force: true });
         continue;
       }
 
-      const report = { ...data, interruptedAt };
+      const report = { ...data, noticedAt };
       collected.push(report);
 
       // Logged once, when it is first noticed: a report kept for an owner who
       // never comes back would otherwise be logged again at every start.
-      if (!data.interruptedAt) {
-        logger.warn(
-          {
-            taskId: report.id,
-            kind: report.kind,
-            destination: report.destination,
-            paths: report.paths,
-            startedAt: report.startedAt,
-          },
-          'An operation was interrupted by a stop and did not finish'
-        );
+      if (!data.noticedAt) {
+        if (data.outcome) {
+          logger.info(
+            {
+              taskId: report.id,
+              kind: report.kind,
+              outcome: report.outcome,
+              destination: report.destination,
+              finishedAt: report.finishedAt,
+            },
+            'An operation ended with nobody watching and has not been reported'
+          );
+        } else {
+          logger.warn(
+            {
+              taskId: report.id,
+              kind: report.kind,
+              destination: report.destination,
+              paths: report.paths,
+              startedAt: report.startedAt,
+            },
+            'An operation was interrupted by a stop and did not finish'
+          );
+        }
         fs.writeFileSync(file, JSON.stringify(report));
       }
     } catch (error) {
-      logger.warn({ err: error, file }, 'Could not read the record of an interrupted operation');
+      logger.warn({ err: error, file }, 'Could not read the record of an operation');
       fs.rmSync(file, { force: true });
     }
   }
 
-  interrupted = collected;
+  untold = collected;
+  const interruptedCount = collected.filter((report) => !report.outcome).length;
   if (collected.length > 0) {
     logger.info(
-      { interrupted: collected.length },
-      'Operations interrupted by a stop are waiting to be reported'
+      { interrupted: interruptedCount, unreported: collected.length - interruptedCount },
+      'Operations nobody has been told about are waiting to be reported'
     );
   }
-  return { interrupted: collected.length };
+  return { interrupted: interruptedCount, unreported: collected.length - interruptedCount };
 };
 
-/** What was interrupted, as its owner may see it. */
-const interruptedFor = (owner, shareId = null) =>
-  interrupted
-    .filter(
-      (report) =>
-        sameOwner(report.owner, owner) && String(report.shareId ?? '') === String(shareId ?? '')
-    )
-    .map((report) => ({
-      id: report.id,
-      kind: report.kind,
-      destination: report.destination,
-      paths: report.paths,
-      startedAt: report.startedAt,
-      interruptedAt: report.interruptedAt,
-    }));
+const mine = (report, owner, shareId) =>
+  sameOwner(report.owner, owner) && String(report.shareId ?? '') === String(shareId ?? '');
 
-/** Told, and no longer waiting to be. */
-const forgetInterrupted = (owner, shareId, ids) => {
+const asNews = (report) => ({
+  id: report.id,
+  kind: report.kind,
+  destination: report.destination,
+  ...(report.name ? { name: report.name } : {}),
+  paths: report.paths,
+  startedAt: report.startedAt,
+  ...(report.outcome
+    ? { outcome: report.outcome, items: report.items ?? 0, finishedAt: report.finishedAt }
+    : {}),
+});
+
+/**
+ * What this owner has not been told, as they may see it.
+ *
+ * `interrupted` is what a stop was carrying; `unreported` is what ended while
+ * they had no window open on it. Both are news rather than state: they are
+ * handed over once and forgotten (see `forgetUntold`).
+ */
+const untoldFor = (owner, shareId = null) => {
+  const theirs = untold.filter((report) => mine(report, owner, shareId));
+  return {
+    interrupted: theirs.filter((report) => !report.outcome).map(asNews),
+    unreported: theirs.filter((report) => report.outcome).map(asNews),
+  };
+};
+
+/** Told, and no longer waiting to be. Without `ids`, all of this owner's. */
+const forgetUntold = (owner, shareId, ids) => {
   const wanted = new Set((Array.isArray(ids) ? ids : []).map(String));
   const kept = [];
   let forgotten = 0;
 
-  for (const report of interrupted) {
-    const mine =
-      sameOwner(report.owner, owner) && String(report.shareId ?? '') === String(shareId ?? '');
-    if (!mine || (wanted.size > 0 && !wanted.has(String(report.id)))) {
+  for (const report of untold) {
+    if (!mine(report, owner, shareId) || (wanted.size > 0 && !wanted.has(String(report.id)))) {
       kept.push(report);
       continue;
     }
     forgotten += 1;
-    try {
-      fs.rmSync(path.join(journalDirectory(), `${report.id}.json`), { force: true });
-    } catch (error) {
-      logger.debug({ err: error, taskId: report.id }, 'Could not forget an interrupted operation');
-    }
+    forgetRecordOf(report.id);
   }
 
-  interrupted = kept;
+  untold = kept;
   return { forgotten };
+};
+
+const forgetRecordOf = (id) => {
+  try {
+    fs.rmSync(path.join(journalDirectory(), `${id}.json`), { force: true });
+  } catch (error) {
+    logger.debug({ err: error, taskId: id }, 'Could not forget what was waiting to be told');
+  }
+};
+
+/**
+ * One more thing to tell this owner when they are next here.
+ *
+ * Bounded per owner, oldest out first: a script hammering the API must not
+ * leave a thousand records for a browser to be handed on the next page load.
+ */
+const keepUntold = (task, outcome) => {
+  const theirs = untold.filter((report) => mine(report, task.owner, task.shareId));
+  while (theirs.length >= MAX_UNTOLD_PER_OWNER) {
+    const oldest = theirs.shift();
+    untold = untold.filter((report) => report !== oldest);
+    forgetRecordOf(oldest.id);
+  }
+
+  untold.push({
+    id: task.id,
+    runId: RUN_ID,
+    kind: task.kind,
+    owner: task.owner,
+    shareId: task.shareId ?? null,
+    destination: task.destination,
+    name: task.label || null,
+    paths: task.itemNames.slice(0, MAX_RECORDED_PATHS),
+    startedAt: new Date(task.startedAt).toISOString(),
+    outcome,
+    items: task.completedItems,
+    finishedAt: new Date(task.finishedAt || Date.now()).toISOString(),
+  });
 };
 
 // ---------------------------------------------------------------------------
@@ -362,7 +445,25 @@ const settle = (task, state, { result = null, error = null } = {}) => {
   task.finishedAt = Date.now();
   task.result = result;
   task.error = error;
-  releaseRecord(task);
+
+  /**
+   * Whether anybody saw it end.
+   *
+   * A window open on the operation is told in the next line, and that is the
+   * end of it. With none open — the tab was closed, the reader went elsewhere —
+   * nobody has been told anything, and the record stays behind with what became
+   * of it, to be handed over the next time they are here. It was the one gap
+   * left by taking the work out of the request: an operation that outlives its
+   * tab also finishes out of sight.
+   */
+  // A cancellation is nobody's news: it is what its owner asked for, wherever
+  // they asked it from.
+  if (task.watchers.size > 0 || state === 'cancelled') {
+    releaseRecord(task);
+  } else {
+    record(task, state);
+    keepUntold(task, state);
+  }
 
   tell(task, finalEvent(task));
   task.watchers.clear();
@@ -689,7 +790,7 @@ const reset = () => {
     releaseRecord(task);
   }
   tasks.clear();
-  interrupted = [];
+  untold = [];
 };
 
 module.exports = {
@@ -703,8 +804,8 @@ module.exports = {
   cancel,
   publicView,
   reportInterrupted,
-  interruptedFor,
-  forgetInterrupted,
+  untoldFor,
+  forgetUntold,
   journalDirectory,
   reset,
   RUN_ID,

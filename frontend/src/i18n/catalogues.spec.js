@@ -42,7 +42,11 @@ describe('the translation catalogues', () => {
   });
 
   it.each(others)('%s says everything English says', (locale) => {
-    const missing = Object.keys(english).filter((key) => !(key in read(locale)));
+    // Read once, not once per key: inside the filter this opened and flattened
+    // the catalogue a thousand times, which took two seconds a language and
+    // made the case fail on a loaded machine for having nothing to say.
+    const catalogue = read(locale);
+    const missing = Object.keys(english).filter((key) => !(key in catalogue));
 
     expect(missing).toEqual([]);
   });

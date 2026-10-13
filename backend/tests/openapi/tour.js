@@ -364,7 +364,7 @@ const tour = async (app, { volume, requireFresh }) => {
   await call('GET /api/tasks/{id}/stream', admin.get(`/api/tasks/${taskId}/stream`));
   await call('POST /api/tasks/{id}/cancel', admin.post(`/api/tasks/${taskId}/cancel`));
   await call('POST /api/tasks/{id}/cancel', admin.post('/api/tasks/not-an-operation/cancel'));
-  await call('POST /api/tasks/interrupted/ack', admin.post('/api/tasks/interrupted/ack').send({}));
+  await call('POST /api/tasks/told', admin.post('/api/tasks/told').send({}));
   await call(
     'POST /api/files/delete-impact',
     admin
@@ -737,6 +737,7 @@ const tour = async (app, { volume, requireFresh }) => {
   );
   await call('OPTIONS /api/upload/tus', admin.options('/api/upload/tus'));
   await call('GET /api/upload/finalizations', admin.get('/api/upload/finalizations'));
+  await call('GET /api/upload/unfinished', admin.get('/api/upload/unfinished'));
 
   // An editor integration, where one is configured.
   const office = await call(

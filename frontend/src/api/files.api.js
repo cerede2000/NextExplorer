@@ -294,6 +294,25 @@ async function moveItems(items, destination, options = {}) {
 }
 
 /**
+ * Files this reader started sending and did not finish.
+ *
+ * An upload cannot carry on by itself the way a copy in the server does: the
+ * bytes are in the browser, so when the tab goes away nobody is sending any.
+ * What the server keeps is the part that arrived and the position it reached, so
+ * giving it the same file again sends only the rest — and this is how a reader
+ * learns there is anything to give again. Their own only, and only the ones
+ * started under the share they are asking from.
+ */
+async function fetchUnfinishedUploads() {
+  const payload = await requestJson(shareScopedForPage('/api/upload/unfinished'), {
+    // Nothing on a page depends on this: a reader who cannot be told has
+    // nothing to do about it either.
+    suppressErrorHandler: true,
+  });
+  return Array.isArray(payload?.items) ? payload.items : [];
+}
+
+/**
  * Folders this user has recently moved or copied things into, most recent
  * first. The server only returns the ones still reachable, so the picker can
  * offer them without checking each in turn.
@@ -804,6 +823,7 @@ export {
   copyItems,
   moveItems,
   fetchRecentDestinations,
+  fetchUnfinishedUploads,
   deleteItems,
   deleteItemsStream,
   getDeleteImpact,

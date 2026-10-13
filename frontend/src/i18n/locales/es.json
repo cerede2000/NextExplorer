@@ -329,15 +329,18 @@
     "unreadableHeading": "Algunas entradas no se pudieron leer",
     "unreadableBody": "1 entrada no se pudo leer y falta en el resultado. | {count} entradas no se pudieron leer y faltan en el resultado.",
     "unreadableSourceKept": "El original se dejó en su sitio, ya que conserva la única copia de ellas.",
-    "interruptedCopy": "Una copia no llegó a terminar",
-    "interruptedMove": "Un movimiento no llegó a terminar",
-    "interruptedOther": "Una operación no llegó a terminar",
-    "interruptedBody": "El servidor se reinició mientras trabajaba en {destination}. Lo que ya había llegado está allí; el resto sigue donde estaba.",
+    "interruptedBody": "El servidor se reinició antes de terminar. Lo que ya había llegado está en su destino; el resto sigue donde estaba.",
     "interruptedCarrying": "Elementos afectados: {paths}",
-    "finishedCopy": "La copia ha terminado",
-    "finishedMove": "El movimiento ha terminado",
-    "finishedOther": "La operación ha terminado",
-    "finishedBody": "Todo llegó a {destination}."
+    "interruptedHeading": "Una operación no llegó a terminar | {count} operaciones no llegaron a terminar",
+    "finishedHeading": "Una operación terminó sin que nadie la viera | {count} operaciones terminaron sin que nadie las viera",
+    "failedHeading": "Una operación falló | {count} operaciones fallaron",
+    "newsKindCopy": "Copia",
+    "newsKindMove": "Movimiento",
+    "newsKindDelete": "Eliminación",
+    "newsKindExtract": "Extracción",
+    "newsKindCompress": "Compresión",
+    "newsKindRestore": "Restauración",
+    "newsKindOther": "Operación"
   },
   "volumes": {
     "quickAccess": "Acceso rápido",
@@ -432,7 +435,9 @@
     "pauseUploads": "Pausar subidas",
     "resumeUploads": "Reanudar subidas",
     "uploads": "Subiendo {count} {items}",
-    "finalizing": "Finalizando"
+    "finalizing": "Finalizando",
+    "notArrivedHeading": "Un archivo no llegó completo | {count} archivos no llegaron completos",
+    "notArrivedBody": "Vuelve a dar el mismo archivo para continuar donde se detuvo: nada de lo ya enviado se envía dos veces."
   },
   "info": {
     "aria": "Panel de información",

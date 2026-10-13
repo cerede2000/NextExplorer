@@ -329,15 +329,18 @@
     "unreadableHeading": "Unele elemente nu au putut fi citite",
     "unreadableBody": "1 element nu a putut fi citit și lipsește din rezultat. | {count} elemente nu au putut fi citite și lipsesc din rezultat.",
     "unreadableSourceKept": "Originalul a fost lăsat la locul lui, fiindcă păstrează singura copie a lor.",
-    "interruptedCopy": "O copiere nu s-a terminat",
-    "interruptedMove": "O mutare nu s-a terminat",
-    "interruptedOther": "O operațiune nu s-a terminat",
-    "interruptedBody": "Serverul a repornit în timp ce lucra la {destination}. Ce ajunsese deja este acolo, iar restul a rămas unde era.",
+    "interruptedBody": "Serverul a repornit înainte de final. Ce ajunsese deja este la destinație, iar restul a rămas unde era.",
     "interruptedCarrying": "Elemente implicate: {paths}",
-    "finishedCopy": "Copierea s-a terminat",
-    "finishedMove": "Mutarea s-a terminat",
-    "finishedOther": "Operațiunea s-a terminat",
-    "finishedBody": "Totul a ajuns în {destination}."
+    "interruptedHeading": "O operațiune nu s-a terminat | {count} operațiuni nu s-au terminat",
+    "finishedHeading": "O operațiune s-a terminat fără ca nimeni să o vadă | {count} operațiuni s-au terminat fără ca nimeni să le vadă",
+    "failedHeading": "O operațiune a eșuat | {count} operațiuni au eșuat",
+    "newsKindCopy": "Copiere",
+    "newsKindMove": "Mutare",
+    "newsKindDelete": "Ștergere",
+    "newsKindExtract": "Dezarhivare",
+    "newsKindCompress": "Arhivare",
+    "newsKindRestore": "Restaurare",
+    "newsKindOther": "Operațiune"
   },
   "volumes": {
     "quickAccess": "Acces rapid",
@@ -432,7 +435,9 @@
     "pauseUploads": "Pune pe pauză încărcările",
     "resumeUploads": "Reia încărcările",
     "uploads": "Se încarcă {count} {items}",
-    "finalizing": "Se finalizează"
+    "finalizing": "Se finalizează",
+    "notArrivedHeading": "Un fișier nu a ajuns în întregime | {count} fișiere nu au ajuns în întregime",
+    "notArrivedBody": "Oferă din nou același fișier pentru a continua de unde s-a oprit — nimic din ce a fost deja trimis nu se trimite a doua oară."
   },
   "info": {
     "aria": "Panou informații",

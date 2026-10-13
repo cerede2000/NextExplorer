@@ -3768,7 +3768,7 @@
       "get": {
         "operationId": "listOperations",
         "summary": "Operations of the caller that are running or have just finished",
-        "description": "A copy or a move runs in the server, not in the request that asked for it: the\nresponse to `/api/files/copy` is a window onto an operation, and closing it\nstops nothing. This is how a window is reopened — after a reload, in another\ntab — and it answers for the caller's own operations only.\n\n`interrupted` is something else: nothing is resumed across a restart, so this\nis the record of what was in flight when the server stopped, with the paths,\nkept until the account that started it has been told.\n\nWhat an operation *did* is not here, however it ended: every page load asks this,\nand a copy of a hundred thousand files would answer it with all of them. It is in\nthe `done` event of the operation's own stream.",
+        "description": "A copy or a move runs in the server, not in the request that asked for it: the\nresponse to `/api/files/copy` is a window onto an operation, and closing it\nstops nothing. This is how a window is reopened — after a reload, in another\ntab — and it answers for the caller's own operations only.\n\n`interrupted` is something else: nothing is resumed across a restart, so this\nis the record of what was in flight when the server stopped, with the paths,\nkept until the account that started it has been told. `unreported` is the other\nhalf of an operation outliving its tab: one that *ended* with no window open on\nit ended out of sight, so what became of it is kept as news too — a\ncancellation apart, which is what its owner asked for.\n\nWhat an operation *did* is not here, however it ended: every page load asks this,\nand a copy of a hundred thousand files would answer it with all of them. It is in\nthe `done` event of the operation's own stream.",
         "tags": ["Files"],
         "security": [
           {
@@ -3873,6 +3873,9 @@
                           "destination": {
                             "type": "string"
                           },
+                          "name": {
+                            "type": "string"
+                          },
                           "paths": {
                             "type": "array",
                             "items": {
@@ -3882,17 +3885,56 @@
                           "startedAt": {
                             "type": "string",
                             "format": "date-time"
-                          },
-                          "interruptedAt": {
-                            "type": "string",
-                            "format": "date-time"
                           }
                         },
                         "required": ["id", "kind", "destination"]
                       }
+                    },
+                    "unreported": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "kind": {
+                            "type": "string"
+                          },
+                          "outcome": {
+                            "type": "string",
+                            "examples": ["done", "failed"]
+                          },
+                          "destination": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "paths": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "items": {
+                            "type": "integer",
+                            "description": "How many it got through."
+                          },
+                          "startedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "finishedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": ["id", "kind", "outcome"]
+                      }
                     }
                   },
-                  "required": ["items", "interrupted"]
+                  "required": ["items", "interrupted", "unreported"]
                 }
               }
             }
@@ -3903,11 +3945,11 @@
         }
       }
     },
-    "/api/tasks/interrupted/ack": {
+    "/api/tasks/told": {
       "post": {
-        "operationId": "forgetInterruptedOperations",
-        "summary": "Acknowledge what a restart interrupted",
-        "description": "Without `ids`, everything of the caller’s that is waiting to be reported.",
+        "operationId": "acknowledgeOperationNews",
+        "summary": "Acknowledge the news about operations",
+        "description": "What a restart was carrying, and what ended with no window open on it. Without `ids`, everything of the caller’s that is waiting to be reported.",
         "tags": ["Files"],
         "security": [
           {
@@ -5641,6 +5683,80 @@
                         "type": "object",
                         "properties": {},
                         "additionalProperties": true
+                      }
+                    }
+                  },
+                  "required": ["items"]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        }
+      }
+    },
+    "/api/upload/unfinished": {
+      "get": {
+        "operationId": "listUnfinishedUploads",
+        "summary": "Uploads the caller started and did not finish",
+        "description": "An upload cannot carry on by itself the way a copy does: the bytes are in the\nbrowser, so when the tab goes away nobody is sending any. What arrived is kept\nwith the position it reached (`TUS_INCOMPLETE_UPLOAD_TTL_MS`, a day by\ndefault), and sending the same file again continues from `offset` instead of\nsending it all over. This is how a client finds out there is anything to\ncontinue — including from another browser, where it has no record of its own.\n\nThe caller's own, and only the ones started under the share they are asking\nfrom. A direct upload is never here: one request carrying a whole body has no\nposition to come back to.",
+        "tags": ["Uploads"],
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "x-access": "account",
+        "responses": {
+          "200": {
+            "description": "Done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "description": "The upload, as `/api/upload/tus/{id}`."
+                          },
+                          "name": {
+                            "type": "string",
+                            "description": "What it will be called where it is going."
+                          },
+                          "size": {
+                            "type": ["integer", "null"]
+                          },
+                          "offset": {
+                            "type": "integer",
+                            "description": "How many bytes arrived."
+                          },
+                          "destination": {
+                            "type": "string"
+                          },
+                          "uploadTo": {
+                            "type": "string",
+                            "description": "The folder it is going into."
+                          },
+                          "lastModified": {
+                            "type": ["integer", "null"],
+                            "description": "Of the file it is waiting for."
+                          },
+                          "startedAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": ["id", "name", "offset"]
                       }
                     }
                   },

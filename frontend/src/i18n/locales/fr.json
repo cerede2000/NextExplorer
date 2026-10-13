@@ -329,15 +329,18 @@
     "unreadableHeading": "Certaines entrées n’ont pas pu être lues",
     "unreadableBody": "1 entrée n’a pas pu être lue et manque au résultat. | {count} entrées n’ont pas pu être lues et manquent au résultat.",
     "unreadableSourceKept": "L’original a été laissé en place, puisqu’il en détient la seule copie.",
-    "interruptedCopy": "Une copie n’est pas allée au bout",
-    "interruptedMove": "Un déplacement n’est pas allé au bout",
-    "interruptedOther": "Une opération n’est pas allée au bout",
-    "interruptedBody": "Le serveur a redémarré pendant qu’il travaillait sur {destination}. Ce qui était déjà arrivé y est, le reste est resté où il était.",
+    "interruptedBody": "Le serveur a redémarré avant la fin. Ce qui était déjà arrivé est à destination, le reste est resté où il était.",
     "interruptedCarrying": "Éléments concernés : {paths}",
-    "finishedCopy": "La copie est terminée",
-    "finishedMove": "Le déplacement est terminé",
-    "finishedOther": "L’opération est terminée",
-    "finishedBody": "Tout est arrivé dans {destination}."
+    "interruptedHeading": "Une opération n’est pas allée au bout | {count} opérations ne sont pas allées au bout",
+    "finishedHeading": "Une opération s’est terminée sans personne pour la voir | {count} opérations se sont terminées sans personne pour les voir",
+    "failedHeading": "Une opération a échoué | {count} opérations ont échoué",
+    "newsKindCopy": "Copie",
+    "newsKindMove": "Déplacement",
+    "newsKindDelete": "Suppression",
+    "newsKindExtract": "Décompression",
+    "newsKindCompress": "Compression",
+    "newsKindRestore": "Restauration",
+    "newsKindOther": "Opération"
   },
   "volumes": {
     "quickAccess": "Accès rapide",
@@ -432,7 +435,9 @@
     "pauseUploads": "Mettre en pause les téléversements",
     "resumeUploads": "Reprendre les téléversements",
     "uploads": "Téléversement de {count} {items}",
-    "finalizing": "Finalisation"
+    "finalizing": "Finalisation",
+    "notArrivedHeading": "Un fichier n’est pas arrivé en entier | {count} fichiers ne sont pas arrivés en entier",
+    "notArrivedBody": "Redonne le même fichier pour reprendre où il s’est arrêté — rien de ce qui est déjà envoyé ne repart."
   },
   "info": {
     "aria": "Panneau d'informations",

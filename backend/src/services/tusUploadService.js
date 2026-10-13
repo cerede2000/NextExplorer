@@ -501,6 +501,79 @@ const moveFile = async (source, directory, desiredName, onProgress) => {
   return placed;
 };
 
+/**
+ * When it was started: what the store wrote down, or when its bytes were first
+ * touched where that is missing or unreadable.
+ */
+const startedAtOf = (stored, dataStats) => {
+  const declared = Date.parse(stored?.creation_date ?? '');
+  const at = Number.isFinite(declared) ? declared : dataStats.birthtimeMs || dataStats.mtimeMs;
+  return new Date(at).toISOString();
+};
+
+/**
+ * Uploads this person started and did not finish, for them to continue.
+ *
+ * The bytes that arrived are in the cache with the position they reached, and
+ * `@tus/server` answers a HEAD with that position — so handing it the same file
+ * again sends only the rest. What was missing was a way to *know*: a reader who
+ * closed the tab had nothing anywhere telling them a file never arrived, and no
+ * way to find the upload it belonged to from another browser.
+ *
+ * Answered to the owner recorded at creation, under the share it was started in
+ * and no other. The position is read from the data file rather than the stored
+ * metadata: the metadata is written once, the data file is the upload.
+ */
+const listUnfinished = async (nodeReq) => {
+  const owner = ownerOf(nodeReq);
+  if (!owner) return [];
+  const shareId = nodeReq?.shareScope?.shareId ? String(nodeReq.shareScope.shareId) : '';
+
+  let entries;
+  try {
+    entries = await fs.readdir(TUS_CACHE_DIR, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  const unfinished = [];
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
+    const uploadId = entry.name.slice(0, -'.json'.length);
+    const metadataPath = path.join(TUS_CACHE_DIR, entry.name);
+    const [stored, dataStats] = await Promise.all([
+      safeReadJson(metadataPath),
+      safeStat(path.join(TUS_CACHE_DIR, uploadId)),
+    ]);
+    const metadata = stored?.metadata || {};
+    if (!dataStats || metadataValue(metadata.owner) !== owner) continue;
+    if (String(metadata.shareId || '') !== shareId) continue;
+
+    const size = Number(stored?.size);
+    // A complete one is not waiting for anybody: it is waiting on its own move
+    // into place, which `cleanupInactiveUploads` reports and clears.
+    if (Number.isFinite(size) && dataStats.size >= size) continue;
+
+    unfinished.push({
+      id: uploadId,
+      // What it will be called where it is going, which is the server's own
+      // answer rather than the name the browser happened to send.
+      name:
+        path.posix.basename(metadataValue(metadata.logicalRelativePath)) ||
+        metadataValue(metadata.filename) ||
+        'upload',
+      size: Number.isFinite(size) ? size : null,
+      offset: dataStats.size,
+      destination: metadataValue(metadata.logicalRelativePath) || metadataValue(metadata.uploadTo),
+      uploadTo: metadataValue(metadata.uploadTo),
+      lastModified: Number(metadataValue(metadata.lastModified)) || null,
+      startedAt: startedAtOf(stored, dataStats),
+    });
+  }
+
+  return unfinished.sort((left, right) => String(left.startedAt).localeCompare(right.startedAt));
+};
+
 /** What is still being written to its destination, for one user. */
 const listFinalizations = (nodeReq) => {
   const owner = ownerOf(nodeReq);
@@ -849,6 +922,12 @@ const buildServer = () =>
           resolvedRelativePath: target.relativePath,
           logicalBase: target.logicalBase,
           logicalRelativePath: target.logicalRelativePath,
+          // Who started it, and under which share. An upload that stops
+          // half-way is kept so it can be continued, and `listUnfinished`
+          // answers it to that person and to nobody else.
+          owner: ownerOf(nodeReq) || '',
+          ownerKind: nodeReq?.user?.id ? 'user' : 'guest',
+          shareId: nodeReq?.shareScope?.shareId ? String(nodeReq.shareScope.shareId) : '',
         },
       };
     },
@@ -975,6 +1054,7 @@ const handleTusUpload = async (req, res) => {
 };
 
 module.exports = {
+  listUnfinished,
   handleTusUpload,
   listFinalizations,
   cleanupExpiredUploads,

@@ -329,15 +329,18 @@
     "unreadableHeading": "Alguns itens não puderam ser lidos",
     "unreadableBody": "1 item não pôde ser lido e está faltando no resultado. | {count} itens não puderam ser lidos e estão faltando no resultado.",
     "unreadableSourceKept": "O original foi mantido onde está, pois guarda a única cópia deles.",
-    "interruptedCopy": "Uma cópia não foi concluída",
-    "interruptedMove": "Uma movimentação não foi concluída",
-    "interruptedOther": "Uma operação não foi concluída",
-    "interruptedBody": "O servidor reiniciou enquanto trabalhava em {destination}. O que já havia chegado está lá; o resto continua onde estava.",
+    "interruptedBody": "O servidor reiniciou antes do fim. O que já havia chegado está no destino; o resto continua onde estava.",
     "interruptedCarrying": "Itens envolvidos: {paths}",
-    "finishedCopy": "A cópia foi concluída",
-    "finishedMove": "A movimentação foi concluída",
-    "finishedOther": "A operação foi concluída",
-    "finishedBody": "Tudo chegou em {destination}."
+    "interruptedHeading": "Uma operação não foi concluída | {count} operações não foram concluídas",
+    "finishedHeading": "Uma operação terminou sem ninguém acompanhando | {count} operações terminaram sem ninguém acompanhando",
+    "failedHeading": "Uma operação falhou | {count} operações falharam",
+    "newsKindCopy": "Cópia",
+    "newsKindMove": "Movimentação",
+    "newsKindDelete": "Exclusão",
+    "newsKindExtract": "Extração",
+    "newsKindCompress": "Compressão",
+    "newsKindRestore": "Restauração",
+    "newsKindOther": "Operação"
   },
   "volumes": {
     "quickAccess": "Acesso rápido",
@@ -432,7 +435,9 @@
     "pauseUploads": "Pausar envios",
     "resumeUploads": "Retomar envios",
     "uploads": "Enviando {count} {items}",
-    "finalizing": "Finalizando"
+    "finalizing": "Finalizando",
+    "notArrivedHeading": "Um arquivo não chegou por completo | {count} arquivos não chegaram por completo",
+    "notArrivedBody": "Forneça o mesmo arquivo novamente para continuar de onde parou: nada do que já foi enviado é enviado duas vezes."
   },
   "info": {
     "aria": "Painel de informações",

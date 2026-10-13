@@ -495,3 +495,76 @@ describe('a deletion whose tab went away', () => {
     expect((await fs.readdir(volumeDir('Heap'))).length).toBeGreaterThan(0);
   });
 });
+
+/**
+ * The other half of an operation outliving its tab: it also ends out of sight.
+ *
+ * An end nobody saw is an end nobody was told about — including a failure, which
+ * is the one worth most. So what became of it is kept as news and handed over
+ * the next time its owner is here, once.
+ */
+describe('an operation that ended with nobody watching', () => {
+  it('is news the next time its owner asks, and is handed over once', async () => {
+    const application = appFor(ALICE);
+    server = await listen(application);
+
+    const stream = await openStream(server.address().port, ALICE, '/api/files/copy', {
+      items: [{ path: 'Source', name: 'note.txt' }],
+      destination: 'Destination',
+    });
+    const start = await stream.waitFor('start');
+    stream.cut();
+    await settledTask(ALICE, start.taskId);
+
+    const news = await tasksOf(ALICE);
+    expect(news.unreported).toMatchObject([
+      { id: start.taskId, kind: 'copy', outcome: 'done', destination: 'Destination' },
+    ]);
+    expect(news.interrupted).toEqual([]);
+    // Not anybody else's news.
+    expect((await tasksOf(BOB)).unreported).toEqual([]);
+
+    const told = await request(appFor(ALICE))
+      .post('/api/tasks/told')
+      .send({ ids: [start.taskId] });
+    expect(told.status).toBe(200);
+    expect(told.body).toEqual({ forgotten: 1 });
+    expect((await tasksOf(ALICE)).unreported).toEqual([]);
+  });
+
+  // And an operation somebody watched to the end is not news: they were told by
+  // the stream, which is what a window is for.
+  it('says nothing about one that was watched to the end', async () => {
+    const application = appFor(ALICE);
+    server = await listen(application);
+
+    const stream = await openStream(server.address().port, ALICE, '/api/files/copy', {
+      items: [{ path: 'Source', name: 'other.txt' }],
+      destination: 'Destination',
+    });
+    await stream.waitFor('done');
+
+    expect((await tasksOf(ALICE)).unreported).toEqual([]);
+  });
+
+  it('keeps a failure the same way', async () => {
+    const application = appFor(ALICE);
+    server = await listen(application);
+
+    // A destination that goes away under the operation: checked before the
+    // stream opens, so the failure happens while the work runs.
+    const stream = await openStream(server.address().port, ALICE, '/api/files/copy', {
+      items: [{ path: 'Source', name: 'big.bin' }],
+      destination: 'Destination',
+    });
+    const start = await stream.waitFor('start');
+    stream.cut();
+    await fs.rm(volumeDir('Destination'), { recursive: true, force: true });
+
+    const settled = await settledTask(ALICE, start.taskId);
+    expect(settled.state).toBe('failed');
+    expect((await tasksOf(ALICE)).unreported).toMatchObject([
+      { id: start.taskId, kind: 'copy', outcome: 'failed' },
+    ]);
+  });
+});

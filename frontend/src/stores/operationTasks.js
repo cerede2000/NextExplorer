@@ -318,18 +318,19 @@ export const useOperationTasksStore = defineStore('operationTasks', () => {
   };
 
   /**
-   * Ask what is running, and what a restart interrupted.
+   * Ask what is running, and what nobody has been told about.
    *
-   * The interrupted ones are not adopted — nothing is resumed across a stop, by
-   * design — they are handed back for somebody to be told about.
+   * Only the running ones are adopted. The rest is news: what a stop was
+   * carrying — nothing is resumed across one, by design — and what ended while
+   * no window was open on it. Both are handed back for somebody to be told.
    */
   const adoptServerOperations = async () => {
-    const { items, interrupted } = await fetchOperationTasks();
+    const { items, interrupted, unreported } = await fetchOperationTasks();
     const adopted = items
       .filter((view) => view.state === 'running')
       .map((view) => adoptOperation(view))
       .filter(Boolean);
-    return { adopted, interrupted };
+    return { adopted, interrupted, unreported };
   };
 
   const cancelOperation = (id) => {

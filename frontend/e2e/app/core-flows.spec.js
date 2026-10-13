@@ -5660,10 +5660,20 @@ test('a copy keeps going after the tab that asked for it has gone', async ({
         timeout: 15000,
       })
       .toBe(true);
+    // And away again, so that the copy also *ends* with nobody watching.
+    await returning.close();
 
     // The whole folder arrived, although nothing was left watching it.
     await expect.poll(arrived, { timeout: 60000 }).toBe(2500);
     expect(fs.readFileSync(path.join(landing, 'Heap', 'item-02499.txt'), 'utf8')).toBe('2499\n');
+
+    // And the reader is told, because an end nobody saw is an end nobody was
+    // told about. The news waits on the server until somebody is here for it.
+    const told = await context.newPage();
+    await told.goto('/browse/Projects');
+    await expect(told.getByText('An operation finished while nothing was watching')).toBeVisible({
+      timeout: 15000,
+    });
   } finally {
     await context.close();
   }

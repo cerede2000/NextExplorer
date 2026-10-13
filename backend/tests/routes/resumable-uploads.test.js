@@ -254,3 +254,109 @@ describe('the upload cache', () => {
     expect(await fs.readdir(cache)).toEqual([]);
   });
 });
+
+/**
+ * Finding an upload that did not arrive.
+ *
+ * Resuming needs two halves: the part that arrived, which the server keeps, and
+ * knowing there is something to resume at all. A reader who closed the tab had
+ * nothing anywhere telling them a file never arrived — so the file sat in the
+ * cache until it expired, and they sent the whole thing again.
+ */
+describe('an upload that did not finish', () => {
+  const unfinished = ({ who = 'alice' } = {}) =>
+    request(app).get('/api/upload/unfinished').set('x-test-user', who);
+
+  it('is listed to whoever started it, with how far it got', async () => {
+    const body = 'a long transfer that was interrupted';
+    const created = await create(body, { meta: { lastModified: '1760000000000' } });
+    await patch(created.headers.location, 0, body.slice(0, 10));
+
+    const listed = await unfinished();
+
+    expect(listed.status).toBe(200);
+    expect(listed.body.items).toMatchObject([
+      {
+        name: 'film.mkv',
+        size: body.length,
+        offset: 10,
+        destination: 'Projects/film.mkv',
+        uploadTo: 'Projects',
+        lastModified: 1760000000000,
+      },
+    ]);
+    // The id is the one the chunks were sent to, so a client that has lost the
+    // address of its upload can be given it back.
+    expect(created.headers.location).toContain(listed.body.items[0].id);
+  });
+
+  it('is nobody else’s business', async () => {
+    const body = 'a long transfer that was interrupted';
+    const created = await create(body);
+    await patch(created.headers.location, 0, body.slice(0, 10));
+
+    const bob = await load('src/services/users').createLocalUser({
+      email: 'bob@example.com',
+      username: 'bob',
+      displayName: 'Bob',
+      password: 'secret123',
+      roles: ['user'],
+    });
+    const asBob = express();
+    asBob.use(express.json());
+    asBob.use((req, _res, next) => {
+      req.user = bob;
+      next();
+    });
+    asBob.use('/api', load('src/routes/upload'));
+    asBob.use(load('src/middleware/errorHandler').errorHandler);
+
+    const listed = await request(asBob).get('/api/upload/unfinished');
+    expect(listed.body.items).toEqual([]);
+  });
+
+  // One that arrived in full is not waiting for anybody.
+  it('drops off the list once the file has landed', async () => {
+    const body = 'the whole film, in two halves';
+    const created = await create(body);
+    await patch(created.headers.location, 0, body.slice(0, 5));
+    expect((await unfinished()).body.items).toHaveLength(1);
+
+    await patch(created.headers.location, 5, body.slice(5));
+
+    expect((await unfinished()).body.items).toEqual([]);
+  });
+
+  it('says nothing to somebody who has none', async () => {
+    expect((await unfinished()).body.items).toEqual([]);
+  });
+
+  /**
+   * And the address the upload was created at says nothing about where it goes.
+   *
+   * The browser puts the destination in the query so that two uploads of one
+   * file to two folders are told apart — tus looks a previous upload up by a
+   * fingerprint built from the file and the endpoint, and without it the second
+   * would resume the first and land the file in a folder nobody sent it to. The
+   * server must keep reading the metadata, which is what its access check is
+   * made of: a query naming another folder is not a way into one.
+   */
+  it('goes where its metadata says, whatever its address carries', async () => {
+    const body = 'sent with a decorated address';
+    const created = await request(app)
+      .post('/api/upload/tus?for=Elsewhere')
+      .set('x-test-user', 'alice')
+      .set('Tus-Resumable', '1.0.0')
+      .set('Upload-Length', String(Buffer.byteLength(body)))
+      .set('Upload-Metadata', metadata({ uploadTo: 'Projects', relativePath: 'film.mkv' }));
+
+    expect(created.status).toBe(201);
+    // The address for the rest of it carries no query: that was the browser's
+    // own business and ends with the creation.
+    expect(new URL(created.headers.location).search).toBe('');
+    expect((await patch(created.headers.location, 0, body)).status).toBe(204);
+
+    expect(await fs.readFile(volume('Projects', 'film.mkv'), 'utf8')).toBe(body);
+    await expect(fs.stat(volume('Elsewhere'))).rejects.toThrow();
+  });
+});

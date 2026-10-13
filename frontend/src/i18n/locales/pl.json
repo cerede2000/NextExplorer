@@ -329,15 +329,18 @@
     "unreadableHeading": "Niektórych wpisów nie udało się odczytać",
     "unreadableBody": "1 wpisu nie udało się odczytać i brakuje go w wyniku. | {count} wpisów nie udało się odczytać i brakuje ich w wyniku. | {count} wpisów nie udało się odczytać i brakuje ich w wyniku.",
     "unreadableSourceKept": "Oryginał pozostał na miejscu, bo zawiera ich jedyną kopię.",
-    "interruptedCopy": "Kopiowanie nie zostało ukończone",
-    "interruptedMove": "Przenoszenie nie zostało ukończone",
-    "interruptedOther": "Operacja nie została ukończona",
-    "interruptedBody": "Serwer został ponownie uruchomiony w trakcie pracy nad {destination}. To, co już dotarło, jest na miejscu; reszta została tam, gdzie była.",
+    "interruptedBody": "Serwer został ponownie uruchomiony przed końcem. To, co już dotarło, jest na miejscu; reszta została tam, gdzie była.",
     "interruptedCarrying": "Elementy: {paths}",
-    "finishedCopy": "Kopiowanie zakończone",
-    "finishedMove": "Przenoszenie zakończone",
-    "finishedOther": "Operacja zakończona",
-    "finishedBody": "Wszystko dotarło do {destination}."
+    "interruptedHeading": "Operacja nie została ukończona | {count} operacji nie zostało ukończonych",
+    "finishedHeading": "Operacja zakończyła się, gdy nikt nie patrzył | {count} operacji zakończyło się, gdy nikt nie patrzył",
+    "failedHeading": "Operacja nie powiodła się | {count} operacji nie powiodło się",
+    "newsKindCopy": "Kopiowanie",
+    "newsKindMove": "Przenoszenie",
+    "newsKindDelete": "Usuwanie",
+    "newsKindExtract": "Wypakowywanie",
+    "newsKindCompress": "Pakowanie",
+    "newsKindRestore": "Przywracanie",
+    "newsKindOther": "Operacja"
   },
   "volumes": {
     "quickAccess": "Szybki dostęp",
@@ -432,7 +435,9 @@
     "pauseUploads": "Wstrzymaj przesyłanie",
     "resumeUploads": "Wznów przesyłanie",
     "uploads": "Przesyłanie {count} {items}",
-    "finalizing": "Finalizowanie"
+    "finalizing": "Finalizowanie",
+    "notArrivedHeading": "Plik nie dotarł w całości | {count} plików nie dotarło w całości",
+    "notArrivedBody": "Wskaż ten sam plik ponownie, aby kontynuować od miejsca zatrzymania — nic, co już wysłano, nie zostanie wysłane dwa razy."
   },
   "info": {
     "aria": "Panel informacji",
