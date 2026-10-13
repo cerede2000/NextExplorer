@@ -125,6 +125,56 @@ afterEach(() => {
   wrapper = null;
 });
 
+/**
+ * A door, always.
+ *
+ * A link anybody may open asks for nothing, so this screen opens it by itself
+ * and is normally never seen. What was missing is what happens when that does
+ * not take: the card described the share — its name, that it is a folder — and
+ * offered nothing at all. No error, no spinner, nothing to press. The screen
+ * had a password field for a protected link and a sign-in button for a
+ * nominative one, and for the commonest kind of share, no way forward.
+ *
+ * It is reachable: the automatic way in ends with a navigation, and a
+ * navigation goes through a guard that can be held open — by an authentication
+ * proxy in front of this application, met by exactly the visitor who is holding
+ * a link. That particular hold is bounded now, in `settingsGuard.js`. This is
+ * the other half, and the half that does not depend on knowing the cause.
+ */
+describe('the way in, when the automatic one did not take', () => {
+  it('is offered on a link anybody may open', async () => {
+    await openOn(PUBLIC_SHARE);
+
+    expect(wrapper.find('[data-test="enter-share"]').exists()).toBe(true);
+  });
+
+  it('goes in when it is pressed', async () => {
+    await openOn(PUBLIC_SHARE);
+    api.accessShare.mockClear();
+    push.mockClear();
+
+    await wrapper.find('[data-test="enter-share"]').trigger('click');
+    await flushPromises();
+
+    expect(api.accessShare).toHaveBeenCalledWith('tok123');
+    expect(push).toHaveBeenCalledWith({ path: '/share/tok123/browse/' });
+  });
+
+  // The other two kinds have their own way in, and must not grow a second one
+  // that skips what they ask for.
+  it('is not offered where a password is asked for', async () => {
+    await openOn({ ...PUBLIC_SHARE, requiresPassword: true });
+
+    expect(wrapper.find('[data-test="enter-share"]').exists()).toBe(false);
+  });
+
+  it('is not offered where an account is asked for', async () => {
+    await openOn({ ...PUBLIC_SHARE, sharingType: 'users' });
+
+    expect(wrapper.find('[data-test="enter-share"]').exists()).toBe(false);
+  });
+});
+
 describe('where a visitor is sent once they are in', () => {
   /**
    * `//evil.example` is a protocol-relative URL, not a path. Followed, it

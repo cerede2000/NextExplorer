@@ -2013,6 +2013,10 @@
     {
       "match": "^frontend/src/stores/files/items\\.js$",
       "note": "touched by `a-name-is-bytes`, which has not been sent: a directory is read as bytes, the bytes are the entry's identity, and a name becomes text only where it goes into JSON — so an entry whose name is not valid UTF-8 can be listed, addressed, downloaded, copied and archived. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^frontend/src/router/settingsGuard\\.js$",
+      "note": "touched by `a-share-always-has-a-door`, which has not been sent: the wait on a signed-in account's settings is bounded, because it is awaited inside a navigation guard. A preference is not a permission, and an HTTP call here carries no deadline of its own — a request that never settles is not a slow page but a guard that never returns, and a guard that never returns is a screen that never changes, with no error and nothing to press. The visitor who meets an authentication proxy answering with a redirect somewhere else is exactly the visitor holding a share link, on a page whose only way forward is that guard returning. The difference stands until that batch goes up."
     }
   ],
   "controls": [

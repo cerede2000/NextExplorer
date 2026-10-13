@@ -6,6 +6,46 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v4.2.1 (2026-10-13)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v4.2.1)
+
+### A share link that stopped at a card
+
+A link anybody may open asks for nothing, so the screen behind it opens the
+share by itself and is normally never seen. When that did not happen, what was
+left was a card naming the share — its label, that it is a folder — and nothing
+else at all: no error, no spinner, nothing to press. The visitor was told what
+they had been given and offered no way to reach it.
+
+The screen had a password field for a protected link and a sign-in button for a
+nominative one, and for the commonest kind of share — the one handed out so
+somebody can put a file in a folder — no way forward. That is closed: the card
+always carries a door now, and pressing it goes in. It costs nothing when the
+automatic way in works, because the page has already gone by then.
+
+### The hold that could leave it there
+
+Opening a share ends with a navigation, and a navigation goes through the
+router's guard. The guard waits, for a signed-in visitor, on that account's
+settings — whether thumbnails show, how a folder is sorted, where a document
+opens — because a document opened from inside a share was landing in the wrong
+place without them.
+
+That wait had no end. A preference is not a permission, and an HTTP call here
+carries no deadline of its own: a request that never settles is not a slow page
+but a guard that never returns, and a guard that never returns is a screen that
+never changes. An authentication proxy in front of this application answers the
+calls it will not pass by sending the browser somewhere else entirely, and the
+visitor who meets one is exactly the visitor holding a share link.
+
+The wait is bounded now — two seconds, then the page is drawn with whatever the
+settings were. Nothing waits on a preference to decide whether somebody may see
+a folder.
+
+The two are independent on purpose. The bound removes one way to be stranded;
+the door removes being stranded, whatever the cause.
+
 ## v4.2.0 (2026-10-13)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v4.2.0)

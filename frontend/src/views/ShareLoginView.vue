@@ -331,6 +331,26 @@ async function handlePasswordSubmit() {
             {{ t('share.signInToAccess') }}
           </button>
         </div>
+
+        <!--
+          A link anybody may open, which asks for nothing.
+          
+          This screen opens it by itself the moment it knows what it is, so this
+          button is normally never seen: the page has already gone. It is here
+          for when that did not happen — and before it existed, "did not happen"
+          was a card describing a share with no way to reach it, no error and
+          nothing to press. Whatever stops the automatic way in, a visitor
+          holding a link must always have a door.
+        -->
+        <div v-else class="space-y-4">
+          <button
+            data-test="enter-share"
+            @click="handleAutoAccess"
+            class="w-full px-6 py-3 font-medium text-white transition bg-blue-600 rounded-lg hover:bg-blue-700"
+          >
+            {{ t('share.accessShare') }}
+          </button>
+        </div>
       </div>
     </div>
   </div>
