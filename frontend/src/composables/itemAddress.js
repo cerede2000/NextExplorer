@@ -5,6 +5,7 @@ import { isEditableExtension } from '@/config/editor';
 import { usePreviewManager } from '@/plugins/preview/manager';
 import { useAppSettings } from '@/stores/appSettings';
 import { useTabsStore } from '@/stores/tabs';
+import { pathNameOf } from '@/stores/files/items';
 
 // Kept beside the markdown preview plugin's own list, which matches the same
 // two extensions.
@@ -33,10 +34,15 @@ export function useItemAddress() {
     const kind = typeof item.kind === 'string' ? item.kind : '';
     const name = typeof item.name === 'string' ? item.name : '';
     if (!name && kind !== 'personal') return null;
+    // What it is called and how it is addressed are two things for a name whose
+    // bytes do not decode: the extension below is read from the readable one,
+    // and every path from this one.
+    const segment = pathNameOf(item);
 
-    if (kind === 'volume') return folderRoute(name);
+    if (kind === 'volume') return folderRoute(segment);
     if (kind === 'personal') return folderRoute('personal');
-    if (kind === 'directory') return folderRoute(currentPath ? `${currentPath}/${name}` : name);
+    if (kind === 'directory')
+      return folderRoute(currentPath ? `${currentPath}/${segment}` : segment);
 
     const extensionFromKind = kind.toLowerCase();
     const extensionFromName = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
@@ -48,7 +54,7 @@ export function useItemAddress() {
       (MARKDOWN_EXTENSIONS.includes(extensionFromKind) ||
         MARKDOWN_EXTENSIONS.includes(extensionFromName));
 
-    const basePath = item.path ? `${item.path}/${name}` : name;
+    const basePath = item.path ? `${item.path}/${segment}` : segment;
     const fullPath = basePath.replace(/^\/+/, '');
     const editable =
       isEditableExtension(extensionFromKind) || isEditableExtension(extensionFromName);

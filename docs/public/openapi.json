@@ -7003,6 +7003,10 @@
                           "name": {
                             "type": "string"
                           },
+                          "pathName": {
+                            "type": "string",
+                            "description": "How to address it when its own name cannot: see the same field on `Item`."
+                          },
                           "kind": {
                             "type": "string"
                           },
@@ -12350,6 +12354,10 @@
         "properties": {
           "name": {
             "type": "string"
+          },
+          "pathName": {
+            "type": "string",
+            "description": "How to address it, when its own name cannot. A name on a disk is bytes; where they are not valid UTF-8 — a volume carried over from Windows is full of such names — `name` holds what they read as, U+FFFD and all, which names nothing on disk. `pathName` is the same name written down reversibly (U+FFFE followed by the bytes in hex) and is what every path and key a client builds has to use. Absent for every name that is valid UTF-8, which is almost all of them: a client that ignores this field keeps working for them exactly as before."
           },
           "path": {
             "type": "string",

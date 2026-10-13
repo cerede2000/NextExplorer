@@ -3,6 +3,8 @@ const fs = require('fs');
 const fsp = require('fs/promises');
 const { directories, features, personal } = require('../config/index');
 const { pathExists } = require('./fsUtils');
+const bytePath = require('./bytePath');
+const { decodeName, isEncodedName } = require('./byteName');
 const { cachedForRequest, hasRequestContext } = require('./requestContext');
 const logger = require('./logger');
 const { ForbiddenError, NotFoundError, ValidationError } = require('../errors/AppError');
@@ -144,7 +146,12 @@ const lstatOrNull = async (target) => {
 
 const readLinkOrNull = async (target) => {
   try {
-    return await fsp.readlink(target);
+    // Asked in the form it was given: a link under a name only bytes can spell
+    // has a target that may be in the same state, and reading it as text would
+    // lose exactly what makes it reachable.
+    return Buffer.isBuffer(target)
+      ? await fsp.readlink(target, { encoding: 'buffer' })
+      : await fsp.readlink(target);
   } catch {
     return null;
   }
@@ -157,13 +164,94 @@ const readLinkOrNull = async (target) => {
  * and answering "still missing" from a cache would be wrong.
  */
 const realpathOrNull = (target) =>
-  cachedForRequest('realpath', target, async () => {
-    try {
-      return await fsp.realpath(target);
-    } catch {
-      return null;
+  // Keyed by what the path *is* rather than by the object holding it: a Buffer
+  // is a fresh object every time, so keying on it would memoize nothing and
+  // grow the map once per lookup.
+  cachedForRequest(
+    'realpath',
+    Buffer.isBuffer(target) ? `bytes:${target.toString('hex')}` : target,
+    async () => {
+      try {
+        return Buffer.isBuffer(target)
+          ? bytePath.fromBytes(await fsp.realpath(target, { encoding: 'buffer' }))
+          : await fsp.realpath(target);
+      } catch {
+        return null;
+      }
     }
-  });
+  );
+
+/** Whether any segment of a logical path is a name that had to be written down. */
+const hasEncodedSegment = (relativePath) =>
+  String(relativePath || '')
+    .split('/')
+    .some(isEncodedName);
+
+/**
+ * The absolute path a logical relative path names under `root`.
+ *
+ * Text when nothing in it was written down, which is every path on every volume
+ * anybody has ever looked at: `path.resolve` then does exactly what it has
+ * always done, so nothing changes for them — not the type, not the value, not a
+ * log line. A written-down segment is decoded to the bytes the disk holds and
+ * the path is built out of bytes instead.
+ *
+ * Safe to build by concatenation because `decodeName` has already refused a
+ * separator, a NUL, and any name that did not need writing down at all — `..`
+ * among them, since it decodes perfectly well. So a decoded segment is one
+ * name, and there is no traversal here for the normalisation above to have
+ * missed.
+ */
+const resolveUnder = (root, safeRelativePath) => {
+  if (!hasEncodedSegment(safeRelativePath)) {
+    return path.resolve(root, safeRelativePath);
+  }
+  const segments = String(safeRelativePath).split('/').filter(Boolean).map(decodeName);
+  return bytePath.join(root, ...segments);
+};
+
+/**
+ * The same guarantee as `assertRealPathWithinRoot`, for a path only bytes can
+ * name, and deliberately stricter.
+ *
+ * Stricter in one place: a dangling symbolic link is refused rather than
+ * chased. Chasing one means resolving a target that may be relative and may
+ * hold `..`, which is normalisation over bytes — a second implementation of the
+ * one piece of arithmetic that must not have two. Refusing costs nothing anyone
+ * had: these entries could not be reached at all until now, so nothing that
+ * used to work stops working, and a link nobody can verify is not something to
+ * resolve on a guess.
+ *
+ * Everything else is the same question asked in bytes: where the path really
+ * leads, and whether that is inside the root.
+ */
+const assertByteRealPathWithinRoot = async (absolutePath, root, label) => {
+  const outside = () => new ForbiddenError(`Resolved path is outside ${label}.`);
+  const expectedRoot = realRoot(root);
+  const contained = (candidate) => bytePath.isWithin(candidate, expectedRoot);
+  const namedInside = (candidate) =>
+    bytePath.isWithin(candidate, root) || bytePath.isWithin(candidate, expectedRoot);
+
+  if (!namedInside(absolutePath)) throw outside();
+
+  let candidate = absolutePath;
+  for (;;) {
+    const realCandidate = await realpathOrNull(candidate);
+    if (realCandidate) {
+      if (!contained(realCandidate)) throw outside();
+      return;
+    }
+
+    // Nothing there to resolve. A link is refused; anything else simply does
+    // not exist yet, so the question moves to the folder it would go in.
+    if ((await readLinkOrNull(candidate)) !== null) throw outside();
+
+    const parent = bytePath.dirname(candidate);
+    if (bytePath.equals(parent, candidate)) return;
+    if (!namedInside(parent)) return;
+    candidate = parent;
+  }
+};
 
 /**
  * Confirm a resolved path really lives under its root once symlinks are
@@ -181,6 +269,13 @@ const assertRealPathWithinRoot = async (
   label = 'the configured volume root',
   hops = 0
 ) => {
+  // One door for both forms, so a caller cannot get the weaker check by
+  // accident: which one runs is decided by what the path is, here and nowhere
+  // else.
+  if (Buffer.isBuffer(absolutePath)) {
+    return assertByteRealPathWithinRoot(absolutePath, root, label);
+  }
+
   const expectedRoot = realRoot(root);
   const rootWithSep = root.endsWith(path.sep) ? root : `${root}${path.sep}`;
   const realWithSep = expectedRoot.endsWith(path.sep) ? expectedRoot : `${expectedRoot}${path.sep}`;
@@ -288,8 +383,10 @@ const isInsidePersonalRoot = (absolutePath) => {
 
   for (const root of new Set([userRoot, realRoot(userRoot)])) {
     if (root === directories.volume || root === realRoot(directories.volume)) continue;
-    const withSep = root.endsWith(path.sep) ? root : `${root}${path.sep}`;
-    if (absolutePath === root || absolutePath.startsWith(withSep)) return true;
+    // Asked in bytes so that a path only bytes can name is judged by the same
+    // rule: a personal folder reached sideways is refused whether or not every
+    // name along the way happens to decode.
+    if (bytePath.isWithin(absolutePath, root)) return true;
   }
 
   return false;
@@ -310,9 +407,9 @@ const reachesIntoPersonalRoot = (rootAbs, targetAbs) =>
 const resolveVolumePath = async (relativePath = '') => {
   const safeRelativePath = normalizeRelativePath(relativePath);
   assertOutsideZone(safeRelativePath);
-  const absolutePath = path.resolve(directories.volume, safeRelativePath);
+  const absolutePath = resolveUnder(directories.volume, safeRelativePath);
 
-  if (absolutePath !== directories.volume && !absolutePath.startsWith(directories.volumeWithSep)) {
+  if (!bytePath.isWithin(absolutePath, directories.volume)) {
     throw new ForbiddenError('Resolved path is outside the configured volume root.');
   }
 
@@ -551,9 +648,9 @@ const resolvePersonalPath = async (relativePath = '', user) => {
   const safeRelativePath = normalizeRelativePath(relativePath);
   assertOutsideZone(safeRelativePath);
   const userRoot = await getUserRootDir(user);
-  const absolutePath = path.resolve(userRoot, safeRelativePath);
+  const absolutePath = resolveUnder(userRoot, safeRelativePath);
 
-  if (absolutePath !== userRoot && !absolutePath.startsWith(userRoot + path.sep)) {
+  if (!bytePath.isWithin(absolutePath, userRoot)) {
     throw new ForbiddenError('Resolved path is outside the configured user directory.');
   }
 
@@ -625,14 +722,10 @@ const resolveLogicalPath = async (
     // User volume uses label as path prefix, actual path is in userVolume.path
     const pathParts = rel.split('/').filter(Boolean);
     const innerPath = pathParts.slice(1).join('/'); // Everything after the label
-    const absolutePath = innerPath ? path.resolve(userVolume.path, innerPath) : userVolume.path;
+    const absolutePath = innerPath ? resolveUnder(userVolume.path, innerPath) : userVolume.path;
 
     // Safety check: ensure resolved path stays within user volume
-    const volumePathWithSep = userVolume.path.endsWith(path.sep)
-      ? userVolume.path
-      : userVolume.path + path.sep;
-
-    if (absolutePath !== userVolume.path && !absolutePath.startsWith(volumePathWithSep)) {
+    if (!bytePath.isWithin(absolutePath, userVolume.path)) {
       throw new ForbiddenError('Resolved path is outside the assigned volume.');
     }
 
@@ -756,13 +849,10 @@ const resolveSharePath = async (
       isDirShare && innerPath ? combineRelativePath(baseWithinVolume, innerPath) : baseWithinVolume;
 
     absolutePath = combinedWithinVolume
-      ? path.resolve(userVolume.path, combinedWithinVolume)
+      ? resolveUnder(userVolume.path, combinedWithinVolume)
       : userVolume.path;
 
-    const volumePathWithSep = userVolume.path.endsWith(path.sep)
-      ? userVolume.path
-      : userVolume.path + path.sep;
-    if (absolutePath !== userVolume.path && !absolutePath.startsWith(volumePathWithSep)) {
+    if (!bytePath.isWithin(absolutePath, userVolume.path)) {
       throw new ForbiddenError('Resolved path is outside the assigned volume.');
     }
 

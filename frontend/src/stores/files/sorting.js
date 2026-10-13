@@ -14,6 +14,7 @@
  * @param {{ foldersFirst?: boolean }} [options] folders-first unless told otherwise
  * @returns {Array} a new array; `items` is left as it was
  */
+import { pathNameOf } from './items';
 export const sortItems = (items, sortBy, folderSizeFor, { foldersFirst = true } = {}) => {
   const direction = sortBy?.order === 'asc' ? 1 : -1;
   const sortKey = sortBy?.by;
@@ -21,7 +22,7 @@ export const sortItems = (items, sortBy, folderSizeFor, { foldersFirst = true } 
   const sortValue = (item, key) => {
     if (key === 'size') {
       if (item.kind === 'directory') {
-        const full = item.path ? `${item.path}/${item.name}` : item.name;
+        const full = item.path ? `${item.path}/${pathNameOf(item)}` : pathNameOf(item);
         const entry = folderSizeFor(full);
         if (entry && entry.sizeBytes != null) return entry.sizeBytes;
       }

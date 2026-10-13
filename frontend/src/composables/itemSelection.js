@@ -1,12 +1,6 @@
-import { normalizePath } from '@/api';
 import { usePaneTabId } from '@/composables/paneTab';
 import { useFileStore } from '@/stores/fileStore';
-
-const getItemKey = (item) => {
-  if (!item || !item.name) return '';
-  const parent = normalizePath(item.path || '');
-  return `${parent}::${item.name}`;
-};
+import { itemKey as getItemKey } from '@/stores/files/items';
 
 /**
  * What a click selects, in the place the click landed in.

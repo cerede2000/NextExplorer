@@ -6,6 +6,8 @@ const { extractPdfTextLines } = require('./pdfTextExtract');
 const { extractOfficeTextLines, isOfficeDocument } = require('./officeTextExtract');
 const store = require('./searchIndexStore');
 const { containerMemoryLimitBytes } = require('../utils/containerMemory');
+const bytePath = require('../utils/bytePath');
+const { encodeName, displayName } = require('../utils/byteName');
 
 /**
  * Building the index without being noticed.
@@ -438,7 +440,10 @@ const indexTree = async ({
 
     let entries;
     try {
-      entries = await fs.readdir(dirAbs, { withFileTypes: true });
+      // Read as bytes, so a file whose name does not decode as UTF-8 is indexed
+      // and can be found. Read as text it was skipped and counted, and the
+      // folder row written for it named a path nothing could open.
+      entries = await fs.readdir(dirAbs, { withFileTypes: true, encoding: 'buffer' });
     } catch {
       // Not a reason to stop, but it is a reason to say so: nothing under this
       // folder is in the index, so nothing under it can be found.
@@ -452,10 +457,11 @@ const indexTree = async ({
     for (const entry of entries) {
       throwIfAborted();
 
-      if (isSkippedDirectoryName(entry.name)) continue;
+      const entryName = encodeName(entry.name);
+      if (isSkippedDirectoryName(displayName(entry.name))) continue;
 
-      const absolutePath = path.join(dirAbs, entry.name);
-      const relativePath = dirRel ? `${dirRel}/${entry.name}` : entry.name;
+      const absolutePath = bytePath.join(dirAbs, entry.name);
+      const relativePath = dirRel ? `${dirRel}/${entryName}` : entryName;
 
       if (isExcluded(relativePath)) continue;
 

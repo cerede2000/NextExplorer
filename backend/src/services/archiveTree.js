@@ -6,6 +6,8 @@ const { ZipArchive } = require('archiver');
 const { excludedFiles } = require('../config/index');
 const { combineRelativePath, isInsidePersonalRoot } = require('../utils/pathUtils');
 const { createUnreachableTally } = require('../utils/unreachableEntries');
+const bytePath = require('../utils/bytePath');
+const { encodeName, displayName } = require('../utils/byteName');
 const { getAccessInfo } = require('./accessManager');
 const { createPermissionResolver } = require('./accessControlService');
 const { getSettings } = require('./settingsService');
@@ -29,6 +31,13 @@ const { getSettings } = require('./settingsService');
  * with half of it would answer for the wrong caller — which is a hidden folder
  * inside a zip somebody downloaded.
  */
+/** A readable name split for suffixing, so "a.tar.gz (1)" keeps its extension. */
+const splitArchiveName = (readable) => {
+  const at = readable.lastIndexOf('.');
+  if (at <= 0) return { base: readable, extension: '' };
+  return { base: readable.slice(0, at), extension: readable.slice(at) };
+};
+
 const readAccess = async () => {
   const settings = await getSettings();
   return settings?.access && typeof settings.access === 'object' ? settings.access : { rules: [] };
@@ -74,7 +83,11 @@ const collectArchiveEntries = async (context, sources) => {
   const walk = async ({ absoluteDir, logicalDir, entryDir, guardPersonalRoot }) => {
     let children;
     try {
-      children = await fs.readdir(absoluteDir, { withFileTypes: true });
+      // Read as bytes, so that a name the disk holds in bytes that do not
+      // decode as UTF-8 goes into the archive like any other. Read as text it
+      // came back with U+FFFD in it, the path built from that named nothing,
+      // and the file was left out of the archive with a note saying so.
+      children = await fs.readdir(absoluteDir, { withFileTypes: true, encoding: 'buffer' });
     } catch (error) {
       // The folder itself cannot be opened: everything under it is missing from
       // the archive, so it counts as one entry nobody could read rather than as
@@ -82,13 +95,49 @@ const collectArchiveEntries = async (context, sources) => {
       unreachable.noteOrThrow(absoluteDir, error);
       return;
     }
-    children.sort((a, b) => a.name.localeCompare(b.name));
-    for (const child of children) {
-      const absolutePath = path.join(absoluteDir, child.name);
-      const logicalPath = combineRelativePath(logicalDir, child.name);
-      const name = `${entryDir}/${child.name}`;
+    /**
+     * What this entry is called inside the archive.
+     *
+     * A zip holds names as text, so a name that does not decode goes in as it
+     * reads, U+FFFD and all — unpleasant to look at and still the file, which
+     * is what somebody opening the archive is after. Two such names in one
+     * folder can read the same, though, and two entries of one name in a zip is
+     * one file silently overwriting the other on the way out. So the second one
+     * takes "name (1)", the same way everything else in this application
+     * answers a name already taken.
+     */
+    const takenHere = new Set();
+    const archiveNameFor = (bytes) => {
+      const readable = displayName(bytes);
+      if (!takenHere.has(readable)) {
+        takenHere.add(readable);
+        return readable;
+      }
+      const { base, extension } = splitArchiveName(readable);
+      for (let attempt = 1; ; attempt += 1) {
+        const candidate = `${base} (${attempt})${extension}`;
+        if (!takenHere.has(candidate)) {
+          takenHere.add(candidate);
+          return candidate;
+        }
+      }
+    };
 
-      if (!(await visible({ absolutePath, logicalPath, name: child.name, guardPersonalRoot }))) {
+    children.sort((a, b) => displayName(a.name).localeCompare(displayName(b.name)));
+    for (const child of children) {
+      const childName = encodeName(child.name);
+      const absolutePath = bytePath.join(absoluteDir, child.name);
+      const logicalPath = combineRelativePath(logicalDir, childName);
+      const name = `${entryDir}/${archiveNameFor(child.name)}`;
+
+      if (
+        !(await visible({
+          absolutePath,
+          logicalPath,
+          name: displayName(child.name),
+          guardPersonalRoot,
+        }))
+      ) {
         excluded += 1;
         continue;
       }

@@ -28,6 +28,7 @@ import { useQuickActionsStore } from '@/stores/quickActions';
 import { useOpenItemInTab } from '@/composables/itemAddress';
 import { useI18n } from 'vue-i18n';
 import { useNotificationsStore } from '@/stores/notifications';
+import { pathNameOf } from '@/stores/files/items';
 
 const props = defineProps({
   item: { type: Object, required: true },
@@ -73,7 +74,9 @@ const isDirectory = computed(() => props.item?.kind === 'directory');
 // folder's own logical path (used to look up its indexed size) combines them.
 const folderFullPath = computed(() => {
   const parent = props.item?.path || '';
-  const name = props.item?.name || '';
+  // Addressed rather than read: an indexed size is kept under the path the
+  // server knows, and a name whose bytes do not decode is not its own path.
+  const name = pathNameOf(props.item);
   return parent ? `${parent}/${name}` : name;
 });
 const showFolderSize = computed(() => isDirectory.value && featuresStore.folderSizeEnabled);

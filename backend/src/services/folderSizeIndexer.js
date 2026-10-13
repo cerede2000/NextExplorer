@@ -26,6 +26,7 @@ const pLimit = require('p-limit');
 
 const config = require('../config/index');
 const folderSizeIndex = require('./folderSizeIndex');
+const bytePath = require('../utils/bytePath');
 const { nowIso } = require('../utils/ids');
 
 const NETWORK_FS_TYPES = new Set(['nfs', 'nfs4', 'cifs', 'smbfs', 'smb', 'smb2', 'fuse.sshfs']);
@@ -347,7 +348,11 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
       try {
         reportProgress('readdir', frame.abs);
         entries = await limit(() =>
-          guardedFs('readdir', frame.abs, () => fs.readdir(frame.abs, { withFileTypes: true }))
+          guardedFs('readdir', frame.abs, () =>
+            // Read as bytes, so a file whose name does not decode as UTF-8
+            // contributes its size rather than nothing.
+            fs.readdir(frame.abs, { withFileTypes: true, encoding: 'buffer' })
+          )
         );
         throwIfAborted();
       } catch (err) {
@@ -360,7 +365,7 @@ const scanTree = async (db, scope, rootAbs, options = {}) => {
         const filePaths = [];
         const childDirs = [];
         for (const entry of entries) {
-          const full = path.join(frame.abs, entry.name);
+          const full = bytePath.join(frame.abs, entry.name);
           if (entry.isDirectory()) {
             frame.entryCount += 1;
             if (typeof shouldExclude !== 'function' || !shouldExclude(full)) {
@@ -497,7 +502,7 @@ const aggregateDirectory = async (db, scope, absDir, options = {}) => {
     entries = await withIoTimeout(
       'readdir',
       absDir,
-      () => fs.readdir(absDir, { withFileTypes: true }),
+      () => fs.readdir(absDir, { withFileTypes: true, encoding: 'buffer' }),
       {
         timeoutMs: ioTimeoutMs,
       }
@@ -513,7 +518,7 @@ const aggregateDirectory = async (db, scope, absDir, options = {}) => {
   let hasUnindexedSubdirectories = false;
 
   for (const entry of entries) {
-    const full = path.join(absDir, entry.name);
+    const full = bytePath.join(absDir, entry.name);
     if (entry.isDirectory()) {
       entryCount += 1;
       if (typeof shouldExclude === 'function' && shouldExclude(full)) continue;

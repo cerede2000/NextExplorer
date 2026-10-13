@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { FolderIcon, DocumentIcon } from '@heroicons/vue/24/outline';
 import ModalDialog from '@/components/ModalDialog.vue';
 import { confinedRoot, useStorageBrowser } from '@/composables/useStorageBrowser';
+import { itemKey } from '@/stores/files/items';
 
 /**
  * Pick one file from the user's storage.
@@ -131,7 +132,7 @@ watch(
           {{ t('storagePicker.empty') }}
         </p>
         <ul v-else class="divide-y divide-neutral-100 dark:divide-zinc-800">
-          <li v-for="item in entries" :key="`${item.path}/${item.name}`">
+          <li v-for="item in entries" :key="itemKey(item)">
             <button
               type="button"
               role="option"

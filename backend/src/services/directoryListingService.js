@@ -3,6 +3,8 @@ const fs = require('fs/promises');
 
 const { excludedFiles, extensions, hiddenFiles } = require('../config/index');
 const { combineRelativePath, resolveLogicalPath } = require('../utils/pathUtils');
+const bytePath = require('../utils/bytePath');
+const { encodeName, displayName, needsEncoding } = require('../utils/byteName');
 const { getAccessInfo } = require('./accessManager');
 const { createPermissionResolver } = require('./accessControlService');
 const { createUnreachableTally } = require('../utils/unreachableEntries');
@@ -121,80 +123,121 @@ const listDirectoryItems = async ({
     permissionResolver ? permissionResolver(logicalPath || '', { isAdmin }) : 'rw';
   const insideReadOnly = ruleSays(parentLogicalPath) === 'ro';
 
-  const entries = await fs.readdir(absoluteDir);
+  /**
+   * Read as bytes, which is what a name is.
+   *
+   * `readdir` without this answers text: Node decodes each name as UTF-8 and
+   * puts U+FFFD where it cannot, and the path built back from that name leads
+   * nowhere — so the entry was listed, found unreachable, and left off. Read
+   * as bytes, the path is built from the bytes the disk holds and the entry is
+   * an entry like any other.
+   *
+   * Each name is then carried twice: `name` as it reads, and `pathName` as a
+   * path segment. They are the same string for every name that is valid UTF-8,
+   * which is every name on every volume anybody has looked at, so the rows are
+   * exactly what they were.
+   */
+  const entries = (await fs.readdir(absoluteDir, { encoding: 'buffer' })).map((bytes) => ({
+    bytes,
+    name: displayName(bytes),
+    pathName: encodeName(bytes),
+    written: needsEncoding(bytes),
+  }));
   const unreachable = createUnreachableTally();
 
   const filtered = entries
-    .filter((name) => !excludedFiles.includes(name))
-    .filter((name) => includeHiddenFiles || !hiddenFiles.isHiddenName(name));
+    .filter(({ name }) => !excludedFiles.includes(name))
+    .filter(({ name }) => includeHiddenFiles || !hiddenFiles.isHiddenName(name));
 
-  const items = await mapWithConcurrency(filtered, LIST_DIRECTORY_CONCURRENCY, async (name) => {
-    const filePath = path.join(absoluteDir, name);
-    const logicalChildPath = combineRelativePath(parentLogicalPath || '', name);
+  const items = await mapWithConcurrency(
+    filtered,
+    LIST_DIRECTORY_CONCURRENCY,
+    async ({ bytes, name, pathName, written }) => {
+      const filePath = bytePath.join(absoluteDir, bytes);
+      const logicalChildPath = combineRelativePath(parentLogicalPath || '', pathName);
 
-    let stats;
-    let entry;
-    try {
-      entry = await fs.lstat(filePath);
-      stats = entry.isSymbolicLink() ? null : entry;
-    } catch (err) {
-      logger.warn({ filePath, err }, 'Skipping unreadable entry');
-      unreachable.noteOrThrow(filePath, err);
-      return null;
-    }
-
-    const childAccess = await getAccessInfo(context, logicalChildPath, accessOptions);
-    if (!childAccess?.canAccess) {
-      return null;
-    }
-
-    if (!stats) {
-      if (await linkLeavesTheSpace(context, logicalChildPath, childAccess)) {
-        return {
-          name,
-          path: parentLogicalPath,
-          dateModified: entry.mtime,
-          size: null,
-          kind: toKind(entry, name),
-          link: 'outside',
-        };
-      }
+      let stats;
+      let entry;
       try {
-        stats = await fs.stat(filePath);
+        entry = await fs.lstat(filePath);
+        stats = entry.isSymbolicLink() ? null : entry;
       } catch (err) {
         logger.warn({ filePath, err }, 'Skipping unreadable entry');
         unreachable.noteOrThrow(filePath, err);
         return null;
       }
+
+      const childAccess = await getAccessInfo(context, logicalChildPath, accessOptions);
+      if (!childAccess?.canAccess) {
+        return null;
+      }
+
+      /**
+       * How to address this entry, when that is not simply its name.
+       *
+       * Left out for every name that is valid UTF-8, so the rows are byte for
+       * byte what they were and nothing reading them has to know this field
+       * exists. Present when the name had to be written down, and then it is
+       * what every path the client builds has to use: `name` is for the eye and
+       * holds U+FFFD, which names nothing.
+       */
+      const addressing = written ? { pathName } : null;
+
+      if (!stats) {
+        if (await linkLeavesTheSpace(context, logicalChildPath, childAccess)) {
+          return {
+            name,
+            ...addressing,
+            path: parentLogicalPath,
+            dateModified: entry.mtime,
+            size: null,
+            kind: toKind(entry, name),
+            link: 'outside',
+          };
+        }
+        try {
+          stats = await fs.stat(filePath);
+        } catch (err) {
+          logger.warn({ filePath, err }, 'Skipping unreadable entry');
+          unreachable.noteOrThrow(filePath, err);
+          return null;
+        }
+      }
+
+      const kind = toKind(stats, name);
+      const item = {
+        name,
+        ...addressing,
+        path: parentLogicalPath,
+        dateModified: stats.mtime,
+        size: stats.size,
+        kind,
+      };
+
+      if (stats.isFile()) {
+        const activity = onlyofficeActivity.get(filePath);
+        if (activity?.active) item.onlyofficeActivity = activity;
+      }
+
+      if (
+        thumbsEnabled &&
+        stats.isFile() &&
+        kind !== 'pdf' &&
+        previewable.has(kind.toLowerCase())
+      ) {
+        item.supportsThumbnail = true;
+      }
+
+      // `access`, as a volume held to reading says it: the same lock, the same reason.
+      if (!insideReadOnly && ruleSays(logicalChildPath) === 'ro') item.readOnly = 'access';
+
+      if (typeof itemExtras === 'function') {
+        Object.assign(item, itemExtras({ name, stats, kind, access: childAccess }) || {});
+      }
+
+      return item;
     }
-
-    const kind = toKind(stats, name);
-    const item = {
-      name,
-      path: parentLogicalPath,
-      dateModified: stats.mtime,
-      size: stats.size,
-      kind,
-    };
-
-    if (stats.isFile()) {
-      const activity = onlyofficeActivity.get(filePath);
-      if (activity?.active) item.onlyofficeActivity = activity;
-    }
-
-    if (thumbsEnabled && stats.isFile() && kind !== 'pdf' && previewable.has(kind.toLowerCase())) {
-      item.supportsThumbnail = true;
-    }
-
-    // `access`, as a volume held to reading says it: the same lock, the same reason.
-    if (!insideReadOnly && ruleSays(logicalChildPath) === 'ro') item.readOnly = 'access';
-
-    if (typeof itemExtras === 'function') {
-      Object.assign(item, itemExtras({ name, stats, kind, access: childAccess }) || {});
-    }
-
-    return item;
-  });
+  );
 
   return { items: items.filter(Boolean), unreadable: unreachable.count };
 };

@@ -7,6 +7,7 @@ import { useInputMode } from '@/composables/useInputMode';
 import { useOperationTasksStore } from '@/stores/operationTasks';
 import { useOnlyOfficeTransferConfirm } from '@/composables/useOnlyOfficeTransferConfirm';
 import { useTabsStore } from '@/stores/tabs';
+import { pathNameOf } from '@/stores/files/items';
 
 // A drag can cross from the file view into the sidebar, where a different
 // composable instance handles dragover. Keep the preview state module-wide so
@@ -330,7 +331,9 @@ export function useFileDragDrop() {
     const isDescendantDrop = draggedItems.some((item) => {
       if (item.kind !== 'directory') return false;
 
-      const itemPath = normalizePath(item.path ? `${item.path}/${item.name}` : item.name);
+      const itemPath = normalizePath(
+        item.path ? `${item.path}/${pathNameOf(item)}` : pathNameOf(item)
+      );
       return Boolean(itemPath) && destination.startsWith(`${itemPath}/`);
     });
 

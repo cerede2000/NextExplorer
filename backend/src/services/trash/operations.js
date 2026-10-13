@@ -39,6 +39,8 @@ const { admission } = require('./policy');
 const store = require('./store');
 const zones = require('./zones');
 const { createUnreachableTally } = require('../../utils/unreachableEntries');
+const bytePath = require('../../utils/bytePath');
+const { encodeName, displayName, needsEncoding } = require('../../utils/byteName');
 
 /** Items with an operation running in this process; recovery leaves them alone. */
 const inflight = new Set();
@@ -70,14 +72,14 @@ const measure = async (absolutePath) => {
     const current = stack.pop();
     let dirents;
     try {
-      dirents = await fsp.readdir(current, { withFileTypes: true });
+      dirents = await fsp.readdir(current, { withFileTypes: true, encoding: 'buffer' });
     } catch {
       continue;
     }
     entries += dirents.length;
     const files = [];
     for (const dirent of dirents) {
-      const child = path.join(current, dirent.name);
+      const child = bytePath.join(current, dirent.name);
       if (dirent.isDirectory()) stack.push(child);
       else if (dirent.isFile()) files.push(child);
     }
@@ -825,13 +827,16 @@ const listEntries = async (itemId, entryPath = '') => {
   if (!found) return { status: 'missing' };
   if (!found.stats.isDirectory()) return { status: 'not-directory' };
 
-  const names = await fsp.readdir(found.absolutePath);
+  // Read as bytes, so a deleted folder shows what it holds even where a name
+  // does not decode as UTF-8: the row is there, and `pathName` is how the entry
+  // inside it is asked for.
+  const names = await fsp.readdir(found.absolutePath, { encoding: 'buffer' });
   const entries = [];
   let unreadable = 0;
   for (let index = 0; index < names.length; index += LIST_BATCH) {
     const batch = await Promise.all(
-      names.slice(index, index + LIST_BATCH).map(async (name) => {
-        const stats = await lstatOrNull(path.join(found.absolutePath, name));
+      names.slice(index, index + LIST_BATCH).map(async (bytes) => {
+        const stats = await lstatOrNull(bytePath.join(found.absolutePath, bytes));
         if (!stats) {
           // Listed by the directory and reachable by nobody, so the folder
           // inside the trash is told to be short of rows rather than quietly
@@ -843,7 +848,8 @@ const listEntries = async (itemId, entryPath = '') => {
         if (stats.isDirectory()) kind = 'directory';
         else if (stats.isSymbolicLink()) kind = 'symlink';
         return {
-          name,
+          name: displayName(bytes),
+          ...(needsEncoding(bytes) ? { pathName: encodeName(bytes) } : null),
           kind,
           size: stats.isFile() ? stats.size : null,
           modifiedAt: stats.mtime.toISOString(),

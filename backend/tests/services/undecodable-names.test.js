@@ -707,17 +707,33 @@ describe('an entry whose name cannot be decoded', () => {
     });
   });
 
+  /**
+   * The guard that refuses what it cannot inspect, and now has far less it
+   * cannot inspect.
+   *
+   * It reads bytes, so a directory named in bytes that do not decode is opened
+   * and walked like any other — which is what it could not do before, and why
+   * everything under such a name used to pass without being looked at. The
+   * refusal is still there for a folder that really cannot be read, and that is
+   * what this asks: the error has to come from being unable to look, not from
+   * finding nothing.
+   */
   describe('in the check that no archive brought a symbolic link', () => {
-    it('is refused rather than passed as a subtree nobody looked into', async () => {
+    it('is refused when a folder cannot be opened at all', async () => {
       env = await context('undecodable-symlink-guard-', ['src/services/archiveService']);
       const staging = path.join(env.volumeDir, 'staging');
-      await fsp.mkdir(path.join(staging, 'inner'), { recursive: true });
+      const opaque = path.join(staging, 'opaque');
+      await fsp.mkdir(opaque, { recursive: true });
 
-      restore = substituteModule(
-        modulePath('src/services/archiveService.js'),
-        'fs/promises',
-        withUndecodableEntry({ realFs: fsp, directory: staging, isDirectory: true })
-      );
+      restore = substituteModule(modulePath('src/services/archiveService.js'), 'fs/promises', {
+        ...fsp,
+        readdir: async (target, options) => {
+          if (String(target) === opaque) {
+            throw Object.assign(new Error('EACCES'), { code: 'EACCES' });
+          }
+          return fsp.readdir(target, options);
+        },
+      });
       const { assertNoSymlinks } = env.requireFresh('src/services/archiveService');
 
       await expect(assertNoSymlinks(staging)).rejects.toMatchObject({

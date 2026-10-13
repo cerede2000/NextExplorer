@@ -229,6 +229,7 @@ import {
   XMarkIcon,
 } from '@heroicons/vue/24/outline';
 import { isPreviewableImage, isPreviewableVideo } from '@/config/media';
+import { pathNameOf } from '@/stores/files/items';
 import { useMediaZoom } from './useMediaZoom';
 import { useMediaTracks, languageName } from './useMediaTracks';
 
@@ -276,7 +277,7 @@ const touchDistance = (touches) => {
   return Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY);
 };
 
-const getItemKey = (item) => `${item.path || ''}/${item.name || ''}`;
+const getItemKey = (item) => `${item.path || ''}/${pathNameOf(item)}`;
 
 const getItemExtension = (item) => {
   const name = String(item?.name || '');

@@ -13,6 +13,7 @@ import { useTabsStore } from '@/stores/tabs';
 import { useTabLoadingStore } from '@/stores/tabLoading';
 import { createPreviewSession } from './session';
 import router from '@/router';
+import { pathNameOf } from '@/stores/files/items';
 
 /**
  * Which plugin opens what, and what each tab is showing.
@@ -111,7 +112,7 @@ export const usePreviewManager = defineStore('preview-manager', () => {
   const getFullPath = (item) => {
     if (!item?.name) return '';
     const parent = normalizePath(item.path || '');
-    return normalizePath(parent ? `${parent}/${item.name}` : item.name);
+    return normalizePath(parent ? `${parent}/${pathNameOf(item)}` : pathNameOf(item));
   };
 
   // Get siblings from the same directory

@@ -28,6 +28,7 @@ const {
 const pathBindings = require('./pathBindingsService');
 const folderSizeHooks = require('./folderSizeHooks');
 const { createUnreachableTally } = require('../utils/unreachableEntries');
+const bytePath = require('../utils/bytePath');
 const config = require('../config/index');
 const { getIndexDb } = require('./indexDb');
 const folderSizeIndex = require('./folderSizeIndex');
@@ -627,12 +628,14 @@ const copyEntryWithProgress = async (
   }
 
   await ensureDir(destinationPath);
-  const entries = await fs.readdir(sourcePath, { withFileTypes: true });
+  // Read as bytes: a child whose name does not decode as UTF-8 is copied under
+  // the name it has, rather than being left out of the copy and counted.
+  const entries = await fs.readdir(sourcePath, { withFileTypes: true, encoding: 'buffer' });
   let copiedBytes = 0;
   for (const entry of entries) {
     throwIfCancelled(signal);
-    const src = path.join(sourcePath, entry.name);
-    const dest = path.join(destinationPath, entry.name);
+    const src = bytePath.join(sourcePath, entry.name);
+    const dest = bytePath.join(destinationPath, entry.name);
     try {
       copiedBytes +=
         (await copyEntryWithProgress(

@@ -5,6 +5,8 @@ const { ensureValidName } = require('../utils/pathUtils');
 const { placeWithoutOverwrite } = require('../utils/placeWithoutOverwrite');
 const { takeInventory } = require('../utils/ownedTree');
 const { createUnreachableTally } = require('../utils/unreachableEntries');
+const bytePath = require('../utils/bytePath');
+const { encodeName, displayName, needsEncoding } = require('../utils/byteName');
 const { ValidationError } = require('../errors/AppError');
 const { archives } = require('../config/index');
 const folderSizeHooks = require('./folderSizeHooks');
@@ -70,13 +72,20 @@ const extractIntoCurrentFolder = async ({
   relativeParentPath,
   movedPaths,
 }) => {
-  const stagedEntries = await fs.readdir(stagingDirectory, { withFileTypes: true });
+  // Read as bytes: 7-Zip writes a name out as it found it in the archive, so an
+  // entry named in bytes that do not decode as UTF-8 is placed under that name
+  // rather than being left in the staging folder and counted.
+  const stagedEntries = await fs.readdir(stagingDirectory, {
+    withFileTypes: true,
+    encoding: 'buffer',
+  });
   const items = [];
   const unreachable = createUnreachableTally();
 
   for (const entry of stagedEntries) {
-    const entryName = ensureValidName(entry.name);
-    const sourcePath = path.join(stagingDirectory, entryName);
+    const written = needsEncoding(entry.name);
+    const entryName = written ? encodeName(entry.name) : ensureValidName(displayName(entry.name));
+    const sourcePath = bytePath.join(stagingDirectory, entry.name);
     try {
       // Taken stock of before it moves: undoing the extraction removes exactly
       // this, and not what someone puts in a placed folder afterwards.

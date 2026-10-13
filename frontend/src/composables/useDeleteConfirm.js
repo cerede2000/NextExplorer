@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue';
 import { useFileActions } from '@/composables/fileActions';
 import { getDeleteImpact, normalizePath } from '@/api';
+import { pathNameOf } from '@/stores/files/items';
 
 // Singleton instance so multiple callers share the same modal state
 let instance = null;
@@ -8,7 +9,8 @@ let instance = null;
 const emptyImpact = () => ({ shareCount: 0, shares: [], trash: null });
 
 /** The path the server reports an item under: its folder, then its name. */
-const pathOf = (item) => normalizePath(item?.path ? `${item.path}/${item.name}` : item?.name || '');
+const pathOf = (item) =>
+  normalizePath(item?.path ? `${item.path}/${pathNameOf(item)}` : pathNameOf(item));
 
 /**
  * Deleting, with the confirmation that says what will happen.

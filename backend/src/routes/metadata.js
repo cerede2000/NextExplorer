@@ -7,6 +7,7 @@ const ffmpegRunner = require('../services/ffmpegRunner');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { readExifDetails } = require('../utils/exifDetails');
 const { createUnreachableTally } = require('../utils/unreachableEntries');
+const bytePath = require('../utils/bytePath');
 const { extensions } = require('../config/index');
 const { resolvePathWithAccess } = require('../services/accessManager');
 const logger = require('../utils/logger');
@@ -50,7 +51,7 @@ const sumDirectory = async (dirPath, limit = 200000) => {
     }
     let entries;
     try {
-      entries = await fs.readdir(current, { withFileTypes: true });
+      entries = await fs.readdir(current, { withFileTypes: true, encoding: 'buffer' });
     } catch (error) {
       // A folder that cannot be opened at all: one entry nobody could read,
       // rather than an answer of 500 for the whole properties panel.
@@ -58,7 +59,7 @@ const sumDirectory = async (dirPath, limit = 200000) => {
       continue;
     }
     for (const entry of entries) {
-      const full = path.join(current, entry.name);
+      const full = bytePath.join(current, entry.name);
       try {
         const stat = await fs.stat(full);
         if (stat.isDirectory()) {

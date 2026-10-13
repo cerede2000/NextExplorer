@@ -29,6 +29,7 @@ import { useNotificationsStore } from '@/stores/notifications';
 import { useFeaturesStore } from '@/stores/features';
 import { isTerminalExtension } from '@/config/terminal';
 import { itemExtension, terminalInputFor } from '@/utils/terminalInput';
+import { itemKey, pathNameOf } from '@/stores/files/items';
 
 /**
  * The right-click menu of the explorer, and the dialogs it opens.
@@ -156,11 +157,7 @@ const clearTextSelection = () => {
   window.getSelection?.()?.removeAllRanges?.();
 };
 
-const getItemKey = (item) => {
-  if (!item || !item.name) return '';
-  const parent = normalizePath(item.path || '');
-  return `${parent}::${item.name}`;
-};
+const getItemKey = (item) => itemKey(item);
 
 const ensureItemInSelection = (item) => {
   if (!item) return;
@@ -403,7 +400,7 @@ const runShowVersions = () => {
 const runOpenWithEditor = () => {
   if (!primaryItem.value) return;
   const item = primaryItem.value;
-  const basePath = item.path ? `${item.path}/${item.name}` : item.name;
+  const basePath = item.path ? `${item.path}/${pathNameOf(item)}` : pathNameOf(item);
   const fileToEdit = basePath.replace(/^\/+/, '');
   // Encode each segment for editor path
   const encodedPath = fileToEdit.split('/').map(encodeURIComponent).join('/');
@@ -779,7 +776,7 @@ provide(explorerContextMenuSymbol, {
       data-test="kept-items"
       class="mb-6 max-h-48 space-y-1 overflow-y-auto text-sm text-zinc-600 dark:text-zinc-300"
     >
-      <li v-for="item in keptItems" :key="`${item.path}/${item.name}`">
+      <li v-for="item in keptItems" :key="itemKey(item)">
         <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ item.name }}</span>
         — {{ keptItemReason(item) }}
       </li>

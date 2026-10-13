@@ -3,6 +3,7 @@ import { browse, normalizePath } from '@/api';
 import { shareRootForPage } from '@/api/shareScope';
 import { useAuthStore } from '@/stores/auth';
 import logger from '@/utils/logger';
+import { pathNameOf } from '@/stores/files/items';
 
 /**
  * The top a dialog opened on this page must not go above.
@@ -70,7 +71,7 @@ export function useStorageBrowser() {
   /** The path of an entry in the current listing. */
   const fullPath = (item) => {
     const parent = item?.path || '';
-    return parent ? `${parent}/${item.name}` : item?.name || '';
+    return parent ? `${parent}/${pathNameOf(item)}` : pathNameOf(item);
   };
 
   return {

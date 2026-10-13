@@ -5,14 +5,43 @@ import { normalizePath } from '@/api';
  * it: how an entry is known, where it is, and what is sent for it.
  */
 
-/** `parent::name`, the identity of an entry across listings. */
+/**
+ * The entry's name as a path segment, which is not always what it is called.
+ *
+ * A name on a disk is bytes. Where those bytes are not valid UTF-8 — a volume
+ * carried over from Windows is full of such names — they cannot be text without
+ * losing: the server hands over `name` with U+FFFD in it for the eye, and
+ * `pathName`, which is the same name written down so it survives a round trip.
+ * A path built out of `name` would name nothing, which is the whole defect.
+ *
+ * The field is absent for every name that is valid UTF-8, so for every entry
+ * anybody has ever looked at this answers exactly `item.name` and nothing about
+ * the application changes. Everything that builds a path or a key out of an
+ * entry asks this, and nothing asks `name` for that purpose: two spellings of
+ * one entry is two identities for it, and a row whose key disagreed with the
+ * path its actions use is a row that acts on something else.
+ */
+export const pathNameOf = (item) => {
+  if (!item) return '';
+  if (typeof item.pathName === 'string' && item.pathName) return item.pathName;
+  return typeof item.name === 'string' ? item.name : '';
+};
+
+/**
+ * `parent::name`, the identity of an entry across listings.
+ *
+ * Keyed on the path name rather than the readable one, because two names that
+ * do not decode can read the same: `Contr<f4>le` and `Contr<f5>le` are both
+ * `Contr?le` to the eye, and one key between them would draw one row for two
+ * files and let an action on either reach whichever the merge kept.
+ */
 export const itemKey = (item) => {
   if (!item || !item.name) {
     return '';
   }
 
   const parent = normalizePath(item.path || '');
-  return `${parent}::${item.name}`;
+  return `${parent}::${pathNameOf(item)}`;
 };
 
 /** The entry's path from the top, or null for something that is not one. */
@@ -22,7 +51,8 @@ export const itemRelativePath = (item) => {
   }
 
   const parent = normalizePath(item.path || '');
-  const combined = parent ? `${parent}/${item.name}` : item.name;
+  const name = pathNameOf(item);
+  const combined = parent ? `${parent}/${name}` : name;
   return normalizePath(combined);
 };
 
@@ -31,7 +61,10 @@ export const serializeItems = (items) =>
   items
     .filter((item) => item && item.name && item.kind !== 'volume')
     .map((item) => ({
-      name: item.name,
+      // The name the server can resolve, which for an entry whose own name does
+      // not decode is the written-down one. Sending the readable name would ask
+      // the server for a path that names nothing.
+      name: pathNameOf(item),
       path: normalizePath(item.path || ''),
       kind: item.kind,
     }));

@@ -1,4 +1,5 @@
 const path = require('path');
+const bytePath = require('../utils/bytePath');
 const fs = require('fs/promises');
 const { execFile, spawn } = require('child_process');
 const { promisify } = require('util');
@@ -437,12 +438,12 @@ const directorySize = async (absolutePath) => {
     const current = stack.pop();
     let entries;
     try {
-      entries = await fs.readdir(current, { withFileTypes: true });
+      entries = await fs.readdir(current, { withFileTypes: true, encoding: 'buffer' });
     } catch {
       continue;
     }
     for (const entry of entries) {
-      const child = path.join(current, entry.name);
+      const child = bytePath.join(current, entry.name);
       if (entry.isDirectory()) {
         stack.push(child);
       } else if (entry.isFile()) {
@@ -492,10 +493,13 @@ const watchExtractionSize = (destinationAbsolutePath, maxBytes, onExceeded) => {
  * single switch of an external tool.
  *
  * A folder it cannot open is a refusal, not a skip. Swallowing that error left
- * everything under such a folder uninspected: an archive holding a directory
- * whose name does not decode as UTF-8 — which 7-Zip writes out as it found it —
- * had its whole subtree pass this check without being looked at. A guard that
- * cannot answer its own question has to say no.
+ * everything under such a folder uninspected: a guard that cannot answer its
+ * own question has to say no.
+ *
+ * It can answer it now for the case that used to reach that refusal. The walk
+ * reads bytes, so a directory whose name does not decode as UTF-8 — which
+ * 7-Zip writes out as it found it — is opened and inspected like any other,
+ * and the refusal is left for a folder that really cannot be read.
  */
 const assertNoSymlinks = async (rootAbsolutePath) => {
   const stack = [rootAbsolutePath];
@@ -503,7 +507,7 @@ const assertNoSymlinks = async (rootAbsolutePath) => {
     const current = stack.pop();
     let entries;
     try {
-      entries = await fs.readdir(current, { withFileTypes: true });
+      entries = await fs.readdir(current, { withFileTypes: true, encoding: 'buffer' });
     } catch (readError) {
       if (readError?.code === 'ENOTDIR') continue;
       const error = new Error(
@@ -519,7 +523,7 @@ const assertNoSymlinks = async (rootAbsolutePath) => {
         error.code = 'ARCHIVE_CONTAINS_SYMLINK';
         throw error;
       }
-      if (entry.isDirectory()) stack.push(path.join(current, entry.name));
+      if (entry.isDirectory()) stack.push(bytePath.join(current, entry.name));
     }
   }
 };

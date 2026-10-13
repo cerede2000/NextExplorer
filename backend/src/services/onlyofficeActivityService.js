@@ -11,7 +11,18 @@ const activityEvents = new EventEmitter();
 let activityVersion = 0;
 let expirationTimer = null;
 
-const keyFor = (absolutePath) => path.resolve(absolutePath);
+/**
+ * One key per file, whichever form its path arrived in.
+ *
+ * A path whose name the disk holds in bytes that do not decode as UTF-8 arrives
+ * as a Buffer, and `path.resolve` takes text only. Keyed by its bytes, in a
+ * form that cannot collide with a resolved path: nothing resolves to a name
+ * beginning with `bytes:`, since a resolved path begins with a separator.
+ */
+const keyFor = (absolutePath) =>
+  Buffer.isBuffer(absolutePath)
+    ? `bytes:${absolutePath.toString('hex')}`
+    : path.resolve(absolutePath);
 
 const notifyActivityChange = () => {
   activityVersion += 1;

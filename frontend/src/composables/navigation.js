@@ -9,6 +9,7 @@ import { usePreviewManager } from '@/plugins/preview/manager';
 import { useAppSettings } from '@/stores/appSettings';
 import { useItemAddress } from '@/composables/itemAddress';
 import { useTabsStore } from '@/stores/tabs';
+import { pathNameOf } from '@/stores/files/items';
 
 // Kept beside the markdown preview plugin's own list, which matches the same
 // two extensions.
@@ -83,12 +84,15 @@ export function useNavigation() {
     const kind = typeof item.kind === 'string' ? item.kind : '';
     const name = typeof item.name === 'string' ? item.name : '';
     if (!name && kind !== 'personal') return;
+    // How it is addressed, which for a name whose bytes do not decode is not
+    // what it is called.
+    const segment = pathNameOf(item);
     // Where this listing is, which inside a share is `share/<token>/…` even though
     // the address keeps the token in a parameter of its own.
     const currentPath = folderPathOfRoute(route);
 
     if (kind === 'volume') {
-      navigate(folderRoute(name));
+      navigate(folderRoute(segment));
       return;
     }
     if (kind === 'personal') {
@@ -96,7 +100,7 @@ export function useNavigation() {
       return;
     }
     if (kind === 'directory') {
-      const newPath = currentPath ? `${currentPath}/${name}` : name;
+      const newPath = currentPath ? `${currentPath}/${segment}` : segment;
       navigate(folderRoute(newPath));
       return;
     }
@@ -114,7 +118,7 @@ export function useNavigation() {
       (MARKDOWN_EXTENSIONS.includes(extensionFromKind) ||
         MARKDOWN_EXTENSIONS.includes(extensionFromName));
 
-    const basePath = item.path ? `${item.path}/${name}` : name;
+    const basePath = item.path ? `${item.path}/${segment}` : segment;
     const fullPath = basePath.replace(/^\/+/, '');
     const editable =
       isEditableExtension(extensionFromKind) || isEditableExtension(extensionFromName);

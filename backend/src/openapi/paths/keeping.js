@@ -147,6 +147,9 @@ module.exports = {
                 obj(
                   {
                     name: str(),
+                    pathName: str(
+                      'How to address it when its own name cannot: see the same field on `Item`.'
+                    ),
                     kind: str(),
                     size: nullable(num()),
                     modifiedAt: dateTime(),

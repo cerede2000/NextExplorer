@@ -1,7 +1,7 @@
 const fs = require('fs/promises');
-const path = require('path');
 
 const { isUnreachableEntry } = require('./unreachableEntries');
+const bytePath = require('./bytePath');
 
 /**
  * What an operation wrote, told apart from what someone else put beside it.
@@ -37,11 +37,13 @@ const identityOf = (stats) => {
 /**
  * Every entry under `root`, `root` included, by identity.
  *
- * An entry whose name does not decode is not in the inventory, which is the
- * safe way round: the undo removes what it is sure it wrote, and anything it
- * could not identify stays — reported by `removeInventoried` as kept, like
- * anything else that is not the operation's own. Walking it used to throw, and
- * an extraction of an archive holding one such name failed as a whole.
+ * Read as bytes, so an entry whose name does not decode as UTF-8 is taken stock
+ * of like any other and the undo can remove exactly what the operation wrote.
+ * Walking it as text used to throw, taking the whole extraction with it.
+ *
+ * An entry nothing can reach at all is still left out, which is the safe way
+ * round: the undo removes what it is sure it wrote, and anything it could not
+ * identify stays, reported by `removeInventoried` as kept.
  */
 const takeInventory = async (root) => {
   const owned = new Set();
@@ -58,13 +60,13 @@ const takeInventory = async (root) => {
     if (!stats.isDirectory()) return;
     let names;
     try {
-      names = await fs.readdir(entryPath);
+      names = await fs.readdir(entryPath, { encoding: 'buffer' });
     } catch (error) {
       if (!isUnreachableEntry(error)) throw error;
       return;
     }
     for (const name of names) {
-      await walk(path.join(entryPath, name));
+      await walk(bytePath.join(entryPath, name));
     }
   };
 
@@ -102,7 +104,7 @@ const removeInventoried = async (root, inventory) => {
 
     let names;
     try {
-      names = await fs.readdir(entryPath);
+      names = await fs.readdir(entryPath, { encoding: 'buffer' });
     } catch (error) {
       if (!isUnreachableEntry(error)) throw error;
       // Nothing inside can be looked at, so nothing inside is removed and the
@@ -111,7 +113,7 @@ const removeInventoried = async (root, inventory) => {
       return;
     }
     for (const name of names) {
-      await visit(path.join(entryPath, name));
+      await visit(bytePath.join(entryPath, name));
     }
     if (!ours) {
       kept.push(entryPath);

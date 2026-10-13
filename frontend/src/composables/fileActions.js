@@ -6,6 +6,7 @@ import { useAppSettings } from '@/stores/appSettings';
 import { buildUrl, expectBrowserNavigation, normalizePath } from '@/api';
 import { useDestinationPicker } from '@/composables/useDestinationPicker';
 import { useSeparateDownload } from '@/composables/useSeparateDownload';
+import { pathNameOf } from '@/stores/files/items';
 
 function isEditableElement(el) {
   if (!el) return false;
@@ -21,7 +22,8 @@ const isOutsideLink = (item) => item?.link === 'outside';
 function resolveItemPath(item) {
   if (!item || !item.name) return '';
   const parent = normalizePath(item.path || '');
-  const combined = parent ? `${parent}/${item.name}` : item.name;
+  const name = pathNameOf(item);
+  const combined = parent ? `${parent}/${name}` : name;
   return normalizePath(combined);
 }
 

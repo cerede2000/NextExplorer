@@ -8,6 +8,7 @@ import { useFavoritesStore } from '@/stores/favorites';
 import { useDestinationPicker } from '@/composables/useDestinationPicker';
 import { fetchRecentDestinations, normalizePath } from '@/api';
 import logger from '@/utils/logger';
+import { pathNameOf } from '@/stores/files/items';
 
 /**
  * Choose where to move or copy something.
@@ -77,7 +78,7 @@ watch(currentPath, () => {
 const movingPaths = computed(() =>
   props.value.items
     .filter((item) => item?.kind === 'directory')
-    .map((item) => normalizePath(item.path ? `${item.path}/${item.name}` : item.name))
+    .map((item) => normalizePath(item.path ? `${item.path}/${pathNameOf(item)}` : pathNameOf(item)))
     .filter(Boolean)
 );
 
