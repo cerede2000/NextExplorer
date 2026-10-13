@@ -1,6 +1,6 @@
 const { startNdjsonStream } = require('./ndjsonStream');
 const operationTasks = require('../services/operationTasks');
-const { NotFoundError } = require('../errors/AppError');
+const { NotFoundError, UnauthorizedError } = require('../errors/AppError');
 
 /**
  * Hand one response the events of one task, from wherever it has got to.
@@ -43,4 +43,48 @@ const streamTask = (res, taskId, owner, shareId = null) => {
   for (const event of held) deliver(event);
 };
 
-module.exports = { streamTask };
+/**
+ * Register one piece of work and hand this response the window onto it.
+ *
+ * For the operations that are described in a single request — an archive
+ * unpacked or packed, entries taken out of one, something brought back out of
+ * the trash. Each of them used to run inside its request and be aborted by its
+ * own socket closing, so a reader who closed the tab half-way through unpacking
+ * twenty gigabytes lost all of it and was told nothing.
+ *
+ * Everything that can be refused must already have been: this commits a 200 and
+ * from then on a failure can only be an error *event*. `work` does the work and
+ * is handed the task, so it can report as it goes and watch `signal`; whatever
+ * it cleans up on the way out it still cleans up, because the register only
+ * reports what it throws. `describeError` turns that into what the caller is
+ * told, and `collect` into the `done` event.
+ *
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {object} options
+ * @param {string} options.kind         'extract', 'compress', 'restore', …
+ * @param {string} [options.destination] where it is going, as a logical path
+ * @param {string} [options.label]      what it is about, where that is a name
+ * @param {object} [options.bag]        where `work` keeps the answer it builds
+ * @param {() => object} options.collect      the `done` event's own fields
+ * @param {(handle: object) => Promise<void>} options.work
+ * @param {(error: Error) => object} options.describeError
+ */
+const streamAsTask = (
+  req,
+  res,
+  { kind, destination = '', label = '', bag = {}, collect, work, describeError }
+) => {
+  const owner = operationTasks.ownerOf(req);
+  if (!owner) throw new UnauthorizedError('Authentication required.');
+  const shareId = req.shareScope?.shareId ?? null;
+
+  const handle = operationTasks.open({ kind, owner, shareId, destination, label, bag, collect });
+  handle.enqueue(() => work(handle), describeError);
+  handle.seal();
+
+  streamTask(res, handle.id, owner, shareId);
+  return handle;
+};
+
+module.exports = { streamTask, streamAsTask };

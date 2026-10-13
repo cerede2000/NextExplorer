@@ -118,17 +118,55 @@
         "^carries the destination on every batch$",
         "^concatenates the transferred items$",
         "^keeps the destination the server settled on$",
-        "^returns the single response untouched when there was no batching$"
+        "^returns the single response untouched when there was no batching$",
+        "^deletes in batches of 500 too$",
+        "^reports the whole selection, not one batch, at the start$",
+        "^emits one start for the run, however many batches open$",
+        "^never goes backwards when the next batch restarts its own count$",
+        "^turns the running total into a percentage of the whole selection$",
+        "^passes an event it does not understand through untouched$",
+        "^says nothing to a caller that asked for no events$",
+        "^stops at the first failure rather than working through the rest$",
+        "^flattens the deleted items from every batch$"
       ],
-      "note": "a transfer stopped being several operations, so the cases that held the accounting over several of them hold something else or hold it elsewhere. The work runs in the server now and the parts of one selection all name the same operation, which is what lets a copy outlive the tab that asked for it — so the counting and the single answer are the operation's. `splits one item past the batch size into two` is `describes one item past the batch size in two requests, as one operation`, beside `says which part is the last one, and not before`; `loses nothing and duplicates nothing across the batches` and `carries the destination on every batch` are the same two over the parts rather than the batches, and read both the streamed request and the ones added to the operation; `concatenates the transferred items` and `keeps the destination the server settled on` are one case now, `is the operation’s own, covering every part of the selection`, because there is one answer to fold rather than several; and `returns the single response untouched when there was no batching` is `is the same shape for a selection that fitted in one request`. What those batches used to prove about a progress bar across several operations is still proved, for the operation that is still several — a deletion — under `progress accounting across the requests of one deletion` in this same file."
+      "note": "a transfer stopped being several operations, so the cases that held the accounting over several of them hold something else or hold it elsewhere. The work runs in the server now and the parts of one selection all name the same operation, which is what lets a copy outlive the tab that asked for it — so the counting and the single answer are the operation's. `splits one item past the batch size into two` is `describes one item past the batch size in two requests, as one operation`, beside `says which part is the last one, and not before`; `loses nothing and duplicates nothing across the batches` and `carries the destination on every batch` are the same two over the parts rather than the batches, and read both the streamed request and the ones added to the operation; `concatenates the transferred items` and `keeps the destination the server settled on` are one case now, `is the operation’s own, covering every part of the selection`, because there is one answer to fold rather than several; and `returns the single response untouched when there was no batching` is `is the same shape for a selection that fitted in one request`. What those batches used to prove about a progress bar across several operations is still proved, for the operation that is still several — a deletion — under `progress accounting across the requests of one deletion` in this same file. A deletion went the same way afterwards, and with it the last of the accounting: it is one operation described in several requests rather than one operation each, so there is nothing to add up here and `streamInBatches` is gone. `deletes in batches of 500 too` is `describes a large deletion in parts of one operation`, which reads both the streamed request and the parts added to it; the seven cases over a bar built out of per-request counters have no subject left — the operation counts for the whole selection, which `deleteItemsStream.spec.js` asserts it passes through unchanged; `stops at the first failure rather than working through the rest` is the register's now, as `drops what was queued behind a part that failed` in backend/tests/services/operation-tasks.test.js, where it is a guarantee rather than a client that stops sending; and `flattens the deleted items from every batch` is `is the operation’s own, covering every part of the selection`, because there is one answer to read rather than several to fold."
     },
     {
       "file": "^frontend/src/api/deleteItemsStream\\.spec\\.js$",
       "cases": [
         "^splits a large %s into bounded requests$",
-        "^keeps one progress bar across the batches$"
+        "^keeps one progress bar across the batches$",
+        "^splits a large selection into bounded requests$",
+        "^reports one continuous progress over the whole selection$",
+        "^returns every deleted item across batches$",
+        "^stops at the batch that was cancelled$"
       ],
-      "note": "the same two properties, for a transfer that is one operation rather than several. The body ceiling is the whole reason a selection is cut up at all, and it is still asserted of every request a large transfer makes, under `keeps every request of a large %s under the ceiling`. The bar is no longer added up here: the operation counts for the whole selection, so what this file asks is that the client passes those figures through and invents none of its own, under `reports what the operation says, and asks for no accounting of its own`. The cross-request accounting that remains — a deletion, which is still one operation per request — is held in filesBatching.spec.js."
+      "note": "the same two properties, for a transfer that is one operation rather than several. The body ceiling is the whole reason a selection is cut up at all, and it is still asserted of every request a large transfer makes, under `keeps every request of a large %s under the ceiling`. The bar is no longer added up here: the operation counts for the whole selection, so what this file asks is that the client passes those figures through and invents none of its own, under `reports what the operation says, and asks for no accounting of its own`. The cross-request accounting that remains — a deletion, which is still one operation per request — is held in filesBatching.spec.js. The deletion half of the file went the same way when a deletion became one operation too: `splits a large selection into bounded requests` is `keeps every request of a large selection under the ceiling`, which is what the cutting up is for; `reports one continuous progress over the whole selection` is `reports the operation’s own count of the whole selection`, and the continuity is no longer something the client builds; `returns every deleted item across batches` is `returns every deleted item, from the one answer`; and `stops at the batch that was cancelled` is `reports a stopped deletion rather than resolving with what it managed` — what is queued behind a failure is dropped by the operation, so there is no loop here left to stop."
+    },
+    {
+      "file": "^backend/tests/routes/zip-compress-safety\\.test\\.js$",
+      "cases": ["^leaves nothing behind, hidden or not, when it is cancelled half way$"],
+      "note": "every long operation runs in the server now and the response is a window onto it, so the client counts for none of them and stops none of them by hanging up. The case is `leaves nothing behind, hidden or not, when it is stopped half way` here, and it asserts exactly what it did — the hidden archive gone, the in-flight record released, the folder as it was — but it stops the compression by asking the server to rather than by closing the connection, which stops nothing. A second case beside it says the other half: `finishes although the window onto it was closed`."
+    },
+    {
+      "file": "^frontend/src/api/deleteTrash\\.spec\\.js$",
+      "cases": ["^is sent with every batch of a large selection$"],
+      "note": "a large deletion is one operation described in several requests rather than one operation per request, so the case is `is sent with every part of a large selection` and reads the parts added to the operation as well as the request that opened it. What it holds is unchanged and is the reason it exists: a part that forgot to say the deletion is permanent would put in the trash what the reader asked to be gone for good."
+    },
+    {
+      "file": "^frontend/src/api/trash\\.api\\.spec\\.js$",
+      "cases": ["^restores items into a chosen folder, as a stream it can follow and cancel$"],
+      "note": "every long operation runs in the server now and the response is a window onto it, so the client counts for none of them and stops none of them by hanging up. A restore is one of them, so the case is `restores items into a chosen folder, as a stream it can follow` — the cancelling has gone out of the title because it has gone out of the stream, and the case asserts instead that the caller is handed the operation's id, which is what stops one."
+    },
+    {
+      "file": "^frontend/src/stores/fileStore\\.archives\\.spec\\.js$",
+      "cases": [
+        "^sends the archive path and shows a cancellable operation$",
+        "^reports progress into the operation panel$",
+        "^ignores a progress event with no usable percentage$",
+        "^hands the operation panel a way to stop it$"
+      ],
+      "note": "every long operation runs in the server now and the response is a window onto it, so the client counts for none of them and stops none of them by hanging up. What an archive operation needs from the panel — a bar, the operation's own figures, a cancel that asks the server — is one registration used by every gesture that starts one, so this file asks that it goes through it and the store's own suite holds what it does. `sends the archive path and shows a cancellable operation` is `sends the archive path and registers the operation, named for the archive`; `reports progress into the operation panel` is `watches it and names it through that registration`; `ignores a progress event with no usable percentage` moved with the reading of those figures, to `stores/operationTasks.adopt.spec.js`, where a figure that is not a number is no figure; and `hands the operation panel a way to stop it` is `hangs up on nothing to stop it`, which is the point — an abort would stop the watching and leave the extraction running."
     }
   ]
 }

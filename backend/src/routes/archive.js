@@ -8,7 +8,8 @@ const { ACTIONS, authorizeAndResolve } = require('../services/authorizationServi
 const { track: trackInFlight } = require('../services/inFlightFiles');
 const { removeInventoried } = require('../utils/ownedTree');
 const { mapWithConcurrency } = require('../utils/mapWithConcurrency');
-const { startNdjsonStream, throttlePercent } = require('../utils/ndjsonStream');
+const { throttlePercent } = require('../utils/ndjsonStream');
+const { streamAsTask } = require('../utils/taskStream');
 const { sanitizeClientMessage } = require('../middleware/errorHandler');
 const { ensureStorageAvailable } = require('../services/uploadStorageGuard');
 const {
@@ -176,14 +177,6 @@ router.get(
 router.post(
   '/archive/extract',
   asyncHandler(async (req, res) => {
-    const controller = new AbortController();
-    const abort = () => controller.abort();
-    const onClose = () => {
-      if (!res.writableEnded) abort();
-    };
-    req.once('aborted', abort);
-    res.once('close', onClose);
-
     const archive = await resolveArchive(req, req.body?.path);
     const asked = Array.isArray(req.body?.entries) ? req.body.entries : [];
     if (asked.length === 0) {
@@ -265,68 +258,71 @@ router.post(
     const inFlight = trackInFlight(stagingAbsolutePath, 'staging-directory');
 
     // Everything above throws before a byte is written, so a refusal is still an
-    // ordinary HTTP error. From here the answer is the same stream of events the
-    // other archive operations write.
-    const writeEvent = startNdjsonStream(res);
-    writeEvent({ type: 'start', name: path.posix.basename(chosen[0].path) });
-    const onPercent = throttlePercent(writeEvent);
-
-    try {
-      await extractArchiveEntries(
-        source,
-        stagingAbsolutePath,
-        chosen.map((entry) => entry.path),
-        onPercent,
-        { signal: controller.signal }
-      );
-
-      const { items, unreadable, unreadableSample } = await extractIntoCurrentFolder({
-        stagingDirectory: stagingAbsolutePath,
-        destinationDirectory: destinationAbsolutePath,
-        relativeParentPath: destinationRelativePath,
-        movedPaths,
-      });
-      // The staging directory is this route's own, created a moment ago under
-      // the cache: it never holds anything anybody put there, so it does not
-      // go through the trash.
-
-      await fs.rm(stagingAbsolutePath, { recursive: true, force: true });
-      if (unreadable > 0) {
-        logger.warn(
-          { archive: archive.relativePath, unreadable, sample: unreadableSample },
-          'Entries left out of an extraction because their names could not be read'
-        );
-      }
-      writeEvent({
-        type: 'done',
-        success: true,
-        item: items.length === 1 ? items[0] : null,
-        items,
-        ...(unreadable > 0 ? { unreadable } : {}),
-      });
-    } catch (error) {
-      logger.warn(
-        { err: error, archive: archive.relativePath },
-        'Extracting from an archive failed'
-      );
-
-      await fs.rm(stagingAbsolutePath, { recursive: true, force: true });
-      // What this placed, and only that: a file somebody saved into a placed
-      // folder in the meantime stays, with the folders holding it.
-      await mapWithConcurrency(movedPaths, (moved) =>
-        removeInventoried(moved.path, moved.inventory)
-      );
-      writeEvent({
-        type: 'error',
+    // ordinary HTTP error. From here the answer is a window onto a registered
+    // operation, which writes the same stream of events the other archive
+    // operations do and no longer ends when the window does.
+    const answer = {};
+    streamAsTask(req, res, {
+      kind: 'extract',
+      destination: destinationRelativePath,
+      label: path.posix.basename(chosen[0].path),
+      bag: answer,
+      collect: () => ({ ...answer }),
+      describeError: (error) => ({
         message: sanitizeClientMessage(error.message || 'Extraction failed.'),
         code: error.code || 'EXTRACT_FAILED',
-      });
-    } finally {
-      inFlight.release();
-      req.off('aborted', abort);
-      res.off('close', onClose);
-      res.end();
-    }
+      }),
+      work: async (task) => {
+        const onPercent = throttlePercent((event) => task.report({ percent: event.percent }));
+
+        try {
+          await extractArchiveEntries(
+            source,
+            stagingAbsolutePath,
+            chosen.map((entry) => entry.path),
+            onPercent,
+            { signal: task.signal }
+          );
+
+          const { items, unreadable, unreadableSample } = await extractIntoCurrentFolder({
+            stagingDirectory: stagingAbsolutePath,
+            destinationDirectory: destinationAbsolutePath,
+            relativeParentPath: destinationRelativePath,
+            movedPaths,
+          });
+          // The staging directory is this route's own, created a moment ago under
+          // the cache: it never holds anything anybody put there, so it does not
+          // go through the trash.
+
+          await fs.rm(stagingAbsolutePath, { recursive: true, force: true });
+          if (unreadable > 0) {
+            logger.warn(
+              { archive: archive.relativePath, unreadable, sample: unreadableSample },
+              'Entries left out of an extraction because their names could not be read'
+            );
+          }
+          answer.item = items.length === 1 ? items[0] : null;
+          answer.items = items;
+          if (unreadable > 0) answer.unreadable = unreadable;
+        } catch (error) {
+          logger.warn(
+            { err: error, archive: archive.relativePath },
+            'Extracting from an archive failed'
+          );
+
+          await fs.rm(stagingAbsolutePath, { recursive: true, force: true });
+          // What this placed, and only that: a file somebody saved into a placed
+          // folder in the meantime stays, with the folders holding it.
+          await mapWithConcurrency(movedPaths, (moved) =>
+            removeInventoried(moved.path, moved.inventory)
+          );
+          // The register turns this into the stream's error event.
+          throw error;
+        } finally {
+          inFlight.release();
+        }
+      },
+    });
   })
 );
 

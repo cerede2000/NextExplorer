@@ -265,6 +265,73 @@ describe('a selection too large for one request body', () => {
   });
 });
 
+describe('what an operation is about', () => {
+  /**
+   * A name rather than a folder, for the operations that have one: the archive
+   * being unpacked, the name a new one will take. That name is decided while
+   * the work runs — an archive takes the first one nothing holds — so it is
+   * said again once it is known, rather than left as the one asked for.
+   */
+  it('says the name it was given, and the one it ends up with', async () => {
+    const { tasks } = await setup();
+    const handle = tasks.open({
+      kind: 'compress',
+      owner: alice,
+      destination: 'Dropbox',
+      label: 'Archive.zip',
+      collect: () => ({}),
+    });
+
+    const seen = [];
+    tasks.watch(handle.id, alice, {}, (event) => seen.push(event));
+    expect(seen.at(0)).toMatchObject({ type: 'start', name: 'Archive.zip' });
+    expect(tasks.find(handle.id, alice, {}).label).toBe('Archive.zip');
+
+    handle.rename('Archive (1).zip');
+    expect(seen.at(-1)).toMatchObject({ type: 'progress', name: 'Archive (1).zip' });
+    expect(tasks.listFor(alice, {}).at(0).name).toBe('Archive (1).zip');
+
+    handle.seal();
+    await handle.settled;
+  });
+
+  /**
+   * And how far it has got, where that is a percentage and nothing else: an
+   * archive reports no bytes and no entry count, so what it says about itself
+   * is the only figure there is.
+   */
+  it('passes on a percentage when that is all the work can say', async () => {
+    const { tasks } = await setup();
+    const handle = tasks.open({ kind: 'extract', owner: alice, destination: 'Dropbox' });
+
+    const seen = [];
+    tasks.watch(handle.id, alice, {}, (event) => seen.push(event));
+    handle.report({ percent: 42 });
+
+    expect(seen.at(-1)).toMatchObject({ type: 'progress', percent: 42 });
+    expect(tasks.listFor(alice, {}).at(0).percent).toBe(42);
+
+    handle.seal();
+    await handle.settled;
+  });
+
+  // Entries, for the work that moves entries rather than bytes.
+  it('counts the entries a part has got through while it runs', async () => {
+    const { tasks } = await setup();
+    const handle = tasks.open({ kind: 'delete', owner: alice, destination: '' });
+    handle.grow({ totalItems: 4, bytesKnown: false });
+
+    const seen = [];
+    tasks.watch(handle.id, alice, {}, (event) => seen.push(event));
+    handle.report({ unitItems: 3 });
+
+    expect(seen.at(-1)).toMatchObject({ type: 'progress', completedItems: 3, percent: 75 });
+
+    handle.seal();
+    await handle.settled;
+  });
+});
+
 describe('stopping an operation', () => {
   it('aborts what it is doing and says it was cancelled', async () => {
     const { tasks } = await setup();
@@ -308,6 +375,35 @@ describe('stopping an operation', () => {
 
     expect(view.state).toBe('failed');
     expect(view.error).toEqual({ message: 'Transfer failed.', code: 'TRANSFER_FAILED' });
+  });
+
+  /**
+   * And takes the rest of the queue with it.
+   *
+   * A selection sent in several parts is one operation, and the parts after a
+   * failure are not "the next one to try": the first one failed for a reason
+   * that holds for the rest, and carrying on would be deleting after the reader
+   * was told the deletion had failed.
+   */
+  it('drops what was queued behind a part that failed', async () => {
+    const { tasks } = await setup();
+    const handle = tasks.open({ kind: 'delete', owner: alice, destination: 'Dropbox' });
+    const ran = [];
+
+    handle.enqueue(async () => {
+      ran.push('first');
+      throw new Error('no');
+    });
+    handle.enqueue(async () => ran.push('second'));
+    handle.enqueue(async () => ran.push('third'));
+    handle.seal();
+
+    expect((await handle.settled).state).toBe('failed');
+    expect(ran).toEqual(['first']);
+    // And nothing can be added to it afterwards, which is what a part still on
+    // its way is told.
+    expect(handle.enqueue(async () => ran.push('late'))).toBe(false);
+    expect(ran).toEqual(['first']);
   });
 
   it('refuses to hold more than its share of running operations', async () => {

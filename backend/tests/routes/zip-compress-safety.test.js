@@ -45,6 +45,10 @@ const seed = async (env = {}) => {
 
 const buildApp = () => {
   const routes = ctx.requireFresh('src/routes/zip');
+  // The compression is a registered operation, and stopping one is a request of
+  // its own now rather than hanging up: the addresses that answer for an
+  // operation come with it.
+  const tasks = ctx.requireFresh('src/routes/tasks');
   const { errorHandler } = ctx.requireFresh('src/middleware/errorHandler');
   const app = express();
   app.use(express.json());
@@ -53,6 +57,7 @@ const buildApp = () => {
     next();
   });
   app.use('/api', routes);
+  app.use('/api', tasks);
   app.use(errorHandler);
   return app;
 };
@@ -265,11 +270,20 @@ describe('an archive that fails while it is being written', () => {
     expect(await listing(work)).toEqual(['bundle.zip', 'one.txt', 'two.txt']);
   });
 
-  it('leaves nothing behind, hidden or not, when it is cancelled half way', async () => {
-    // Writes the start of the archive, then works until it is stopped.
+  /**
+   * And it is not stopped by the reader walking away.
+   *
+   * The compression used to run inside its request: closing the tab closed the
+   * socket, the socket killed 7-Zip, and the archive somebody waited minutes for
+   * was never written. It is a registered operation now and the response is only
+   * a window onto it.
+   */
+  it('finishes although the window onto it was closed', async () => {
+    // Writes the whole archive, slowly enough that the connection below is cut
+    // while it is still working.
     const sevenZip = await installSevenZip(
-      'slow-7z',
-      `printf 'PK partial archive' > "$5"; exec sleep 30`
+      'slow-but-finishing-7z',
+      `printf 'PK whole archive' > "$5"; exec sleep 1`
     );
     const work = await seed({ SEVEN_ZIP_PATH: sevenZip });
     const journal = path.join(ctx.cacheDir, 'in-flight');
@@ -295,10 +309,79 @@ describe('an archive that fails while it is being written', () => {
           (await fs.readdir(work)).some((name) => /^\.nextexplorer-zip-.+\.zip$/.test(name)),
         'the archive to be written under a hidden name'
       );
+      // The reader closes the tab, which says nothing to anybody.
       client.destroy();
+
+      await waitFor(
+        async () => (await fs.readdir(work)).includes('bundle.zip'),
+        'the archive to be finished and put in place anyway'
+      );
+    } finally {
+      server.closeAllConnections();
+      await new Promise((resolve) => server.close(resolve));
+    }
+
+    expect(await fs.readFile(path.join(work, 'bundle.zip'), 'utf8')).toBe('PK whole archive');
+    expect(await listing(work)).toEqual(['bundle.zip', 'one.txt', 'two.txt']);
+    expect(records()).toEqual([]);
+  });
+
+  it('leaves nothing behind, hidden or not, when it is stopped half way', async () => {
+    // Writes the start of the archive, then works until it is stopped.
+    const sevenZip = await installSevenZip(
+      'slow-7z',
+      `printf 'PK partial archive' > "$5"; exec sleep 30`
+    );
+    const work = await seed({ SEVEN_ZIP_PATH: sevenZip });
+    const journal = path.join(ctx.cacheDir, 'in-flight');
+    const records = () =>
+      fss.existsSync(journal) ? fss.readdirSync(journal).filter((n) => n.endsWith('.json')) : [];
+
+    const server = await new Promise((resolve) => {
+      const listening = buildApp().listen(0, '127.0.0.1', () => resolve(listening));
+    });
+    try {
+      // The id of the operation, which the stream opens by naming.
+      let taskId = null;
+      const client = http.request(
+        {
+          host: '127.0.0.1',
+          port: server.address().port,
+          method: 'POST',
+          path: '/api/files/zip/compress',
+          headers: { 'content-type': 'application/json' },
+        },
+        (response) => {
+          response.setEncoding('utf8');
+          response.on('data', (chunk) => {
+            for (const line of String(chunk).split('\n')) {
+              if (!line.trim()) continue;
+              const event = JSON.parse(line);
+              if (event.type === 'start') taskId = event.taskId;
+            }
+          });
+        }
+      );
+      client.on('error', () => {});
+      client.end(JSON.stringify({ items: BOTH, destination: 'Work', name: 'bundle' }));
+
+      await waitFor(
+        async () =>
+          (await fs.readdir(work)).some((name) => /^\.nextexplorer-zip-.+\.zip$/.test(name)),
+        'the archive to be written under a hidden name'
+      );
+      await waitFor(async () => taskId !== null, 'the operation to name itself');
+
+      // Stopped by asking, which is the only way to stop one: the work no
+      // longer belongs to this connection, so closing it would leave 7-Zip
+      // running and the half-written archive where it is.
+      const stopped = await request(buildApp()).post(`/api/tasks/${taskId}/cancel`);
+      expect(stopped.status).toBe(200);
+      client.destroy();
+
       await waitFor(
         async () => (await fs.readdir(work)).length === 2 && records().length === 0,
-        'the cancelled compression to clean up'
+        'the stopped compression to clean up'
       );
     } finally {
       server.closeAllConnections();

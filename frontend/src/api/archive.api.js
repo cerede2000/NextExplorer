@@ -60,13 +60,23 @@ async function extractFromArchive(path, entries, options = {}) {
   const destination = options.destination
     ? { destination: normalizePath(options.destination) }
     : {};
+  // The extraction runs in the server and this stream is a window onto it, so
+  // the caller is handed the operation's id: that is what stops one now.
+  const watching = (event) => {
+    if (event?.type === 'start' && typeof options.onTask === 'function') {
+      options.onTask(event.taskId || null);
+    }
+    if (typeof options.onEvent === 'function') options.onEvent(event);
+  };
   return requestStream(
     shareScoped('/api/archive/extract', normalizePath(options.destination || path || '')),
     {
       method: 'POST',
       body: JSON.stringify({ path: normalizePath(path), entries, ...destination }),
-      onEvent: options.onEvent,
+      onEvent: watching,
       signal: options.signal,
+      // A cancellation is what the reader asked for, not a refusal to report.
+      suppressErrorCodes: ['OPERATION_CANCELLED'],
     }
   );
 }

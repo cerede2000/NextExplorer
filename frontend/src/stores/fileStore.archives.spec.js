@@ -20,9 +20,24 @@ import { ref } from 'vue';
 const browse = vi.fn();
 const extractZipApi = vi.fn();
 const compressToZipApi = vi.fn();
-const startOperation = vi.fn(() => 'op-1');
-const updateOperation = vi.fn();
+/**
+ * The panel an operation registers itself with.
+ *
+ * `startServerOperation` is where a bar, the operation's own figures and a
+ * cancel that asks the server all come from — one implementation for every long
+ * operation — so this spec asks that these gestures go through it, and the store
+ * spec holds what it does.
+ */
+const onOperationEvent = vi.fn();
+const onOperationTask = vi.fn();
 const finishOperation = vi.fn();
+const startServerOperation = vi.fn(() => ({
+  id: 'op-1',
+  onEvent: onOperationEvent,
+  onTask: onOperationTask,
+  finish: finishOperation,
+}));
+const updateOperation = vi.fn();
 const scheduleVolumeRefresh = vi.fn();
 const scheduleFolderRefresh = vi.fn();
 const addNotification = vi.fn();
@@ -63,9 +78,8 @@ vi.mock('@/stores/folderSize', () => ({
 }));
 vi.mock('@/stores/operationTasks', () => ({
   useOperationTasksStore: () => ({
-    startOperation: (...a) => startOperation(...a),
+    startServerOperation: (...a) => startServerOperation(...a),
     updateOperation: (...a) => updateOperation(...a),
-    finishOperation: (...a) => finishOperation(...a),
   }),
 }));
 vi.mock('@vueuse/core', () => ({ useStorage: (_k, initial) => ref(initial) }));
@@ -91,7 +105,9 @@ beforeEach(() => {
     browse,
     extractZipApi,
     compressToZipApi,
-    startOperation,
+    startServerOperation,
+    onOperationEvent,
+    onOperationTask,
     updateOperation,
     finishOperation,
     scheduleVolumeRefresh,
@@ -99,20 +115,25 @@ beforeEach(() => {
     addNotification,
   ].forEach((m) => m.mockReset());
   browse.mockResolvedValue({ items: [], path: '' });
-  startOperation.mockReturnValue('op-1');
+  startServerOperation.mockReturnValue({
+    id: 'op-1',
+    onEvent: onOperationEvent,
+    onTask: onOperationTask,
+    finish: finishOperation,
+  });
   extractZipApi.mockResolvedValue({ item: { name: 'backup' } });
   compressToZipApi.mockResolvedValue({ item: { name: 'archive.zip' } });
 });
 
 describe('extracting', () => {
-  it('sends the archive path and shows a cancellable operation', async () => {
+  it('sends the archive path and registers the operation, named for the archive', async () => {
     const store = await storeInDocs();
 
     await store.extractZipArchive('/Docs/backup.zip');
 
     expect(extractZipApi).toHaveBeenCalledWith('Docs/backup.zip', expect.anything());
-    expect(startOperation).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'extract', name: 'backup.zip', cancellable: true })
+    expect(startServerOperation).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'extract', name: 'backup.zip' })
     );
   });
 
@@ -123,30 +144,17 @@ describe('extracting', () => {
     expect(extractZipApi).not.toHaveBeenCalled();
   });
 
-  it('reports progress into the operation panel', async () => {
+  // Through the registration, and nothing else: what the bar is drawn from is
+  // the operation's own figures, read in one place.
+  it('watches it and names it through that registration', async () => {
     const store = await storeInDocs();
-    extractZipApi.mockImplementation(async (_path, { onEvent }) => {
-      onEvent({ type: 'progress', percent: 42 });
-      return { item: { name: 'backup' } };
-    });
 
     await store.extractZipArchive('Docs/backup.zip');
 
-    expect(updateOperation).toHaveBeenCalledWith('op-1', { percent: 42 });
-  });
-
-  it('ignores a progress event with no usable percentage', async () => {
-    const store = await storeInDocs();
-    extractZipApi.mockImplementation(async (_path, { onEvent }) => {
-      onEvent({ type: 'progress' });
-      onEvent({ type: 'progress', percent: 'nearly' });
-      onEvent({ type: 'start' });
-      return { item: { name: 'backup' } };
-    });
-
-    await store.extractZipArchive('Docs/backup.zip');
-
-    expect(updateOperation).not.toHaveBeenCalled();
+    expect(extractZipApi).toHaveBeenCalledWith(
+      'Docs/backup.zip',
+      expect.objectContaining({ onEvent: onOperationEvent, onTask: onOperationTask })
+    );
   });
 
   it('closes the operation whatever happens', async () => {
@@ -154,7 +162,7 @@ describe('extracting', () => {
     extractZipApi.mockRejectedValue(new Error('disk full'));
 
     await expect(store.extractZipArchive('Docs/backup.zip')).rejects.toThrow('disk full');
-    expect(finishOperation).toHaveBeenCalledWith('op-1');
+    expect(finishOperation).toHaveBeenCalled();
   });
 
   it('refreshes the folder the archive was in, and the size stores', async () => {
@@ -253,7 +261,7 @@ describe('an archive that wants a password', () => {
 
     await store.extractZipArchive('Docs/backup.zip');
 
-    expect(finishOperation).toHaveBeenCalledWith('op-1');
+    expect(finishOperation).toHaveBeenCalled();
   });
 });
 
@@ -279,19 +287,19 @@ describe('an extraction somebody stopped', () => {
     expect(browse).toHaveBeenCalled();
   });
 
-  it('hands the operation panel a way to stop it', async () => {
+  /**
+   * And no connection of its own to hang up on.
+   *
+   * The extraction runs in the server, so an abort would stop the watching and
+   * nothing else — a cancel button that silently does nothing. Stopping one is
+   * the registration's business, and it asks the server.
+   */
+  it('hangs up on nothing to stop it', async () => {
     const store = await storeInDocs();
-    let signal;
-    extractZipApi.mockImplementation(async (_p, options) => {
-      signal = options.signal;
-      return { item: { name: 'backup' } };
-    });
 
     await store.extractZipArchive('Docs/backup.zip');
-    const { cancel } = startOperation.mock.calls[0][0];
-    cancel();
 
-    expect(signal.aborted).toBe(true);
+    expect(extractZipApi.mock.calls[0][1].signal).toBeUndefined();
   });
 });
 
@@ -310,7 +318,7 @@ describe('zipping a selection', () => {
 
     await store.compressSelectionToZip('archive');
 
-    expect(startOperation).toHaveBeenCalledWith(
+    expect(startServerOperation).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'compress', itemCount: 2 })
     );
   });
@@ -320,14 +328,14 @@ describe('zipping a selection', () => {
     store.selectedItems = [item('a.txt')];
 
     await store.compressSelectionToZip('  archive  ');
-    expect(startOperation.mock.calls[0][0].name).toBe('archive');
+    expect(startServerOperation.mock.calls[0][0].name).toBe('archive');
 
-    startOperation.mockClear();
+    startServerOperation.mockClear();
     // The first run refreshes the listing and moves the selection with it, so
     // the second needs one of its own or it returns before starting anything.
     store.selectedItems = [item('a.txt')];
     await store.compressSelectionToZip('   ');
-    expect(startOperation.mock.calls[0][0].name).toBe('');
+    expect(startServerOperation.mock.calls[0][0].name).toBe('');
   });
 
   it('closes the operation when it fails', async () => {

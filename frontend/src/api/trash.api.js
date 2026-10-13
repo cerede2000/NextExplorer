@@ -46,26 +46,46 @@ async function restoreTrashEntries(id, paths, { shares } = {}) {
 }
 
 /**
+ * Hand the caller the operation's id as soon as the server names it.
+ *
+ * A restore runs in the server — across disks it is a copy, and a copy of
+ * somebody's photo library is not something to hold a tab open for — so the
+ * stream is a window onto it and `onTask` is what lets the reader stop it.
+ */
+const watchingTheOperation =
+  ({ onEvent, onTask } = {}) =>
+  (event) => {
+    if (event?.type === 'start' && typeof onTask === 'function') onTask(event.taskId || null);
+    if (typeof onEvent === 'function') onEvent(event);
+  };
+
+/**
  * Put items in a chosen folder. Streamed like a transfer, since across disks it
  * is a copy: `onEvent` receives start and progress, and the result is the final
  * `{ destination, items }`.
  */
-async function restoreTrashItemsTo(ids, destination, { onEvent, signal, shares } = {}) {
+async function restoreTrashItemsTo(ids, destination, options = {}) {
+  const { signal, shares } = options;
   return requestStream('/api/trash/restore-to', {
     method: 'POST',
     body: JSON.stringify(shares ? { ids, destination, shares } : { ids, destination }),
-    onEvent,
+    onEvent: watchingTheOperation(options),
     signal,
+    // A cancellation arrives as the operation's own refusal now: it is what the
+    // reader asked for, not something to put a red notice on the screen for.
+    suppressErrorCodes: ['OPERATION_CANCELLED'],
   });
 }
 
 /** Put entries of a deleted folder in a chosen folder, streamed the same way. */
-async function restoreTrashEntriesTo(id, paths, destination, { onEvent, signal, shares } = {}) {
+async function restoreTrashEntriesTo(id, paths, destination, options = {}) {
+  const { signal, shares } = options;
   return requestStream(`/api/trash/items/${encodeURIComponent(id)}/restore-to`, {
     method: 'POST',
     body: JSON.stringify(shares ? { paths, destination, shares } : { paths, destination }),
-    onEvent,
+    onEvent: watchingTheOperation(options),
     signal,
+    suppressErrorCodes: ['OPERATION_CANCELLED'],
   });
 }
 

@@ -6,7 +6,8 @@ const AdmZip = require('adm-zip');
 
 const asyncHandler = require('../utils/asyncHandler');
 const { mapWithConcurrency } = require('../utils/mapWithConcurrency');
-const { startNdjsonStream, throttlePercent } = require('../utils/ndjsonStream');
+const { throttlePercent } = require('../utils/ndjsonStream');
+const { streamAsTask } = require('../utils/taskStream');
 const logger = require('../utils/logger');
 const { pathExists } = require('../utils/fsUtils');
 const {
@@ -62,13 +63,6 @@ const defaultZipNameForItems = (items = []) => {
 router.post(
   '/files/zip/extract',
   asyncHandler(async (req, res) => {
-    const controller = new AbortController();
-    const abort = () => controller.abort();
-    const onClose = () => {
-      if (!res.writableEnded) abort();
-    };
-    req.once('aborted', abort);
-    res.once('close', onClose);
     const inputPath = req.body?.path ?? '';
     const destination = req.body?.destination ?? 'folder';
     const archivePassword = normalizeArchivePassword(req.body?.password);
@@ -159,132 +153,135 @@ router.post(
     const inFlight = trackInFlight(stagingAbsolutePath, 'staging-directory');
 
     // Everything above throws BEFORE any byte is written, so validation errors
-    // still surface as normal HTTP errors. From here on the response streams
-    // NDJSON progress events, mirroring the copy/move endpoints:
-    //   {type:'start',    name}
+    // still surface as normal HTTP errors. From here on the response is a window
+    // onto a registered operation, which streams the same NDJSON events it
+    // always did and no longer ends when the window does:
+    //   {type:'start',    taskId, name}
     //   {type:'progress', percent}    (throttled)
     //   {type:'done',     success, item}
     //   {type:'error',    message, code}
-    const writeEvent = startNdjsonStream(res);
-
-    // The name asked for: the one taken, "sample 2" when held, is in `done`.
-    writeEvent({ type: 'start', name: baseFolderName });
-
-    const onPercent = throttlePercent(writeEvent);
-
-    try {
-      if (await isSevenZipAvailable()) {
-        // Listing first means an archive that would expand beyond the limits
-        // is refused before anything is written to disk.
-        // Cheap pre-flight when the archive declares a usable listing...
-        const footprint = await readArchiveFootprint(zipAbsolutePath);
-        if (footprint) ensureArchiveWithinLimits(footprint);
-        // 7-Zip streams to disk, so large archives don't get buffered in RAM.
-        // ...and a running guard for everything else: encrypted archives,
-        // listings too large to parse, and the second pass of tarballs.
-        await extractArchive(zipAbsolutePath, stagingAbsolutePath, onPercent, {
-          signal: controller.signal,
-          password: archivePassword,
-          maxBytes: archives.maxExtractedBytes,
-        });
-      } else {
-        const fallbackZip = new AdmZip(zipAbsolutePath);
-        ensureArchiveWithinLimits(admZipFootprint(fallbackZip.getEntries()));
-        fallbackZip.extractAllTo(stagingAbsolutePath, true);
-        if (controller.signal.aborted) {
-          const error = new Error('Operation cancelled.');
-          error.code = 'OPERATION_CANCELLED';
-          throw error;
-        }
-      }
-
-      if (destination === 'folder') {
-        // Whole: the hidden folder becomes the new one, under a name nothing
-        // holds, named as a new folder is.
-        const placed = await placeWithoutOverwrite(
-          stagingAbsolutePath,
-          parentAbsolutePath,
-          baseFolderName,
-          { style: 'folder' }
-        );
-        // The archive has produced an entire new tree. Queue its index refresh,
-        // but never hold the archive operation open on background filesystem I/O.
-        folderSizeHooks.onDirectoryTreeCreated(placed.path);
-
-        const item = await buildItemMetadata(placed.path, parentRelativePath, placed.name);
-        writeEvent({ type: 'done', success: true, item, items: [item] });
-      } else {
-        // Extract to a private sibling first, then move each root entry into the
-        // current folder. This avoids partial writes and lets us apply the same
-        // collision rule used everywhere else: name, name (1), name (2), ...
-        const {
-          items,
-          unreadable: unreadableEntries,
-          unreadableSample: unreadableEntrySample,
-        } = await extractIntoCurrentFolder({
-          stagingDirectory: stagingAbsolutePath,
-          destinationDirectory: parentAbsolutePath,
-          relativeParentPath: parentRelativePath,
-          movedPaths,
-        });
-        await fs.rm(stagingAbsolutePath, { recursive: true, force: true });
-        if (unreadableEntries > 0) {
-          logger.warn(
-            { zipAbsolutePath, unreadable: unreadableEntries, sample: unreadableEntrySample },
-            'Entries left out of an extraction because their names could not be read'
-          );
-        }
-        writeEvent({
-          type: 'done',
-          success: true,
-          item: items.length === 1 ? items[0] : null,
-          items,
-          ...(unreadableEntries > 0 ? { unreadable: unreadableEntries } : {}),
-        });
-      }
-    } catch (error) {
-      const isPasswordError =
-        error?.code === 'ARCHIVE_PASSWORD_REQUIRED' || error?.code === 'ARCHIVE_INVALID_PASSWORD';
-      if (isPasswordError) {
-        logger.info({ zipAbsolutePath, code: error.code }, 'Archive password required or rejected');
-      } else {
-        logger.warn(
-          { zipAbsolutePath, err: error },
-          'Archive extract failed; cleaning up destination'
-        );
-      }
-      // The hidden folder only: a new folder is put under its name once whole,
-      // so a failure never has one of its own to remove.
-      await fs.rm(stagingAbsolutePath, { recursive: true, force: true });
-      // What the extraction placed, and only that: a file someone saved into a
-      // placed folder meanwhile stays, with the folders holding it.
-      await mapWithConcurrency(movedPaths, (moved) =>
-        removeInventoried(moved.path, moved.inventory)
-      );
-      writeEvent({
-        type: 'error',
+    const answer = {};
+    streamAsTask(req, res, {
+      kind: 'extract',
+      destination: parentRelativePath,
+      // The name asked for; the one taken, "sample 2" when held, is said again
+      // once the extraction knows it.
+      label: baseFolderName,
+      bag: answer,
+      collect: () => ({ ...answer }),
+      describeError: (error) => ({
         message: sanitizeClientMessage(error.message || 'Archive extraction failed.'),
         code: error.code || 'EXTRACT_FAILED',
-      });
-    } finally {
-      inFlight.release();
-      req.off('aborted', abort);
-      res.off('close', onClose);
-      res.end();
-    }
+      }),
+      work: async (task) => {
+        const onPercent = throttlePercent((event) => task.report({ percent: event.percent }));
+
+        try {
+          if (await isSevenZipAvailable()) {
+            // Listing first means an archive that would expand beyond the limits
+            // is refused before anything is written to disk.
+            // Cheap pre-flight when the archive declares a usable listing...
+            const footprint = await readArchiveFootprint(zipAbsolutePath);
+            if (footprint) ensureArchiveWithinLimits(footprint);
+            // 7-Zip streams to disk, so large archives don't get buffered in RAM.
+            // ...and a running guard for everything else: encrypted archives,
+            // listings too large to parse, and the second pass of tarballs.
+            await extractArchive(zipAbsolutePath, stagingAbsolutePath, onPercent, {
+              signal: task.signal,
+              password: archivePassword,
+              maxBytes: archives.maxExtractedBytes,
+            });
+          } else {
+            const fallbackZip = new AdmZip(zipAbsolutePath);
+            ensureArchiveWithinLimits(admZipFootprint(fallbackZip.getEntries()));
+            fallbackZip.extractAllTo(stagingAbsolutePath, true);
+            if (task.signal.aborted) {
+              const error = new Error('Operation cancelled.');
+              error.code = 'OPERATION_CANCELLED';
+              throw error;
+            }
+          }
+
+          if (destination === 'folder') {
+            // Whole: the hidden folder becomes the new one, under a name nothing
+            // holds, named as a new folder is.
+            const placed = await placeWithoutOverwrite(
+              stagingAbsolutePath,
+              parentAbsolutePath,
+              baseFolderName,
+              { style: 'folder' }
+            );
+            // The archive has produced an entire new tree. Queue its index refresh,
+            // but never hold the archive operation open on background filesystem I/O.
+            folderSizeHooks.onDirectoryTreeCreated(placed.path);
+
+            const item = await buildItemMetadata(placed.path, parentRelativePath, placed.name);
+            // The name it really took, which may not be the one asked for.
+            task.rename(placed.name);
+            answer.item = item;
+            answer.items = [item];
+          } else {
+            // Extract to a private sibling first, then move each root entry into the
+            // current folder. This avoids partial writes and lets us apply the same
+            // collision rule used everywhere else: name, name (1), name (2), ...
+            const {
+              items,
+              unreadable: unreadableEntries,
+              unreadableSample: unreadableEntrySample,
+            } = await extractIntoCurrentFolder({
+              stagingDirectory: stagingAbsolutePath,
+              destinationDirectory: parentAbsolutePath,
+              relativeParentPath: parentRelativePath,
+              movedPaths,
+            });
+            await fs.rm(stagingAbsolutePath, { recursive: true, force: true });
+            if (unreadableEntries > 0) {
+              logger.warn(
+                { zipAbsolutePath, unreadable: unreadableEntries, sample: unreadableEntrySample },
+                'Entries left out of an extraction because their names could not be read'
+              );
+            }
+            answer.item = items.length === 1 ? items[0] : null;
+            answer.items = items;
+            if (unreadableEntries > 0) answer.unreadable = unreadableEntries;
+          }
+        } catch (error) {
+          const isPasswordError =
+            error?.code === 'ARCHIVE_PASSWORD_REQUIRED' ||
+            error?.code === 'ARCHIVE_INVALID_PASSWORD';
+          if (isPasswordError) {
+            logger.info(
+              { zipAbsolutePath, code: error.code },
+              'Archive password required or rejected'
+            );
+          } else {
+            logger.warn(
+              { zipAbsolutePath, err: error },
+              'Archive extract failed; cleaning up destination'
+            );
+          }
+          // The hidden folder only: a new folder is put under its name once whole,
+          // so a failure never has one of its own to remove.
+          await fs.rm(stagingAbsolutePath, { recursive: true, force: true });
+          // What the extraction placed, and only that: a file someone saved into a
+          // placed folder meanwhile stays, with the folders holding it.
+          await mapWithConcurrency(movedPaths, (moved) =>
+            removeInventoried(moved.path, moved.inventory)
+          );
+          // The register turns this into the stream's error event, with the code
+          // the reader's side reads: an archive that wants a password says so here.
+          throw error;
+        } finally {
+          inFlight.release();
+        }
+      },
+    });
   })
 );
 
 router.post(
   '/files/zip/compress',
   asyncHandler(async (req, res) => {
-    const controller = new AbortController();
-    const abort = () => controller.abort();
-    const onClose = () => {
-      if (!res.writableEnded) abort();
-    };
-    req.once('aborted', abort);
-    res.once('close', onClose);
     const { items = [], destination = '', name } = req.body || {};
 
     if (!Array.isArray(items) || items.length === 0) {
@@ -364,109 +361,110 @@ router.post(
     const inFlight = trackInFlight(temporaryPath, 'partial-archive');
 
     // Everything above throws BEFORE any byte is written, so validation errors
-    // still surface as normal HTTP errors. From here on the response streams
-    // NDJSON progress events, mirroring the extract endpoint:
-    //   {type:'start',    name}          the name expected, "Archive (1).zip" when held
+    // still surface as normal HTTP errors. From here on the response is a window
+    // onto a registered operation, which streams the same NDJSON events it
+    // always did and no longer ends when the window does:
+    //   {type:'start',    taskId, name}  the name expected, "Archive (1).zip" when held
     //   {type:'progress', percent}       (throttled)
     //   {type:'done',     success, item} the name taken
     //   {type:'error',    message, code}
-    const writeEvent = startNdjsonStream(res);
-
-    // The progress shows this name for as long as the compression lasts, so it
-    // is the one the archive should land at rather than the one asked for. Only
-    // a guess: the name is taken at the end, by the move, and `done` says which.
-    writeEvent({
-      type: 'start',
-      name: await predictAvailableName(destinationAbsolutePath, requestedName),
-    });
-
-    const onPercent = throttlePercent(writeEvent);
-
-    try {
-      // What the archive may hold: only what a listing of those folders shows.
-      const { entries, excluded, totalBytes, unreadable, unreadableSample } =
-        await collectArchiveEntries(
-          context,
-          sourceTargets.map(({ name: entryName, absolutePath, logicalPath, stats }) => ({
-            absolutePath,
-            logicalPath,
-            entryName,
-            stats,
-          }))
-        );
-
-      // 7-Zip takes folders whole, so it only writes archives with nothing to
-      // leave out; anything else is written from the list, still streamed.
-      //
-      // Taking a folder whole is also what makes it the one engine that keeps
-      // the names nothing here can read: 7-Zip never decodes them, so an
-      // archive it wrote is complete and says nothing about them. The count
-      // below is reported only for the archive assembled from the list.
-      const sevenZipTookEverything = excluded === 0 && (await isSevenZipAvailable());
-      if (sevenZipTookEverything) {
-        // 7-Zip streams the archive to disk instead of assembling it in RAM.
-        const sourceParent = path.dirname(sourceTargets[0].absolutePath);
-        const hasCommonParent = sourceTargets.every(
-          ({ absolutePath }) => path.dirname(absolutePath) === sourceParent
-        );
-        await createZipArchive(
-          hasCommonParent
-            ? sourceTargets.map(({ name }) => name)
-            : sourceTargets.map(({ absolutePath }) => absolutePath),
-          temporaryPath,
-          onPercent,
-          { signal: controller.signal, cwd: hasCommonParent ? sourceParent : undefined }
-        );
-      } else {
-        await writeZipFile(entries, temporaryPath, {
-          totalBytes,
-          onPercent,
-          signal: controller.signal,
-          unreadable,
-          unreadableSample,
-        });
-      }
-
-      const placed = await placeWithoutOverwrite(
-        temporaryPath,
-        destinationAbsolutePath,
-        requestedName
-      );
-      const zipStats = await fs.stat(placed.path);
-      await folderSizeHooks.onFileWritten(placed.path, zipStats.size);
-
-      const item = await buildItemMetadata(placed.path, normalizedDestination, placed.name);
-      // The one archive somebody watches being made, so the count has a screen
-      // to reach: the page says how many entries are missing from it.
-      const missed = sevenZipTookEverything ? 0 : unreadable;
-      if (missed > 0) {
-        logger.warn(
-          { unreadable: missed, sample: unreadableSample, archive: placed.path },
-          'Entries left out of a written archive because their names could not be read'
-        );
-      }
-      writeEvent({
-        type: 'done',
-        success: true,
-        item,
-        ...(missed > 0 ? { unreadable: missed } : {}),
-      });
-    } catch (error) {
-      logger.warn({ temporaryPath, err: error }, 'Archive creation failed; cleaning up file');
-      // Only the hidden archive this compression wrote: whatever holds the name
-      // it was meant to take belongs to someone else.
-      await fs.rm(temporaryPath, { force: true });
-      writeEvent({
-        type: 'error',
+    const answer = {};
+    streamAsTask(req, res, {
+      kind: 'compress',
+      destination: normalizedDestination,
+      // The progress shows this name for as long as the compression lasts, so it
+      // is the one the archive should land at rather than the one asked for. Only
+      // a guess: the name is taken at the end, by the move, and the operation
+      // says which once it knows.
+      label: await predictAvailableName(destinationAbsolutePath, requestedName),
+      bag: answer,
+      collect: () => ({ ...answer }),
+      describeError: (error) => ({
         message: sanitizeClientMessage(error.message || 'Archive creation failed.'),
         code: error.code || 'COMPRESS_FAILED',
-      });
-    } finally {
-      inFlight.release();
-      req.off('aborted', abort);
-      res.off('close', onClose);
-      res.end();
-    }
+      }),
+      work: async (task) => {
+        const onPercent = throttlePercent((event) => task.report({ percent: event.percent }));
+
+        try {
+          // What the archive may hold: only what a listing of those folders shows.
+          const { entries, excluded, totalBytes, unreadable, unreadableSample } =
+            await collectArchiveEntries(
+              context,
+              sourceTargets.map(({ name: entryName, absolutePath, logicalPath, stats }) => ({
+                absolutePath,
+                logicalPath,
+                entryName,
+                stats,
+              }))
+            );
+
+          // 7-Zip takes folders whole, so it only writes archives with nothing to
+          // leave out; anything else is written from the list, still streamed.
+          //
+          // Taking a folder whole is also what makes it the one engine that keeps
+          // the names nothing here can read: 7-Zip never decodes them, so an
+          // archive it wrote is complete and says nothing about them. The count
+          // below is reported only for the archive assembled from the list.
+          const sevenZipTookEverything = excluded === 0 && (await isSevenZipAvailable());
+          if (sevenZipTookEverything) {
+            // 7-Zip streams the archive to disk instead of assembling it in RAM.
+            const sourceParent = path.dirname(sourceTargets[0].absolutePath);
+            const hasCommonParent = sourceTargets.every(
+              ({ absolutePath }) => path.dirname(absolutePath) === sourceParent
+            );
+            await createZipArchive(
+              hasCommonParent
+                ? sourceTargets.map(({ name }) => name)
+                : sourceTargets.map(({ absolutePath }) => absolutePath),
+              temporaryPath,
+              onPercent,
+              { signal: task.signal, cwd: hasCommonParent ? sourceParent : undefined }
+            );
+          } else {
+            await writeZipFile(entries, temporaryPath, {
+              totalBytes,
+              onPercent,
+              signal: task.signal,
+              unreadable,
+              unreadableSample,
+            });
+          }
+
+          const placed = await placeWithoutOverwrite(
+            temporaryPath,
+            destinationAbsolutePath,
+            requestedName
+          );
+          const zipStats = await fs.stat(placed.path);
+          await folderSizeHooks.onFileWritten(placed.path, zipStats.size);
+
+          const item = await buildItemMetadata(placed.path, normalizedDestination, placed.name);
+          // The one archive somebody watches being made, so the count has a screen
+          // to reach: the page says how many entries are missing from it.
+          const missed = sevenZipTookEverything ? 0 : unreadable;
+          if (missed > 0) {
+            logger.warn(
+              { unreadable: missed, sample: unreadableSample, archive: placed.path },
+              'Entries left out of a written archive because their names could not be read'
+            );
+          }
+          // The name it really took, which may not be the one guessed above.
+          task.rename(placed.name);
+          answer.item = item;
+          if (missed > 0) answer.unreadable = missed;
+        } catch (error) {
+          logger.warn({ temporaryPath, err: error }, 'Archive creation failed; cleaning up file');
+          // Only the hidden archive this compression wrote: whatever holds the name
+          // it was meant to take belongs to someone else.
+          await fs.rm(temporaryPath, { force: true });
+          // The register turns this into the stream's error event.
+          throw error;
+        } finally {
+          inFlight.release();
+        }
+      },
+    });
   })
 );
 

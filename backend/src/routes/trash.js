@@ -3,7 +3,7 @@ const express = require('express');
 const { sanitizeClientMessage } = require('../middleware/errorHandler');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendCompressible } = require('../utils/compressedResponse');
-const { startNdjsonStream } = require('../utils/ndjsonStream');
+const { streamAsTask } = require('../utils/taskStream');
 const { ensureAdmin } = require('../middleware/ensureAdmin');
 const trash = require('../services/trash');
 const activityLog = require('../services/activityLog');
@@ -101,41 +101,55 @@ router.get(
 const restoreTo = (planFrom) =>
   asyncHandler(async (req, res) => {
     const plan = await trash.prepareRestoreTo(planFrom(req), contextOf(req));
-    const controller = new AbortController();
-    const abort = () => controller.abort();
-    const onClose = () => {
-      if (!res.writableEnded) abort();
-    };
-    req.once('aborted', abort);
-    const writeEvent = startNdjsonStream(res, { onClose });
+    const answer = {};
 
-    try {
-      const result = await trash.executeRestoreTo(plan, {
-        onEvent: writeEvent,
-        signal: controller.signal,
-      });
-      // Recorded where the restore finished rather than where it was asked
-      // for: the stream can be closed half-way, and what matters is what came
-      // back out of the trash.
-      await activityLog.record({
-        action: 'file.restore',
-        user: req.user,
-        target: req.body?.destination || null,
-        detail: { chosenDestination: true },
-        req,
-      });
-      writeEvent({ type: 'done', ...result });
-    } catch (error) {
-      writeEvent({
-        type: 'error',
+    streamAsTask(req, res, {
+      kind: 'restore',
+      destination: String(req.body?.destination || ''),
+      bag: answer,
+      collect: () => ({ ...answer }),
+      describeError: (error) => ({
         message: sanitizeClientMessage(error.message || 'The restore failed.'),
         code: error.code || 'TRASH_RESTORE_FAILED',
-      });
-    } finally {
-      req.off('aborted', abort);
-      res.off('close', onClose);
-      if (!res.writableEnded) res.end();
-    }
+      }),
+      work: async (task) => {
+        const result = await trash.executeRestoreTo(plan, {
+          // The restore reports as a transfer does, because across disks it is
+          // one: what it is carrying and how far it has got, which the register
+          // puts in its own events. The totals arrive once the plan has been
+          // read, which is after the window is open — so they are grown into
+          // the operation rather than announced, and whoever is watching is
+          // told at once.
+          onEvent: (event) => {
+            if (event?.type === 'start') {
+              task.grow({
+                totalItems: Number(event.totalItems) || 0,
+                totalBytes: Number(event.totalBytes) || 0,
+                bytesKnown: (Number(event.totalBytes) || 0) > 0,
+              });
+              return;
+            }
+            if (event?.type !== 'progress') return;
+            task.report({
+              unitBytes: Number(event.copiedBytes) || 0,
+              unitItems: Number(event.completedItems) || 0,
+              currentName: event.currentName,
+            });
+          },
+          signal: task.signal,
+        });
+        // Recorded where the restore finished rather than where it was asked
+        // for: what matters is what came back out of the trash.
+        await activityLog.record({
+          action: 'file.restore',
+          user: req.user,
+          target: req.body?.destination || null,
+          detail: { chosenDestination: true },
+          req,
+        });
+        Object.assign(answer, result);
+      },
+    });
   });
 
 // POST /api/trash/restore-to - put items back in a chosen folder, streamed

@@ -726,12 +726,24 @@ describe('restoring into a chosen folder', () => {
 
     expect(response.status).toBe(200);
     const stream = events(response);
-    expect(stream[0]).toEqual({
+    // The restore is a registered operation now and this response is a window
+    // onto it, so the stream opens with the operation naming itself. What it is
+    // carrying is read from the trash a moment later — the sizes are looked up
+    // per item — and arrives in the events that follow.
+    expect(stream[0]).toMatchObject({
       type: 'start',
-      totalBytes: 'quarterly figures'.length,
-      totalItems: 1,
+      kind: 'restore',
       destination: 'Archive',
+      taskId: expect.any(String),
     });
+    expect(
+      stream.some(
+        (event) =>
+          event.type === 'progress' &&
+          event.totalItems === 1 &&
+          event.totalBytes === 'quarterly figures'.length
+      )
+    ).toBe(true);
     expect(
       stream.some(
         (event) =>
@@ -740,8 +752,11 @@ describe('restoring into a chosen folder', () => {
           event.copiedBytes === 'quarterly figures'.length
       )
     ).toBe(true);
+    // `success` comes from the register, which says it of every operation that
+    // reached its end; the restore used to leave it out and say nothing.
     expect(doneOf(response)).toEqual({
       type: 'done',
+      success: true,
       destination: 'Archive',
       items: [
         {

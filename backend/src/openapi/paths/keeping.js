@@ -121,6 +121,9 @@ module.exports = {
     post: op({
       id: 'restoreFromTrashTo',
       summary: 'Bring deleted items back somewhere else',
+      description:
+        'Across disks this is a copy, so it reports as a transfer does. ' +
+        'The work runs in the server and this response is a window onto it: closing it stops nothing, `taskId` in the `start` event is what a tab opened later watches it again by, and `POST /api/tasks/{id}/cancel` is how one is stopped.',
       tag: TRASH,
       access: 'account',
       body: body(obj({ ids: arrayOf(str()), destination: str(), shares }, ['ids', 'destination'])),

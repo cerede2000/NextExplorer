@@ -98,7 +98,10 @@ describe('how a selection is cut up', () => {
     expect(bodiesSent()[0]).toMatchObject({ continues: true });
     expect(bodiesSent()[0].items).toHaveLength(500);
     expect(partsAdded()).toHaveLength(1);
-    expect(partsAdded()[0]).toMatchObject({ taskId: 'task-7', continues: false });
+    expect(partsAdded()[0]).toMatchObject({ taskId: 'task-7' });
+    // The last part says nothing about more coming, which is how the operation
+    // knows it may finish on what it has.
+    expect(partsAdded()[0].continues).toBeUndefined();
     expect(partsAdded()[0].items).toHaveLength(1);
   });
 
@@ -108,7 +111,7 @@ describe('how a selection is cut up', () => {
     await copyItems(items(1501), 'Archive');
 
     expect(bodiesSent()[0].continues).toBe(true);
-    expect(partsAdded().map((body) => body.continues)).toEqual([true, true, false]);
+    expect(partsAdded().map((body) => Boolean(body.continues))).toEqual([true, true, false]);
   });
 
   it('loses nothing and duplicates nothing across the parts', async () => {
@@ -153,163 +156,31 @@ describe('how a selection is cut up', () => {
     expect(named).toEqual(['task-42']);
   });
 
-  it('deletes in batches of 500 too', async () => {
+  /**
+   * A deletion is cut up the same way, and for the same reason — and it is one
+   * operation too. It used to be one operation per request, each counting from
+   * zero, with the bar added up here; the counting is the server's now.
+   */
+  it('describes a large deletion in parts of one operation', async () => {
+    namesTheOperation('task-3');
+
     await deleteItemsStream(items(1100));
 
-    expect(requestStream).toHaveBeenCalledTimes(3);
+    expect(requestStream).toHaveBeenCalledTimes(1);
     expect(requestStream.mock.calls[0][0]).toBe('/api/files/delete-stream');
-  });
-});
-
-/**
- * Several operations, one bar.
- *
- * A deletion still goes out as one operation per request — each counting from
- * zero — so what the reader watches is added up here. A transfer no longer
- * needs any of this: it is one operation, and the counting is the server's.
- */
-describe('progress accounting across the requests of one deletion', () => {
-  /**
-   * The requests run one after another (no concurrency is passed), so the
-   * harness hands back a controller per batch as it opens: emit into it, then
-   * finish it to let the next one start.
-   */
-  const batchRunner = () => {
-    const opened = [];
-    requestStream.mockImplementation(
-      (_url, { onEvent }) =>
-        new Promise((resolve) => {
-          opened.push({ emit: onEvent, finish: () => resolve({ items: [] }) });
-        })
-    );
-    return {
-      opened,
-      /** Wait until batch `index` has opened. */
-      async waitFor(index) {
-        for (let tries = 0; tries < 50 && opened.length <= index; tries += 1) {
-          await Promise.resolve();
-        }
-        return opened[index];
-      },
-    };
-  };
-
-  it('reports the whole selection, not one batch, at the start', async () => {
-    const seen = [];
-    const runner = batchRunner();
-    const run = deleteItemsStream(items(800), { onEvent: (e) => seen.push(e) });
-
-    const first = await runner.waitFor(0);
-    first.emit({ type: 'start', totalItems: 500, totalBytes: 1000 });
-    first.finish();
-    (await runner.waitFor(1)).finish();
-    await run;
-
-    expect(seen[0]).toMatchObject({ type: 'start', totalItems: 800 });
-  });
-
-  it('emits one start for the run, however many batches open', async () => {
-    const seen = [];
-    const runner = batchRunner();
-    const run = deleteItemsStream(items(800), { onEvent: (e) => seen.push(e) });
-
-    const first = await runner.waitFor(0);
-    first.emit({ type: 'start', totalItems: 500, totalBytes: 1000 });
-    first.finish();
-    const second = await runner.waitFor(1);
-    second.emit({ type: 'start', totalItems: 300, totalBytes: 500 });
-    second.finish();
-    await run;
-
-    expect(seen.filter((e) => e.type === 'start')).toHaveLength(1);
-  });
-
-  /**
-   * The bug this shape exists to prevent: each batch counts from zero, so
-   * adding the raw numbers makes the total lurch, and taking the last one makes
-   * it fall back to where the new batch started.
-   */
-  it('never goes backwards when the next batch restarts its own count', async () => {
-    const seen = [];
-    const runner = batchRunner();
-    const run = deleteItemsStream(items(1000), { onEvent: (e) => seen.push(e) });
-
-    const first = await runner.waitFor(0);
-    first.emit({ type: 'progress', completedItems: 250 });
-    first.emit({ type: 'progress', completedItems: 500 });
-    first.finish();
-    const second = await runner.waitFor(1);
-    second.emit({ type: 'progress', completedItems: 100 });
-    second.emit({ type: 'progress', completedItems: 500 });
-    second.finish();
-    await run;
-
-    const counts = seen.filter((e) => e.type === 'progress').map((e) => e.completedItems);
-    expect(counts).toEqual([...counts].sort((a, b) => a - b));
-    expect(counts.at(-1)).toBe(1000);
-  });
-
-  it('turns the running total into a percentage of the whole selection', async () => {
-    const seen = [];
-    const runner = batchRunner();
-    const run = deleteItemsStream(items(1000), { onEvent: (e) => seen.push(e) });
-
-    const first = await runner.waitFor(0);
-    first.emit({ type: 'progress', completedItems: 500 });
-    first.finish();
-    (await runner.waitFor(1)).finish();
-    await run;
-
-    const last = seen.filter((e) => e.type === 'progress').pop();
-    expect(last.percent).toBe(50);
-  });
-
-  it('passes an event it does not understand through untouched', async () => {
-    const seen = [];
-    const runner = batchRunner();
-    const run = deleteItemsStream(items(800), { onEvent: (e) => seen.push(e) });
-
-    const first = await runner.waitFor(0);
-    first.emit({ type: 'skipped', name: 'locked.txt' });
-    first.finish();
-    (await runner.waitFor(1)).finish();
-    await run;
-
-    expect(seen).toContainEqual({ type: 'skipped', name: 'locked.txt' });
-  });
-
-  it('says nothing to a caller that asked for no events', async () => {
-    const runner = batchRunner();
-    const run = deleteItemsStream(items(800));
-
-    const first = await runner.waitFor(0);
-    expect(() => first.emit({ type: 'progress', completedItems: 10 })).not.toThrow();
-    first.finish();
-    (await runner.waitFor(1)).finish();
-
-    await expect(run).resolves.toBeTruthy();
+    expect(bodiesSent()[0]).toMatchObject({ continues: true });
+    expect(partsAdded().map((body) => Boolean(body.continues))).toEqual([true, false]);
+    expect(transferBodies().flatMap((body) => body.items)).toHaveLength(1100);
   });
 });
 
 describe('when a part fails', () => {
   /**
-   * The requests of a deletion run one after another, deliberately — the server
-   * resolves name collisions with a check-then-use that is only safe while one
-   * operation walks its items in order. So a failure stops the run where it
-   * stands, and what is behind it is never sent.
+   * What is queued behind a failure is dropped by the operation itself now, and
+   * a part that arrives afterwards is refused: one place, on the server, where
+   * it used to be a loop here that stopped sending. What is left here is that a
+   * refusal reaches the caller rather than being swallowed.
    */
-  it('stops at the first failure rather than working through the rest', async () => {
-    const total = 5000; // ten requests
-    requestStream.mockImplementation(async () => {
-      throw new Error('cancelled');
-    });
-
-    await expect(deleteItemsStream(items(total))).rejects.toThrow('cancelled');
-
-    // Only what was already in flight may have gone out — never all ten.
-    expect(requestStream.mock.calls.length).toBeLessThan(10);
-  });
-
   it('reports the failure rather than resolving with partial results', async () => {
     requestStream.mockRejectedValue(new Error('server said no'));
 
@@ -368,16 +239,21 @@ describe('the answer a transfer gives', () => {
   });
 });
 
-describe('folding the batch answers of a deletion back together', () => {
-  it('flattens the deleted items from every batch', async () => {
-    requestStream
-      .mockResolvedValueOnce({ items: ['a'] })
-      .mockResolvedValueOnce({ items: ['b', 'c'] })
-      .mockResolvedValueOnce({ items: [] });
+describe('the answer a deletion gives', () => {
+  // One answer for the whole gesture, whatever it took to describe it: the
+  // operation collects what each of its parts did.
+  it('is the operation\u2019s own, covering every part of the selection', async () => {
+    namesTheOperation('task-1', { items: ['a', 'b', 'c'] });
 
     const result = await deleteItemsStream(items(1200));
 
     expect(result).toEqual({ success: true, items: ['a', 'b', 'c'] });
+  });
+
+  it('is an empty list rather than nothing when the operation says nothing', async () => {
+    requestStream.mockResolvedValue({});
+
+    expect(await deleteItemsStream(items(2))).toEqual({ success: true, items: [] });
   });
 });
 

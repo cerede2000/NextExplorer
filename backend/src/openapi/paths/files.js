@@ -246,9 +246,14 @@ the \`done\` event of the operation's own stream.`,
                 obj(
                   {
                     id: str(),
-                    kind: str(null, { examples: ['copy', 'move'] }),
+                    kind: str(null, {
+                      examples: ['copy', 'move', 'delete', 'extract', 'compress', 'restore'],
+                    }),
                     state: str(null, { examples: ['running', 'done', 'failed', 'cancelled'] }),
                     destination: str(),
+                    name: str(
+                      'What it is about, where that is a name rather than a folder: the archive being unpacked, the name a new one took.'
+                    ),
                     itemNames: arrayOf(str('What it is carrying, the first few.')),
                     totalItems: int(),
                     completedItems: int(),
@@ -388,17 +393,36 @@ the \`done\` event of the operation's own stream.`,
     post: op({
       id: 'deleteWithProgress',
       summary: 'Delete a selection, reporting as it goes',
-      description:
-        'The same as `DELETE /api/files`, for selections large enough to want a progress bar.',
+      description: `The same as \`DELETE /api/files\`, for selections large enough to want a progress bar.
+
+The deletion runs in the server and this response is a window onto it: closing it
+stops nothing, \`taskId\` in the \`start\` event is what a tab opened later watches
+it again by, and \`POST /api/tasks/{id}/cancel\` is how one is stopped. A selection
+too large for one body is sent as several requests that all name the same
+operation.`,
       tag: TAG,
       access: 'account',
-      body: body(obj({ items: arrayOf(itemRef), permanent: bool() }, ['items'])),
+      body: body(
+        obj(
+          {
+            items: arrayOf(itemRef),
+            permanent: bool(),
+            taskId: str('Add these items to an operation already running.'),
+            continues: bool('More items for this operation are still to be sent.'),
+          },
+          ['items']
+        )
+      ),
       responses: {
         200: ndjson(
           obj({ success: bool(), items: arrayOf(deleteResult) }),
           'Progress, then the outcome per item.'
         ),
-        ...errors(400, 401),
+        202: json(
+          obj({ taskId: str(), accepted: int() }, ['taskId', 'accepted']),
+          'These items were added to the operation named by `taskId`, which is being watched elsewhere.'
+        ),
+        ...errors(400, 401, 404, 409),
       },
     }),
   },
@@ -528,7 +552,8 @@ the \`done\` event of the operation's own stream.`,
       id: 'extractFromArchive',
       summary: 'Take part of an archive out onto the volume',
       description:
-        'Into the archive’s own folder, or `destination`. A folder stands for everything under it; nothing is replaced, so an entry may land under another name, which `done` gives.',
+        'Into the archive’s own folder, or `destination`. A folder stands for everything under it; nothing is replaced, so an entry may land under another name, which `done` gives. ' +
+        'The work runs in the server and this response is a window onto it: closing it stops nothing, `taskId` in the `start` event is what a tab opened later watches it again by, and `POST /api/tasks/{id}/cancel` is how one is stopped.',
       tag: 'Archives',
       access: 'account',
       body: body(
@@ -547,6 +572,9 @@ the \`done\` event of the operation's own stream.`,
     post: op({
       id: 'compress',
       summary: 'Make a zip of a selection',
+      description:
+        'The name it will take is in the `start` event and the one it took is in `done`: nothing is replaced, so a name already held becomes “name (1)”. ' +
+        'The work runs in the server and this response is a window onto it: closing it stops nothing, `taskId` in the `start` event is what a tab opened later watches it again by, and `POST /api/tasks/{id}/cancel` is how one is stopped.',
       tag: 'Archives',
       access: 'account',
       body: body(
@@ -572,6 +600,9 @@ the \`done\` event of the operation's own stream.`,
     post: op({
       id: 'extract',
       summary: 'Unpack a whole archive',
+      description:
+        'Into a new folder beside it, or into the archive’s own folder with `destination: current`. ' +
+        'The work runs in the server and this response is a window onto it: closing it stops nothing, `taskId` in the `start` event is what a tab opened later watches it again by, and `POST /api/tasks/{id}/cancel` is how one is stopped.',
       tag: 'Archives',
       access: 'account',
       body: body(

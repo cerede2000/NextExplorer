@@ -50,6 +50,14 @@ const seed = async () => {
   await fs.writeFile(volumeDir('Source', 'big.bin'), Buffer.alloc(BIG_FILE_BYTES, 7));
   await fs.writeFile(volumeDir('Source', 'note.txt'), 'a short one\n');
   await fs.writeFile(volumeDir('Source', 'other.txt'), 'another short one\n');
+  // Enough entries that a deletion is unmistakably still running an instant
+  // after it started, which is when the tab goes away below.
+  await fs.mkdir(volumeDir('Heap'), { recursive: true });
+  await Promise.all(
+    Array.from({ length: 1200 }, (_, index) =>
+      fs.writeFile(volumeDir('Heap', `item-${String(index).padStart(5, '0')}.txt`), `${index}\n`)
+    )
+  );
 };
 
 /** The application as a signed-in account reaches it. */
@@ -395,5 +403,95 @@ describe('a transfer that is refused', () => {
 
     expect(refused.status).toBe(404);
     expect((await tasksOf(ALICE)).items).toEqual([]);
+  });
+});
+
+/**
+ * The same of a deletion, which is the other operation a reader starts on a
+ * selection rather than on one thing — and the other one that used to be aborted
+ * by its own socket, leaving half a selection gone and nothing saying which half.
+ */
+describe('a deletion whose tab went away', () => {
+  it('finishes, and says so to whoever asks later', async () => {
+    const application = appFor(ALICE);
+    server = await listen(application);
+
+    const names = await fs.readdir(volumeDir('Heap'));
+    const stream = await openStream(server.address().port, ALICE, '/api/files/delete-stream', {
+      items: names.map((name) => ({ path: 'Heap', name })),
+      permanent: true,
+    });
+    const start = await stream.waitFor('start');
+    expect(start.taskId).toBeTypeOf('string');
+    expect(start.totalItems).toBe(1200);
+
+    stream.cut();
+
+    // Still running at the instant the window closed: without this the rest of
+    // the test would pass on a deletion that had already finished.
+    const whileRunning = await tasksOf(ALICE);
+    expect(whileRunning.items).toHaveLength(1);
+    expect(whileRunning.items[0]).toMatchObject({ id: start.taskId, state: 'running' });
+
+    const settled = await settledTask(ALICE, start.taskId);
+    expect(settled.state).toBe('done');
+    expect(settled).toMatchObject({ completedItems: 1200, totalItems: 1200 });
+    expect(await fs.readdir(volumeDir('Heap'))).toEqual([]);
+  });
+
+  it('is one operation however many parts the selection was sent in', async () => {
+    const application = appFor(ALICE);
+    server = await listen(application);
+
+    const names = (await fs.readdir(volumeDir('Heap'))).slice(0, 4);
+    const stream = await openStream(server.address().port, ALICE, '/api/files/delete-stream', {
+      items: [{ path: 'Heap', name: names[0] }],
+      permanent: true,
+      continues: true,
+    });
+    const start = await stream.waitFor('start');
+
+    const rest = await request(appFor(ALICE))
+      .post('/api/files/delete-stream')
+      .send({
+        items: names.slice(1).map((name) => ({ path: 'Heap', name })),
+        permanent: true,
+        taskId: start.taskId,
+      });
+    expect(rest.status).toBe(202);
+    expect(rest.body).toEqual({ taskId: start.taskId, accepted: 3 });
+
+    const done = await stream.waitFor('done');
+    expect(done.items.map((item) => item.status)).toEqual([
+      'deleted',
+      'deleted',
+      'deleted',
+      'deleted',
+    ]);
+    for (const name of names) {
+      await expect(fs.stat(volumeDir('Heap', name))).rejects.toThrow();
+    }
+  });
+
+  it('is not another account\u2019s to stop', async () => {
+    const application = appFor(ALICE);
+    server = await listen(application);
+
+    const names = await fs.readdir(volumeDir('Heap'));
+    const stream = await openStream(server.address().port, ALICE, '/api/files/delete-stream', {
+      items: names.map((name) => ({ path: 'Heap', name })),
+      permanent: true,
+    });
+    const start = await stream.waitFor('start');
+
+    expect((await request(appFor(BOB)).post(`/api/tasks/${start.taskId}/cancel`)).status).toBe(404);
+    expect((await request(appFor(ALICE)).post(`/api/tasks/${start.taskId}/cancel`)).status).toBe(
+      200
+    );
+
+    const settled = await settledTask(ALICE, start.taskId);
+    expect(settled.state).toBe('cancelled');
+    // What it had already removed is gone; the rest is still there.
+    expect((await fs.readdir(volumeDir('Heap'))).length).toBeGreaterThan(0);
   });
 });

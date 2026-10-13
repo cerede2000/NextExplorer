@@ -29,6 +29,9 @@ import {
 import { useDestinationPicker } from '@/composables/useDestinationPicker';
 import { useNotificationsStore } from '@/stores/notifications';
 import { useOperationTasksStore } from '@/stores/operationTasks';
+// One answer to "was this stopped": a cancellation arrives as the server's own
+// refusal now, not as a dropped connection.
+import { isAbortError } from '@/stores/files/items';
 import { formatBytes, formatLocalDateTime } from '@/utils';
 import { folderRoute } from '@/utils/folderRoute';
 
@@ -413,22 +416,20 @@ const restoreElsewhere = async ({ entries = false } = {}) => {
   const shares = await askAboutShares(keptSharesOf({ entries }), { elsewhere: true });
   if (shares === null) return;
 
-  const controller = new AbortController();
-  const operationId = operationTasks.startOperation({
+  // Registered in the panel, stoppable, and fed the operation's own figures.
+  // The restore runs in the server, so closing this page no longer stops it and
+  // hanging up no longer cancels it: cancel asks the server (see
+  // `stores/operationTasks`).
+  const restoring = operationTasks.startServerOperation({
     type: 'restore',
     itemCount: count,
     destination,
-    cancellable: true,
-    cancel: () => controller.abort(),
   });
-  const onEvent = (event) => {
-    if (event?.type !== 'start' && event?.type !== 'progress') return;
-    operationTasks.updateOperation(operationId, {
-      totalBytes: Number(event.totalBytes) || 0,
-      copiedBytes: Number(event.copiedBytes) || 0,
-    });
+  const options = {
+    onEvent: restoring.onEvent,
+    onTask: restoring.onTask,
+    ...sharesOption(shares),
   };
-  const options = { onEvent, signal: controller.signal, ...sharesOption(shares) };
 
   await runBusy(async () => {
     try {
@@ -442,9 +443,9 @@ const restoreElsewhere = async ({ entries = false } = {}) => {
         : await restoreTrashItemsTo([...selectedIds.value], destination, options);
       reportRestored(response?.items || []);
     } catch (err) {
-      if (!controller.signal.aborted && err?.name !== 'AbortError') throw err;
+      if (!isAbortError(err)) throw err;
     } finally {
-      operationTasks.finishOperation(operationId);
+      restoring.finish();
     }
   });
 };

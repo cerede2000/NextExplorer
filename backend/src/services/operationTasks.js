@@ -106,11 +106,12 @@ const visibleTo = (task, owner, shareId = null) =>
   String(task.shareId ?? '') === String(shareId ?? '');
 
 const percentOf = (task) => {
+  // What the work itself says about one thing of unknown size is the only
+  // honest figure there is: an archive being unpacked or packed reports nothing
+  // else, and neither does a native copy of a single large file. Several things
+  // and how many are done says more than how far into one of them we are.
+  if (task.nativePercent != null && task.totalItems <= 1) return task.nativePercent;
   if (task.bytesKnown) return null;
-  // One entry of unknown size: whatever the copy itself reports about it is the
-  // only honest figure. Several, and how many are done says more than how far
-  // into one of them we are.
-  if (task.totalItems === 1) return task.nativePercent;
   if (!task.totalItems) return null;
   return Math.round((task.completedItems / task.totalItems) * 100);
 };
@@ -129,6 +130,7 @@ const publicView = (task) => ({
   kind: task.kind,
   state: task.state,
   destination: task.destination,
+  name: task.label,
   itemNames: task.itemNames.slice(0, 3),
   totalItems: task.totalItems,
   completedItems: task.completedItems,
@@ -147,6 +149,11 @@ const startEvent = (task) => ({
   taskId: task.id,
   kind: task.kind,
   destination: task.destination,
+  // What the operation is about, where that is a name rather than a folder: the
+  // archive being unpacked, the name a new one will take. The server may change
+  // that name to one nothing holds, which is why it is said here rather than
+  // assumed from what was asked.
+  ...(task.label ? { name: task.label } : {}),
   totalBytes: task.bytesKnown ? task.totalBytes : 0,
   totalItems: task.totalItems,
   copiedBytes: task.copiedBytes,
@@ -162,6 +169,15 @@ const finalEvent = (task) => {
     code: task.error?.code || 'OPERATION_FAILED',
   };
 };
+
+const progressNumbers = (task) => ({
+  copiedBytes: task.copiedBytes,
+  totalBytes: task.bytesKnown ? task.totalBytes : 0,
+  completedItems: task.completedItems,
+  totalItems: task.totalItems,
+  currentName: task.currentName,
+  ...(percentOf(task) != null ? { percent: percentOf(task) } : {}),
+});
 
 const tell = (task, event) => {
   for (const watcher of [...task.watchers]) {
@@ -475,41 +491,42 @@ const makeHandle = (task) => ({
     updateRecord(task);
     // Whoever is watching is already past the `start` event, so the totals they
     // were given are now short of what the task is carrying.
-    tell(task, {
-      type: 'progress',
-      copiedBytes: task.copiedBytes,
-      totalBytes: task.bytesKnown ? task.totalBytes : 0,
-      completedItems: task.completedItems,
-      totalItems: task.totalItems,
-      currentName: task.currentName,
-      ...(percentOf(task) != null ? { percent: percentOf(task) } : {}),
-    });
+    tell(task, { type: 'progress', ...progressNumbers(task) });
   },
 
   /**
-   * Where the unit currently running has got to. Its bytes are its own, counted
-   * from zero: what the task shows is them on top of the units already done, so
-   * a caller never has to know what came before it.
+   * Where the unit currently running has got to. Its bytes and its entries are
+   * its own, counted from zero: what the task shows is them on top of the units
+   * already done, so a caller never has to know what came before it.
    */
-  report: ({ unitBytes, currentName, percent } = {}) => {
+  report: ({ unitBytes, unitItems, currentName, percent } = {}) => {
     if (task.state !== 'running') return;
     if (Number.isFinite(unitBytes)) task.copiedBytes = task.settledBytes + unitBytes;
+    // What a deletion moves is entries rather than bytes, and it says so while
+    // the unit runs; the same rule as the bytes, on the other count.
+    if (Number.isFinite(unitItems)) task.completedItems = task.settledItems + unitItems;
     if (typeof currentName === 'string') task.currentName = currentName;
     if (percent != null) task.nativePercent = Number(percent);
-    tell(task, {
-      type: 'progress',
-      copiedBytes: task.copiedBytes,
-      totalBytes: task.bytesKnown ? task.totalBytes : 0,
-      completedItems: task.completedItems,
-      totalItems: task.totalItems,
-      currentName: task.currentName,
-      ...(percentOf(task) != null ? { percent: percentOf(task) } : {}),
-    });
+    tell(task, { type: 'progress', ...progressNumbers(task) });
+  },
+
+  /**
+   * What the operation turned out to be about, once the work knows.
+   *
+   * An archive takes the first name nothing holds — `sample 2` where `sample`
+   * is taken — and that is decided while it runs, so the name on screen is
+   * corrected rather than left as the one that was asked for.
+   */
+  rename: (label) => {
+    if (task.state !== 'running' || typeof label !== 'string' || !label) return;
+    task.label = label;
+    tell(task, { type: 'progress', name: label, ...progressNumbers(task) });
   },
 
   /** One unit finished: its bytes and items are now behind the task. */
   advance: ({ items = 0, bytes = 0 } = {}) => {
-    task.completedItems += items;
+    task.settledItems += items;
+    task.completedItems = Math.max(task.completedItems, task.settledItems);
     task.settledBytes += bytes;
     task.copiedBytes = Math.max(task.copiedBytes, task.settledBytes);
     task.nativePercent = null;
@@ -551,6 +568,7 @@ const open = ({
   owner,
   shareId = null,
   destination = '',
+  label = '',
   bag = {},
   collect = () => ({}),
   sealWithin = SEAL_WITHIN_MS,
@@ -567,6 +585,7 @@ const open = ({
     owner,
     shareId: shareId ?? null,
     destination,
+    label,
     state: 'running',
     startedAt: Date.now(),
     finishedAt: null,
@@ -576,6 +595,7 @@ const open = ({
     totalBytes: 0,
     copiedBytes: 0,
     settledBytes: 0,
+    settledItems: 0,
     bytesKnown: true,
     nativePercent: null,
     currentName: '',

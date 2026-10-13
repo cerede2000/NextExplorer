@@ -46,11 +46,26 @@ describe('asking for a permanent deletion', () => {
     expect(bodies(requestStream)[0]).not.toHaveProperty('permanent');
   });
 
-  it('is sent with every batch of a large selection', async () => {
+  /**
+   * A large selection is one operation described in several requests now, so
+   * only the first carries the stream: the rest are added to it by id. Each of
+   * them still has to say what kind of deletion this is — a part that forgot
+   * would put in the trash what the reader asked to be gone for good.
+   */
+  it('is sent with every part of a large selection', async () => {
+    requestJson.mockResolvedValue({ taskId: 'task-1', accepted: 1 });
+    requestStream.mockImplementation(async (_endpoint, { onEvent }) => {
+      onEvent?.({ type: 'start', taskId: 'task-1' });
+      return { items: [] };
+    });
+
     await deleteItemsStream(selection(5000), { permanent: true });
 
-    expect(requestStream.mock.calls.length).toBeGreaterThan(1);
-    expect(bodies(requestStream).every((body) => body.permanent === true)).toBe(true);
+    const parts = [...requestStream.mock.calls, ...requestJson.mock.calls];
+    expect(parts.length).toBeGreaterThan(1);
+    expect(parts.map(([, options]) => JSON.parse(options.body)).every((b) => b.permanent)).toBe(
+      true
+    );
   });
 
   it('is sent with the plain deletion too', async () => {

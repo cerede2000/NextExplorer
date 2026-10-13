@@ -3797,7 +3797,7 @@
                           },
                           "kind": {
                             "type": "string",
-                            "examples": ["copy", "move"]
+                            "examples": ["copy", "move", "delete", "extract", "compress", "restore"]
                           },
                           "state": {
                             "type": "string",
@@ -3805,6 +3805,10 @@
                           },
                           "destination": {
                             "type": "string"
+                          },
+                          "name": {
+                            "type": "string",
+                            "description": "What it is about, where that is a name rather than a folder: the archive being unpacked, the name a new one took."
                           },
                           "itemNames": {
                             "type": "array",
@@ -4403,7 +4407,7 @@
       "post": {
         "operationId": "deleteWithProgress",
         "summary": "Delete a selection, reporting as it goes",
-        "description": "The same as `DELETE /api/files`, for selections large enough to want a progress bar.",
+        "description": "The same as `DELETE /api/files`, for selections large enough to want a progress bar.\n\nThe deletion runs in the server and this response is a window onto it: closing it\nstops nothing, `taskId` in the `start` event is what a tab opened later watches\nit again by, and `POST /api/tasks/{id}/cancel` is how one is stopped. A selection\ntoo large for one body is sent as several requests that all name the same\noperation.",
         "tags": ["Files"],
         "security": [
           {
@@ -4439,6 +4443,14 @@
                   },
                   "permanent": {
                     "type": "boolean"
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "description": "Add these items to an operation already running."
+                  },
+                  "continues": {
+                    "type": "boolean",
+                    "description": "More items for this operation are still to be sent."
                   }
                 },
                 "required": ["items"]
@@ -4539,11 +4551,36 @@
               }
             }
           },
+          "202": {
+            "description": "These items were added to the operation named by `taskId`, which is being watched elsewhere.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "taskId": {
+                      "type": "string"
+                    },
+                    "accepted": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": ["taskId", "accepted"]
+                }
+              }
+            }
+          },
           "400": {
             "$ref": "#/components/responses/E400"
           },
           "401": {
             "$ref": "#/components/responses/E401"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          },
+          "409": {
+            "$ref": "#/components/responses/E409"
           }
         }
       }
@@ -5011,7 +5048,7 @@
       "post": {
         "operationId": "extractFromArchive",
         "summary": "Take part of an archive out onto the volume",
-        "description": "Into the archive’s own folder, or `destination`. A folder stands for everything under it; nothing is replaced, so an entry may land under another name, which `done` gives.",
+        "description": "Into the archive’s own folder, or `destination`. A folder stands for everything under it; nothing is replaced, so an entry may land under another name, which `done` gives. The work runs in the server and this response is a window onto it: closing it stops nothing, `taskId` in the `start` event is what a tab opened later watches it again by, and `POST /api/tasks/{id}/cancel` is how one is stopped.",
         "tags": ["Archives"],
         "security": [
           {
@@ -5145,6 +5182,7 @@
       "post": {
         "operationId": "compress",
         "summary": "Make a zip of a selection",
+        "description": "The name it will take is in the `start` event and the one it took is in `done`: nothing is replaced, so a name already held becomes “name (1)”. The work runs in the server and this response is a window onto it: closing it stops nothing, `taskId` in the `start` event is what a tab opened later watches it again by, and `POST /api/tasks/{id}/cancel` is how one is stopped.",
         "tags": ["Archives"],
         "security": [
           {
@@ -5284,6 +5322,7 @@
       "post": {
         "operationId": "extract",
         "summary": "Unpack a whole archive",
+        "description": "Into a new folder beside it, or into the archive’s own folder with `destination: current`. The work runs in the server and this response is a window onto it: closing it stops nothing, `taskId` in the `start` event is what a tab opened later watches it again by, and `POST /api/tasks/{id}/cancel` is how one is stopped.",
         "tags": ["Archives"],
         "security": [
           {
@@ -7305,6 +7344,7 @@
       "post": {
         "operationId": "restoreFromTrashTo",
         "summary": "Bring deleted items back somewhere else",
+        "description": "Across disks this is a copy, so it reports as a transfer does. The work runs in the server and this response is a window onto it: closing it stops nothing, `taskId` in the `start` event is what a tab opened later watches it again by, and `POST /api/tasks/{id}/cancel` is how one is stopped.",
         "tags": ["Trash"],
         "security": [
           {

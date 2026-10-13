@@ -9,11 +9,11 @@ const scheduleFolderRefresh = vi.fn();
 /**
  * The panel a transfer registers itself with.
  *
- * `startTransfer` is where a bar, the operation's own numbers and a cancel that
+ * `startServerOperation` is where a bar, the operation's own numbers and a cancel that
  * asks the server all come from — one implementation for both gestures that
  * start a transfer, so this spec asks that this gesture goes through it.
  */
-const startTransfer = vi.fn(() => ({
+const startServerOperation = vi.fn(() => ({
   id: 'operation-test',
   onEvent: onTransferEvent,
   onTask: onTransferTask,
@@ -65,7 +65,7 @@ vi.mock('@/stores/folderSize', () => ({
   useFolderSizeStore: () => ({ scheduleRefresh: scheduleFolderRefresh }),
 }));
 vi.mock('@/stores/operationTasks', () => ({
-  useOperationTasksStore: () => ({ startTransfer }),
+  useOperationTasksStore: () => ({ startServerOperation }),
 }));
 vi.mock('@/composables/useInputMode', () => ({
   useInputMode: () => ({ isTouchDevice: ref(false) }),
@@ -108,7 +108,7 @@ describe('useFileDragDrop', () => {
     paneBeside.path.value = 'Destination';
     scheduleUsageRefresh.mockReset();
     scheduleFolderRefresh.mockReset();
-    startTransfer.mockClear();
+    startServerOperation.mockClear();
     onTransferEvent.mockReset();
     onTransferTask.mockReset();
     finishTransfer.mockReset();
@@ -137,7 +137,7 @@ describe('useFileDragDrop', () => {
       expect.objectContaining({ onEvent: onTransferEvent, onTask: onTransferTask })
     );
     expect(moveItems).not.toHaveBeenCalled();
-    expect(startTransfer).toHaveBeenCalledWith(expect.objectContaining({ type: 'copy' }));
+    expect(startServerOperation).toHaveBeenCalledWith(expect.objectContaining({ type: 'copy' }));
     expect(finishTransfer).toHaveBeenCalled();
   });
 
@@ -155,7 +155,7 @@ describe('useFileDragDrop', () => {
       expect.objectContaining({ onEvent: onTransferEvent, onTask: onTransferTask })
     );
     expect(copyItems).not.toHaveBeenCalled();
-    expect(startTransfer).toHaveBeenCalledWith(expect.objectContaining({ type: 'move' }));
+    expect(startServerOperation).toHaveBeenCalledWith(expect.objectContaining({ type: 'move' }));
   });
 
   /**
@@ -219,7 +219,7 @@ describe('useFileDragDrop', () => {
     await dragDrop.handleDrop(transferEvent(), target);
 
     expect(moveItems).not.toHaveBeenCalled();
-    expect(startTransfer).not.toHaveBeenCalled();
+    expect(startServerOperation).not.toHaveBeenCalled();
   });
 
   it('uses a favorite destination path instead of its display label', async () => {

@@ -67,29 +67,28 @@ export const createOperations = ({
       selection.selectedItems.value.length === payloadKeys.size &&
       selection.selectedItems.value.every((item) => payloadKeys.has(itemKey(item)));
 
-    const controller = new AbortController();
-    const operationId = operationTasksStore.startOperation({
+    // Registered in the panel, stoppable, and fed the operation's own figures:
+    // a deletion runs in the server now, so closing the tab no longer stops it
+    // and hanging up no longer cancels it (see `stores/operationTasks`).
+    const deleting = operationTasksStore.startServerOperation({
       type: 'delete',
       itemCount: payload.length,
-      cancellable: true,
-      cancel: () => controller.abort(),
     });
 
     try {
       const deletion = deleteItemsStream(payload, {
-        signal: controller.signal,
         permanent: options.permanent === true,
+        onTask: deleting.onTask,
         onEvent: (event) => {
+          deleting.onEvent(event);
+          // What it is doing, which the bar says in words rather than numbers.
           if (event.type === 'start') {
-            operationTasksStore.updateOperation(operationId, {
+            operationTasksStore.updateOperation(deleting.id, {
               phase: event.phase || 'preparing',
-              totalItems: Number(event.totalItems) || payload.length,
             });
           } else if (event.type === 'progress') {
-            operationTasksStore.updateOperation(operationId, {
+            operationTasksStore.updateOperation(deleting.id, {
               phase: 'deleting',
-              percent: Number(event.percent) || 0,
-              completedItems: Number(event.completedItems) || 0,
               currentName: event.currentName || '',
             });
           }
@@ -108,7 +107,7 @@ export const createOperations = ({
       if (!isAbortError(error)) throw error;
       return null;
     } finally {
-      operationTasksStore.finishOperation(operationId);
+      deleting.finish();
     }
   };
 
@@ -163,13 +162,10 @@ export const createOperations = ({
     if (!normalized) return null;
 
     const archiveName = normalized.split('/').pop() || normalized;
-    const controller = new AbortController();
-    const operationId = operationTasksStore.startOperation({
+    const unpacking = operationTasksStore.startServerOperation({
       type: 'extract',
       name: archiveName,
       itemCount: 1,
-      cancellable: true,
-      cancel: () => controller.abort(),
     });
 
     let response;
@@ -178,12 +174,8 @@ export const createOperations = ({
         destination: options.destination,
         password: options.password,
         suppressErrorCodes: ['ARCHIVE_PASSWORD_REQUIRED', 'ARCHIVE_INVALID_PASSWORD'],
-        onEvent: (event) => {
-          if (event?.type === 'progress' && Number.isFinite(event.percent)) {
-            operationTasksStore.updateOperation(operationId, { percent: event.percent });
-          }
-        },
-        signal: controller.signal,
+        onEvent: unpacking.onEvent,
+        onTask: unpacking.onTask,
       });
     } catch (error) {
       if (
@@ -201,7 +193,7 @@ export const createOperations = ({
       await refreshAfterCancelledOperation();
       return null;
     } finally {
-      operationTasksStore.finishOperation(operationId);
+      unpacking.finish();
     }
 
     if (!response) return null;
@@ -226,34 +218,25 @@ export const createOperations = ({
     const destination = normalizePath(currentPath.value || '');
     const payload = serializeItems(selection.selectedItems.value);
     if (payload.length === 0) return null;
-    const controller = new AbortController();
-
-    const operationId = operationTasksStore.startOperation({
+    const packing = operationTasksStore.startServerOperation({
       type: 'compress',
+      destination,
       name: typeof name === 'string' && name.trim() ? name.trim() : '',
       itemCount: payload.length,
-      cancellable: true,
-      cancel: () => controller.abort(),
     });
 
     let response;
     try {
       response = await compressToZipApi(payload, destination, name, {
-        onEvent: (event) => {
-          if (event?.type === 'start' && event.name) {
-            operationTasksStore.updateOperation(operationId, { name: event.name });
-          } else if (event?.type === 'progress' && Number.isFinite(event.percent)) {
-            operationTasksStore.updateOperation(operationId, { percent: event.percent });
-          }
-        },
-        signal: controller.signal,
+        onEvent: packing.onEvent,
+        onTask: packing.onTask,
       });
     } catch (error) {
       if (!isAbortError(error)) throw error;
       await refreshAfterCancelledOperation();
       return null;
     } finally {
-      operationTasksStore.finishOperation(operationId);
+      packing.finish();
     }
 
     if (!response) return null;

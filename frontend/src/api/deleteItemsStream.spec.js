@@ -31,26 +31,32 @@ const { deleteItemsStream, copyItems, moveItems } = await import('./files.api');
 const selection = (count) =>
   Array.from({ length: count }, (_, i) => ({ path: 'Photos/2024', name: `IMG_${i}.jpeg` }));
 
-/** Replays what the server sends for one batch. */
-const respondWithProgress = () =>
+/**
+ * Replays what the server sends for the operation the first request opens.
+ *
+ * It counts for the whole selection, not for the request: the parts that follow
+ * are added to the same operation, and only this one carries the stream.
+ */
+const respondWithProgress = (total = 0) =>
   requestStream.mockImplementation(async (_endpoint, { body, onEvent }) => {
     const items = JSON.parse(body).items;
-    onEvent?.({ type: 'start', phase: 'preparing', totalItems: items.length });
-    items.forEach((item, index) => {
-      onEvent?.({
-        type: 'progress',
-        completedItems: index + 1,
-        percent: Math.round(((index + 1) / items.length) * 100),
-        currentName: item.name,
-      });
+    const totalItems = total || items.length;
+    onEvent?.({ type: 'start', taskId: 'task-1', phase: 'preparing', totalItems });
+    onEvent?.({
+      type: 'progress',
+      completedItems: totalItems,
+      percent: 100,
+      currentName: items.at(-1)?.name,
     });
-    return { success: true, items: items.map((i) => i.name) };
+    return { success: true, items: Array.from({ length: totalItems }, (_, i) => `IMG_${i}.jpeg`) };
   });
 
 // Counters are reset between tests, and the implementation is reinstalled with
 // them: clearing a mock also drops what it was told to do.
 beforeEach(() => {
   requestStream.mockReset();
+  requestJson.mockReset();
+  requestJson.mockResolvedValue({ taskId: 'task-1', accepted: 1 });
   respondWithProgress();
 });
 
@@ -61,60 +67,65 @@ describe('Streamed deletion', () => {
     expect(requestStream).toHaveBeenCalledTimes(1);
   });
 
-  it('splits a large selection into bounded requests', async () => {
+  /**
+   * The body ceiling is the whole reason a selection is cut up, and it still
+   * holds of every request — only the first of them carries the stream, because
+   * the rest are added to the operation it opened.
+   */
+  it('keeps every request of a large selection under the ceiling', async () => {
     await deleteItemsStream(selection(2000));
 
-    expect(requestStream).toHaveBeenCalledTimes(4);
-    const sizes = requestStream.mock.calls.map(([, opts]) => JSON.parse(opts.body).items.length);
+    const sent = [...requestStream.mock.calls, ...requestJson.mock.calls];
+    expect(sent).toHaveLength(4);
+    const sizes = sent.map(([, opts]) => JSON.parse(opts.body).items.length);
     expect(sizes).toEqual([500, 500, 500, 500]);
-    // Each request stays far below any reasonable body limit.
-    requestStream.mock.calls.forEach(([, opts]) => {
+    sent.forEach(([, opts]) => {
       expect(opts.body.length).toBeLessThan(100 * 1024);
     });
   });
 
-  it('reports one continuous progress over the whole selection', async () => {
+  // One operation, one count — the server's, for the whole selection. The
+  // caller used to add up per-request counters that each started at zero, and a
+  // bar that went backwards at every boundary is what that cost.
+  it('reports the operation\u2019s own count of the whole selection', async () => {
     const events = [];
+    // The operation counts for the selection, not for the request that opened
+    // it: the other 1500 paths are added to the same one.
+    respondWithProgress(2000);
 
-    await deleteItemsStream(selection(2000), { onEvent: (e) => events.push(e) });
+    await deleteItemsStream(selection(2000), { onEvent: (event) => events.push(event) });
 
-    const starts = events.filter((e) => e.type === 'start');
+    const starts = events.filter((event) => event.type === 'start');
     expect(starts).toHaveLength(1);
-    // The bar is driven by the caller: it must see the real total, not 500.
     expect(starts[0].totalItems).toBe(2000);
-
-    const progress = events.filter((e) => e.type === 'progress');
-    const counts = progress.map((e) => e.completedItems);
-    expect(counts[0]).toBe(1);
-    expect(counts.at(-1)).toBe(2000);
-    // Never goes backwards at a batch boundary, which is what a naive
-    // pass-through of per-batch counters would do.
-    expect(counts).toEqual([...counts].sort((a, b) => a - b));
-    expect(progress.at(-1).percent).toBe(100);
+    expect(events.filter((event) => event.type === 'progress').at(-1)).toMatchObject({
+      completedItems: 2000,
+      percent: 100,
+    });
   });
 
-  it('returns every deleted item across batches', async () => {
+  it('returns every deleted item, from the one answer', async () => {
+    respondWithProgress(1200);
+
     const result = await deleteItemsStream(selection(1200));
 
     expect(result.success).toBe(true);
     expect(result.items).toHaveLength(1200);
   });
 
-  it('stops at the batch that was cancelled', async () => {
-    let calls = 0;
-    requestStream.mockImplementation(async (_endpoint, { body, onEvent }) => {
-      calls += 1;
-      if (calls === 3) {
-        const abort = new Error('The operation was aborted.');
-        abort.name = 'AbortError';
-        throw abort;
-      }
-      const items = JSON.parse(body).items;
-      onEvent?.({ type: 'start', totalItems: items.length });
-      return { success: true, items: items.map((i) => i.name) };
+  /**
+   * What is queued behind a failure is the operation's to drop, and a part that
+   * arrives afterwards is refused: there is no loop here any more that could
+   * keep sending. What is left to hold here is that the refusal reaches the
+   * caller rather than being swallowed into a partial success.
+   */
+  it('reports a stopped deletion rather than resolving with what it managed', async () => {
+    requestStream.mockImplementation(async (_endpoint, { onEvent }) => {
+      onEvent?.({ type: 'start', taskId: 'task-1', totalItems: 2000 });
+      throw Object.assign(new Error('Cancelled.'), { code: 'OPERATION_CANCELLED' });
     });
 
-    await expect(deleteItemsStream(selection(2000))).rejects.toThrow(/aborted/i);
+    await expect(deleteItemsStream(selection(2000))).rejects.toThrow(/cancelled/i);
     // It does not carry on through the whole selection after the user asked it
     // to stop. Batches already in flight when the failure lands still count,
     // so the guarantee is "stops", not an exact number.

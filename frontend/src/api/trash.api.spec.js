@@ -82,16 +82,23 @@ describe('the trash API', () => {
     expect(call().endpoint).toBe('/api/trash/items/a/text?path=drafts%2Fv%202.txt');
   });
 
-  it('restores items into a chosen folder, as a stream it can follow and cancel', async () => {
+  it('restores items into a chosen folder, as a stream it can follow', async () => {
     const onEvent = vi.fn();
+    const onTask = vi.fn();
     const { signal } = new AbortController();
 
-    await api.restoreTrashItemsTo(['a'], 'Archive', { onEvent, signal });
+    await api.restoreTrashItemsTo(['a'], 'Archive', { onEvent, onTask, signal });
 
     const [endpoint, options] = requestStream.mock.calls.at(-1);
     expect(endpoint).toBe('/api/trash/restore-to');
-    expect(options).toMatchObject({ method: 'POST', onEvent, signal });
+    expect(options).toMatchObject({ method: 'POST', signal });
     expect(JSON.parse(options.body)).toEqual({ ids: ['a'], destination: 'Archive' });
+
+    // The restore runs in the server, so the caller is told which operation it
+    // is — that, and not hanging up, is what stops one.
+    options.onEvent({ type: 'start', taskId: 'task-1' });
+    expect(onTask).toHaveBeenCalledWith('task-1');
+    expect(onEvent).toHaveBeenCalledWith({ type: 'start', taskId: 'task-1' });
   });
 
   it('restores entries of a deleted folder into a chosen folder, the same way', async () => {

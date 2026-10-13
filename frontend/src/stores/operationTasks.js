@@ -175,29 +175,49 @@ export const useOperationTasksStore = defineStore('operationTasks', () => {
     }
   };
 
-  const numbersOf = (event) => ({
-    ...(event.totalBytes != null ? { totalBytes: Number(event.totalBytes) || 0 } : {}),
-    ...(event.copiedBytes != null ? { copiedBytes: Number(event.copiedBytes) || 0 } : {}),
-    ...(event.totalItems != null ? { itemCount: Number(event.totalItems) || 0 } : {}),
-    ...(event.percent != null ? { percent: Number(event.percent) || 0 } : {}),
-  });
+  /**
+   * A figure, or nothing at all.
+   *
+   * An event says what it knows and leaves out what it does not, and a figure
+   * that is not a number is not a figure: read as one it would draw a bar at
+   * zero and call that progress.
+   */
+  const figure = (value) => {
+    if (value == null) return null;
+    const asNumber = Number(value);
+    return Number.isFinite(asNumber) ? asNumber : null;
+  };
+
+  const numbersOf = (event) => {
+    const next = {};
+    const totalBytes = figure(event.totalBytes);
+    if (totalBytes != null) next.totalBytes = totalBytes;
+    const copiedBytes = figure(event.copiedBytes);
+    if (copiedBytes != null) next.copiedBytes = copiedBytes;
+    const totalItems = figure(event.totalItems);
+    if (totalItems != null) next.itemCount = totalItems;
+    const percent = figure(event.percent);
+    if (percent != null) next.percent = percent;
+    return next;
+  };
 
   /**
-   * A transfer this tab is starting, registered so the panel can show it and so
-   * the reader can stop it.
+   * An operation this tab is starting in the server, registered so the panel can
+   * show it and so the reader can stop it.
    *
-   * Both gestures that start one — pasting, and dragging onto a folder — need
-   * the same three things, and they are the same three things in both: a bar,
-   * the operation's own numbers folded into it, and a cancel that asks the
-   * server rather than hanging up. Written once, because hanging up no longer
-   * stops anything: the work runs in the server, so a cancel button wired to an
-   * abort is one that silently does nothing.
+   * Every long operation goes through here — a copy, a move, a deletion, an
+   * archive unpacked or packed, something brought back out of the trash — and
+   * each needs the same three things: a bar, the operation's own figures folded
+   * into it, and a cancel that asks the server rather than hanging up. Written
+   * once, because hanging up no longer stops anything: the work runs in the
+   * server, so a cancel button wired to an abort is one that silently does
+   * nothing, which is what two of these gestures had.
    *
    * The operation is named a moment after it starts — its id arrives with the
    * first event — so a cancel pressed inside that moment is remembered and sent
    * as soon as there is something to send it about.
    */
-  const startTransfer = ({ type, destination, itemCount }) => {
+  const startServerOperation = ({ type, destination, itemCount, name }) => {
     let runningTask = null;
     let stopAsked = false;
     const askTheServer = (taskId) => cancelOperationTask(taskId).catch(() => {});
@@ -206,6 +226,7 @@ export const useOperationTasksStore = defineStore('operationTasks', () => {
       type,
       destination,
       itemCount,
+      ...(name ? { name } : {}),
       cancellable: true,
       cancel: () => {
         if (!runningTask) {
@@ -226,9 +247,14 @@ export const useOperationTasksStore = defineStore('operationTasks', () => {
         if (stopAsked) askTheServer(runningTask);
       },
       onEvent: (event) => {
-        if (event?.type === 'start' || event?.type === 'progress') {
-          updateOperation(id, numbersOf(event));
-        }
+        if (event?.type !== 'start' && event?.type !== 'progress') return;
+        const updates = {
+          ...numbersOf(event),
+          // The name an archive really takes is decided while it is written, so
+          // the operation corrects it rather than leaving what was asked for.
+          ...(typeof event.name === 'string' && event.name ? { name: event.name } : {}),
+        };
+        if (Object.keys(updates).length > 0) updateOperation(id, updates);
       },
       finish: () => finishOperation(id),
     };
@@ -251,6 +277,7 @@ export const useOperationTasksStore = defineStore('operationTasks', () => {
     const operationId = startOperation({
       type: view.kind,
       destination: view.destination,
+      ...(view.name ? { name: view.name } : {}),
       itemCount: Number(view.totalItems) || 0,
       totalBytes: Number(view.totalBytes) || 0,
       copiedBytes: Number(view.copiedBytes) || 0,
@@ -330,7 +357,7 @@ export const useOperationTasksStore = defineStore('operationTasks', () => {
     pauseOperation,
     resumeOperation,
     cancelOperation,
-    startTransfer,
+    startServerOperation,
     adoptOperation,
     adoptServerOperations,
     whenAdoptedSettles,

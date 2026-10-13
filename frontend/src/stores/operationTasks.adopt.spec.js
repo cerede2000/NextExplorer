@@ -89,7 +89,7 @@ beforeEach(() => {
 describe('a transfer this tab starts', () => {
   it('is shown, and stopped by asking the server about it', () => {
     const store = useOperationTasksStore();
-    const transfer = store.startTransfer({
+    const transfer = store.startServerOperation({
       type: 'copy',
       destination: 'Archive',
       itemCount: 4,
@@ -111,7 +111,11 @@ describe('a transfer this tab starts', () => {
 
   it('is stopped as soon as it has a name, when it had none yet', () => {
     const store = useOperationTasksStore();
-    const transfer = store.startTransfer({ type: 'move', destination: 'Archive', itemCount: 1 });
+    const transfer = store.startServerOperation({
+      type: 'move',
+      destination: 'Archive',
+      itemCount: 1,
+    });
 
     store.cancelOperation(transfer.id);
     expect(cancelOperationTask).not.toHaveBeenCalled();
@@ -122,7 +126,11 @@ describe('a transfer this tab starts', () => {
 
   it('asks nothing of a server that never named one', () => {
     const store = useOperationTasksStore();
-    const transfer = store.startTransfer({ type: 'copy', destination: 'Archive', itemCount: 1 });
+    const transfer = store.startServerOperation({
+      type: 'copy',
+      destination: 'Archive',
+      itemCount: 1,
+    });
 
     transfer.onTask(null);
     store.cancelOperation(transfer.id);
@@ -132,7 +140,11 @@ describe('a transfer this tab starts', () => {
 
   it('shows the operation\u2019s own numbers, for the whole selection', () => {
     const store = useOperationTasksStore();
-    const transfer = store.startTransfer({ type: 'copy', destination: 'Archive', itemCount: 2 });
+    const transfer = store.startServerOperation({
+      type: 'copy',
+      destination: 'Archive',
+      itemCount: 2,
+    });
 
     transfer.onEvent({ type: 'start', totalBytes: 900, totalItems: 3, copiedBytes: 0 });
     transfer.onEvent({ type: 'progress', copiedBytes: 450, totalBytes: 900, totalItems: 3 });
@@ -146,7 +158,11 @@ describe('a transfer this tab starts', () => {
 
   it('comes off the panel when it is finished with', () => {
     const store = useOperationTasksStore();
-    const transfer = store.startTransfer({ type: 'copy', destination: 'Archive', itemCount: 1 });
+    const transfer = store.startServerOperation({
+      type: 'copy',
+      destination: 'Archive',
+      itemCount: 1,
+    });
 
     transfer.finish();
 

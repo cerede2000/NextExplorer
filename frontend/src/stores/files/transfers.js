@@ -108,7 +108,7 @@ export const createTransfers = ({
     // exactly the same (see `stores/operationTasks`).
     const transfer =
       totalCount > 0
-        ? operationTasksStore.startTransfer({
+        ? operationTasksStore.startServerOperation({
             type: movePayload.length > 0 && copyPayload.length === 0 ? 'move' : 'copy',
             destination,
             itemCount: totalCount,

@@ -359,7 +359,7 @@ export function useFileDragDrop() {
       // and a cancel that asks the server rather than hanging up. Dragging onto
       // a folder is the other way into a transfer, and a transfer is no longer
       // stopped by closing the connection that watches it.
-      const watched = operationTasksStore.startTransfer({
+      const watched = operationTasksStore.startServerOperation({
         type: copy ? 'copy' : 'move',
         destination,
         itemCount: transferPayload.length,

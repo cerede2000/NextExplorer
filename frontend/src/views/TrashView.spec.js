@@ -19,9 +19,20 @@ const emptyTrash = vi.fn();
 const addNotification = vi.fn();
 const push = vi.fn();
 const pick = vi.fn();
-const startOperation = vi.fn();
-const updateOperation = vi.fn();
+/**
+ * The panel an operation registers itself with: a bar, the operation's own
+ * figures, and a cancel that asks the server (see `stores/operationTasks`).
+ */
+const onOperationEvent = vi.fn();
+const onOperationTask = vi.fn();
 const finishOperation = vi.fn();
+const startServerOperation = vi.fn(() => ({
+  id: 'op-1',
+  onEvent: onOperationEvent,
+  onTask: onOperationTask,
+  finish: finishOperation,
+}));
+const updateOperation = vi.fn();
 const route = reactive({ query: {} });
 
 vi.mock('@/api', () => ({
@@ -38,7 +49,7 @@ vi.mock('@/stores/notifications', () => ({
   useNotificationsStore: () => ({ addNotification }),
 }));
 vi.mock('@/stores/operationTasks', () => ({
-  useOperationTasksStore: () => ({ startOperation, updateOperation, finishOperation }),
+  useOperationTasksStore: () => ({ startServerOperation, updateOperation }),
 }));
 vi.mock('@/composables/useDestinationPicker', () => ({
   useDestinationPicker: () => ({ pick }),
@@ -113,7 +124,9 @@ beforeEach(() => {
     addNotification,
     push,
     pick,
-    startOperation,
+    startServerOperation,
+    onOperationEvent,
+    onOperationTask,
     updateOperation,
     finishOperation,
   ].forEach((mock) => mock.mockReset());
@@ -122,7 +135,12 @@ beforeEach(() => {
   push.mockImplementation(async (to) => {
     route.query = to.query || {};
   });
-  startOperation.mockReturnValue('op-1');
+  startServerOperation.mockReturnValue({
+    id: 'op-1',
+    onEvent: onOperationEvent,
+    onTask: onOperationTask,
+    finish: finishOperation,
+  });
 });
 
 afterEach(() => {
@@ -327,18 +345,16 @@ describe('restoring somewhere else', () => {
     expect(restoreTrashItemsTo).toHaveBeenCalledWith(
       ['id-report'],
       'Archive',
-      expect.objectContaining({ signal: expect.any(AbortSignal) })
+      // Watched and named through the registration, and nothing else: the
+      // restore runs in the server, so there is no connection of its own to
+      // hang up on.
+      expect.objectContaining({ onEvent: onOperationEvent, onTask: onOperationTask })
     );
-    expect(startOperation).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'restore',
-        itemCount: 1,
-        destination: 'Archive',
-        cancellable: true,
-      })
+    expect(restoreTrashItemsTo.mock.calls[0][2].signal).toBeUndefined();
+    expect(startServerOperation).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'restore', itemCount: 1, destination: 'Archive' })
     );
-    expect(updateOperation).toHaveBeenCalledWith('op-1', { totalBytes: 2048, copiedBytes: 1024 });
-    expect(finishOperation).toHaveBeenCalledWith('op-1');
+    expect(finishOperation).toHaveBeenCalled();
     expect(addNotification).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'success',
@@ -356,7 +372,7 @@ describe('restoring somewhere else', () => {
     await click('[data-test="trash-restore-to"]');
 
     expect(restoreTrashItemsTo).not.toHaveBeenCalled();
-    expect(startOperation).not.toHaveBeenCalled();
+    expect(startServerOperation).not.toHaveBeenCalled();
   });
 
   it('says why the chosen folder turned an item away', async () => {
@@ -388,17 +404,17 @@ describe('restoring somewhere else', () => {
   it('stops quietly when the task is cancelled, and shows what is really left', async () => {
     await open({ enabled: true, retentionDays: 30, items: [item()] });
     pick.mockResolvedValue('Archive');
-    restoreTrashItemsTo.mockImplementation(async (_ids, _destination, { signal }) => {
-      startOperation.mock.calls[0][0].cancel();
-      expect(signal.aborted).toBe(true);
-      throw new DOMException('The operation was aborted.', 'AbortError');
+    // Stopped by asking the server, which answers the stream with its own
+    // refusal rather than dropping the connection.
+    restoreTrashItemsTo.mockImplementation(async () => {
+      throw Object.assign(new Error('Cancelled.'), { code: 'OPERATION_CANCELLED' });
     });
 
     await rows()[0].trigger('click');
     await click('[data-test="trash-restore-to"]');
 
     expect(addNotification).not.toHaveBeenCalled();
-    expect(finishOperation).toHaveBeenCalledWith('op-1');
+    expect(finishOperation).toHaveBeenCalled();
     expect(getTrash).toHaveBeenCalledTimes(2);
   });
 
@@ -416,7 +432,7 @@ describe('restoring somewhere else', () => {
         body: 'The destination must be an existing folder.',
       })
     );
-    expect(finishOperation).toHaveBeenCalledWith('op-1');
+    expect(finishOperation).toHaveBeenCalled();
   });
 });
 
@@ -656,7 +672,7 @@ describe('inside a deleted folder', () => {
       'id-client',
       ['drafts/v2.txt'],
       'Archive',
-      expect.objectContaining({ signal: expect.any(AbortSignal) })
+      expect.objectContaining({ onEvent: onOperationEvent, onTask: onOperationTask })
     );
     expect(addNotification).toHaveBeenCalledWith(
       expect.objectContaining({ body: 'trash.results.restoredTo {"path":"Archive"}' })

@@ -148,121 +148,44 @@ async function refreshFolderSize(relativePath, options = {}) {
 }
 
 /**
- * Run one streamed operation over a large selection, a batch at a time.
- *
- * A single request carrying thousands of paths is refused as too large, but
- * the caller still drives one progress bar: the events of each batch are
- * rebased onto the whole selection, so the bar never restarts and never goes
- * backwards at a boundary. Percentages are computed from item counts, which
- * are known upfront — byte totals are not, since each batch only learns its
- * own when the server prepares it.
- */
-async function streamInBatches(items, batchSize, runBatch, onEvent) {
-  const all = Array.isArray(items) ? items : [];
-  const emit = typeof onEvent === 'function' ? onEvent : null;
-
-  if (all.length <= batchSize) return runBatch(all, emit);
-
-  const batches = [];
-  for (let index = 0; index < all.length; index += batchSize) {
-    batches.push(all.slice(index, index + batchSize));
-  }
-
-  const results = new Array(batches.length);
-  // Each batch counts from zero, so the global count is advanced by each
-  // batch's own delta rather than replaced by its number. Taking the raw one
-  // would make the bar fall back to the start at every boundary.
-  const seenPerBatch = new Array(batches.length).fill(0);
-  let completed = 0;
-  let knownBytes = 0;
-  let bytesPerBatch = new Array(batches.length).fill(0);
-  let startEmitted = false;
-
-  const runOne = async (batchIndex) => {
-    results[batchIndex] = await runBatch(batches[batchIndex], (event) => {
-      if (!emit) return;
-      if (event.type === 'start') {
-        knownBytes += Number(event.totalBytes) || 0;
-        // One start for the whole run, whichever batch opens first.
-        if (!startEmitted) {
-          startEmitted = true;
-          emit({ ...event, totalItems: all.length, totalBytes: knownBytes });
-        }
-        return;
-      }
-      if (event.type === 'progress') {
-        const seen = Number(event.completedItems) || 0;
-        completed += Math.max(0, seen - seenPerBatch[batchIndex]);
-        seenPerBatch[batchIndex] = seen;
-
-        const bytes = Number(event.copiedBytes) || 0;
-        bytesPerBatch[batchIndex] = bytes;
-        const copiedBytes = bytesPerBatch.reduce((sum, value) => sum + value, 0);
-
-        emit({
-          ...event,
-          completedItems: completed,
-          ...(copiedBytes ? { copiedBytes } : {}),
-          ...(knownBytes ? { totalBytes: knownBytes } : {}),
-          percent: Math.round((completed / all.length) * 100),
-        });
-        return;
-      }
-      emit(event);
-    });
-  };
-
-  // One batch at a time, and this is a constraint rather than an oversight.
-  //
-  // Sending two would be faster on storage where each operation is mostly
-  // latency, and this used to carry a worker pool for exactly that — with a
-  // `concurrency` argument no caller ever passed, so it never ran more than one
-  // and the machinery around it was unreachable.
-  //
-  // It cannot simply be switched on. The server resolves a name collision with
-  // `findAvailableName`, which checks whether a name is free and then uses it;
-  // that is only safe because a transfer walks its items strictly one at a time.
-  // Two batches in flight copying `a/report.txt` and `b/report.txt` into the
-  // same folder would both find `report.txt` free, and one would overwrite the
-  // other with nothing said. Making the destination side race-safe comes first.
-  for (let batchIndex = 0; batchIndex < batches.length; batchIndex += 1) {
-    await runOne(batchIndex);
-  }
-
-  return results;
-}
-
-/**
- * One copy or move, however many requests it takes to describe it.
+ * One operation, however many requests it takes to describe it.
  *
  * The work happens in the server now and the response is a window onto it, so a
- * transfer is no longer bound to the tab that asked for it. Two things follow
- * from that, and they are what this function is.
+ * copy, a move or a deletion is no longer bound to the tab that asked for it.
+ * Two things follow from that, and they are what this function is.
  *
  * The whole selection is one operation. The paths still go out in batches —
  * several thousand of them in one body is refused as too large — but they all
  * name the same operation: the first request opens it and says that more is
  * coming, the rest are added to it and answered at once, and only the first
  * carries the stream. A reader who closes the tab half a second in no longer
- * loses the parts that had not been sent, because they are already sent.
+ * loses the parts that had not been sent, because they are already sent. And
+ * because there is one operation, there is one set of figures and one answer:
+ * none of the adding up the client used to do across its own batches.
  *
  * And it says which operation it is. `onTask` is called with the id as soon as
- * the server gives it, which is what lets the caller stop it — a transfer is
+ * the server gives it, which is what lets the caller stop it — an operation is
  * stopped by asking the server to, not by hanging up.
  *
- * `address` is already under the share's prefix when the transfer is inside one:
+ * `address` is already under the share's prefix when the work is inside one:
  * each caller below spells its own endpoint out, because that rule is enforced
  * where the address is built and enumerated by reading those call sites — an
  * address assembled out of pieces cannot be compared with what the server
  * mounts (see `tests/routes/share-prefix-answers-what-is-asked`).
+ *
+ * @param {string} address  the endpoint, already scoped
+ * @param {Array} items  the whole selection
+ * @param {number} batchSize  how many paths one body may carry
+ * @param {(batch: Array, extras: object) => object} bodyFor  one request's body
+ * @param {object} [options]  onEvent, onTask, signal, suppressErrorCodes
  */
-async function transferAsOneTask(address, items, destination, options = {}) {
+async function inOneOperation(address, items, batchSize, bodyFor, options = {}) {
   const all = Array.isArray(items) ? items : [];
   const batches = [];
-  for (let index = 0; index < all.length; index += TRANSFER_BATCH_SIZE) {
-    batches.push(all.slice(index, index + TRANSFER_BATCH_SIZE));
+  for (let index = 0; index < all.length; index += batchSize) {
+    batches.push(all.slice(index, index + batchSize));
   }
-  // Nothing to transfer is for the server to refuse, as it always has.
+  // Nothing to do is for the server to refuse, as it always has.
   if (batches.length === 0) batches.push([]);
 
   let announce = () => {};
@@ -279,23 +202,19 @@ async function transferAsOneTask(address, items, destination, options = {}) {
     for (let index = 1; index < batches.length; index += 1) {
       await requestJson(address, {
         method: 'POST',
-        body: JSON.stringify({
-          items: batches[index],
-          destination,
-          taskId,
-          continues: index < batches.length - 1,
-        }),
+        body: JSON.stringify(
+          bodyFor(batches[index], {
+            taskId,
+            ...(index < batches.length - 1 ? { continues: true } : {}),
+          })
+        ),
       });
     }
   })();
 
   const watched = requestStream(address, {
     method: 'POST',
-    body: JSON.stringify({
-      items: batches[0],
-      destination,
-      ...(batches.length > 1 ? { continues: true } : {}),
-    }),
+    body: JSON.stringify(bodyFor(batches[0], batches.length > 1 ? { continues: true } : {})),
     onEvent: (event) => {
       if (event?.type === 'start') {
         announce(event.taskId || null);
@@ -304,7 +223,7 @@ async function transferAsOneTask(address, items, destination, options = {}) {
       if (typeof options.onEvent === 'function') options.onEvent(event);
     },
     signal: options.signal,
-    suppressErrorCodes: ['OPERATION_CANCELLED'],
+    suppressErrorCodes: notARefusal(options.suppressErrorCodes),
   });
   // However that request ends, nothing more is waiting on an id from it.
   watched.then(
@@ -317,17 +236,61 @@ async function transferAsOneTask(address, items, destination, options = {}) {
   const settled = await Promise.allSettled([watched, theRest]);
   const refused = settled.find((outcome) => outcome.status === 'rejected');
   if (refused) throw refused.reason;
-  return mergeTransferResults([settled[0].value]);
+  return settled[0].value;
 }
+
+/**
+ * A cancellation is not something to put a red notice on the screen for.
+ *
+ * It arrives as the operation's own error event now, where it used to be a
+ * dropped connection nobody reported — so without this, a reader who pressed
+ * cancel is told their operation failed.
+ */
+const notARefusal = (codes = []) => ['OPERATION_CANCELLED', ...codes];
+
+/**
+ * Hand the caller the operation's id as soon as the server names it.
+ *
+ * For the operations described in a single request — an archive unpacked or
+ * packed, something brought back out of the trash. The id arrives in the `start`
+ * event, and without it the caller has nothing to ask the server to stop.
+ */
+const watchingTheOperation =
+  ({ onEvent, onTask } = {}) =>
+  (event) => {
+    if (event?.type === 'start' && typeof onTask === 'function') onTask(event.taskId || null);
+    if (typeof onEvent === 'function') onEvent(event);
+  };
+
+/** One part of a copy or a move, as the server reads it. */
+const transferPart = (destination) => (batch, extras) => ({
+  items: batch,
+  destination,
+  ...extras,
+});
 
 async function copyItems(items, destination, options = {}) {
   const first = (Array.isArray(items) ? items : [])[0];
-  return transferAsOneTask(
+  const result = await inOneOperation(
     shareScopedForAny('/api/files/copy', destination, first),
     items,
-    destination,
+    TRANSFER_BATCH_SIZE,
+    transferPart(destination),
     options
   );
+  return mergeTransferResults([result]);
+}
+
+async function moveItems(items, destination, options = {}) {
+  const first = (Array.isArray(items) ? items : [])[0];
+  const result = await inOneOperation(
+    shareScopedForAny('/api/files/move', destination, first),
+    items,
+    TRANSFER_BATCH_SIZE,
+    transferPart(destination),
+    options
+  );
+  return mergeTransferResults([result]);
 }
 
 /**
@@ -338,16 +301,6 @@ async function copyItems(items, destination, options = {}) {
 async function fetchRecentDestinations() {
   const payload = await requestJson(shareScopedForPage('/api/files/recent-destinations'));
   return Array.isArray(payload?.items) ? payload.items : [];
-}
-
-async function moveItems(items, destination, options = {}) {
-  const first = (Array.isArray(items) ? items : [])[0];
-  return transferAsOneTask(
-    shareScopedForAny('/api/files/move', destination, first),
-    items,
-    destination,
-    options
-  );
 }
 
 async function deleteItems(items, options = {}) {
@@ -373,23 +326,17 @@ async function deleteItems(items, options = {}) {
 }
 
 async function deleteItemsStream(items, options = {}) {
-  const results = await streamInBatches(
+  const first = (Array.isArray(items) ? items : [])[0];
+  const result = await inOneOperation(
+    shareScopedForAny('/api/files/delete-stream', first),
     items,
     DELETE_STREAM_BATCH_SIZE,
-    (batch, onEvent) =>
-      requestStream(shareScopedForAny('/api/files/delete-stream', batch[0]), {
-        method: 'POST',
-        body: JSON.stringify({ items: batch, ...permanentFlag(options) }),
-        onEvent,
-        signal: options.signal,
-      }),
-    options.onEvent
+    (batch, extras) => ({ items: batch, ...permanentFlag(options), ...extras }),
+    options
   );
-
-  if (!Array.isArray(results)) return results;
   return {
     success: true,
-    items: results.flatMap((result) => (Array.isArray(result?.items) ? result.items : [])),
+    items: Array.isArray(result?.items) ? result.items : [],
   };
 }
 
@@ -696,6 +643,8 @@ async function extractZip(relativePath, options = {}) {
   }
   // The endpoint streams NDJSON progress events (start/progress/done/error),
   // like the copy/move endpoints; `onEvent` receives each intermediate event.
+  // The extraction runs in the server, so the stream is a window onto it:
+  // `onTask` gets the operation's id, which is how it is stopped.
   return requestStream(shareScoped('/api/files/zip/extract', normalizedPath), {
     method: 'POST',
     body: JSON.stringify({
@@ -703,9 +652,9 @@ async function extractZip(relativePath, options = {}) {
       ...(options.destination === 'current' ? { destination: 'current' } : {}),
       ...(typeof options.password === 'string' ? { password: options.password } : {}),
     }),
-    onEvent: options.onEvent,
+    onEvent: watchingTheOperation(options),
     signal: options.signal,
-    suppressErrorCodes: options.suppressErrorCodes,
+    suppressErrorCodes: notARefusal(options.suppressErrorCodes),
   });
 }
 
@@ -719,14 +668,16 @@ async function compressToZip(items, destination = '', name, options = {}) {
   }
 
   // The endpoint streams NDJSON progress events (start/progress/done/error),
-  // like the extract and copy/move endpoints.
+  // like the extract and copy/move endpoints, and the same window onto a
+  // registered operation.
   return requestStream(
     shareScoped('/api/files/zip/compress', payload.destination || payload.items[0]),
     {
       method: 'POST',
       body: JSON.stringify(payload),
-      onEvent: options.onEvent,
+      onEvent: watchingTheOperation(options),
       signal: options.signal,
+      suppressErrorCodes: notARefusal(),
     }
   );
 }

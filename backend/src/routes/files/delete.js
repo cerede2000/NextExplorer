@@ -7,7 +7,10 @@ const {
 const activityLog = require('../../services/activityLog');
 const asyncHandler = require('../../utils/asyncHandler');
 const logger = require('../../utils/logger');
-const { startNdjsonStream, throttleProgress } = require('../../utils/ndjsonStream');
+const { throttleProgress } = require('../../utils/ndjsonStream');
+const operationTasks = require('../../services/operationTasks');
+const { streamTask } = require('../../utils/taskStream');
+const { ConflictError, NotFoundError, UnauthorizedError } = require('../../errors/AppError');
 
 const router = require('express').Router();
 
@@ -107,69 +110,121 @@ router.delete(
   })
 );
 
+/** A new deletion task, with the answer it will build. */
+const openDeletionTask = ({ owner, shareId }) => {
+  const bag = { items: [] };
+  return operationTasks.open({
+    kind: 'delete',
+    owner,
+    shareId,
+    bag,
+    collect: () => ({ items: bag.items }),
+  });
+};
+
+/**
+ * A deletion that belongs to the person who asked, not to the tab.
+ *
+ * It ran inside its own request: closing the tab closed the socket, the socket
+ * aborted the deletion, and a selection of a hundred thousand entries was half
+ * gone with nothing said about which half. It is registered now — see
+ * `services/operationTasks` — and this response is a window onto it: closing the
+ * window detaches a watcher, and `POST /api/tasks/<id>/cancel` is how one is
+ * stopped.
+ *
+ * The same stream as before, with `taskId` added to the `start` event. A
+ * selection too large for one request body still arrives as several, and they
+ * all name the same operation now rather than being one operation each: the
+ * first opens it and says more is coming, the rest are added to it and answered
+ * at once. A reader who closed the tab a moment in used to lose every batch that
+ * had not been sent yet.
+ */
 router.post(
   '/files/delete-stream',
   asyncHandler(async (req, res) => {
-    const { items = [], permanent = false } = req.body || {};
-    const controller = new AbortController();
-    const abort = () => controller.abort();
-    const onClose = () => {
-      if (!res.writableEnded) abort();
-    };
-    req.once('aborted', abort);
+    const { items = [], permanent = false, taskId = null, continues = false } = req.body || {};
+    const owner = operationTasks.ownerOf(req);
+    if (!owner) throw new UnauthorizedError('Authentication required.');
+    const shareId = req.shareScope?.shareId ?? null;
+    const context = { user: req.user, guestSession: req.guestSession };
+
+    // The operation this part belongs to, before its items are looked at: an id
+    // that names nothing of this caller's is refused whatever it carries, and
+    // answers exactly as one that names nothing at all.
+    const running = taskId
+      ? operationTasks.reopen(taskId, owner, { shareId, kind: 'delete' })
+      : null;
+    if (taskId && !running) throw new NotFoundError('No such operation.');
 
     // Authorize before switching to the stream: once the headers are out, a
     // refusal can only be reported as a 200 carrying an error event, which a
-    // client that does not parse NDJSON reads as success. This matches how
-    // the transfer and archive routes behave.
-    const context = { user: req.user, guestSession: req.guestSession };
-    // Timed so an installation can see where a slow bulk delete actually
-    // spends its time, instead of guessing between the server and the browser.
+    // client that does not parse NDJSON reads as success. This matches how the
+    // transfer and archive routes behave.
+    //
+    // Timed so an installation can see where a slow bulk delete actually spends
+    // its time, instead of guessing between the server and the browser.
     const startedAt = Date.now();
-    const targets = await resolveDeleteTargets(items, context);
+    let targets;
+    try {
+      targets = await resolveDeleteTargets(items, context);
+    } catch (error) {
+      // A part that is refused is the end of the selection: the operation
+      // finishes on what it has rather than waiting for the rest.
+      running?.seal();
+      throw error;
+    }
     const resolvedAt = Date.now();
 
-    const writeEvent = startNdjsonStream(res, { onClose });
+    const handle = running || openDeletionTask({ owner, shareId });
+    // Entries rather than bytes: a deletion has no byte count to measure, so
+    // how many of them are gone is what the bar is drawn from.
+    handle.grow({ totalItems: targets.length, bytesKnown: false });
 
-    try {
-      writeEvent({
-        type: 'start',
-        phase: 'preparing',
-        totalItems: Array.isArray(items) ? items.length : 0,
-      });
-      const reportProgress = throttleProgress((event) => writeEvent(event));
-      const results = await deleteItems(items, {
-        targets,
-        user: req.user,
-        guestSession: req.guestSession,
-        permanent: permanent === true,
-        signal: controller.signal,
-        onProgress: (progress) => reportProgress({ type: 'progress', ...progress }),
-      });
-      reportProgress.flush();
-      const finishedAt = Date.now();
-      logger.info(
-        {
-          items: targets.length,
-          resolveMs: resolvedAt - startedAt,
-          deleteMs: finishedAt - resolvedAt,
-          totalMs: finishedAt - startedAt,
-        },
-        'Bulk delete completed'
-      );
-      await recordDeletion({ results, req });
-      writeEvent({ type: 'done', success: true, items: results });
-    } catch (error) {
-      writeEvent({
-        type: 'error',
+    const queued = handle.enqueue(
+      async () => {
+        const reportProgress = throttleProgress((event) =>
+          handle.report({ unitItems: event.completedItems, currentName: event.currentName })
+        );
+        const results = await deleteItems(items, {
+          targets,
+          user: req.user,
+          guestSession: req.guestSession,
+          permanent: permanent === true,
+          signal: handle.signal,
+          onProgress: (progress) => reportProgress({ type: 'progress', ...progress }),
+        });
+        reportProgress.flush();
+        const finishedAt = Date.now();
+        logger.info(
+          {
+            items: targets.length,
+            resolveMs: resolvedAt - startedAt,
+            deleteMs: finishedAt - resolvedAt,
+            totalMs: finishedAt - startedAt,
+          },
+          'Bulk delete completed'
+        );
+        await recordDeletion({ results, req });
+        handle.bag.items.push(...results);
+        handle.advance({ items: targets.length });
+      },
+      (error) => ({
         message: sanitizeClientMessage(error.message || 'Deletion failed.'),
         code: error.code || 'DELETE_FAILED',
-      });
-    } finally {
-      req.off('aborted', abort);
-      res.off('close', onClose);
-      if (!res.writableEnded) res.end();
+      })
+    );
+    if (!queued) throw new ConflictError('That operation has already finished.');
+
+    if (!continues) handle.seal();
+
+    // One window is enough: the request that opened the operation carries it,
+    // and the rest of a large selection is answered as soon as it is queued.
+    if (taskId) {
+      res.status(202).json({ taskId: handle.id, accepted: targets.length });
+      return;
     }
+
+    streamTask(res, handle.id, owner, shareId);
   })
 );
 

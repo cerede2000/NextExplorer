@@ -60,7 +60,7 @@ vi.mock('@/stores/operationTasks', () => ({
   useOperationTasksStore: () => ({
     // One registration for a transfer: a bar, the operation's own numbers and a
     // cancel that asks the server (see `stores/operationTasks`).
-    startTransfer: vi.fn(() => ({
+    startServerOperation: vi.fn(() => ({
       id: 'op-1',
       onEvent: vi.fn(),
       onTask: vi.fn(),

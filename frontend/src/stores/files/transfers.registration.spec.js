@@ -27,7 +27,7 @@ const { createTransfers } = await import('@/stores/files/transfers');
 const onEvent = vi.fn();
 const onTask = vi.fn();
 const finish = vi.fn();
-const startTransfer = vi.fn(() => ({ id: 'operation-1', onEvent, onTask, finish }));
+const startServerOperation = vi.fn(() => ({ id: 'operation-1', onEvent, onTask, finish }));
 
 const transfersWith = ({ cut = false } = {}) => {
   const staged = [{ path: 'Docs', name: 'report.txt' }];
@@ -40,7 +40,7 @@ const transfersWith = ({ cut = false } = {}) => {
     },
     fetchPathItems: vi.fn(async () => {}),
     refreshSizes: vi.fn(),
-    operationTasksStore: { startTransfer },
+    operationTasksStore: { startServerOperation },
     warn: () => false,
   });
   transfers.copiedItems.value = cut ? [] : staged;
@@ -49,7 +49,7 @@ const transfersWith = ({ cut = false } = {}) => {
 };
 
 beforeEach(() => {
-  startTransfer.mockClear();
+  startServerOperation.mockClear();
   onEvent.mockReset();
   onTask.mockReset();
   finish.mockReset();
@@ -64,7 +64,7 @@ describe('pasting', () => {
   it('registers the transfer, with where it is going and how much of it there is', async () => {
     await transfersWith().paste('Archive');
 
-    expect(startTransfer).toHaveBeenCalledWith({
+    expect(startServerOperation).toHaveBeenCalledWith({
       type: 'copy',
       destination: 'Archive',
       itemCount: 1,
@@ -74,7 +74,7 @@ describe('pasting', () => {
   it('registers a move as a move', async () => {
     await transfersWith({ cut: true }).paste('Archive');
 
-    expect(startTransfer).toHaveBeenCalledWith(expect.objectContaining({ type: 'move' }));
+    expect(startServerOperation).toHaveBeenCalledWith(expect.objectContaining({ type: 'move' }));
   });
 
   it('watches it and names it through that registration, and nothing else', async () => {
@@ -110,7 +110,7 @@ describe('pasting', () => {
 
     await transfers.paste('Archive');
 
-    expect(startTransfer).not.toHaveBeenCalled();
+    expect(startServerOperation).not.toHaveBeenCalled();
     expect(copyItems).not.toHaveBeenCalled();
   });
 });
