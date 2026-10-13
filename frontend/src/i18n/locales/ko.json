@@ -123,7 +123,6 @@
     "newPresentation": "새 PowerPoint 프레젠테이션",
     "newTextFile": "새 텍스트 파일",
     "newMarkdownFile": "새 Markdown 파일",
-    "newCsvFile": "새 CSV 파일",
     "extractArchive": "압축 풀기",
     "extractArchiveIntoCurrentFolder": "현재 폴더에 압축 풀기",
     "copyPath": "경로 복사",
@@ -263,11 +262,11 @@
   "create": {
     "createNew": "추가",
     "documentName": "문서 이름",
+    "documentExtension": "확장자",
     "createAndOpen": "만들고 열기",
     "defaultDocumentName": "문서",
     "defaultSpreadsheetName": "통합 문서",
     "defaultPresentationName": "프레젠테이션",
-    "defaultDataName": "데이터",
     "documentFailed": "문서를 만들 수 없습니다"
   },
   "context": {

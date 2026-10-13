@@ -123,7 +123,6 @@
     "newPresentation": "Новая презентация PowerPoint",
     "newTextFile": "Новый текстовый файл",
     "newMarkdownFile": "Новый файл Markdown",
-    "newCsvFile": "Новый файл CSV",
     "extractArchive": "Извлечь архив",
     "extractArchiveIntoCurrentFolder": "Извлечь в текущую папку",
     "copyPath": "Копировать путь",
@@ -263,11 +262,11 @@
   "create": {
     "createNew": "Создать",
     "documentName": "Имя документа",
+    "documentExtension": "Расширение",
     "createAndOpen": "Создать и открыть",
     "defaultDocumentName": "Документ",
     "defaultSpreadsheetName": "Книга",
     "defaultPresentationName": "Презентация",
-    "defaultDataName": "Данные",
     "documentFailed": "Не удалось создать документ"
   },
   "context": {

@@ -123,7 +123,6 @@
     "newPresentation": "Prezentare PowerPoint nouă",
     "newTextFile": "Fișier text nou",
     "newMarkdownFile": "Fișier Markdown nou",
-    "newCsvFile": "Fișier CSV nou",
     "extractArchive": "Extrage arhiva",
     "extractArchiveIntoCurrentFolder": "Extrage în dosarul curent",
     "copyPath": "Copiază calea",
@@ -263,11 +262,11 @@
   "create": {
     "createNew": "Nou",
     "documentName": "Numele documentului",
+    "documentExtension": "Extensie",
     "createAndOpen": "Creează și deschide",
     "defaultDocumentName": "Document",
     "defaultSpreadsheetName": "Registru",
     "defaultPresentationName": "Prezentare",
-    "defaultDataName": "Date",
     "documentFailed": "Documentul nu a putut fi creat"
   },
   "context": {

@@ -123,7 +123,6 @@
     "newPresentation": "Ny PowerPoint-presentation",
     "newTextFile": "Ny textfil",
     "newMarkdownFile": "Ny Markdown-fil",
-    "newCsvFile": "Ny CSV-fil",
     "extractArchive": "Extrahera arkiv",
     "extractArchiveIntoCurrentFolder": "Extrahera till aktuell mapp",
     "copyPath": "Kopiera sökväg",
@@ -263,11 +262,11 @@
   "create": {
     "createNew": "Ny",
     "documentName": "Dokumentnamn",
+    "documentExtension": "Filändelse",
     "createAndOpen": "Skapa och öppna",
     "defaultDocumentName": "Dokument",
     "defaultSpreadsheetName": "Arbetsbok",
     "defaultPresentationName": "Presentation",
-    "defaultDataName": "Data",
     "documentFailed": "Det gick inte att skapa dokumentet"
   },
   "context": {

@@ -3258,6 +3258,10 @@
                   "name": {
                     "type": "string",
                     "description": "What to call it; a name is chosen when absent."
+                  },
+                  "extension": {
+                    "type": "string",
+                    "description": "The extension to give it, for a format with no template — `json`, `yml`, `sh`. Empty for none. Refused where the format has a template, whose bytes decide what the file is."
                   }
                 },
                 "required": ["format"]

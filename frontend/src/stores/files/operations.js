@@ -147,9 +147,9 @@ export const createOperations = ({
    * straight away — a rename box behind the editor overlay is a rename box
    * nobody can see.
    */
-  const createOfficeDocument = async ({ format, name } = {}) => {
+  const createOfficeDocument = async ({ format, name, extension } = {}) => {
     const destination = normalizePath(currentPath.value || '');
-    const response = await createOfficeDocumentApi(destination, { format, name });
+    const response = await createOfficeDocumentApi(destination, { format, name, extension });
 
     await fetchPathItems(destination);
     refreshSizes();

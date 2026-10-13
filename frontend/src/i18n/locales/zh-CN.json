@@ -123,7 +123,6 @@
     "newPresentation": "新建 PowerPoint 演示文稿",
     "newTextFile": "新建文本文件",
     "newMarkdownFile": "新建 Markdown 文件",
-    "newCsvFile": "新建 CSV 文件",
     "extractArchive": "解压缩",
     "extractArchiveIntoCurrentFolder": "解压到当前文件夹",
     "copyPath": "复制路径",
@@ -263,11 +262,11 @@
   "create": {
     "createNew": "新建",
     "documentName": "文档名称",
+    "documentExtension": "扩展名",
     "createAndOpen": "创建并打开",
     "defaultDocumentName": "文档",
     "defaultSpreadsheetName": "工作簿",
     "defaultPresentationName": "演示文稿",
-    "defaultDataName": "数据",
     "documentFailed": "无法创建文档"
   },
   "context": {

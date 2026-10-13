@@ -66,6 +66,12 @@ const hasOfficeEditor = computed(
  * `office` entries need an editor to be worth creating; the text ones are
  * useful on their own and are always listed. Order is deliberate: the office
  * formats are what the drawer was added for, the plain ones sit below.
+ *
+ * `extensionIsYours` marks the ones made from no template, where the extension
+ * is the reader's to type. That is why there is no CSV entry any more: it was
+ * one of fifty extensions the text editor opens, and a menu cannot hold fifty —
+ * a text file whose extension is `csv`, `json`, `yml` or `sh` is the same
+ * request, said once.
  */
 const DOCUMENT_TYPES = [
   {
@@ -98,21 +104,17 @@ const DOCUMENT_TYPES = [
   },
   {
     format: 'txt',
+    extensionIsYours: true,
     titleKey: 'actions.newTextFile',
     nameKey: 'create.defaultDocumentName',
     tint: 'text-neutral-400',
   },
   {
     format: 'md',
+    extensionIsYours: true,
     titleKey: 'actions.newMarkdownFile',
     nameKey: 'create.defaultDocumentName',
     tint: 'text-neutral-400',
-  },
-  {
-    format: 'csv',
-    titleKey: 'actions.newCsvFile',
-    nameKey: 'create.defaultDataName',
-    tint: 'text-green-600',
   },
 ];
 
@@ -165,12 +167,12 @@ const promptOfficeDocument = (document) => {
  * Nothing records a version here: creating a file is not a revision of it, and
  * an editor opened and left alone saves nothing either.
  */
-const createOfficeDocument = async ({ format, name, open = true }) => {
+const createOfficeDocument = async ({ format, name, extension, open = true }) => {
   if (isCreating.value) return;
 
   isCreating.value = true;
   try {
-    const item = await fileStore.createOfficeDocument({ format, name });
+    const item = await fileStore.createOfficeDocument({ format, name, extension });
     if (item && open) openItem(item);
   } catch (error) {
     notifications.addNotification({
@@ -322,6 +324,7 @@ const createFile = async () => {
       :format="officeDocument.format"
       :title="$t(officeDocument.titleKey)"
       :default-name="$t(officeDocument.nameKey)"
+      :choose-extension="officeDocument.extensionIsYours === true"
       @create="createOfficeDocument"
     />
   </div>

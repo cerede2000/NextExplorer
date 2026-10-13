@@ -123,7 +123,6 @@
     "newPresentation": "नई PowerPoint प्रस्तुति",
     "newTextFile": "नई टेक्स्ट फ़ाइल",
     "newMarkdownFile": "नई Markdown फ़ाइल",
-    "newCsvFile": "नई CSV फ़ाइल",
     "extractArchive": "संग्रह निकालें",
     "extractArchiveIntoCurrentFolder": "वर्तमान फ़ोल्डर में निकालें",
     "copyPath": "पथ कॉपी करें",
@@ -263,11 +262,11 @@
   "create": {
     "createNew": "नया",
     "documentName": "दस्तावेज़ का नाम",
+    "documentExtension": "एक्सटेंशन",
     "createAndOpen": "बनाएँ और खोलें",
     "defaultDocumentName": "दस्तावेज़",
     "defaultSpreadsheetName": "स्प्रेडशीट",
     "defaultPresentationName": "प्रस्तुति",
-    "defaultDataName": "डेटा",
     "documentFailed": "दस्तावेज़ नहीं बनाया जा सका"
   },
   "context": {

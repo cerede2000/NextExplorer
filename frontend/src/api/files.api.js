@@ -379,12 +379,19 @@ async function reserveFolderUploadTarget(destination, sourceRoot) {
  * createFile because an empty file with an office extension is not a document
  * any editor will open.
  */
-async function createOfficeDocument(destination, { format, name } = {}) {
+async function createOfficeDocument(destination, { format, name, extension } = {}) {
   const normalizedDestination = normalizePath(destination || '');
   const payload = { path: normalizedDestination, format };
 
   if (typeof name === 'string' && name.trim()) {
     payload.name = name.trim();
+  }
+
+  // Sent only when the caller has one to say, because absent and empty are two
+  // different requests: absent means "the format's own extension", empty means
+  // "no extension at all", which is how a `Dockerfile` is asked for.
+  if (typeof extension === 'string') {
+    payload.extension = extension.trim();
   }
 
   return requestJson(shareScoped('/api/files/office-document', normalizedDestination), {

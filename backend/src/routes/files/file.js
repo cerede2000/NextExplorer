@@ -51,8 +51,10 @@ const createUniqueFile = async (parentAbsolute, requestedName, contents = null) 
  *
  * The text formats need no template — an empty .txt is a valid .txt, unlike an
  * empty .docx — but they belong on the same route because everything else about
- * creating them is identical, down to the extension the caller must not have to
- * spell out.
+ * creating them is identical. `csv` is kept although nothing offers it any
+ * more: a caller asking for it is asking for an empty file called `.csv`, which
+ * is exactly what it has always answered, and `txt` with an extension of `csv`
+ * now says the same thing.
  */
 const DOCUMENT_TEMPLATES = {
   docx: { file: 'new.docx', fallbackName: 'Document.docx' },
@@ -64,7 +66,52 @@ const DOCUMENT_TEMPLATES = {
   csv: { file: null, fallbackName: 'Data.csv' },
 };
 
+/**
+ * An extension somebody typed: letters and digits in runs, joined by a dot, a
+ * hyphen or an underscore, so `json`, `tar.gz` and `d.ts` all pass and nothing
+ * carrying a path separator, a leading dot or a space does.
+ *
+ * Case is kept as it was typed. Whoever asks for `.SQL` gets `.SQL`; what is
+ * compared against the name is folded, so `report.SQL` does not become
+ * `report.SQL.sql`.
+ */
+const EXTENSION_PATTERN = /^[A-Za-z0-9]+(?:[.\-_][A-Za-z0-9]+)*$/;
+const MAX_EXTENSION_LENGTH = 20;
+
 const templateDirectory = path.join(__dirname, '..', '..', 'assets', 'office-templates');
+
+/** "Document.txt" without its extension, so a chosen one can take its place. */
+const nameWithoutExtension = (fallbackName) => fallbackName.replace(/\.[^.]*$/, '');
+
+/**
+ * The extension a new document is to carry.
+ *
+ * Absent, it is the format's own. Given, it is the caller's — but only where
+ * the format has no template to disagree with, and only in the shape an
+ * extension can take. Given as an empty string it is nothing at all, which is
+ * a file with no extension.
+ */
+const chosenExtension = (raw, format, template) => {
+  if (typeof raw !== 'string') return format;
+
+  const asked = raw.trim().replace(/^\.+/, '');
+  if (template.file) {
+    if (!asked || asked.toLowerCase() !== format) {
+      throw new ValidationError(
+        `A ${format} document is made from a template, so its extension cannot be changed.`
+      );
+    }
+    return format;
+  }
+
+  if (!asked) return '';
+  if (asked.length > MAX_EXTENSION_LENGTH || !EXTENSION_PATTERN.test(asked)) {
+    throw new ValidationError(
+      'An extension may hold only letters and digits, joined by a dot, a hyphen or an underscore.'
+    );
+  }
+  return asked;
+};
 
 router.post(
   '/files/file',
@@ -121,9 +168,18 @@ router.post(
  * produce, not in how they are called: a zero-byte `.docx` is not a document an
  * editor will open, it is a file an editor will refuse.
  *
- * The extension comes from the requested format, never from the name. A name
- * that already ends in it is left alone; anything else keeps what the caller
- * typed and gains the extension, so "Budget 2026.v2" stays recognisable.
+ * The extension comes from the request, never from the name. A name that
+ * already ends in it is left alone; anything else keeps what the caller typed
+ * and gains the extension, so "Budget 2026.v2" stays recognisable.
+ *
+ * `extension` says which, and is only the caller's to choose where the format
+ * has no template: an empty file is an empty file whatever it is called, so
+ * `.json`, `.yml`, `.sh` or `.conf` are all the same request as `.txt` — and
+ * the text editor opens fifty extensions, where this route used to offer three.
+ * An empty one means no extension at all, which is how `Dockerfile` is asked
+ * for. Where there *is* a template the extension is refused: the bytes are an
+ * OOXML package or a PDF, and a name that disagrees with them is a file no
+ * editor opens, which is the one thing this route exists to prevent.
  */
 router.post(
   '/files/office-document',
@@ -169,12 +225,15 @@ router.post(
     }
 
     const requested = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
-    const suffix = `.${format}`;
+    const extension = chosenExtension(req.body?.extension, format, template);
+    const suffix = extension ? `.${extension}` : '';
     const withExtension = requested
-      ? requested.toLowerCase().endsWith(suffix)
+      ? !suffix || requested.toLowerCase().endsWith(suffix.toLowerCase())
         ? requested
         : `${requested}${suffix}`
-      : template.fallbackName;
+      : extension === format
+        ? template.fallbackName
+        : `${nameWithoutExtension(template.fallbackName)}${suffix}`;
     const baseName = ensureValidName(withExtension);
 
     const contents = template.file

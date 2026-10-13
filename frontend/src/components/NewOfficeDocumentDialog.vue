@@ -11,16 +11,23 @@ import ModalDialog from '@/components/ModalDialog.vue';
  * into an editor covering the whole window, so the rename box would be behind it
  * — the name has to be settled first.
  *
- * The extension is shown but not editable: the format was chosen from the menu,
- * and the server owns the extension either way.
+ * The extension is editable where the format has no template, which is what
+ * `chooseExtension` says. The menu's three text entries were three of the fifty
+ * extensions the editor opens, so anything else had to be made as a `.txt` and
+ * renamed; an empty file is an empty file whatever it is called, so the
+ * extension is a field. Where there *is* a template it is shown and fixed: the
+ * bytes are an OOXML package or a PDF, and a name that disagrees with them is a
+ * file no editor opens.
  */
 
 const props = defineProps({
   modelValue: Boolean,
-  /** 'docx' | 'xlsx' | 'pptx' | 'pdf' | 'txt' | 'md' | 'csv' */
+  /** 'docx' | 'xlsx' | 'pptx' | 'pdf' | 'txt' | 'md' */
   format: { type: String, default: 'docx' },
   title: { type: String, default: '' },
   defaultName: { type: String, default: '' },
+  /** Whether the extension is this reader's to type, or the format's to keep. */
+  chooseExtension: Boolean,
 });
 
 const emit = defineEmits(['update:modelValue', 'create']);
@@ -32,10 +39,19 @@ const isOpen = computed({
 });
 
 const name = ref('');
+const extension = ref('');
 const inputRef = ref(null);
 const isSubmitting = ref(false);
 
 const canSubmit = computed(() => name.value.trim().length > 0 && !isSubmitting.value);
+
+/** What the document will be called, shown under the fields as it is typed. */
+const willBeCalled = computed(() => {
+  const base = name.value.trim() || props.defaultName;
+  const asked = props.chooseExtension ? extension.value.trim().replace(/^\.+/, '') : props.format;
+  if (!asked) return base;
+  return base.toLowerCase().endsWith(`.${asked.toLowerCase()}`) ? base : `${base}.${asked}`;
+});
 
 /**
  * Hand the name back, saying whether the document is to be opened as well.
@@ -49,7 +65,14 @@ const submit = async ({ open = true } = {}) => {
   if (!canSubmit.value) return;
   isSubmitting.value = true;
   try {
-    emit('create', { format: props.format, name: name.value.trim(), open });
+    emit('create', {
+      format: props.format,
+      name: name.value.trim(),
+      // Only where it was this reader's to choose. Left out, the server keeps
+      // the format's own — and an empty one here means no extension at all.
+      ...(props.chooseExtension ? { extension: extension.value.trim() } : {}),
+      open,
+    });
     isOpen.value = false;
   } finally {
     isSubmitting.value = false;
@@ -61,6 +84,7 @@ watch(
   async (opened) => {
     if (!opened) return;
     name.value = props.defaultName;
+    extension.value = props.format;
     await nextTick();
     // Selected rather than given a caret: the default name is a suggestion, and
     // typing over it is what most people do next.
@@ -75,21 +99,57 @@ watch(
     <template #title>{{ title }}</template>
 
     <form class="flex flex-col gap-4" @submit.prevent="submit({ open: true })">
-      <label class="flex flex-col gap-1">
-        <span class="text-xs text-neutral-500 dark:text-neutral-400">
-          {{ t('create.documentName') }}
-        </span>
-        <span class="flex items-center gap-1">
+      <div class="flex items-end gap-2">
+        <label class="flex min-w-0 flex-1 flex-col gap-1">
+          <span class="text-xs text-neutral-500 dark:text-neutral-400">
+            {{ t('create.documentName') }}
+          </span>
           <input
             ref="inputRef"
             v-model="name"
             type="text"
-            class="min-w-0 flex-1 rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-blue-500 dark:border-neutral-600 dark:bg-zinc-800"
+            class="min-w-0 rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-blue-500 dark:border-neutral-600 dark:bg-zinc-800"
             :placeholder="defaultName"
           />
-          <span class="shrink-0 text-sm text-neutral-500 dark:text-neutral-400">.{{ format }}</span>
+        </label>
+
+        <!--
+          The extension is a field where the format has no template, and a
+          fixed label where it has one. Both sit on the name's baseline so the
+          two read as one filename rather than as two questions.
+        -->
+        <label v-if="chooseExtension" class="flex w-28 shrink-0 flex-col gap-1">
+          <span class="text-xs text-neutral-500 dark:text-neutral-400">
+            {{ t('create.documentExtension') }}
+          </span>
+          <span class="flex items-center gap-1">
+            <span class="shrink-0 text-sm text-neutral-500 dark:text-neutral-400">.</span>
+            <!--
+              No placeholder: the field arrives holding the format, and an empty
+              one is a request rather than a gap — a greyed `txt` behind it would
+              promise an extension the file is not going to get.
+            -->
+            <input
+              v-model="extension"
+              type="text"
+              data-test="document-extension"
+              spellcheck="false"
+              autocapitalize="off"
+              class="min-w-0 flex-1 rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-blue-500 dark:border-neutral-600 dark:bg-zinc-800"
+            />
+          </span>
+        </label>
+        <span v-else class="shrink-0 pb-2 text-sm text-neutral-500 dark:text-neutral-400">
+          .{{ format }}
         </span>
-      </label>
+      </div>
+
+      <p
+        class="truncate text-xs text-neutral-500 dark:text-neutral-400"
+        data-test="document-will-be-called"
+      >
+        {{ willBeCalled }}
+      </p>
 
       <!--
         Two ways out, because naming a document and writing it are two separate

@@ -123,7 +123,6 @@
     "newPresentation": "Nueva presentación de PowerPoint",
     "newTextFile": "Nuevo archivo de texto",
     "newMarkdownFile": "Nuevo archivo Markdown",
-    "newCsvFile": "Nuevo archivo CSV",
     "extractArchive": "Extraer archivo comprimido",
     "extractArchiveIntoCurrentFolder": "Extraer en la carpeta actual",
     "copyPath": "Copiar ruta",
@@ -263,11 +262,11 @@
   "create": {
     "createNew": "Nuevo",
     "documentName": "Nombre del documento",
+    "documentExtension": "Extensión",
     "createAndOpen": "Crear y abrir",
     "defaultDocumentName": "Documento",
     "defaultSpreadsheetName": "Hoja de cálculo",
     "defaultPresentationName": "Presentación",
-    "defaultDataName": "Datos",
     "documentFailed": "No se pudo crear el documento"
   },
   "context": {

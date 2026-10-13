@@ -37,7 +37,13 @@ vi.mock('vue-i18n', async (importOriginal) => ({
 vi.mock('@/components/NewOfficeDocumentDialog.vue', () => ({
   default: defineComponent({
     name: 'NewOfficeDocumentDialogStub',
-    props: { modelValue: Boolean, format: String, title: String, defaultName: String },
+    props: {
+      modelValue: Boolean,
+      format: String,
+      title: String,
+      defaultName: String,
+      chooseExtension: Boolean,
+    },
     emits: ['update:modelValue', 'create'],
     render: () => null,
   }),
@@ -176,7 +182,7 @@ describe('the drawer of document types', () => {
     await openMenu();
     await openDrawer();
 
-    expect(drawer()).toEqual(['.txt', '.md', '.csv']);
+    expect(drawer()).toEqual(['.txt', '.md']);
   });
 
   it('adds office documents when OnlyOffice is configured', async () => {
@@ -185,7 +191,7 @@ describe('the drawer of document types', () => {
     await openMenu();
     await openDrawer();
 
-    expect(drawer()).toEqual(['.docx', '.xlsx', '.pptx', '.pdf', '.txt', '.md', '.csv']);
+    expect(drawer()).toEqual(['.docx', '.xlsx', '.pptx', '.pdf', '.txt', '.md']);
   });
 
   it('adds office documents when Collabora is configured', async () => {
@@ -194,7 +200,7 @@ describe('the drawer of document types', () => {
     await openMenu();
     await openDrawer();
 
-    expect(drawer()).toEqual(['.docx', '.xlsx', '.pptx', '.pdf', '.txt', '.md', '.csv']);
+    expect(drawer()).toEqual(['.docx', '.xlsx', '.pptx', '.pdf', '.txt', '.md']);
   });
 
   it('opens with the right arrow and closes with the left one', async () => {
@@ -358,10 +364,11 @@ describe('a new document from the drawer', () => {
   /**
    * Opened the way the listing opens anything, not through the preview manager.
    *
-   * A .txt, a .md and a .csv have no preview plugin, so the preview manager
-   * answered that nothing could open them — by returning false, silently — and
-   * "Create and open" created the document and went no further. `openItem` is
-   * the door a double-click on a row goes through, and it covers all of them.
+   * A text file has no preview plugin, and nor does most of what a chosen
+   * extension produces, so the preview manager answered that nothing could open
+   * them — by returning false, silently — and "Create and open" created the
+   * document and went no further. `openItem` is the door a double-click on a
+   * row goes through, and it covers all of them.
    */
   it('creates the document under the name given, then opens it the way the listing does', async () => {
     const created = { name: 'Budget.xlsx', path: 'Docs', kind: 'xlsx' };
@@ -385,6 +392,73 @@ describe('a new document from the drawer', () => {
     await flushPromises();
 
     expect(openItem).toHaveBeenCalledWith(created);
+  });
+
+  /**
+   * The extension is offered where there is no template, and nowhere else.
+   *
+   * An empty file is an empty file whatever it is called, so a text document's
+   * extension is the reader's. An office document's is not: the bytes are an
+   * OOXML package, and a name that disagrees with them is a file no editor
+   * opens.
+   */
+  it('offers the extension on a text document and not on an office one', async () => {
+    features.onlyofficeEnabled = true;
+    await mountMenu();
+    await openMenu();
+    await openDrawer();
+
+    await documentType('.txt').trigger('click');
+    await flushPromises();
+    expect(dialog().props('chooseExtension')).toBe(true);
+
+    await openMenu();
+    await openDrawer();
+    await documentType('.docx').trigger('click');
+    await flushPromises();
+    expect(dialog().props('chooseExtension')).toBe(false);
+  });
+
+  it('asks for the document under the extension that was typed', async () => {
+    const created = { name: 'settings.json', path: 'Docs', kind: 'json' };
+    fileStore.createOfficeDocument.mockResolvedValue(created);
+    await mountMenu();
+
+    dialog().vm.$emit('create', {
+      format: 'txt',
+      name: 'settings',
+      extension: 'json',
+      open: true,
+    });
+    await flushPromises();
+
+    expect(fileStore.createOfficeDocument).toHaveBeenCalledWith({
+      format: 'txt',
+      name: 'settings',
+      extension: 'json',
+    });
+    expect(openItem).toHaveBeenCalledWith(created);
+  });
+
+  // Absent and empty are two different requests, and the store is handed
+  // whichever one the dialog made: `undefined` leaves the format's own
+  // extension in place, an empty string asks for none at all.
+  it('leaves the extension out when the dialog did not offer one', async () => {
+    fileStore.createOfficeDocument.mockResolvedValue({
+      name: 'Report.docx',
+      path: '',
+      kind: 'docx',
+    });
+    await mountMenu();
+
+    dialog().vm.$emit('create', { format: 'docx', name: 'Report', open: true });
+    await flushPromises();
+
+    expect(fileStore.createOfficeDocument).toHaveBeenCalledWith({
+      format: 'docx',
+      name: 'Report',
+      extension: undefined,
+    });
   });
 
   // The other button: the document is wanted in the folder, not on screen.

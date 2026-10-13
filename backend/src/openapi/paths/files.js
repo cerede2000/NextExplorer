@@ -136,6 +136,9 @@ module.exports = {
             path: str('The folder.'),
             format: str(null, { enum: ['docx', 'xlsx', 'pptx', 'pdf', 'txt', 'md', 'csv'] }),
             name: str('What to call it; a name is chosen when absent.'),
+            extension: str(
+              'The extension to give it, for a format with no template — `json`, `yml`, `sh`. Empty for none. Refused where the format has a template, whose bytes decide what the file is.'
+            ),
           },
           ['format']
         )

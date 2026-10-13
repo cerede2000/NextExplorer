@@ -120,6 +120,31 @@ describe('creating things', () => {
     expect(sent().body.name).toBe('Budget');
   });
 
+  /**
+   * Absent and empty are two different requests, so the field is only sent when
+   * the caller has one to make: absent leaves the format's own extension in
+   * place, empty asks for no extension at all — which is how a `Dockerfile` is
+   * asked for. Sending an empty one by default would make every office document
+   * a request to strip its extension.
+   */
+  it('posts the extension that was chosen', async () => {
+    await createOfficeDocument('Docs', { format: 'txt', name: 'settings', extension: ' json ' });
+
+    expect(sent().body).toMatchObject({ format: 'txt', name: 'settings', extension: 'json' });
+  });
+
+  it('posts an empty extension as the request it is', async () => {
+    await createOfficeDocument('Docs', { format: 'txt', name: 'Dockerfile', extension: '' });
+
+    expect(sent().body.extension).toBe('');
+  });
+
+  it('leaves the extension out entirely when none was chosen', async () => {
+    await createOfficeDocument('Docs', { format: 'docx', name: 'Report' });
+
+    expect('extension' in sent().body).toBe(false);
+  });
+
   it('creates at the volume root when the destination is empty', async () => {
     await createFolder('', 'Top');
 

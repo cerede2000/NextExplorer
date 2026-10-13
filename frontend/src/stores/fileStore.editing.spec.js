@@ -224,6 +224,22 @@ describe('creating a document', () => {
 
     expect(created).toMatchObject({ name: 'Late.docx' });
   });
+
+  // The extension the dialog asked for has to reach the server: a store that
+  // drops it would make every chosen extension a `.txt`, and the listing would
+  // agree with itself about the wrong name.
+  it('passes the chosen extension through to the server', async () => {
+    const store = await storeInDocs();
+    createOfficeDocumentApi.mockResolvedValue({ item: { name: 'settings.json' } });
+
+    await store.createOfficeDocument({ format: 'txt', name: 'settings', extension: 'json' });
+
+    expect(createOfficeDocumentApi).toHaveBeenCalledWith('Docs', {
+      format: 'txt',
+      name: 'settings',
+      extension: 'json',
+    });
+  });
 });
 
 describe('renaming', () => {

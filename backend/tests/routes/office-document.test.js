@@ -146,3 +146,158 @@ describe('new office document', () => {
     expect(response.status).toBe(400);
   });
 });
+
+/**
+ * The extension the caller chooses.
+ *
+ * The three text formats on the menu were three of the fifty the text editor
+ * opens, so a `.json`, a `.yml` or a `.sh` had to be made as something else and
+ * renamed. An empty file is an empty file whatever it is called, so where there
+ * is no template the extension is the caller's — and where there is one it
+ * cannot be, because the bytes are what decide whether an editor will open the
+ * file at all.
+ */
+describe('a chosen extension', () => {
+  let env;
+  let app;
+
+  const setup = async () => {
+    env = await setupTestEnv({
+      tag: 'office-document-extension-',
+      modules: [
+        'src/routes/files/file',
+        'src/services/authorizationService',
+        'src/services/folderSizeHooks',
+        'src/middleware/errorHandler',
+      ],
+    });
+
+    await fs.mkdir(path.join(env.volumeDir, 'docs'), { recursive: true });
+
+    const routes = env.requireFresh('src/routes/files/file');
+    const { errorHandler } = env.requireFresh('src/middleware/errorHandler');
+    app = createTestApp({
+      router: routes,
+      mountPath: '/api',
+      user: { id: 'admin-user', roles: ['admin'] },
+      errorHandler,
+    });
+  };
+
+  const create = (body) => request(app).post('/api/files/office-document').send(body);
+
+  afterEach(async () => {
+    if (env) {
+      await env.cleanup();
+      env = null;
+    }
+  });
+
+  it('gives a text document the extension that was asked for', async () => {
+    await setup();
+
+    for (const [extension, expected] of [
+      ['json', 'settings.json'],
+      ['yml', 'settings.yml'],
+      ['sh', 'settings.sh'],
+      ['tar.gz', 'settings.tar.gz'],
+    ]) {
+      const response = await create({
+        path: 'docs',
+        format: 'txt',
+        name: 'settings',
+        extension,
+      });
+
+      expect(response.status).toBe(201);
+      expect(response.body.item.name).toBe(expected);
+      const written = await fs.readFile(path.join(env.volumeDir, 'docs', expected));
+      expect(written.length).toBe(0);
+    }
+  });
+
+  it('keeps the case the extension was typed in, and does not say it twice', async () => {
+    await setup();
+
+    const asked = await create({ path: 'docs', format: 'txt', name: 'query', extension: '.SQL' });
+    expect(asked.body.item.name).toBe('query.SQL');
+
+    // The name already ends in it, whatever the case: adding it again would
+    // make `report.SQL.sql`.
+    const already = await create({
+      path: 'docs',
+      format: 'txt',
+      name: 'report.SQL',
+      extension: 'sql',
+    });
+    expect(already.body.item.name).toBe('report.SQL');
+  });
+
+  it('names the document after the extension when no name was given', async () => {
+    await setup();
+
+    const response = await create({ path: 'docs', format: 'txt', extension: 'json' });
+
+    expect(response.body.item.name).toBe('Document.json');
+  });
+
+  it('makes a file with no extension at all when the extension is empty', async () => {
+    // Which is how `Dockerfile` is asked for.
+    await setup();
+
+    const response = await create({
+      path: 'docs',
+      format: 'txt',
+      name: 'Dockerfile',
+      extension: '',
+    });
+
+    expect(response.status).toBe(201);
+    expect(response.body.item.name).toBe('Dockerfile');
+    expect((await fs.readFile(path.join(env.volumeDir, 'docs', 'Dockerfile'))).length).toBe(0);
+  });
+
+  it('refuses an extension on a format made from a template', async () => {
+    // The bytes are an OOXML package. A name that disagrees with them is a file
+    // no editor opens, which is the whole reason this route exists.
+    await setup();
+
+    for (const format of ['docx', 'xlsx', 'pptx', 'pdf']) {
+      const response = await create({ path: 'docs', format, name: 'Report', extension: 'txt' });
+      expect(response.status).toBe(400);
+    }
+
+    // Asking for the one it already has is not a change, and is allowed.
+    const same = await create({ path: 'docs', format: 'docx', name: 'Report', extension: 'docx' });
+    expect(same.status).toBe(201);
+    expect(same.body.item.name).toBe('Report.docx');
+  });
+
+  it('refuses an extension that is not one', async () => {
+    await setup();
+
+    for (const extension of [
+      '../escape',
+      'a/b',
+      'a\\b',
+      'two words',
+      'no-ending-',
+      'x'.repeat(21),
+      'ht\u0000ml',
+    ]) {
+      const response = await create({ path: 'docs', format: 'txt', name: 'probe', extension });
+      expect(response.status, `extension ${JSON.stringify(extension)}`).toBe(400);
+    }
+  });
+
+  it('still never overwrites, whatever the extension', async () => {
+    await setup();
+
+    const first = await create({ path: 'docs', format: 'txt', name: 'notes', extension: 'json' });
+    const second = await create({ path: 'docs', format: 'txt', name: 'notes', extension: 'json' });
+
+    expect(first.body.item.name).toBe('notes.json');
+    expect(second.body.item.name).not.toBe('notes.json');
+    expect(second.body.item.name).toMatch(/^notes \d+\.json$/);
+  });
+});

@@ -866,21 +866,32 @@ test('a file with versions is marked in the listing, and an administrator can cl
  * and a button that said it would open the document created it and stopped. No
  * unit test could see that: each half worked.
  *
+ * The extension is the second half of the same screen: the drawer offered three
+ * text types out of the fifty the text editor opens, so anything else had to be
+ * created as a `.txt` and renamed in the listing. It is a field now, and what
+ * the file will be called is said under it as it is typed.
+ *
  * In a folder of its own so that nothing else in this journey has to know these
  * files exist.
  */
-test('a new document is created on its own, or created and opened in its editor', async () => {
+test('a new document takes the name and the extension it was given, and opens or does not', async () => {
   const folder = path.join(volume, 'new-documents');
   fs.mkdirSync(folder, { recursive: true });
 
-  /** Walk the menu to a type in the drawer and name the document. */
-  const nameADocument = async (type, name) => {
+  /**
+   * Walk the menu to a type in the drawer and name the document — with an
+   * extension of its own where one was asked for.
+   */
+  const nameADocument = async (type, name, extension) => {
     await page.getByRole('button', { name: 'New', exact: true }).click();
     await page.getByRole('button', { name: 'New File', exact: true }).hover();
     await page.getByRole('menuitem', { name: type }).click();
     const field = page.getByLabel('Document name');
     await expect(field).toBeVisible();
     await field.fill(name);
+    if (extension !== undefined) {
+      await page.locator('[data-test="document-extension"]').fill(extension);
+    }
   };
 
   await page.goto('/browse/Projects/new-documents');
@@ -910,27 +921,47 @@ test('a new document is created on its own, or created and opened in its editor'
   await expect(page.locator('[data-test="preview-surface"]')).toContainText('Readme.md');
   await page.keyboard.press('Escape');
 
-  // The other button: the document is wanted in the folder, not on screen.
-  await nameADocument('New CSV file', 'Figures');
+  // The other button, and an extension that is not on any menu: the document is
+  // wanted in the folder, as a .json, and not on screen. The drawer used to
+  // offer three text types out of the fifty the editor opens, so this is the
+  // other forty-seven.
+  await nameADocument('New text file', 'Figures', 'json');
+  await expect(page.locator('[data-test="document-will-be-called"]')).toHaveText('Figures.json');
   await page.locator('[data-test="create-only"]').click();
 
   await expect(page).toHaveURL(/\/browse\/Projects\/new-documents$/);
   await expect(page.locator('[data-test="preview-surface"]')).toHaveCount(0);
   // By the row's own selection control: it is a button in the grid views and a
   // checkbox in the list, so the label is what both of them have.
-  await expect(page.locator('[aria-label="Select Figures.csv"]')).toBeVisible();
-  expect(fs.existsSync(path.join(folder, 'Figures.csv'))).toBe(true);
+  await expect(page.locator('[aria-label="Select Figures.json"]')).toBeVisible();
+  expect(fs.existsSync(path.join(folder, 'Figures.json'))).toBe(true);
+
+  // Emptied, the extension is a request of its own: a file with none, which is
+  // the only way to ask for a `Dockerfile`.
+  await nameADocument('New text file', 'Dockerfile', '');
+  await page.locator('[data-test="create-only"]').click();
+  await expect(page.locator('[aria-label="Select Dockerfile"]')).toBeVisible();
+  expect(fs.existsSync(path.join(folder, 'Dockerfile'))).toBe(true);
+
+  // And a chosen extension the editor opens is still opened by it.
+  await nameADocument('New text file', 'Deploy', 'sh');
+  await page.locator('[data-test="create-and-open"]').click();
+  await expect(page).toHaveURL(/\/editor\/Projects\/new-documents\/Deploy\.sh$/);
+  await expect(page.locator('.cm-content')).toBeVisible();
 
   // Nothing was written to any of them on the way in, so none of them has a
   // history — the one that was saved in the editor above has one version, from
   // the empty document it was.
+  await page.goto('/browse/Projects/new-documents');
   const markFor = (name) =>
     page
       .locator('.group\\/item')
       .filter({ has: page.locator(`[aria-label="Select ${name}"]`) })
       .locator('[data-test="version-mark"]');
 
-  await expect(markFor('Figures.csv')).toHaveCount(0);
+  await expect(markFor('Figures.json')).toHaveCount(0);
+  await expect(markFor('Dockerfile')).toHaveCount(0);
+  await expect(markFor('Deploy.sh')).toHaveCount(0);
   await expect(markFor('Readme.md')).toHaveCount(0);
   await expect(markFor('Shopping list.txt')).toHaveCount(1);
 });

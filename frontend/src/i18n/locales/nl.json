@@ -123,7 +123,6 @@
     "newPresentation": "Nieuwe PowerPoint-presentatie",
     "newTextFile": "Nieuw tekstbestand",
     "newMarkdownFile": "Nieuw Markdown-bestand",
-    "newCsvFile": "Nieuw CSV-bestand",
     "extractArchive": "Archief uitpakken",
     "extractArchiveIntoCurrentFolder": "Uitpakken in huidige map",
     "copyPath": "Pad kopiëren",
@@ -263,11 +262,11 @@
   "create": {
     "createNew": "Nieuw",
     "documentName": "Naam van het document",
+    "documentExtension": "Extensie",
     "createAndOpen": "Maken en openen",
     "defaultDocumentName": "Document",
     "defaultSpreadsheetName": "Werkmap",
     "defaultPresentationName": "Presentatie",
-    "defaultDataName": "Gegevens",
     "documentFailed": "Het document kon niet worden gemaakt"
   },
   "context": {
