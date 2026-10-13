@@ -6,6 +6,138 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v4.2.0 (2026-10-13)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v4.2.0)
+
+### A name that nothing could read is now an ordinary file
+
+A name on a disk is bytes. Reading a directory answers text, so Node decodes
+those bytes as UTF-8 and puts a replacement character where it cannot — and that
+character takes three bytes where the disk holds one. `Contrôle` written the
+Windows way is eight bytes on disk and ten in the path built back from the
+decoded name, which names nothing: hence a 500 on the download of a whole folder
+for one entry, and a listing quietly short of a row. A volume carried over from
+Windows is full of such names.
+
+v4.1.0 stopped the lying: every walk skipped such an entry, counted it, and said
+so, so an archive no longer died and a folder no longer called itself empty. The
+entry still could not be opened, copied or downloaded, because the application
+never had its name.
+
+It has it now. Directories are read as bytes, the bytes are the entry's identity
+all the way down to the filesystem, and a name becomes text only at the edge
+where it goes into JSON. The row is there, it opens, it copies, it downloads, and
+the archive holds it.
+
+Every name that is valid UTF-8 — very nearly all of them — travels exactly as
+before: not the listing, not the type of a path, not a log line changes for them.
+A name that is not travels beside a second, reversible spelling, and that is what
+every path, route, cache key and row key is built from. Which closes something
+the counting could not: two different undecodable names read the same once
+decoded, so one key between them drew one row for two files. Inside a zip, where
+names are text, the second of two entries wanting the same name takes
+"name (1)", the way a name already taken is answered everywhere else here.
+
+The containment check has one door and two implementations behind it, chosen by
+what the path is rather than by the caller, and the byte form is deliberately the
+stricter of the two: a dangling symbolic link is refused rather than chased,
+because chasing one means normalising bytes and that arithmetic must not exist
+in two versions. Nothing that worked stops working — none of this was reachable.
+
+Checked on a real Linux filesystem with a real undecodable name, not only against
+the stand-in the suite needs on macOS, where the kernel refuses to create one.
+
+### Create a document, or create and open it
+
+"Create and open" created the document and, for a `.txt`, a `.md` or a `.csv`,
+opened nothing. It asked the preview manager, which has a plugin for an image, a
+video, a PDF, an archive, markdown and — where one is configured — an office
+editor, and none at all for a text file: so it answered false, in silence, and a
+button that promised to open the document stopped after creating it. Markdown
+fared differently and no better: it has a preview, so the preview opened,
+ignoring an account that had asked for markdown to open in the editor.
+
+Creation now goes through the one door a double click on a row already opens
+files with. It knows the whole of it: the editor for a text file, the preview or
+the editor for markdown according to the preference, ONLYOFFICE or Collabora for
+an office document, the viewer for a PDF, and which tab any of them belongs in.
+
+And the single button is two, because they are two separate wants: **Create**
+leaves the document in the folder, selected; **Create and open** takes you into
+its editor. Enter stays the opening one.
+
+Nothing records a version on the way in — creating a file is not a revision of
+it, and an editor opened and left alone writes nothing either — so a document's
+history starts at its first save.
+
+### The extension is yours to type
+
+The drawer offered three text types out of the fifty the text editor opens, so
+anything else had to be created as one of the three and renamed in the listing:
+two gestures for one decision, and the rename happens after the file already
+exists under a name nobody wanted.
+
+The extension is a field now, beside the name, wherever the document is made from
+no template — an empty file is an empty file whatever it is called, so `.json`,
+`.yml`, `.sh` and `.conf` are the same request as `.txt`, said once. Emptied, it
+asks for no extension at all, which is the only way to ask for a `Dockerfile`.
+What the file will be called is spelled out under the two fields as they are
+typed, because a name that already ends in the extension does not gain it twice.
+
+Where there is a template the extension is shown and fixed, and the server
+refuses one that disagrees: the bytes are an OOXML package or a PDF, and a
+document whose name contradicts its bytes is a file no editor opens.
+
+The CSV entry goes with this — it was one of the fifty, given a place in the menu
+because the menu was the only way to ask. The API still answers `format: csv`,
+so nothing calling it has to change.
+
+### The build tooling carries no advisories
+
+The five that remained at v4.1.1 are closed. None of them ships — the image holds
+no build tooling — but they sat in every checkout and every CI run, and an audit
+reporting five findings for ever is how the sixth goes unnoticed.
+
+VitePress moves to a 2.0 pre-release. VitePress 1 pins Vite 5, which carries a
+path traversal in how optimised dependencies serve their `.map` files, a
+`server.fs.deny` bypass on Windows alternate paths and an NTLMv2 hash disclosure
+through UNC paths — none fixed anywhere in the 5 line — and drags esbuild 0.21.5
+along as the fourth. A pre-release is a real cost and the reason for it is written
+down in `README-development.md`, to be revisited when VitePress 2 is stable.
+
+`postcss-selector-parser` is raised to 7.1.6 under `@tailwindcss/typography`,
+whose latest release still pins the vulnerable 6.0.10 and so can be fixed no
+other way. The CSS the plugin generates is byte-for-byte identical either way,
+which is the only answer that settles it.
+
+The application's own build stays on Vite 7, deliberately: Vite 8 replaces Rollup
+with Rolldown and re-chunks the entire bundle, while the advisories stop at Vite
+6.4.2 — there is nothing to buy with that churn.
+
+The lockfile is re-resolved rather than patched, and comes out 1188 lines
+shorter. Of 551 packages outside the development tree, 478 are untouched and 73
+move within ranges already declared. The one real crossing is Express 5.2.1 to
+5.3.0. `sharp` stays at 0.35.5 on libvips 8.18.7.
+
+### A traversal refused earlier, and the test that should have said so
+
+Express 5.3.0 changed one thing that mattered: its router hands the `..`
+segments of a path to the handler instead of collapsing them first. So a path
+climbing out of a volume is now refused by this application's own guard — 400,
+before any resolution, any access check or any `stat` — where it used to arrive
+flattened and be refused further in, by a path model that could not find a volume
+called `..`. Stricter, and the percent-encoded spellings that used to survive as
+one segment are caught too.
+
+A test found it, and the test was asserting the wrong thing: it accepted any of
+three refusals and would have passed with the guard deleted. Four layers refuse a
+climb here and three of them for reasons unrelated to traversal, which was
+measured rather than assumed — standing the guard and the containment check down
+leaves every climb answered 404 anyway. So the guard is now asserted by its own
+answer, at all seven addresses that take a path and in both spellings a climb
+arrives in, and it fails the moment the guard stops being what answers.
+
 ## v4.1.1 (2026-10-13)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v4.1.1)

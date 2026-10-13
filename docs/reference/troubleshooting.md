@@ -12,7 +12,7 @@ Keep this page handy when deployment, authentication, or UI behaviors need quick
 - **The sign-in screen stops and says you came back without a session:** the screen handed a sign-in to the provider three times within ten seconds and got nothing back each time. See [OIDC](/integrations/oidc) for what to check; the button still works, and one unfinished trip never stops it.
 - **The logo turns and the application never appears:** after twelve seconds the page says which of the two it was — a file the proxy in front turned away, or a page that is merely slow — and offers a reload and the sign-in screen. A proxy answering an expired session with a redirect is the usual cause: a browser will not run that as a module.
 
-- **A folder downloads short, or says it is empty:** it holds names that are not UTF-8, which a volume carried over from Windows often does. Those entries are skipped and counted — the listing says how many rows are missing and the archive carries a note inside it — and `convmv -f cp1252 -t utf8 -r <folder>` on the server renames them for good (it tries without writing unless told otherwise).
+- **A folder downloads short, or says it is empty:** it held names that are not UTF-8, which a volume carried over from Windows often does. Those entries are read as bytes now and are ordinary rows: they open, copy and download, and the archive holds them. A count of missing rows that still appears means a folder or an entry the server genuinely could not read — a permission, a broken mount, a dangling link — and not a name. `convmv -f cp1252 -t utf8 -r <folder>` on the server still renames undecodable names for good if you would rather be rid of them (it tries without writing unless told otherwise).
 
 ## Access & permissions
 
