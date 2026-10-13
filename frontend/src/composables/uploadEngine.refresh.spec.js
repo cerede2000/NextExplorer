@@ -64,7 +64,11 @@ vi.mock('@/stores/notifications', () => ({
   useNotificationsStore: () => ({ addNotification: vi.fn() }),
 }));
 vi.mock('@/stores/appSettings', () => ({
-  useAppSettings: () => ({ state: { uploads: {} }, ensureLoaded: () => Promise.resolve() }),
+  useAppSettings: () => ({
+    loaded: true,
+    state: { uploads: {} },
+    ensureLoaded: () => Promise.resolve(),
+  }),
 }));
 vi.mock('@/stores/volumeUsage', () => ({
   useVolumeUsageStore: () => ({ scheduleRefresh: vi.fn() }),

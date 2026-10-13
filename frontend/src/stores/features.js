@@ -11,6 +11,12 @@ export const useFeaturesStore = defineStore('features', () => {
   const publicOrigins = ref([]);
   // Admin-configured upper bound (bytes) for the upload chunk size.
   const maxUploadChunkSizeBytes = ref(0);
+  /**
+   * How an upload travels here: forced into chunks, allowed to fall back to
+   * them, and how big a chunk is. Null until the server has said, so that
+   * "not known yet" is never read as "no fallback".
+   */
+  const uploadPolicy = ref(null);
   const editorExtensions = ref([]);
   // What the editor opens and what the preview will render are two different
   // limits over two different kinds of work, and a refusal has to be able to
@@ -89,6 +95,15 @@ export const useFeaturesStore = defineStore('features', () => {
         maxUploadChunkSizeBytes.value = Number.isFinite(features?.uploads?.maxChunkSizeBytes)
           ? features.uploads.maxChunkSizeBytes
           : 0;
+        // How an upload travels here, which belongs to the installation rather
+        // than to an account: whoever has no account still has to resolve it.
+        uploadPolicy.value = {
+          chunkedEnabled: features?.uploads?.chunkedEnabled === true,
+          chunkedAutoFallback: features?.uploads?.chunkedAutoFallback === true,
+          ...(Number.isFinite(features?.uploads?.chunkSizeBytes)
+            ? { chunkSizeBytes: features.uploads.chunkSizeBytes }
+            : {}),
+        };
 
         // Editor extensions
         editorMaxFileSizeBytes.value = Number.isFinite(features?.editor?.maxFileSizeBytes)
@@ -182,6 +197,7 @@ export const useFeaturesStore = defineStore('features', () => {
         publicOrigins.value = [];
         setPublishedOrigin('');
         maxUploadChunkSizeBytes.value = 0;
+        uploadPolicy.value = null;
         editorExtensions.value = [];
         editorMaxFileSizeBytes.value = null;
         previewMaxRenderBytes.value = 16 * 1024 * 1024;
@@ -239,6 +255,7 @@ export const useFeaturesStore = defineStore('features', () => {
     publicOrigin,
     publicOrigins,
     maxUploadChunkSizeBytes,
+    uploadPolicy,
     editorExtensions,
     editorMaxFileSizeBytes,
     previewMaxRenderBytes,

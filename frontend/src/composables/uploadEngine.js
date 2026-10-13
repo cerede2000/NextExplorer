@@ -4,6 +4,7 @@ import XHRUpload from '@uppy/xhr-upload';
 import Tus from '@uppy/tus';
 import { useUppyStore } from '@/stores/uppyStore';
 import { useFileStore } from '@/stores/fileStore';
+import { useFeaturesStore } from '@/stores/features';
 import { useNotificationsStore } from '@/stores/notifications';
 import { useAppSettings } from '@/stores/appSettings';
 import { useVolumeUsageStore } from '@/stores/volumeUsage';
@@ -157,14 +158,35 @@ export const createUploadEngine = async () => {
   const writeFallbackMiB = writeUploadFallbackMiB;
   const clearFallbackMiB = resetUploadFallback;
 
-  const getUploadSettings = () => resolveUploadMode(appSettings.state?.uploads, readFallbackMiB());
+  /**
+   * The upload policy in force, wherever it can be read from.
+   *
+   * An account reads it in its settings; somebody holding a share link has no
+   * account and reads it in the feature flags, which every page is given. The
+   * policy is the installation's either way — forced chunks, the fallback, the
+   * chunk size — so the two agree, and the one who cannot read the first must
+   * not be left on the defaults: those say "go direct and never fall back",
+   * which turns a file too big for one request into a refusal nothing recovers
+   * from. That is what a shared folder for uploads did to anything large.
+   */
+  const uploadPolicy = () => {
+    if (appSettings.loaded && appSettings.state?.uploads) return appSettings.state.uploads;
+    // Asked for only when there is nothing else to read it from: reaching for
+    // the store to find out would build it wherever an uploader is made.
+    try {
+      return useFeaturesStore().uploadPolicy || {};
+    } catch (_) {
+      return {};
+    }
+  };
+
+  const getUploadSettings = () => resolveUploadMode(uploadPolicy(), readFallbackMiB());
 
   // Auto-fallback modes (auto on, admin hasn't force-enabled chunking):
   //  - "direct":  no size learned yet  → uploads go out as a single XHR
   //  - "chunked": a size is remembered → uploads go through TUS
-  const inDirectMode = () => isWatchingDirectUploads(appSettings.state?.uploads, readFallbackMiB());
-  const inFallbackChunkedMode = () =>
-    isInFallbackChunked(appSettings.state?.uploads, readFallbackMiB());
+  const inDirectMode = () => isWatchingDirectUploads(uploadPolicy(), readFallbackMiB());
+  const inFallbackChunkedMode = () => isInFallbackChunked(uploadPolicy(), readFallbackMiB());
   const isLargeFile = isLargeUpload;
 
   const removeUploadPlugin = (id) => {
@@ -356,7 +378,18 @@ export const createUploadEngine = async () => {
 
     if (nextMode === 'tus') {
       uppy.use(Tus, {
-        endpoint: `${apiBase}/api/upload/tus`,
+        // Under the share's prefix when the folder being filled is inside one.
+        // The resumable uploader holds a single endpoint for every file, and it
+        // is set in two places: here, when the plugin is put in, and again as
+        // each file is queued. Only the second one was scoped, which left the
+        // first pointing at the application's own address — and inside a share
+        // that address belongs to nobody the visitor can be. It is reached
+        // exactly when the automatic switch to chunked happens, which is the
+        // one thing a visitor needs for a file too big to go in one piece: the
+        // direct attempt is refused for its size, the fallback rebuilds the
+        // plugin through here, and the first chunk went somewhere an
+        // authentication proxy answers instead of this server.
+        endpoint: `${apiBase}${shareScoped('/api/upload/tus', normalizePath(fileStore.currentPath || ''))}`,
         chunkSize: uploadSettings.chunkSizeBytes,
         allowedMetaFields: [
           'name',

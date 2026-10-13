@@ -155,6 +155,52 @@ describe('loading', () => {
   });
 });
 
+/**
+ * Who they are asked for.
+ *
+ * A visitor holding a share link has no account, so there is nothing to ask
+ * for on their behalf — and asking anyway is a refusal handed to somebody who
+ * can do nothing about it. Behind an authentication proxy it is worse: every
+ * address a public link does not cover is answered 401, the HTTP layer reports
+ * every 401, and the visitor gets a red error on a screen where everything
+ * worked. A file dropped into a shared folder arrived, and two "Request failed
+ * with status 401" appeared next to it.
+ *
+ * The rule sits here rather than at the callers because the callers are loaded
+ * on demand — the upload engine and the file picker both ask, long after the
+ * page decided what a visitor may be asked for, which is how they were missed.
+ */
+describe('who the settings are asked for', () => {
+  it('asks for nothing on behalf of somebody with no account', async () => {
+    authStore = { hasStatus: true, isAuthenticated: false, currentUser: null };
+    const settings = useAppSettings();
+
+    await settings.ensureLoaded();
+
+    expect(getSettingsApi).not.toHaveBeenCalled();
+  });
+
+  // "Nobody is signed in yet" is not "there is no account", and treating the
+  // first as the second would leave a real account reading the defaults.
+  it('still asks before the server has said who is there', async () => {
+    authStore = { hasStatus: false, isAuthenticated: false, currentUser: null };
+    const settings = useAppSettings();
+
+    await settings.ensureLoaded();
+
+    expect(getSettingsApi).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks for them for an account that is signed in', async () => {
+    authStore = { hasStatus: true, isAuthenticated: true, currentUser: ALICE };
+    const settings = useAppSettings();
+
+    await settings.ensureLoaded();
+
+    expect(getSettingsApi).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('saving', () => {
   it('sends the change and keeps what came back', async () => {
     patchSettingsApi.mockResolvedValue({ user: { showThumbnails: false } });

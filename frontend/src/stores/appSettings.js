@@ -265,7 +265,31 @@ export const useAppSettings = defineStore('appSettings', () => {
     }
   };
 
+  /**
+   * The settings of the account that is signed in, loaded once.
+   *
+   * Nothing is asked for on behalf of somebody with no account. A visitor
+   * holding a share link has none — no preferences, no system settings — and
+   * asking anyway is a refusal handed to somebody who can do nothing about it.
+   * Behind an authentication proxy it is worse than useless: the proxy answers
+   * 401 for every address a public link does not cover, the HTTP layer reports
+   * every 401, and the visitor is shown a red error on a screen where
+   * everything in fact worked. That is what a file dropped into a shared folder
+   * looked like: the file arrived, and two refusals appeared beside it, each
+   * naming a status nobody reading it could do anything about.
+   *
+   * Here rather than at the callers, which is where it was missed: the upload
+   * engine asks for these, and so does the picker, and both are loaded on
+   * demand — long after the page decided what a visitor may be asked for. The
+   * rule belongs with the thing being asked for.
+   *
+   * Only once the server has answered: before that nobody is signed in *yet*,
+   * which is not the same as having no account, and treating it as such would
+   * leave a real account on the defaults.
+   */
   const ensureLoaded = async () => {
+    if (authStore.hasStatus && !authStore.isAuthenticated) return state.value;
+
     const userId = authStore.currentUser?.id ?? null;
     if (loaded.value && loadedForUserId.value === userId) {
       return state.value;

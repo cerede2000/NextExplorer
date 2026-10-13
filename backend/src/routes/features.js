@@ -38,6 +38,25 @@ router.get('/features', async (_req, res) => {
     (settings) => settings.tabs,
     () => ({ maxOpen: DEFAULT_TAB_LIMIT })
   );
+
+  /**
+   * How an upload travels, which is this installation's business and not an
+   * account's.
+   *
+   * Whether chunked uploads are forced, whether a direct one that is refused
+   * may fall back to them, and how big a chunk is: all three are system
+   * settings, set by an administrator or by the environment, and the same for
+   * everybody. They were readable only at `/api/settings`, which answers an
+   * account — so a visitor holding a share link, who has none, resolved the
+   * defaults: go direct, and never fall back. A folder shared so somebody can
+   * put a file in it then worked only for files small enough to go in one
+   * request, and the one thing that would have rescued a larger one was the
+   * fallback they could not know about.
+   */
+  const uploads = await getSystemSettings().then(
+    (settings) => settings.uploads || {},
+    () => ({})
+  );
   const payload = {
     public: {
       url: publicConfig?.url || null,
@@ -81,6 +100,11 @@ router.get('/features', async (_req, res) => {
     uploads: {
       // Admin-configurable upper bound for the chunk size (env MAX_CHUNK_SIZE_MIB).
       maxChunkSizeBytes: MAX_UPLOAD_CHUNK_SIZE_BYTES,
+      // And the policy itself, so that somebody with no account resolves the
+      // same way everybody else does.
+      chunkedEnabled: uploads.chunkedEnabled === true,
+      chunkedAutoFallback: uploads.chunkedAutoFallback === true,
+      chunkSizeBytes: Number.isFinite(uploads.chunkSizeBytes) ? uploads.chunkSizeBytes : null,
     },
     archives: {
       // Extraction formats the server-side 7-Zip build actually supports.

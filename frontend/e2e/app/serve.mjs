@@ -51,6 +51,17 @@ Object.assign(process.env, {
   CACHE_DIR: dirs.cache,
   VOLUME_ROOT: dirs.volumes,
   SESSION_SECRET: 'e2e-session-secret-not-for-production',
+  // A ceiling on what one request may carry, standing in for the one a proxy
+  // or a CDN puts in front of a real instance. Without it the default is 64
+  // GiB, every upload in this suite goes out in one piece, and the switch to
+  // chunks — the only way a large file gets through a proxy that refuses a big
+  // body — is never exercised. Low enough that a few hundred kilobytes trips
+  // it, high enough that the small uploads elsewhere here still go direct.
+  MAX_DIRECT_UPLOAD_SIZE: '4mb',
+  // And the switch that lets a refused direct upload go out again in chunks,
+  // which is the only way a large file gets past such a ceiling. Off by
+  // default, so without this the fallback is never taken here either.
+  UPLOAD_CHUNKED_AUTO_FALLBACK: 'true',
 });
 
 // The server exits when Playwright stops it, which is after the last test has

@@ -193,6 +193,9 @@ beforeEach(() => {
   Object.assign(stores.notifications, { addNotification: vi.fn() });
   Object.assign(stores.settings, {
     // Auto-fallback watching direct uploads: the mode every browser starts in.
+    // Read, which is what makes them this account's rather than the defaults:
+    // somebody with no account reads the policy in the feature flags instead.
+    loaded: true,
     state: { uploads: { chunkedAutoFallback: true } },
     userSettings: {},
     ensureLoaded: vi.fn(async () => {}),

@@ -4811,6 +4811,136 @@ test('a shared folder is browsed, read and edited without ever leaving the share
 });
 
 /**
+ * A folder shared so that somebody can put something in it.
+ *
+ * The point of such a link is the upload, and the upload is the part that had
+ * never been walked here. Two files, because they do not travel the same way: a
+ * small one goes out as a single request, and one too big for that is refused
+ * for its size and the uploader switches itself to chunks. The bench puts a
+ * ceiling on a single request for exactly this reason — see `serve.mjs` — since
+ * a real instance meets one at its proxy and the default here is 64 GiB, which
+ * would mean the switch is never taken.
+ *
+ * What is asserted is the *address*, not only the outcome. There is no
+ * authentication proxy in front of this server, so a request addressed to the
+ * application's own `/api/upload/tus` instead of the share's answers perfectly
+ * well here and fails only in production — which is precisely what happened:
+ * the resumable uploader's endpoint is set in two places and only one of them
+ * carried the share's prefix, so a visitor's large file was refused for its
+ * size, switched to chunks, and the chunks went where a proxy answers 401.
+ *
+ * And no refusal of any kind, because a visitor who is refused anything is
+ * shown it — a file arrived, and two "Request failed with status 401" appeared
+ * beside it, from a request made on their behalf that should never have been
+ * made at all.
+ */
+test('a visitor fills a shared folder, in one piece and in chunks, without ever being refused', async ({
+  browser,
+}) => {
+  // Two uploads, and the second one is refused for its size before it can go
+  // out again in chunks: more than the thirty seconds a test gets by default.
+  test.setTimeout(120_000);
+
+  const dir = path.join(volume, 'Dropbox');
+  fs.mkdirSync(dir, { recursive: true });
+
+  await page.goto('/browse/Projects');
+  await page.getByRole('button', { name: 'Select Dropbox' }).click();
+  await page.getByRole('button', { name: 'Share selected item' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'Read & Write' }).click();
+  await dialog.getByRole('button', { name: 'Create Share Link' }).click();
+  const link = await dialog.locator('input[readonly]').first().inputValue();
+  const token = link.split('/share/')[1];
+  await page.keyboard.press('Escape');
+
+  const stranger = await browser.newContext({ locale: 'en-US' });
+  try {
+    const visitor = await stranger.newPage();
+
+    /** Where everything this visitor's browser asks for is addressed. */
+    const asked = [];
+    visitor.on('request', (request) => {
+      const { pathname } = new URL(request.url());
+      if (pathname.startsWith('/api/')) asked.push(pathname);
+    });
+
+    /** And every refusal, which is the half a reader is actually shown. */
+    const refusals = [];
+    visitor.on('response', (response) => {
+      const { pathname } = new URL(response.url());
+      if (!pathname.startsWith('/api/')) return;
+      if ([401, 403, 404, 413].includes(response.status())) {
+        refusals.push(`${response.status()} ${pathname}`);
+      }
+    });
+
+    await visitor.goto(link);
+    await expect(visitor).toHaveURL(new RegExp(`/share/${token}/browse/$`));
+
+    const sendFile = async (name, contents) => {
+      await visitor.getByRole('button', { name: 'New' }).click();
+      const [chooser] = await Promise.all([
+        visitor.waitForEvent('filechooser'),
+        visitor.getByRole('button', { name: 'Upload File' }).click(),
+      ]);
+      await chooser.setFiles({ name, mimeType: 'application/octet-stream', buffer: contents });
+      // The disk, not the listing: the listing can show what the client expects.
+      await expect
+        .poll(
+          () =>
+            fs.existsSync(path.join(dir, name)) ? fs.statSync(path.join(dir, name)).size : null,
+          {
+            timeout: 30_000,
+          }
+        )
+        .toBe(contents.length);
+    };
+
+    // Under the ceiling on one request: a single one carries it.
+    await sendFile('in-one-piece.txt', Buffer.from('a visitor left this\n'));
+
+    // Over it, and over the size at which a direct upload is worth watching,
+    // so the refusal is seen and the switch is taken.
+    await sendFile('in-chunks.bin', Buffer.alloc(9 * 1024 * 1024, 7));
+
+    // Not one address outside the share, which is what a proxy lets through.
+    const outside = [
+      ...new Set(
+        asked.filter(
+          (address) => !address.startsWith(`/api/share/${token}`) && address !== '/api/auth/status'
+        )
+      ),
+    ];
+    expect(outside, `asked outside the share:\n${outside.join('\n')}`).toEqual([]);
+
+    /**
+     * And not one refusal that means "you may not".
+     *
+     * 401, 403 and 404 are the ones a visitor must never meet: each is the
+     * application asking for something on their behalf that they cannot have,
+     * and each is shown to them as a red error beside whatever they were doing.
+     *
+     * 413 is different and is allowed once, on the direct attempt: it is how
+     * the uploader learns that a single request will not get through here. It
+     * is the signal the switch to chunks is made of, not a failure — the file
+     * it was refused for is on the disk above, in chunks, which is the whole
+     * point. Allowed only there: a 413 anywhere else would mean a chunk was
+     * refused too, and then nothing gets through at all.
+     */
+    const mayNot = [...new Set(refusals)].filter((line) => !line.startsWith('413 '));
+    expect(mayNot, `refused:\n${mayNot.join('\n')}`).toEqual([]);
+
+    const tooLarge = [...new Set(refusals)].filter((line) => line.startsWith('413 '));
+    expect(tooLarge, `a chunk was refused for its size:\n${tooLarge.join('\n')}`).toEqual([
+      `413 /api/share/${token}/upload`,
+    ]);
+  } finally {
+    await stranger.close();
+  }
+});
+
+/**
  * Nobody gets in without a reason, and the reason is checked where it counts.
  *
  * Moving a share to its own prefix moves which *addresses* a visitor walks; it must

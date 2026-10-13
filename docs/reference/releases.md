@@ -24,6 +24,61 @@ somebody can put a file in a folder — no way forward. That is closed: the card
 always carries a door now, and pressing it goes in. It costs nothing when the
 automatic way in works, because the page has already gone by then.
 
+### A shared folder could not take a large file
+
+A folder shared so that somebody can put something in it worked for small files
+and refused large ones, and the refusal was final.
+
+How an upload travels — whether it is forced into chunks, whether a direct one
+that is refused may go out again in chunks, how big a chunk is — is this
+installation's own policy, the same for everybody. It was readable only at
+`/api/settings`, which answers an account. A visitor holding a share link has
+none, so they resolved the defaults: go direct, and never fall back. A file too
+big for one request was therefore refused by whatever sits in front of this
+server, and the one thing that would have rescued it — the switch to chunks —
+was a setting they could not know about.
+
+The policy travels in the feature flags now, which every page is given, so
+somebody with no account resolves it the same way everybody else does.
+
+And the resumable uploader's address was half-prefixed. It holds one endpoint
+for all its files, set in two places — when the plugin is put in, and again as
+each file is queued — and only the second carried the share's prefix. The first
+is reached exactly when the switch to chunks happens, so the chunks of a
+visitor's large file were addressed to the application's own `/api/upload/tus`:
+an address a proxy letting a public link through answers with a refusal.
+
+Both are covered, and by different instruments, because no single one can see
+both. A browser test fills a shared folder with one file small enough to go in
+a piece and one that is not, and asserts that every address it touched was the
+share's and that nothing was refused — except the one 413 the switch is made
+of. And a second test reads the source and refuses any address built outside
+the prefixing: the bench has no proxy, so an unprefixed address answers
+perfectly there and fails only in production, which is how this one survived.
+
+### A red error on a screen where everything worked
+
+A file dropped into a shared folder arrived, and two `Request failed with
+status 401` appeared beside it. The upload had succeeded; what failed was a
+request made on behalf of somebody who has no account.
+
+The settings of a signed-in account — preferences, system settings — were asked
+for whenever the upload engine or the file picker loaded, and both load on
+demand, long after the page has decided what a visitor holding a link may be
+asked for. So the rule that keeps a share from asking for favourites and
+volumes had never reached them.
+
+Behind an authentication proxy that is not merely a wasted request. Every
+address a public link does not cover is answered 401, the client reports every
+401, and the visitor is shown an error about something they can do nothing
+about, next to the file they just successfully sent.
+
+Nothing is asked for on behalf of nobody now, and the rule sits with the thing
+being asked for rather than at each caller — which is how two of them came to
+miss it. Only once the server has said who is there: before that, nobody is
+signed in _yet_, which is not the same as having no account, and treating the
+first as the second would leave a real account reading the defaults.
+
 ### The hold that could leave it there
 
 Opening a share ends with a navigation, and a navigation goes through the
