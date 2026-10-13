@@ -2595,8 +2595,14 @@ test('two folders sit side by side, and a file is dragged across', async () => {
   // scroller took the drop.
   await panes.first().locator('[title="crate.txt"]').first().dragTo(rightSurface);
 
+  // Both sides waited for, because a move is not one instant: the content is
+  // placed under its new name and only then is the source taken away, so there
+  // is a moment when the file is in both folders. Reading the source the
+  // instant the destination appears is reading that moment — it passes on a
+  // quiet machine and fails on a loaded one, which is what it did. Waiting for
+  // the absence keeps the assertion's teeth: a copy would never satisfy it.
   await expect.poll(() => fs.existsSync(path.join(volume, 'Dock', 'crate.txt'))).toBe(true);
-  expect(fs.existsSync(path.join(volume, 'Ship', 'crate.txt'))).toBe(false);
+  await expect.poll(() => fs.existsSync(path.join(volume, 'Ship', 'crate.txt'))).toBe(false);
   // And the pane it arrived in shows it without being walked into.
   await expect(right.locator('[title="crate.txt"]').first()).toBeVisible();
   await expect(panes.first().locator('[title="crate.txt"]')).toHaveCount(0);
