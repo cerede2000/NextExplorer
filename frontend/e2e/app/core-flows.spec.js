@@ -5746,6 +5746,108 @@ test('a file says what it adds up to, is not read twice, and is forgotten when i
   await expect(panel.locator('[data-test="info-checksum-sha256"]')).toHaveCount(0);
 });
 
+/**
+ * An upload that was cut, and the same file handed over again.
+ *
+ * The one promise of the chunked protocol that nothing else here exercises:
+ * what arrived is kept, and the next attempt carries on from it rather than
+ * sending the file twice. It is held in a browser because every piece of it
+ * lives in a different place — the part on the server's disk, the fingerprint
+ * in this browser's storage, and the folder the file was going to, which
+ * travels in the endpoint so that one file sent to two folders is two uploads.
+ * A unit test can hold each; only this can hold that they agree.
+ */
+test('an upload that was cut comes back to where it stopped, and is not sent twice', async () => {
+  // Forty megabytes, against a chunk size this test does not need to know: big
+  // enough that a cut leaves a part behind rather than all or nothing.
+  test.setTimeout(240_000);
+  const size = 40 * 1024 * 1024;
+  const source = path.join(process.env.E2E_ROOT, 'resumable.bin');
+  fs.writeFileSync(source, Buffer.alloc(size, 7));
+  const landing = path.join(volume, 'Resume');
+  fs.mkdirSync(landing, { recursive: true });
+
+  /** Where each attempt at a piece said it was starting from. */
+  const offsets = [];
+  page.on('request', (request) => {
+    if (request.method() !== 'PATCH') return;
+    if (!/\/api\/upload\/tus\//.test(request.url())) return;
+    offsets.push(Number(request.headers()['upload-offset'] ?? -1));
+  });
+
+  const unfinished = async () => {
+    const answer = await page.request.get('/api/upload/unfinished');
+    return (await answer.json()).items || [];
+  };
+  const pick = async () => {
+    await page.getByRole('button', { name: 'New' }).click();
+    const [chooser] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      page.getByRole('button', { name: 'Upload File' }).click(),
+    ]);
+    await chooser.setFiles(source);
+  };
+
+  // The first attempt, cut after one piece has landed: everything after it is
+  // refused the way a dropped connection refuses it.
+  let allowed = 1;
+  await page.route('**/api/upload/tus/**', async (route, request) => {
+    if (request.method() === 'PATCH') {
+      if (allowed <= 0) {
+        await route.abort('connectionreset');
+        return;
+      }
+      allowed -= 1;
+    }
+    await route.continue();
+  });
+
+  await page.goto('/browse/Projects/Resume');
+  await pick();
+
+  // The server is holding what arrived, and says so when asked — which is how
+  // somebody who closed a laptop at six is told at nine instead of finding out.
+  // How much arrived is the chunk size's business, not this test's: what matters
+  // is that it is some of the file and not all of it.
+  await expect
+    .poll(
+      async () => {
+        const [one] = await unfinished();
+        return one ? one.offset > 0 && one.offset < size : null;
+      },
+      { timeout: 90_000 }
+    )
+    .toBe(true);
+  const [held] = await unfinished();
+  const stopped = held.offset;
+  expect(held).toMatchObject({ name: 'resumable.bin', size, uploadTo: 'Projects/Resume' });
+  expect(fs.existsSync(path.join(landing, 'resumable.bin'))).toBe(false);
+
+  // And now the same file is handed over again, from a page that has been
+  // reloaded — the tab that was interrupted is gone, and what tells this one
+  // where to carry on from is what the browser kept.
+  await page.unroute('**/api/upload/tus/**');
+  offsets.length = 0;
+  await page.reload();
+  await pick();
+
+  await expect
+    .poll(
+      () => {
+        const file = path.join(landing, 'resumable.bin');
+        return fs.existsSync(file) ? fs.statSync(file).size : null;
+      },
+      { timeout: 120_000 }
+    )
+    .toBe(size);
+
+  // The proof that it resumed rather than started again: the first piece this
+  // attempt sent began where the last one stopped.
+  expect(offsets[0]).toBe(stopped);
+  // And nothing is left waiting, because the file arrived.
+  await expect.poll(unfinished, { timeout: 30_000 }).toEqual([]);
+});
+
 test('the page threw nothing along the way', () => {
   expect(thrown, `the page threw:\n${thrown.join('\n')}`).toEqual([]);
 });

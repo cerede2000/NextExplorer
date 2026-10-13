@@ -66,12 +66,18 @@ vi.mock('@/stores/uppyStore', () => ({ useUppyStore: () => ({ uppy: null }) }));
 vi.mock('@/stores/notifications', () => ({
   useNotificationsStore: () => ({ addNotification: vi.fn() }),
 }));
+// Chunked uploads on: they are the only ones that can be resumed, which is what
+// this file is about. One case turns them off, because the fallback from a
+// refused direct upload is the route a large file really takes the first time.
+const uploads = vi.hoisted(() => ({
+  chunkedEnabled: true,
+  chunkedAutoFallback: true,
+  chunkSizeBytes: 8 * 1024 * 1024,
+}));
 vi.mock('@/stores/appSettings', () => ({
   useAppSettings: () => ({
     loaded: true,
-    // Chunked uploads on: they are the only ones that can be resumed, which is
-    // what this file is about.
-    state: { uploads: { chunkedEnabled: true, chunkSizeBytes: 8 * 1024 * 1024 } },
+    state: { uploads },
     ensureLoaded: () => Promise.resolve(),
   }),
 }));
@@ -131,6 +137,9 @@ beforeEach(async () => {
   vi.useFakeTimers();
   handlers.clear();
   uppyCalls.length = 0;
+  localStorage.clear();
+  uploads.chunkedEnabled = true;
+  uploads.chunkedAutoFallback = true;
   fileStore.currentPath = 'Docs/2026';
   await createUploadEngine();
 });
@@ -176,6 +185,75 @@ describe('the resumable uploader', () => {
 
     expect(stateOf('f1').tus.endpoint).not.toBe(stateOf('f2').tus.endpoint);
     expect(stateOf('f2').tus.endpoint).toBe('/api/upload/tus?for=Archive');
+  });
+
+  /**
+   * The id the fingerprint is built from, which has to be the same id twice.
+   *
+   * A large file's first attempt goes out in one piece, is refused for its size,
+   * and is re-added to go out in chunks; the next attempt is chunked from the
+   * start and is added once. Uppy builds a file's id out of its name, type,
+   * size, date and `meta.relativePath` — and this engine fills `relativePath`
+   * in for a file that arrived without one. So the re-added file carried a field
+   * the plain one did not, the two attempts had two ids, and an upload cut off
+   * on its first attempt could never be resumed: the one case resuming exists
+   * for.
+   */
+  it('re-adds a file to be chunked under the id it was added with', async () => {
+    // Direct to begin with, which is how a large file is first sent.
+    handlers.clear();
+    uppyCalls.length = 0;
+    uploads.chunkedEnabled = false;
+    await createUploadEngine();
+
+    const file = { ...aFile('f1', 'film.mkv'), size: 2 * 1024 * 1024 * 1024, progress: {} };
+
+    await fire('file-added', file);
+    // What the engine filled in, which is not part of the id and must not become
+    // part of it.
+    expect(metaOf('f1').relativePath).toBe('film.mkv');
+
+    // Refused for its size, so it comes back in chunks.
+    await fire('upload-error', { ...file, meta: metaOf('f1') }, new Error('too large'), {
+      status: 413,
+    });
+    await vi.advanceTimersByTimeAsync(10);
+
+    const [[, descriptor]] = called('addFile');
+    expect(descriptor).toMatchObject({ name: 'film.mkv', data: file.data });
+    expect('relativePath' in descriptor.meta).toBe(false);
+    // And the destination it was going to is put back on the new file, which is
+    // what the server reads.
+    expect(called('setFileMeta').at(-1)[2]).toMatchObject({ relativePath: 'film.mkv' });
+  });
+
+  /**
+   * And the other half of that rule: a file Uppy itself gave a `relativePath`
+   * — every file of a folder upload, where it is what tells `a/notes.txt` from
+   * `b/notes.txt` — keeps it, because there it *is* part of the id.
+   */
+  it('re-adds a file of a folder upload with the path it was added with', async () => {
+    handlers.clear();
+    uppyCalls.length = 0;
+    uploads.chunkedEnabled = false;
+    await createUploadEngine();
+
+    const file = {
+      ...aFile('f1', 'film.mkv'),
+      size: 2 * 1024 * 1024 * 1024,
+      progress: {},
+      meta: { relativePath: 'Rushes/film.mkv' },
+    };
+
+    await fire('file-added', file);
+    await fire('upload-error', { ...file, meta: metaOf('f1') }, new Error('too large'), {
+      status: 413,
+    });
+    await vi.advanceTimersByTimeAsync(10);
+
+    const [[, descriptor]] = called('addFile');
+
+    expect(descriptor.meta.relativePath).toBe('Rushes/film.mkv');
   });
 
   it('keeps the address of an upload already under way', async () => {

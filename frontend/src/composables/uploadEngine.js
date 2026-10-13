@@ -215,6 +215,7 @@ export const createUploadEngine = async () => {
   const removeUploadFile = (file) => {
     if (!file?.id) return;
     finishUploadTask(file.id);
+    relativePathAtAdd.delete(file.id);
     try {
       uppy.removeFile(file.id);
     } catch (_) {
@@ -477,6 +478,23 @@ export const createUploadEngine = async () => {
   // Returns true if a restart was scheduled (caller suppresses the error),
   // false if we exhausted the ladder and gave up.
   const restarting = new Set();
+
+  /**
+   * What `relativePath` each file carried when Uppy first saw it.
+   *
+   * Uppy builds a file's id out of its name, type, size, date and
+   * `meta.relativePath`, and that id is what the resume fingerprint is made of.
+   * `file-added` fills `relativePath` in for a file that arrived without one,
+   * which is harmless there — the id was already decided. A file re-added by
+   * the fallback is a *new* add, though, and re-adding it with the filled-in
+   * field gives it an id the same file would never be given again: the first
+   * attempt at a large file goes direct, is refused, and comes back here, while
+   * the next attempt is chunked from the start and is added once. Two ids for
+   * one file, and an interrupted upload that can never be resumed — which is
+   * exactly the case resuming was built for. So the re-add is given what the
+   * first add was given, and the field is put back afterwards.
+   */
+  const relativePathAtAdd = new Map();
   const restartAsChunked = (file, observedBytes) => {
     if (!file?.id) return false;
     if (restarting.has(file.id)) return true;
@@ -493,7 +511,13 @@ export const createUploadEngine = async () => {
     restarting.add(file.id);
     writeFallbackMiB(nextMiB);
     const originalMeta = file.meta ? { ...file.meta } : {};
-    const descriptor = { name: file.name, type: file.type, data: file.data, meta: originalMeta };
+    // The meta the id is computed from: what this file was added with, not what
+    // it has been given since.
+    const metaAsAdded = { ...originalMeta };
+    const asAdded = relativePathAtAdd.get(file.id);
+    if (asAdded === undefined) delete metaAsAdded.relativePath;
+    else metaAsAdded.relativePath = asAdded;
+    const descriptor = { name: file.name, type: file.type, data: file.data, meta: metaAsAdded };
     // Defer until Uppy has settled the current (failed/stalled) batch, so the
     // plugin swap runs on an idle instance — the reliable path.
     setTimeout(() => {
@@ -659,6 +683,10 @@ export const createUploadEngine = async () => {
         endpoint: `${tusEndpoint}?for=${encodeURIComponent(uploadTo)}`,
       },
     });
+    // Before the field is filled in: what the id of this file was computed from.
+    if (!relativePathAtAdd.has(file.id)) {
+      relativePathAtAdd.set(file.id, file?.meta?.relativePath);
+    }
     uppy.setFileMeta(file.id, {
       ...(file.meta || {}),
       uploadTo,
