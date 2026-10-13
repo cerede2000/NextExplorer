@@ -166,7 +166,7 @@ const titleFor = (value) => {
   // What a checksum reads is files, and saying so matters more here than
   // anywhere: it falls between a copy and a download in everything it shows —
   // bytes read against bytes to read — so without its own words it is drawn as
-  // a copy, and reading two files to compare them reads 'Copying 2 items'.
+  // a copy, and reading two files to compare them reads “Copying 2 items”.
   if (value.type === 'checksum') {
     if (value.name) return t('checksums.reading', { name: value.name });
     const files = Number(value.itemCount) || 1;

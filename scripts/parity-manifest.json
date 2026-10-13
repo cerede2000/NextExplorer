@@ -1678,6 +1678,13 @@
       "verdict": "PORT",
       "batch": "a-transfer-outlives-the-tab",
       "note": "a transfer belongs to the person who asked, not to the tab: a copy ran inside its own request, so closing the tab closed the socket and the socket aborted the transfer, leaving half a folder at the destination with nothing said about it. The work is registered in the server now and the response is only a window onto it — closing the window detaches a watcher and nothing else, a page opened afterwards takes the operation up where it had got to, and stopping one is a request of its own rather than hanging up. A task has an owner, an account or a visitor's guest session, and is listed, watched and cancelled by that owner alone; one opened inside a share stays inside it. Every long operation is on the register, not only a transfer: a deletion, an archive unpacked or packed, entries taken out of one, and a restore from the trash, each of which handed the reader its operation’s id so it can be stopped. Nothing is resumed across a restart, deliberately — half a copy is a state on disk — so what was in flight is written down, logged at the next start and handed once to whoever launched it, with the paths."
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/services/checksums\\.js|backend/src/routes/files/checksums\\.js|frontend/src/composables/useChecksums\\.js)(:|$)|^backend/src/routes/files/index\\.js(:checksumRoutes)?$",
+      "verdict": "PORT",
+      "batch": "what-a-file-adds-up-to",
+      "note": "what a file's bytes add up to, asked for once and remembered — the batch after `a-transfer-outlives-the-tab`, and the first thing built on its register that is not a transfer. The panel could say how big a file is and when it changed, and not the one thing somebody asks before they trust a copy of it: whether the bytes are the same bytes. `services/checksums.js` reads the file once and answers md5, sha1 and sha256 together, because three passes over a disk to answer one question is three times the wait for nothing. Reading is minutes on a large file, so the route hands the work to the register rather than holding a request open: it is a task like a copy is, it is notified, it survives the tab that asked, and `GET /api/files/checksums` answers only out of what is remembered and never starts a read — asking what is known must not cost what computing it costs. What is remembered is a row in `index.db` under the file's absolute path, and the row carries an identity made of everything that moves when the file does: size, modification time, inode and birth time. That list is the whole of the care here. A digest remembered for a file that has since been edited is worse than no digest at all — it is a wrong answer to the only question this feature exists to answer — so a row whose identity no longer matches is deleted rather than returned, the file is stat-ed again after the read and nothing is written down when it moved underneath, and a rename or a move carries the row across while a delete drops it. An inode alone would not do: a filesystem hands a freed inode to the next file, and then the next file gets the last one's digests. The path is absolute on purpose: two accounts each holding `Docs/notes.txt` are two rows, never one. Authorization comes first and the resolution is the one the rest of the application uses, a folder is refused rather than read, and the work runs detached through the register, so a task never inherits the path-resolution cache of the request that started it; the register's own per-owner cap is what bounds how many reads one person can set going. Comparing two or three files is the same task with an answer at the end, and two files of different sizes are answered without reading either — the shortcut is reported as the reason, not hidden, because \"identical\" and \"not the same size\" are different sentences and only one of them was measured."
     }
   ],
   "residue": [
@@ -2028,6 +2035,22 @@
     {
       "match": "^(backend/src/routes/files/(transfer|delete)\\.js|backend/src/routes/(zip|archive|trash|upload)\\.js|backend/src/server\\.js|backend/src/utils/requestContext\\.js|docs/experience/workflows\\.md|frontend/src/api/index\\.js|frontend/src/api/(files|trash|archive|tasks)\\.api\\.js|frontend/src/stores/operationTasks\\.js|frontend/src/stores/files/(operations|transfers)\\.js|frontend/src/views/TrashView\\.vue|frontend/src/composables/useFileDragDrop\\.js)$",
       "note": "a transfer belongs to the person who asked, not to the tab: a copy ran inside its own request, so closing the tab closed the socket and the socket aborted the transfer, leaving half a folder at the destination with nothing said about it. The work is registered in the server now and the response is only a window onto it — closing the window detaches a watcher and nothing else, a page opened afterwards takes the operation up where it had got to, and stopping one is a request of its own rather than hanging up. A task has an owner, an account or a visitor's guest session, and is listed, watched and cancelled by that owner alone; one opened inside a share stays inside it. Nothing is resumed across a restart, deliberately — half a copy is a state on disk — so what was in flight is written down, logged at the next start and handed once to whoever launched it, with the paths. Every long operation is on the register now, not only a transfer: a deletion, an archive unpacked or packed, entries taken out of one, and a restore from the trash. One protocol for all of them, and the client counts for none of them. The batches still send the version where each of these runs inside its request, which is where every one of them was written. This goes up as a batch of its own once the other families are on the register too: a deletion, an archive and the trash still end with their socket, and sending half of a rule is worse than sending none of it. And the uploads: one cannot be taken over by the server at all — the bytes are in the browser — so what it does instead is keep the part that arrived and answer which files did not finish, for the reader to hand the same file over again. That is `/api/upload/unfinished` here, beside the resumable uploader's own addresses, which the batches do not have."
+    },
+    {
+      "match": "^backend/src/routes/files/index\\.js$",
+      "note": "two lines, both the mount of the checksum route, touched by `what-a-file-adds-up-to`, which has not been sent: a file says what its bytes add up to, computed once on the operation register and remembered against an identity made of size, modification time, inode and birth time. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^backend/src/services/renameService\\.js$",
+      "note": "two lines, touched by `what-a-file-adds-up-to`, which has not been sent: a rename carries the remembered digests across with the file, because a rename changes the name and not the content. Without it the row is left under a path nothing resolves to any more and the file is read again from scratch under its new one. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^frontend/src/components/ClipboardProgress\\.vue$",
+      "note": "eight lines, touched by `what-a-file-adds-up-to`, which has not been sent: reading a file's digests is a task on the register like a copy is, and the panel that draws the tasks named the kinds it knew and fell through to the words of a copy for anything else — so reading two files to compare them announced itself as copying two items, which is a sentence about something that is not happening. It has its own, and the count comes from the totals the task carries rather than from a name, because a count passed off as a name is drawn as one. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^frontend/src/config/compare\\.js$",
+      "note": "eight lines, touched by `what-a-file-adds-up-to`, which has not been sent: whether two or three selected entries can have their digests compared is its own question, and it was being answered with the side-by-side comparison's. That one needs text it can lay out in two columns, so it is offered for a short list of extensions; this one needs bytes, and the files anybody asks it about — a film, a disk image, an archive — are exactly the ones absent from that list, so the entry was refused for everything it exists for. The test of \"is this a file at all\" is now shared between the two and the lists are not. The difference stands until that batch goes up."
     }
   ],
   "controls": [
@@ -2070,6 +2093,10 @@
     {
       "match": "^settings\\.userPreferences\\.(filter|jumpTo|sections\\.[a-zA-Z]+)$",
       "note": "the index of themes beside the preferences and the field that narrows them down — part of the same batch. Twenty preferences in one column asked anybody looking for one of them to read all twenty"
+    },
+    {
+      "match": "^(checksums\\.(take|takeAgain|copy)|common\\.copy)$",
+      "note": "the three things to press on what a file adds up to — read it, read it again because the file has changed since, and put a digest on the clipboard, which is the only use anybody has for sixty-four characters on a screen — and the word for that last one, which is a verb this application had nowhere to borrow from. Part of the same batch as the digests."
     }
   ],
   "literals": [
