@@ -6,6 +6,215 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v4.1.0 (2026-10-13)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v4.1.0)
+
+The window learned to hold more than one place at a time, and a public link
+learned to live at an address of its own. Everything else here follows from one
+or the other.
+
+### A place per tab
+
+Off by default, and turned on in Settings → Preferences → **Browse in tabs**. A
+strip above the toolbar then holds the places you have open — folders, but also a
+document, the text editor, the trash, the settings — because a tab is an address
+rather than a folder.
+
+Each tab keeps what it was on: its listing, what was selected in it, where it had
+been scrolled to, the rename it was in the middle of. The clipboard is
+deliberately not per tab, because copying in one and pasting in another is the
+point. One rule opens anything behind — **command** on a Mac, **control**
+elsewhere, held with the gesture that opens the thing, and the middle button says
+the same without a modifier. Tabs can be dragged along the strip, pinned, closed
+in a batch, and dropped onto as a destination: files dragged onto a tab move into
+the folder that tab is on.
+
+What a tab holds stays alive while another is in front. An ONLYOFFICE document is
+not opened again when you come back to it; the editor comes back with what you
+typed and had not saved, the line you were reading and the run of text you had
+selected — put back before the editor is shown, so the file does not appear at
+the top and jump. A tab opened behind is got ready before you reach it, which
+Settings → Preferences → **Prepare tabs opened in the background** turns off. And
+Back and Forward belong to the tab rather than to the window.
+
+An administrator's terminal belongs to the tab it was opened from, so several
+folders can each have a shell running in them, and a shell left running in a tab
+is still running when you come back to it.
+
+The row stops at a number an administrator sets under Settings → **Tabs**.
+Keyboard shortcuts are not offered and cannot be: every one a tabbed window would
+want — ctrl+T, ctrl+W, ctrl+Tab — belongs to the browser, which takes it before
+the page is asked.
+
+### Two tabs at once, side by side
+
+From a tab's own menu, **Show on the right**; or drag the tab out of the strip
+and drop it in a pane. The two become one entry in the strip carrying both names,
+with a chevron that unfolds to either half.
+
+A pair belongs to the tabs rather than to the window, which is the point: there
+can be as many pairs as there are tabs. Everything that belongs to a place is the
+pane's own — its listing, its selection, the rename it is in the middle of — and
+everything that belongs to you stays one to the window: the clipboard, the
+toolbar, the keyboard. A file dragged across the divider moves into the other
+folder, or copies with the modifier held.
+
+A second pane does not need tabs turned on: right-click any entry and **Open in a
+pane on the right**. There is nothing different underneath, a pane having always
+been a tab.
+
+The cross on a pane closes it, and a button beside the cross puts the pane back
+in the row as an ordinary tab — those are two gestures and they now have two
+controls, where one cross used to do the second while looking like the first.
+Swapping the two panes over leaves the row of tabs exactly as it was.
+
+### Two or three files, compared side by side
+
+Choose two or three text files in a listing, right-click, and **Compare**. They
+open at an address of their own, so the comparison lives in a tab, can be linked
+to, and is somewhere you leave and come back to rather than a dialog to finish.
+
+Every line of every file is there, aligned, with the part that actually differs
+marked inside a changed pair. The differences are counted and numbered, F8 and F7
+walk them, and each can be taken across in either direction — a whole run at
+once, with the line endings the file had. Three files align on the middle one,
+which is the arrangement that answers "who changed what". A slim map of the
+differences runs down the right; search and replace looks in one file or all of
+them; a line can be changed by hand. A comparison with lines taken across and not
+saved says so before you close its tab.
+
+The Versions panel offers **Compare with the file now**, which puts an earlier
+version beside the file as it stands, the version's side read-only.
+
+### A share is its own place
+
+Everything somebody with no account touches now lives under `/share/<token>/` and
+`/api/share/<token>/…` — the door, the listing, a subfolder, a file read in the
+viewer, a file opened in the editor, a comparison, the thumbnails, the
+downloads, the office editor, the branding, the version history.
+
+It used to send a visitor into `/browse/share/<token>` and `/open/…`, which are
+the addresses of the signed-in application, so anybody putting an authentication
+proxy in front of this had to name half of it to let a public link through — and
+letting `/api/download` through by path meant opening it to the world. Now one
+rule in front covers a share and nothing else.
+
+What is behind the door is still decided per visitor: those are guest routes
+rather than public ones, the same check runs before any of them is drawn, and the
+server checks again for every byte. A share with a password shows nothing until
+it is given, whichever address is walked at, and a visitor let into one share is
+not let into another.
+
+The gate that adds the prefix adds a requirement and removes none. That rule is
+now held by a test that compares the two halves of it: every address the browser
+builds under the prefix is extracted from the frontend and matched against the
+routers actually mounted behind it, so a point of entry that exists on one side
+and not the other fails the build instead of arriving as a 404.
+
+### Several files, without an archive
+
+Downloading more than one thing at once has always meant a zip, and by default it
+still does. Settings → Preferences → **Downloading several items** changes that
+to separate files, and the arrow beside the download button offers both ways at
+any moment. Folders are never taken apart. Where the browser has a folder picker
+you are asked once where to put them; past twenty-five files it asks first and
+offers the archive instead.
+
+### The sign-in screen stops acting on what it does not know
+
+Three endings people were landing on, all of them the same mistake — a screen
+deciding something on a guess.
+
+A status request that got nowhere left the screen drawing a password form on an
+installation that has no passwords, because the defaults it falls back to before
+the server answers happen to describe one. It now says the server could not be
+reached, and offers the one thing worth doing about it.
+
+The mark left by a sign-out, which stops the screen handing somebody straight
+back to the provider that just signed them out, was only ever removed by the
+single sign-on button — so anybody who signed out and signed in some other way
+left it behind for the rest of the tab's life. Both marks are consumed as they
+are read now.
+
+And a hand-off that comes back without a session no longer starts another. The
+provider signs somebody in, this installation ends up with no session for them
+anyway, and the screen used to send them back — a circle nothing in which ever
+reaches a person, whose only account is a logo spinning for as long as anybody
+will watch it. Three laps within ten seconds is the circle, and it stops there;
+one unfinished trip is somebody who walked away from the provider's page and came
+back, and they are sent on their way. `authenticated` is read beside `user`, so
+"the provider knows you and this server has no account for you" can be said in
+those words. An installation with no way in configured at all says that too,
+where it used to draw a heading over an empty box.
+
+Everything before the first line of the bundle runs is one page and one logo, so
+after twelve seconds the page says whether a file was turned away or it is merely
+slow, and offers a reload and the sign-in screen.
+
+### Preferences by theme
+
+Twenty preferences in one unbroken column asked anybody looking for one of them
+to read all twenty. They sit under seven headings now, with the list of those
+headings beside them: choosing one goes to it and writes it into the address, so
+the page you are looking at is the page you can send, and an address naming a
+theme opens on it. A field above the list narrows the twenty to whatever you have
+in mind, matched against the words a row shows in your own language.
+
+Underneath, the screen stopped keeping four copies of what it sends. Three of the
+four agreed; the fourth was discarding, which had been written out by hand and
+was three preferences short — so discarding a change to those three discarded
+nothing, and the next save wrote it.
+
+### A name nothing can read
+
+A volume carried over from Windows can hold file names that are not UTF-8, and
+nothing on a Linux filesystem forbids them. Such a name cannot be decoded without
+loss, so the path built back from it reaches nothing.
+
+Every walk over a directory answered one of two wrong things. The zip download of
+a folder holding one died, 500 for the whole archive. The listing hid it, so the
+folder was quietly short of rows — and a folder holding nothing else announced
+itself as empty, the one sentence it must not say.
+
+Silence is the worse of the two: "download folder" then hands back an archive
+with files missing and calls it the folder, which is a backup that lies. An entry
+nothing can reach is now skipped, counted, and the count travels with the result
+as far as the screen — the listing says how many rows are missing, a copy and an
+extraction say how many entries they left out, and a downloaded archive carries a
+note inside it. The two walks that must not skip do not: a move across disks
+keeps its source rather than removing what its copy could not read, and a restore
+from the trash refuses and leaves the item where it is. And a guard that could not
+answer its question used to say yes — the check that an extraction produced no
+symbolic link swallowed the error from a folder it could not open, so everything
+under such a directory passed uninspected. It refuses now.
+
+Reaching these files for real is a separate piece of work. `convmv -f cp1252 -t
+utf8 -r <folder>` renames them for good in the meantime.
+
+### Smaller things
+
+- **Folders first, or one list.** Sorting has always bucketed folders ahead of
+  files, which is wrong for anybody whose new work arrives as both: sorted by
+  date, newest first, today's files sit below folders from months ago.
+  Settings → Preferences → **Folders first** turns the bucketing off
+  ([nxzai#495](https://github.com/nxzai/NextExplorer/issues/495)).
+- **The text editor on a touch device.** Typing or pasting on a tablet inserted
+  characters nobody asked for and selecting was almost impossible
+  ([nxzai#497](https://github.com/nxzai/NextExplorer/issues/497)).
+- **Quick actions in the name column.** The icons can be aligned at the start or
+  the end of the column instead of following the name, so they keep the same
+  place on every row and nothing moves when the pointer arrives.
+- **The application asks in its own voice.** `window.confirm`, `window.prompt`
+  and `alert` were answering for twenty-three questions, and what they draw is
+  the browser's box in the browser's chrome, headed by the server's address and
+  port, over a question about somebody's file.
+- **An office server can be told where to reach this application.**
+  `EDITOR_INTERNAL_URL`, for a document server that cannot resolve the public
+  address.
+- **A read archive is left by the control that closes it**, and an archive's
+  viewer no longer leaves its temporary extraction behind.
+
 ## v3.11.0 (2026-09-22)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v3.11.0)

@@ -101,3 +101,43 @@ otherwise — and no configuration is needed to keep it off.
   `OIDC_CLIENT_SECRET` is the usual one). Nothing to change in the configuration
   before reading the server log, which carries the reason; the message shown in
   the browser never does, because it would name the provider's internal host.
+
+## What the sign-in screen says when a trip to the provider ends badly
+
+Everything this screen offers is what the server told it to offer, and it says
+so rather than guessing. Four endings are worth knowing, because each names a
+different thing to go and look at.
+
+- **"This server could not be reached"**, with a button to ask again. The status
+  request got nowhere — which is what an expired session behind an
+  authentication proxy looks like from a browser, and also what a server that is
+  restarting looks like. Until it answers, the screen offers no sign-in at all:
+  before this, the defaults it fell back to happened to describe a password
+  form, so an installation that signs in only through a provider drew a username
+  and a password field that nobody could use, under an error naming CORS.
+- **"Your identity provider signed you in, but this server has no account for
+  you"**: the provider authenticated somebody this installation has no account
+  for and does not create accounts on the fly. Either make the account, or set
+  `OIDC_AUTO_CREATE_USERS=true`. No number of further trips to the provider will
+  change it, and the screen no longer makes them.
+- **"You came back from your identity provider without a session"**: the screen
+  has handed a sign-in to the provider three times within ten seconds and come
+  back with nothing each time. That is a circle — the provider signs somebody
+  in, this installation ends up with no session for them anyway, the screen
+  sends them back — and nothing in it ever reaches a person; the only account of
+  it is a logo spinning for as long as anybody will watch it. The usual causes
+  are a session cookie the browser will not keep (check `PUBLIC_URL`, the scheme
+  and the forwarded headers), a `/callback` the proxy in front intercepts before
+  the application sees it, or a session store that is not persistent. Walking
+  away from the provider's page and opening the address again is _not_ this: one
+  unfinished trip, or two, hands off again, because somebody who comes back is
+  asking to be sent.
+- **"No way to sign in is configured on this server"**: `AUTH_MODE=oidc` with no
+  provider configured leaves nothing to offer. Before this it was a heading over
+  an empty box.
+
+And before any of that: if the page shows the logo and nothing else for more
+than twelve seconds, it says so, with a reload and a way to the sign-in screen.
+A bundle turned away by whatever stands in front of the server — an expired
+session at the proxy is the common one — is indistinguishable from a page that
+is merely slow, and the logo turned either way.

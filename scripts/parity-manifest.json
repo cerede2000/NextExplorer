@@ -1974,6 +1974,10 @@
     {
       "match": "^frontend/src/stores/files/transfers\\.js$",
       "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
+    },
+    {
+      "match": "^docs/(integrations/oidc\\.md|reference/troubleshooting\\.md)$",
+      "note": "what the sign-in screen says when a trip to the identity provider ends badly, and what a folder short of rows means. Both pages describe behaviour that belongs to batches which have not gone up yet — the sign-in screen that stops acting on what it does not know, and the entry nothing can read that is skipped and counted rather than hidden or fatal — so the prose travels with them rather than ahead of them. Four endings, each naming a different thing for an administrator to go and look at: a server that could not be asked, an identity the provider vouches for and this installation has no account for, a hand-off that keeps coming back without a session, and an installation with no way in configured at all."
     }
   ],
   "controls": [
