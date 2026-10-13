@@ -80,7 +80,8 @@
     "moveDown": "नीचे ले जाएँ",
     "confirm": "पुष्टि करें",
     "closeAnyway": "फिर भी बंद करें",
-    "leaveAnyway": "फिर भी छोड़ें"
+    "leaveAnyway": "फिर भी छोड़ें",
+    "copy": "कॉपी"
   },
   "editor": {
     "editing": "संपादन जारी",
@@ -340,7 +341,8 @@
     "newsKindExtract": "निकालना",
     "newsKindCompress": "संपीड़न",
     "newsKindRestore": "पुनर्स्थापना",
-    "newsKindOther": "कार्य"
+    "newsKindOther": "कार्य",
+    "newsKindChecksum": "चेकसम"
   },
   "volumes": {
     "quickAccess": "त्वरित पहुँच",
@@ -1552,5 +1554,18 @@
   },
   "quickActions": {
     "menu": "त्वरित क्रियाएँ"
+  },
+  "checksums": {
+    "title": "चेकसम",
+    "notTaken": "अभी तक नहीं लिए गए।",
+    "take": "चेकसम लें",
+    "takeAgain": "फिर से लें",
+    "copy": "{algorithm} कॉपी करें",
+    "compareCount": "{count} फ़ाइलों के चेकसम की तुलना करें",
+    "same": "वही फ़ाइल, बाइट दर बाइट",
+    "different": "यह वही फ़ाइल नहीं है",
+    "differentSizes": "इनके आकार अलग हैं, इसलिए कुछ भी पढ़ने की ज़रूरत नहीं पड़ी।",
+    "reading": "{name} पढ़ा जा रहा है…",
+    "readingCount": "{count} {items} पढ़ी जा रही हैं…"
   }
 }

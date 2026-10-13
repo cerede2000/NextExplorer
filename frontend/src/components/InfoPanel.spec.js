@@ -16,6 +16,8 @@ const api = vi.hoisted(() => ({
   fetchPermissions: vi.fn(async () => ({ mode: '755', owner: 'root', group: 'root' })),
   changePermissions: vi.fn(async () => ({})),
   changeOwnership: vi.fn(async () => ({})),
+  fetchKnownChecksums: vi.fn(async () => ({ digests: null })),
+  takeChecksums: vi.fn(async () => ({ items: [] })),
 }));
 
 vi.mock('@/api', () => ({
@@ -23,6 +25,23 @@ vi.mock('@/api', () => ({
   fetchPermissions: (...args) => api.fetchPermissions(...args),
   changePermissions: (...args) => api.changePermissions(...args),
   changeOwnership: (...args) => api.changeOwnership(...args),
+  fetchKnownChecksums: (...args) => api.fetchKnownChecksums(...args),
+  takeChecksums: (...args) => api.takeChecksums(...args),
+}));
+
+// The panel asks the register for a bar only when somebody presses the button.
+const operationPanel = vi.hoisted(() => ({
+  onEvent: vi.fn(),
+  onTask: vi.fn(),
+  finish: vi.fn(),
+}));
+vi.mock('@/stores/operationTasks', () => ({
+  useOperationTasksStore: () => ({
+    startServerOperation: () => ({ id: 'op-1', ...operationPanel }),
+  }),
+}));
+vi.mock('@/stores/notifications', () => ({
+  useNotificationsStore: () => ({ addNotification: vi.fn() }),
 }));
 
 const panel = vi.hoisted(() => ({ store: null }));
@@ -93,6 +112,8 @@ beforeEach(() => {
   api.fetchPermissions.mockResolvedValue({ mode: '755', owner: 'root', group: 'root' });
   api.changePermissions.mockResolvedValue({});
   api.changeOwnership.mockResolvedValue({});
+  api.fetchKnownChecksums.mockResolvedValue({ digests: null });
+  api.takeChecksums.mockResolvedValue({ items: [] });
   folderSize.sizeFor.mockReset();
   folderSize.sizeFor.mockReturnValue(null);
   folderSize.refreshFolder.mockReset();
@@ -510,5 +531,88 @@ describe("a file's versions", () => {
     await openOn(FILE);
 
     expect(button()).toBeNull();
+  });
+});
+
+/**
+ * What a file's bytes add up to.
+ *
+ * Asked for rather than offered: reading a film to the end is minutes, so
+ * opening a panel must never start it. What the panel does on its own is ask
+ * whether the answer is already known — and a known answer is this file's, or
+ * there is none, because a file that changed never finds its own row.
+ */
+describe('the checksums it shows', () => {
+  const section = () => document.body.querySelector('[data-test="info-checksums"]');
+  const button = () => document.body.querySelector('[data-test="info-take-checksums"]');
+  const shown = (algorithm) =>
+    document.body.querySelector(`[data-test="info-checksum-${algorithm}"]`)?.textContent.trim();
+
+  const DIGESTS = { md5: 'aa11', sha1: 'bb22', sha256: 'cc33' };
+
+  it('asks what is already known when it opens, once, and reads nothing', async () => {
+    await openOn(FILE);
+
+    expect(api.fetchKnownChecksums).toHaveBeenCalledWith('Docs/rapport.docx');
+    // Once: opening the panel on an entry changes both of the things it watches.
+    expect(api.fetchKnownChecksums).toHaveBeenCalledTimes(1);
+    expect(api.fetchMetadata).toHaveBeenCalledTimes(1);
+    expect(api.takeChecksums).not.toHaveBeenCalled();
+    expect(section()).not.toBeNull();
+    expect(section().textContent).toContain('checksums.notTaken');
+  });
+
+  it('shows every digest it is given', async () => {
+    api.fetchKnownChecksums.mockResolvedValue({
+      digests: DIGESTS,
+      computedAt: '2026-10-13T20:00:00Z',
+    });
+
+    await openOn(FILE);
+
+    expect(shown('md5')).toBe('aa11');
+    expect(shown('sha1')).toBe('bb22');
+    expect(shown('sha256')).toBe('cc33');
+  });
+
+  it('has nothing to show for a folder, which has no checksum', async () => {
+    await openOn(FOLDER);
+
+    expect(section()).toBeNull();
+    expect(api.fetchKnownChecksums).not.toHaveBeenCalled();
+  });
+
+  it('takes them when asked, and shows what came back', async () => {
+    api.takeChecksums.mockResolvedValue({
+      items: [{ path: 'Docs/rapport.docx', name: 'rapport.docx', digests: DIGESTS }],
+    });
+
+    await openOn(FILE);
+    button().click();
+    await flushPromises();
+
+    expect(api.takeChecksums).toHaveBeenCalledWith(
+      [{ path: 'Docs', name: 'rapport.docx' }],
+      expect.objectContaining({ onEvent: operationPanel.onEvent, onTask: operationPanel.onTask })
+    );
+    expect(shown('sha256')).toBe('cc33');
+    // The reading is a registered operation, so the panel lets go of it.
+    expect(operationPanel.finish).toHaveBeenCalled();
+  });
+
+  it('forgets what it showed when another file is opened', async () => {
+    api.fetchKnownChecksums.mockResolvedValue({ digests: DIGESTS });
+    await openOn(FILE);
+    expect(shown('sha256')).toBe('cc33');
+
+    api.fetchKnownChecksums.mockResolvedValue({ digests: null });
+    Object.assign(panel.store, {
+      item: { ...FILE, name: 'other.txt' },
+      relativePath: 'Docs/other.txt',
+    });
+    await flushPromises();
+
+    expect(shown('sha256')).toBeUndefined();
+    expect(section().textContent).toContain('checksums.notTaken');
   });
 });

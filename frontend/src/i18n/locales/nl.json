@@ -80,7 +80,8 @@
     "moveDown": "Omlaag",
     "confirm": "Bevestigen",
     "closeAnyway": "Toch sluiten",
-    "leaveAnyway": "Toch weggaan"
+    "leaveAnyway": "Toch weggaan",
+    "copy": "Kopiëren"
   },
   "editor": {
     "editing": "Bewerken",
@@ -340,7 +341,8 @@
     "newsKindExtract": "Uitpakken",
     "newsKindCompress": "Inpakken",
     "newsKindRestore": "Terugzetten",
-    "newsKindOther": "Bewerking"
+    "newsKindOther": "Bewerking",
+    "newsKindChecksum": "Controlesommen"
   },
   "volumes": {
     "quickAccess": "Snelle toegang",
@@ -1552,5 +1554,18 @@
   },
   "quickActions": {
     "menu": "Snelle acties"
+  },
+  "checksums": {
+    "title": "Controlesommen",
+    "notTaken": "Nog niet berekend.",
+    "take": "Controlesommen berekenen",
+    "takeAgain": "Opnieuw berekenen",
+    "copy": "{algorithm} kopiëren",
+    "compareCount": "Controlesommen van {count} bestanden vergelijken",
+    "same": "Hetzelfde bestand, byte voor byte",
+    "different": "Niet hetzelfde bestand",
+    "differentSizes": "De groottes verschillen, er hoefde niets gelezen te worden.",
+    "reading": "{name} wordt gelezen…",
+    "readingCount": "{count} {items} worden gelezen…"
   }
 }

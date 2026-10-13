@@ -340,6 +340,27 @@ const tour = async (app, { volume, requireFresh }) => {
   );
   await call('GET /api/files/recent-destinations', admin.get('/api/files/recent-destinations'));
 
+  // What a file's bytes add up to: read once, then answered from memory, and a
+  // comparison of two files of different sizes answered without reading either.
+  await call(
+    'POST /api/files/checksums',
+    admin.post('/api/files/checksums').send({ items: [{ path: 'Documents', name: 'notes.md' }] })
+  );
+  await call(
+    'GET /api/files/checksums',
+    admin.get('/api/files/checksums').query({ path: 'Documents/notes.md' })
+  );
+  await call(
+    'POST /api/files/checksums',
+    admin.post('/api/files/checksums').send({
+      items: [
+        { path: 'Documents', name: 'notes.md' },
+        { path: 'Documents', name: 'photo.png' },
+      ],
+      compare: true,
+    })
+  );
+
   // A transfer is an operation of its own, which the request only watches: a
   // selection too large for one body is sent in parts that all name it, and it
   // is followed and stopped by asking about it.

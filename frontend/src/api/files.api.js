@@ -294,6 +294,42 @@ async function moveItems(items, destination, options = {}) {
 }
 
 /**
+ * What a file's bytes add up to, as far as anybody knows.
+ *
+ * Never computes: an answer means the file was read once before and has not
+ * changed since, and no answer means nobody has asked for it to be read. Taking
+ * them is the other call, because on a large file it is minutes of reading.
+ */
+async function fetchKnownChecksums(relativePath) {
+  const path = normalizePath(relativePath);
+  return requestJson(
+    `${shareScoped('/api/files/checksums', path)}?path=${encodeURIComponent(path)}`
+  );
+}
+
+/**
+ * Read these files and answer what they add up to.
+ *
+ * A registered operation: it reports as it reads, it can be stopped, and
+ * closing the tab no longer loses twenty minutes of reading. With `compare`,
+ * the answer also says whether the files are the same — and says it from the
+ * sizes alone when those already decide it.
+ */
+async function takeChecksums(items, options = {}) {
+  const all = Array.isArray(items) ? items : [];
+  return requestStream(shareScopedForAny('/api/files/checksums', all[0]), {
+    method: 'POST',
+    body: JSON.stringify({
+      items: all,
+      ...(options.compare ? { compare: true } : {}),
+    }),
+    onEvent: watchingTheOperation(options),
+    signal: options.signal,
+    suppressErrorCodes: notARefusal(),
+  });
+}
+
+/**
  * Files this reader started sending and did not finish.
  *
  * An upload cannot carry on by itself the way a copy in the server does: the
@@ -824,6 +860,8 @@ export {
   moveItems,
   fetchRecentDestinations,
   fetchUnfinishedUploads,
+  fetchKnownChecksums,
+  takeChecksums,
   deleteItems,
   deleteItemsStream,
   getDeleteImpact,

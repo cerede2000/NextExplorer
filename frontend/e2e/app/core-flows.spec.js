@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
@@ -5677,6 +5678,72 @@ test('a copy keeps going after the tab that asked for it has gone', async ({
   } finally {
     await context.close();
   }
+});
+
+/**
+ * What a file adds up to, read once and not twice.
+ *
+ * The three things asked of this, end to end: that the figure on screen is the
+ * figure of the bytes on disk — taken by the server, under an operation, and
+ * checked here against a digest this test computes itself; that opening the
+ * panel again shows it without reading the file a second time; and that a file
+ * written to since is *not* answered for, which is the whole reason a
+ * remembered checksum can be trusted at all.
+ */
+test('a file says what it adds up to, is not read twice, and is forgotten when it changes', async () => {
+  const bytes = 'the same bytes, in both files\n';
+  const sha256 = crypto.createHash('sha256').update(bytes).digest('hex');
+  fs.writeFileSync(path.join(volume, 'ledger.txt'), bytes);
+  // Two files of a kind nothing can lay out side by side, which is what this
+  // comparison is for and what the other one cannot answer.
+  fs.writeFileSync(path.join(volume, 'image-a.iso'), Buffer.from([0, 1, 2, 3, 255]));
+  fs.writeFileSync(path.join(volume, 'image-b.iso'), Buffer.from([0, 1, 2, 3, 255]));
+
+  // The reading, which is what a POST to this address is; asking what is
+  // already known carries the file in the query instead.
+  const reads = () => requested.filter((url) => /\/api\/files\/checksums$/.test(url)).length;
+
+  const openInfoOn = async (name) => {
+    await page.goto('/browse/Projects');
+    await page.getByRole('button', { name: `Select ${name}` }).click({ button: 'right' });
+    await page.getByRole('button', { name: 'Get Info' }).click();
+    return page.locator('[data-test="info-checksums"]');
+  };
+
+  let panel = await openInfoOn('ledger.txt');
+  // Nothing is read because a panel was opened: this is minutes of reading on a
+  // large file, so it is asked for.
+  await expect(panel).toContainText('Not taken yet.');
+  expect(reads()).toBe(0);
+
+  await panel.locator('[data-test="info-take-checksums"]').click();
+  await expect(panel.locator('[data-test="info-checksum-sha256"]')).toHaveText(sha256, {
+    timeout: 20000,
+  });
+  expect(reads()).toBe(1);
+
+  // Opened again: the same figure, and the file was not read for it.
+  panel = await openInfoOn('ledger.txt');
+  await expect(panel.locator('[data-test="info-checksum-sha256"]')).toHaveText(sha256);
+  expect(reads()).toBe(1);
+
+  // Two disk images, and the one-word answer the menu asks for. Side by side
+  // they cannot be compared at all, so this entry has to be offered where that
+  // one is not.
+  await page.goto('/browse/Projects');
+  await page.getByRole('button', { name: 'Select image-a.iso' }).click();
+  await page.getByRole('button', { name: 'Select image-b.iso' }).click();
+  await page.getByRole('button', { name: 'Select image-b.iso' }).click({ button: 'right' });
+  await expect(page.getByRole('button', { name: 'Compare 2 files', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Compare the checksums of 2 files' }).click();
+  await expect(page.getByText('The same file, byte for byte')).toBeVisible({ timeout: 20000 });
+
+  // And now the file is written to, which is what makes a remembered figure a
+  // lie. The panel goes back to having nothing to show.
+  fs.appendFileSync(path.join(volume, 'ledger.txt'), 'and one line more\n');
+  panel = await openInfoOn('ledger.txt');
+  await expect(panel).toContainText('Not taken yet.');
+  await expect(panel.locator('[data-test="info-checksum-sha256"]')).toHaveCount(0);
 });
 
 test('the page threw nothing along the way', () => {

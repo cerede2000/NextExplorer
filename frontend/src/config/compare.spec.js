@@ -18,7 +18,13 @@ vi.mock('@/config/editor', () => ({
 const features = { compareExtensions: [] };
 vi.mock('@/stores/features', () => ({ useFeaturesStore: () => features }));
 
-import { canCompare, extensionOf, isComparableExtension, isComparableItem } from './compare';
+import {
+  canCompare,
+  canCompareChecksums,
+  extensionOf,
+  isComparableExtension,
+  isComparableItem,
+} from './compare';
 
 const file = (name, kind = '') => ({ name, path: 'Docs', kind: kind || name.split('.').pop() });
 
@@ -104,5 +110,47 @@ describe('a selection a comparison can be offered for', () => {
   /** Two kinds of text against each other is still two texts. */
   it('is two files of different kinds, since both are text', () => {
     expect(canCompare([file('a.txt'), file('b.json')])).toBe(true);
+  });
+});
+
+/**
+ * What the checksums can be compared for, which is not the same list.
+ *
+ * The side-by-side comparison takes the kinds it can lay out in two columns.
+ * This takes bytes, so it takes anything that has any — and the files somebody
+ * most wants it for, a film or a disk image, are exactly the ones the other
+ * list leaves out.
+ */
+describe('comparing what the bytes add up to', () => {
+  it('is two films, which cannot be compared side by side', () => {
+    expect(canCompareChecksums([file('holiday.mov'), file('holiday-2.mov')])).toBe(true);
+    expect(canCompare([file('holiday.mov'), file('holiday-2.mov')])).toBe(false);
+  });
+
+  it('is two of anything, including two kinds', () => {
+    expect(canCompareChecksums([file('disk.iso'), file('backup.zip')])).toBe(true);
+    expect(canCompareChecksums([file('a.txt'), file('b.txt')])).toBe(true);
+  });
+
+  it('is three of them too, and not four', () => {
+    expect(canCompareChecksums([file('a.bin'), file('b.bin'), file('c.bin')])).toBe(true);
+    expect(canCompareChecksums([file('a.bin'), file('b.bin'), file('c.bin'), file('d.bin')])).toBe(
+      false
+    );
+  });
+
+  it('is not one file, which has nothing to be compared with', () => {
+    expect(canCompareChecksums([file('a.bin')])).toBe(false);
+  });
+
+  it('is not a folder, a volume or a personal folder, which have no bytes', () => {
+    expect(canCompareChecksums([file('a.bin'), { name: 'Docs', kind: 'directory' }])).toBe(false);
+    expect(canCompareChecksums([file('a.bin'), { name: 'Data', kind: 'volume' }])).toBe(false);
+    expect(canCompareChecksums([file('a.bin'), { name: 'Mine', kind: 'personal' }])).toBe(false);
+  });
+
+  it('is nothing at all when nothing is selected', () => {
+    expect(canCompareChecksums([])).toBe(false);
+    expect(canCompareChecksums(null)).toBe(false);
   });
 });

@@ -80,7 +80,8 @@
     "moveDown": "Descendre",
     "confirm": "Confirmer",
     "closeAnyway": "Fermer quand même",
-    "leaveAnyway": "Quitter quand même"
+    "leaveAnyway": "Quitter quand même",
+    "copy": "Copier"
   },
   "editor": {
     "editing": "Édition en cours",
@@ -340,7 +341,8 @@
     "newsKindExtract": "Décompression",
     "newsKindCompress": "Compression",
     "newsKindRestore": "Restauration",
-    "newsKindOther": "Opération"
+    "newsKindOther": "Opération",
+    "newsKindChecksum": "Empreintes"
   },
   "volumes": {
     "quickAccess": "Accès rapide",
@@ -1552,5 +1554,18 @@
   },
   "quickActions": {
     "menu": "Actions rapides"
+  },
+  "checksums": {
+    "title": "Empreintes",
+    "notTaken": "Pas encore calculées.",
+    "take": "Calculer les empreintes",
+    "takeAgain": "Les recalculer",
+    "copy": "Copier le {algorithm}",
+    "compareCount": "Comparer les empreintes de {count} fichiers",
+    "same": "Le même fichier, octet pour octet",
+    "different": "Pas le même fichier",
+    "differentSizes": "Les tailles diffèrent : rien n’a eu besoin d’être lu.",
+    "reading": "Lecture de {name}…",
+    "readingCount": "Lecture de {count} {items}…"
   }
 }

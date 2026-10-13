@@ -80,7 +80,8 @@
     "moveDown": "Move down",
     "confirm": "Confirm",
     "closeAnyway": "Close anyway",
-    "leaveAnyway": "Leave anyway"
+    "leaveAnyway": "Leave anyway",
+    "copy": "Copy"
   },
   "editor": {
     "editing": "Editing",
@@ -340,7 +341,8 @@
     "newsKindExtract": "Extraction",
     "newsKindCompress": "Compression",
     "newsKindRestore": "Restore",
-    "newsKindOther": "Operation"
+    "newsKindOther": "Operation",
+    "newsKindChecksum": "Checksums"
   },
   "volumes": {
     "quickAccess": "Quick access",
@@ -1552,5 +1554,18 @@
   },
   "quickActions": {
     "menu": "Quick actions"
+  },
+  "checksums": {
+    "title": "Checksums",
+    "notTaken": "Not taken yet.",
+    "take": "Take the checksums",
+    "takeAgain": "Take them again",
+    "copy": "Copy the {algorithm}",
+    "compareCount": "Compare the checksums of {count} files",
+    "same": "The same file, byte for byte",
+    "different": "Not the same file",
+    "differentSizes": "Their sizes differ, so nothing had to be read.",
+    "reading": "Reading {name}…",
+    "readingCount": "Reading {count} {items}…"
   }
 }

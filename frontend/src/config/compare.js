@@ -44,11 +44,13 @@ export const extensionOf = (item) => {
   return String(fromName || item?.kind || '').toLowerCase();
 };
 
+/** Whether an entry in a listing is a file at all, rather than a place. */
+const isFileEntry = (item) =>
+  Boolean(item) && item.kind !== 'directory' && item.kind !== 'volume' && item.kind !== 'personal';
+
 /** Whether an entry in a listing is a file this application will compare. */
 export const isComparableItem = (item) => {
-  if (!item || item.kind === 'directory' || item.kind === 'volume' || item.kind === 'personal') {
-    return false;
-  }
+  if (!isFileEntry(item)) return false;
   return isComparableExtension(extensionOf(item));
 };
 
@@ -67,4 +69,20 @@ export const canCompare = (items) => {
   const files = Array.isArray(items) ? items : [];
   if (files.length < MIN_COMPARED || files.length > MAX_COMPARED) return false;
   return files.every((item) => isComparableItem(item));
+};
+
+/**
+ * Whether this selection is one whose *checksums* could be compared.
+ *
+ * The same two or three, and files rather than places — but any files at all.
+ * A side-by-side comparison needs text it can lay out in two columns, which is
+ * why it is offered for so few kinds; this needs bytes, and the question it
+ * answers is the one asked of a film, a disk image or an archive, which no
+ * comparison of text can answer. Gating it on the other one's list of
+ * extensions would have withheld it from everything it is for.
+ */
+export const canCompareChecksums = (items) => {
+  const files = Array.isArray(items) ? items : [];
+  if (files.length < MIN_COMPARED || files.length > MAX_COMPARED) return false;
+  return files.every((item) => isFileEntry(item));
 };

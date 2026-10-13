@@ -16,6 +16,7 @@ const {
   ConflictError,
 } = require('../errors/AppError');
 const folderSizeHooks = require('./folderSizeHooks');
+const checksums = require('./checksums');
 const pathBindings = require('./pathBindingsService');
 const versionLifecycle = require('./versions/lifecycle');
 
@@ -118,6 +119,8 @@ const renameEntry = async ({ context, parentRelative, currentName, newName }) =>
   await pathBindings.movePath(currentRelative, targetRelative);
   // And the file's history, or the histories of everything inside the folder.
   await versionLifecycle.onMoved(currentAbsolute, targetAbsolute);
+  // And what its bytes add up to: a rename changes the name, not the content.
+  await checksums.moved(currentAbsolute, targetAbsolute);
 
   return {
     absolutePath: targetAbsolute,

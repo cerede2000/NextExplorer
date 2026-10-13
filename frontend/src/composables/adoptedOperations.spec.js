@@ -205,6 +205,26 @@ describe('the news nobody gave this reader', () => {
     expect(forgetTaskNews).toHaveBeenCalledWith(['lost-1', 'lost-2', 'done-1', 'done-2', 'bad-1']);
   });
 
+  /**
+   * Every kind the register can hold has words of its own here, or it is told
+   * as "an operation" — true, and no use to somebody deciding whether to care.
+   */
+  it('names a reading of checksums rather than calling it an operation', async () => {
+    show({
+      answer: {
+        items: [],
+        interrupted: [],
+        unreported: [{ id: 'read-1', kind: 'checksum', outcome: 'done', name: 'holiday.mkv' }],
+      },
+    });
+    await looked();
+
+    const [[told]] = notifications.addNotification.mock.calls;
+
+    expect(told.body).toContain('transfers.newsKindChecksum → holiday.mkv');
+    expect(told.body).not.toContain('transfers.newsKindOther');
+  });
+
   it('says nothing about a kind of news there is none of', async () => {
     show({
       answer: {

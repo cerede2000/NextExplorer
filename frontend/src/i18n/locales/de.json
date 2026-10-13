@@ -80,7 +80,8 @@
     "moveDown": "Nach unten",
     "confirm": "Bestätigen",
     "closeAnyway": "Trotzdem schließen",
-    "leaveAnyway": "Trotzdem verlassen"
+    "leaveAnyway": "Trotzdem verlassen",
+    "copy": "Kopieren"
   },
   "editor": {
     "editing": "Wird bearbeitet",
@@ -340,7 +341,8 @@
     "newsKindExtract": "Entpacken",
     "newsKindCompress": "Packen",
     "newsKindRestore": "Wiederherstellen",
-    "newsKindOther": "Vorgang"
+    "newsKindOther": "Vorgang",
+    "newsKindChecksum": "Prüfsummen"
   },
   "volumes": {
     "quickAccess": "Schnellzugriff",
@@ -1552,5 +1554,18 @@
   },
   "quickActions": {
     "menu": "Schnellaktionen"
+  },
+  "checksums": {
+    "title": "Prüfsummen",
+    "notTaken": "Noch nicht gebildet.",
+    "take": "Prüfsummen bilden",
+    "takeAgain": "Erneut bilden",
+    "copy": "{algorithm} kopieren",
+    "compareCount": "Prüfsummen von {count} Dateien vergleichen",
+    "same": "Dieselbe Datei, Byte für Byte",
+    "different": "Nicht dieselbe Datei",
+    "differentSizes": "Die Größen unterscheiden sich, es musste nichts gelesen werden.",
+    "reading": "{name} wird gelesen…",
+    "readingCount": "{count} {items} werden gelesen…"
   }
 }

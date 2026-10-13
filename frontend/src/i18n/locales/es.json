@@ -80,7 +80,8 @@
     "moveDown": "Bajar",
     "confirm": "Confirmar",
     "closeAnyway": "Cerrar de todos modos",
-    "leaveAnyway": "Salir de todos modos"
+    "leaveAnyway": "Salir de todos modos",
+    "copy": "Copiar"
   },
   "editor": {
     "editing": "Editando",
@@ -340,7 +341,8 @@
     "newsKindExtract": "Extracción",
     "newsKindCompress": "Compresión",
     "newsKindRestore": "Restauración",
-    "newsKindOther": "Operación"
+    "newsKindOther": "Operación",
+    "newsKindChecksum": "Sumas de verificación"
   },
   "volumes": {
     "quickAccess": "Acceso rápido",
@@ -1552,5 +1554,18 @@
   },
   "quickActions": {
     "menu": "Acciones rápidas"
+  },
+  "checksums": {
+    "title": "Sumas de verificación",
+    "notTaken": "Aún no calculadas.",
+    "take": "Calcular las sumas",
+    "takeAgain": "Calcularlas de nuevo",
+    "copy": "Copiar el {algorithm}",
+    "compareCount": "Comparar las sumas de {count} archivos",
+    "same": "El mismo archivo, byte a byte",
+    "different": "No es el mismo archivo",
+    "differentSizes": "Sus tamaños difieren, así que no hubo que leer nada.",
+    "reading": "Leyendo {name}…",
+    "readingCount": "Leyendo {count} {items}…"
   }
 }

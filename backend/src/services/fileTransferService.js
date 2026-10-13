@@ -1104,6 +1104,9 @@ const executeTransfer = async (prep, operation, onProgress, options = {}) => {
         // And the histories, whose versions stay where they were kept: even to
         // another volume, nothing is copied for them. A copy starts with none.
         await require('./versions/lifecycle').onMoved(plan.sourceAbsolute, targetAbsolute);
+        // The checksums follow too: the bytes did not change, so neither did
+        // what they add up to, and a file that moved is not one to read again.
+        await require('./checksums').moved(plan.sourceAbsolute, targetAbsolute);
       }
 
       unreadableTotal += unreachable.count;
@@ -1472,6 +1475,10 @@ const deleteItems = async (items = [], options = {}) => {
     const removedFavoriteCount = await pathBindings.forgetPath(relativePath, {
       includeChildren: isDirectoryEntry,
     });
+    // And what its bytes added up to, which nothing will ask about again.
+    // Housekeeping only: a row for a file that is gone could never match
+    // anything, since what a row is keyed by is the file itself.
+    await require('./checksums').forget(absolutePath);
     results[index] = {
       path: relativePath,
       status: trashItemId ? 'trashed' : 'deleted',

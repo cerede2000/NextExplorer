@@ -21,6 +21,10 @@ const i18n = createI18n({
   messages: {
     en: {
       common: { item: 'item', items: 'items', to: 'to', cancel: 'Cancel', close: 'Close' },
+      checksums: {
+        reading: 'Reading {name}…',
+        readingCount: 'Reading {count} {items}…',
+      },
       clipboard: {
         working: 'Working…',
         perSecond: '{value}/s',
@@ -63,6 +67,29 @@ describe('ClipboardProgress', () => {
     store.startOperation({ type: 'restore', itemCount: 2, destination: 'Archive' });
 
     expect(mountPanel().text()).toContain('Restoring 2 items…');
+  });
+
+  /**
+   * A reading has to say it is a reading.
+   *
+   * It shows what every transfer shows — bytes read against bytes to read, a
+   * percentage, a cancel — so it falls through to the words a copy uses unless
+   * it is named, and somebody comparing two files is told their files are
+   * being copied somewhere.
+   */
+  it('names a checksum for the file it is reading', () => {
+    store.startOperation({ type: 'checksum', name: 'holiday.mkv', itemCount: 1 });
+
+    expect(mountPanel().text()).toContain('Reading holiday.mkv…');
+  });
+
+  it('counts the files where a checksum is reading more than one', () => {
+    store.startOperation({ type: 'checksum', itemCount: 2 });
+
+    const shown = mountPanel().text();
+
+    expect(shown).toContain('Reading 2 items…');
+    expect(shown).not.toContain('Copying');
   });
 
   it('counts the transfer while bytes are still going out', () => {

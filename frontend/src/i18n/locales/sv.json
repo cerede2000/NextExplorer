@@ -80,7 +80,8 @@
     "moveDown": "Flytta ner",
     "confirm": "Bekräfta",
     "closeAnyway": "Stäng ändå",
-    "leaveAnyway": "Lämna ändå"
+    "leaveAnyway": "Lämna ändå",
+    "copy": "Kopiera"
   },
   "editor": {
     "editing": "Redigerar",
@@ -340,7 +341,8 @@
     "newsKindExtract": "Uppackning",
     "newsKindCompress": "Packning",
     "newsKindRestore": "Återställning",
-    "newsKindOther": "Åtgärd"
+    "newsKindOther": "Åtgärd",
+    "newsKindChecksum": "Kontrollsummor"
   },
   "volumes": {
     "quickAccess": "Snabbåtkomst",
@@ -1552,5 +1554,18 @@
   },
   "quickActions": {
     "menu": "Snabbåtgärder"
+  },
+  "checksums": {
+    "title": "Kontrollsummor",
+    "notTaken": "Inte tagna ännu.",
+    "take": "Ta kontrollsummorna",
+    "takeAgain": "Ta dem igen",
+    "copy": "Kopiera {algorithm}",
+    "compareCount": "Jämför kontrollsummorna för {count} filer",
+    "same": "Samma fil, byte för byte",
+    "different": "Inte samma fil",
+    "differentSizes": "Storlekarna skiljer sig, så inget behövde läsas.",
+    "reading": "Läser {name}…",
+    "readingCount": "Läser {count} {items}…"
   }
 }

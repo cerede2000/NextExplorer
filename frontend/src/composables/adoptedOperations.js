@@ -46,6 +46,7 @@ const KIND_LABELS = {
   extract: 'transfers.newsKindExtract',
   compress: 'transfers.newsKindCompress',
   restore: 'transfers.newsKindRestore',
+  checksum: 'transfers.newsKindChecksum',
 };
 
 export const useAdoptedOperations = () => {

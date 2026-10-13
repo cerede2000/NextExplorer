@@ -80,7 +80,8 @@
     "moveDown": "Mută în jos",
     "confirm": "Confirmă",
     "closeAnyway": "Închide oricum",
-    "leaveAnyway": "Pleacă oricum"
+    "leaveAnyway": "Pleacă oricum",
+    "copy": "Copiază"
   },
   "editor": {
     "editing": "În curs de editare",
@@ -340,7 +341,8 @@
     "newsKindExtract": "Dezarhivare",
     "newsKindCompress": "Arhivare",
     "newsKindRestore": "Restaurare",
-    "newsKindOther": "Operațiune"
+    "newsKindOther": "Operațiune",
+    "newsKindChecksum": "Sume de control"
   },
   "volumes": {
     "quickAccess": "Acces rapid",
@@ -1552,5 +1554,18 @@
   },
   "quickActions": {
     "menu": "Acțiuni rapide"
+  },
+  "checksums": {
+    "title": "Sume de control",
+    "notTaken": "Încă necalculate.",
+    "take": "Calculează sumele",
+    "takeAgain": "Calculează din nou",
+    "copy": "Copiază {algorithm}",
+    "compareCount": "Compară sumele a {count} fișiere",
+    "same": "Același fișier, octet cu octet",
+    "different": "Nu este același fișier",
+    "differentSizes": "Dimensiunile diferă, deci nu a fost nevoie să se citească nimic.",
+    "reading": "Se citește {name}…",
+    "readingCount": "Se citesc {count} {items}…"
   }
 }

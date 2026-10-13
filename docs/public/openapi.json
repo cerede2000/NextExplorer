@@ -3764,6 +3764,276 @@
         }
       }
     },
+    "/api/files/checksums": {
+      "get": {
+        "operationId": "knownChecksums",
+        "summary": "What is already known about a file",
+        "description": "Answers from what was remembered the last time the file was read, and reads nothing — `digests` is null until somebody asks for the bytes to be read. A checksum is remembered against the file it was taken from, so one taken before an edit is never answered afterwards.",
+        "tags": ["Files"],
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "x-access": "account",
+        "parameters": [
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "description": "The file.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "What is known, which may be nothing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "size": {
+                      "type": "integer",
+                      "description": "Bytes."
+                    },
+                    "algorithms": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "What this server takes."
+                    },
+                    "digests": {
+                      "type": ["object", "null"],
+                      "properties": {
+                        "md5": {
+                          "type": "string"
+                        },
+                        "sha1": {
+                          "type": "string"
+                        },
+                        "sha256": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["md5", "sha1", "sha256"]
+                    },
+                    "computedAt": {
+                      "type": ["string", "null"],
+                      "description": "When the bytes were read.",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": ["path", "name", "size", "algorithms", "digests", "computedAt"]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      },
+      "post": {
+        "operationId": "takeChecksums",
+        "summary": "Read files and answer what they add up to",
+        "description": "The slowest thing done to a file that is not being moved, so it is an operation of its own: it reports as it reads, `POST /api/tasks/{id}/cancel` stops it, and closing the tab no longer loses the reading. Files already read and unchanged since are answered from memory. With `compare`, the answer also says whether they are the same — and files of different sizes are answered without reading any of them, which `because: “size”` says.",
+        "tags": ["Files"],
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "x-access": "account",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "path": {
+                          "type": "string",
+                          "description": "The folder it is in."
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["path", "name"]
+                    }
+                  },
+                  "compare": {
+                    "type": "boolean",
+                    "description": "Also say whether these files are the same."
+                  }
+                },
+                "required": ["items"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Progress as it reads, and what the files add up to.",
+            "content": {
+              "application/x-ndjson": {
+                "schema": {
+                  "description": "One line; the stream is a sequence of these.",
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "const": "start"
+                        }
+                      },
+                      "required": ["type"],
+                      "additionalProperties": true
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "const": "progress"
+                        }
+                      },
+                      "required": ["type"],
+                      "additionalProperties": true
+                    },
+                    {
+                      "allOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "const": "done"
+                            }
+                          },
+                          "required": ["type"]
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "success": {
+                              "type": "boolean"
+                            },
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "path": {
+                                    "type": "string"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "size": {
+                                    "type": "integer",
+                                    "description": "Bytes."
+                                  },
+                                  "digests": {
+                                    "type": ["object", "null"],
+                                    "properties": {
+                                      "md5": {
+                                        "type": "string"
+                                      },
+                                      "sha1": {
+                                        "type": "string"
+                                      },
+                                      "sha256": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": ["md5", "sha1", "sha256"]
+                                  },
+                                  "changedWhileReading": {
+                                    "type": "boolean",
+                                    "description": "The file was written to while it was being read, so this answer is of no file in particular and was not remembered."
+                                  }
+                                },
+                                "required": ["path", "name", "size", "digests"]
+                              }
+                            },
+                            "identical": {
+                              "type": ["boolean", "null"],
+                              "description": "Whether the files are the same; null unless `compare` was asked for."
+                            },
+                            "because": {
+                              "type": "string",
+                              "description": "What settled it without reading: `size`."
+                            }
+                          },
+                          "required": ["success", "items", "identical"]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "const": "error"
+                        },
+                        "message": {
+                          "type": "string"
+                        },
+                        "code": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["type", "message"],
+                      "additionalProperties": true
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          },
+          "404": {
+            "$ref": "#/components/responses/E404"
+          }
+        }
+      }
+    },
     "/api/tasks": {
       "get": {
         "operationId": "listOperations",
@@ -3797,7 +4067,15 @@
                           },
                           "kind": {
                             "type": "string",
-                            "examples": ["copy", "move", "delete", "extract", "compress", "restore"]
+                            "examples": [
+                              "copy",
+                              "move",
+                              "delete",
+                              "extract",
+                              "compress",
+                              "restore",
+                              "checksum"
+                            ]
                           },
                           "state": {
                             "type": "string",

@@ -163,6 +163,18 @@ const titleFor = (value) => {
       items: count === 1 ? t('common.item') : t('common.items'),
     });
   }
+  // What a checksum reads is files, and saying so matters more here than
+  // anywhere: it falls between a copy and a download in everything it shows —
+  // bytes read against bytes to read — so without its own words it is drawn as
+  // a copy, and reading two files to compare them reads 'Copying 2 items'.
+  if (value.type === 'checksum') {
+    if (value.name) return t('checksums.reading', { name: value.name });
+    const files = Number(value.itemCount) || 1;
+    return t('checksums.readingCount', {
+      count: files,
+      items: files === 1 ? t('common.item') : t('common.items'),
+    });
+  }
   if (value.type === 'extract') return t('clipboard.extracting', { name: value.name || '' });
   if (value.type === 'compress') return t('clipboard.compressing', { name: value.name || '' });
   if (value.type === 'upload') {

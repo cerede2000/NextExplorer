@@ -11,6 +11,7 @@ import {
   ArrowRightCircleIcon,
   ArrowTopRightOnSquareIcon,
   ClockIcon,
+  FingerPrintIcon,
 } from '@heroicons/vue/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/vue/24/solid';
 import {
@@ -214,15 +215,34 @@ const itemSections = (situation, run, entries, words) => {
   // it would do something — tabs on, and an entry that has an address of its own.
   // Comparing two or three files, beside opening one: both are about what has been
   // chosen rather than about where it is, and this is the one that needs more than one.
-  if (situation.canCompare) {
-    sections.push([
-      mk(
-        'compare',
-        t('compare.compareCount', { count: situation.comparedCount || 2 }),
-        ArrowsRightLeftIcon,
-        run.compare
-      ),
-    ]);
+  // The other way two files are compared, and the only one that works on a film
+  // or a disk image: not what they say side by side, but whether they are the
+  // same bytes. Beside the first because it answers the same question — and on
+  // its own condition, because a side-by-side comparison is offered for the few
+  // kinds it can lay out in two columns, and this one is for anything at all.
+  if (situation.canCompare || situation.canCompareChecksums) {
+    const comparing = [];
+    if (situation.canCompare) {
+      comparing.push(
+        mk(
+          'compare',
+          t('compare.compareCount', { count: situation.comparedCount || 2 }),
+          ArrowsRightLeftIcon,
+          run.compare
+        )
+      );
+    }
+    if (situation.canCompareChecksums) {
+      comparing.push(
+        mk(
+          'compare-checksums',
+          t('checksums.compareCount', { count: situation.comparedCount || 2 }),
+          FingerPrintIcon,
+          run.compareChecksums
+        )
+      );
+    }
+    sections.push(comparing);
   }
 
   // Beside opening in tabs, and offered whether or not tabs are on: a pane is not a

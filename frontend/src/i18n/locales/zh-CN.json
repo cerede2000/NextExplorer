@@ -80,7 +80,8 @@
     "moveDown": "下移",
     "confirm": "确认",
     "closeAnyway": "仍然关闭",
-    "leaveAnyway": "仍然离开"
+    "leaveAnyway": "仍然离开",
+    "copy": "复制"
   },
   "editor": {
     "editing": "编辑中",
@@ -340,7 +341,8 @@
     "newsKindExtract": "解压",
     "newsKindCompress": "压缩",
     "newsKindRestore": "恢复",
-    "newsKindOther": "操作"
+    "newsKindOther": "操作",
+    "newsKindChecksum": "校验和"
   },
   "volumes": {
     "quickAccess": "快速访问",
@@ -1552,5 +1554,18 @@
   },
   "quickActions": {
     "menu": "快捷操作"
+  },
+  "checksums": {
+    "title": "校验和",
+    "notTaken": "尚未计算。",
+    "take": "计算校验和",
+    "takeAgain": "重新计算",
+    "copy": "复制 {algorithm}",
+    "compareCount": "比较 {count} 个文件的校验和",
+    "same": "逐字节相同的文件",
+    "different": "不是同一个文件",
+    "differentSizes": "大小不同，因此无需读取任何内容。",
+    "reading": "正在读取 {name}…",
+    "readingCount": "正在读取 {count} {items}…"
   }
 }

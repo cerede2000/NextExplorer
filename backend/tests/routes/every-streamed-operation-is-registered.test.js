@@ -59,10 +59,11 @@ describe('an operation that streams its progress', () => {
       return source.includes('streamAsTask') || source.includes('streamTask(');
     });
 
-    // Transfers, deletion, the two archive routes, the trash, and the addresses
-    // an operation is watched and stopped at.
+    // Transfers, deletion, checksums, the two archive routes, the trash, and
+    // the addresses an operation is watched and stopped at.
     expect(streaming.map(named).sort()).toEqual([
       'routes/archive.js',
+      'routes/files/checksums.js',
       'routes/files/delete.js',
       'routes/files/transfer.js',
       'routes/tasks.js',

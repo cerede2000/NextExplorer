@@ -80,7 +80,8 @@
     "moveDown": "下移",
     "confirm": "確認",
     "closeAnyway": "仍要關閉",
-    "leaveAnyway": "仍要離開"
+    "leaveAnyway": "仍要離開",
+    "copy": "複製"
   },
   "editor": {
     "editing": "編輯中",
@@ -340,7 +341,8 @@
     "newsKindExtract": "解壓縮",
     "newsKindCompress": "壓縮",
     "newsKindRestore": "還原",
-    "newsKindOther": "操作"
+    "newsKindOther": "操作",
+    "newsKindChecksum": "校驗和"
   },
   "volumes": {
     "quickAccess": "快速訪問",
@@ -1552,5 +1554,18 @@
   },
   "quickActions": {
     "menu": "快速動作"
+  },
+  "checksums": {
+    "title": "校驗和",
+    "notTaken": "尚未計算。",
+    "take": "計算校驗和",
+    "takeAgain": "重新計算",
+    "copy": "複製 {algorithm}",
+    "compareCount": "比較 {count} 個檔案的校驗和",
+    "same": "逐位元組相同的檔案",
+    "different": "不是同一個檔案",
+    "differentSizes": "大小不同，因此不需要讀取任何內容。",
+    "reading": "正在讀取 {name}…",
+    "readingCount": "正在讀取 {count} {items}…"
   }
 }

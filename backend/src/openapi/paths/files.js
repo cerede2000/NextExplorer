@@ -23,6 +23,16 @@ const TAG = 'Files';
 const itemRef = obj({ path: str('The folder it is in.'), name: str() }, ['path', 'name']);
 const created = obj({ success: bool(), item: ref('Item') }, ['success', 'item']);
 
+/** What a file's bytes add up to, under every algorithm this server takes. */
+const digestsSchema = obj(
+  {
+    md5: str(),
+    sha1: str(),
+    sha256: str(),
+  },
+  ['md5', 'sha1', 'sha256']
+);
+
 /**
  * What a long operation writes as it goes: one JSON object per line, ending
  * with `done` or `error`. A refusal found once the answer has begun can only
@@ -220,6 +230,81 @@ module.exports = {
       },
     }),
   },
+  '/api/files/checksums': {
+    get: op({
+      id: 'knownChecksums',
+      summary: 'What is already known about a file',
+      description:
+        'Answers from what was remembered the last time the file was read, and reads nothing \u2014 `digests` is null until somebody asks for the bytes to be read. A checksum is remembered against the file it was taken from, so one taken before an edit is never answered afterwards.',
+      tag: TAG,
+      access: 'account',
+      params: [query('path', 'The file.', { type: 'string' }, true)],
+      responses: {
+        200: json(
+          obj(
+            {
+              path: str(),
+              name: str(),
+              size: int('Bytes.'),
+              algorithms: arrayOf(str(), { description: 'What this server takes.' }),
+              digests: nullable(digestsSchema),
+              computedAt: nullable(dateTime('When the bytes were read.')),
+            },
+            ['path', 'name', 'size', 'algorithms', 'digests', 'computedAt']
+          ),
+          'What is known, which may be nothing.'
+        ),
+        ...errors(400, 401, 403, 404),
+      },
+    }),
+    post: op({
+      id: 'takeChecksums',
+      summary: 'Read files and answer what they add up to',
+      description:
+        'The slowest thing done to a file that is not being moved, so it is an operation of its own: it reports as it reads, `POST /api/tasks/{id}/cancel` stops it, and closing the tab no longer loses the reading. Files already read and unchanged since are answered from memory. With `compare`, the answer also says whether they are the same \u2014 and files of different sizes are answered without reading any of them, which `because: “size”` says.',
+      tag: TAG,
+      access: 'account',
+      body: body(
+        obj(
+          {
+            items: arrayOf(itemRef),
+            compare: bool('Also say whether these files are the same.'),
+          },
+          ['items']
+        )
+      ),
+      responses: {
+        200: ndjson(
+          obj(
+            {
+              success: bool(),
+              items: arrayOf(
+                obj(
+                  {
+                    path: str(),
+                    name: str(),
+                    size: int('Bytes.'),
+                    digests: nullable(digestsSchema),
+                    changedWhileReading: bool(
+                      'The file was written to while it was being read, so this answer is of no file in particular and was not remembered.'
+                    ),
+                  },
+                  ['path', 'name', 'size', 'digests']
+                )
+              ),
+              identical: nullable(
+                bool('Whether the files are the same; null unless `compare` was asked for.')
+              ),
+              because: str('What settled it without reading: `size`.'),
+            },
+            ['success', 'items', 'identical']
+          ),
+          'Progress as it reads, and what the files add up to.'
+        ),
+        ...errors(400, 401, 403, 404),
+      },
+    }),
+  },
   '/api/tasks': {
     get: op({
       id: 'listOperations',
@@ -250,7 +335,15 @@ the \`done\` event of the operation's own stream.`,
                   {
                     id: str(),
                     kind: str(null, {
-                      examples: ['copy', 'move', 'delete', 'extract', 'compress', 'restore'],
+                      examples: [
+                        'copy',
+                        'move',
+                        'delete',
+                        'extract',
+                        'compress',
+                        'restore',
+                        'checksum',
+                      ],
                     }),
                     state: str(null, { examples: ['running', 'done', 'failed', 'cancelled'] }),
                     destination: str(),

@@ -34,6 +34,8 @@ const RUN_NAMES = [
   'newFile',
   'openInTab',
   'openInPane',
+  'compare',
+  'compareChecksums',
 ];
 const handlers = () => Object.fromEntries(RUN_NAMES.map((name) => [name, vi.fn()]));
 
@@ -347,5 +349,55 @@ describe('opening something in the pane beside this one', () => {
     expect(entry(allowed({ canOpenInPane: true }), 'open-in-pane').label).toBe(
       'tabs.openInRightPane'
     );
+  });
+});
+
+/**
+ * The two ways two files are compared, which are offered on two conditions.
+ *
+ * A side-by-side comparison is offered for the kinds it can lay out in two
+ * columns, and that list is short. Comparing what the bytes add up to has no
+ * such limit, and withholding it from a film or a disk image would have
+ * withheld it from the files it is most for — which is what the one condition
+ * for both entries did.
+ */
+describe('comparing two files, the two ways', () => {
+  it('offers both where the text can be laid out side by side', () => {
+    expect(ids(allowed({ canCompare: true, canCompareChecksums: true }))).toContain('compare');
+    expect(ids(allowed({ canCompare: true, canCompareChecksums: true }))).toContain(
+      'compare-checksums'
+    );
+  });
+
+  it('offers the bytes alone for two films, which cannot be laid out at all', () => {
+    const offered = ids(allowed({ canCompare: false, canCompareChecksums: true }));
+
+    expect(offered).toContain('compare-checksums');
+    expect(offered).not.toContain('compare');
+  });
+
+  it('offers neither where nothing comparable is selected', () => {
+    const offered = ids(allowed({ canCompare: false, canCompareChecksums: false }));
+
+    expect(offered).not.toContain('compare');
+    expect(offered).not.toContain('compare-checksums');
+  });
+
+  it('runs the byte comparison and not the other one', () => {
+    const run = handlers();
+    const found = menu(allowed({ canCompare: true, canCompareChecksums: true }), run)
+      .flat()
+      .find((candidate) => candidate.id === 'compare-checksums');
+
+    found.run();
+
+    expect(run.compareChecksums).toHaveBeenCalledTimes(1);
+    expect(run.compare).not.toHaveBeenCalled();
+  });
+
+  it('says how many files it is about, in the catalogue’s own words', () => {
+    expect(
+      entry(allowed({ canCompareChecksums: true, comparedCount: 3 }), 'compare-checksums').label
+    ).toBe('checksums.compareCount');
   });
 });

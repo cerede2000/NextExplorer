@@ -8,6 +8,7 @@ import { useTabNavigation } from '@/composables/tabNavigation';
 import { explorerContextMenuSymbol } from '@/composables/contextMenu';
 import { buildMenuSections, quickActionAvailable } from '@/composables/contextMenuSections';
 import { useDeleteDialogWording } from '@/composables/deleteDialogWording';
+import { useChecksums } from '@/composables/useChecksums';
 import { useFileStore } from '@/stores/fileStore';
 import { useSelection } from '@/composables/itemSelection';
 import { useFileActions } from '@/composables/fileActions';
@@ -23,7 +24,7 @@ import { useVersionsPanelStore } from '@/stores/versionsPanel';
 import { useFavoriteEditor } from '@/composables/useFavoriteEditor';
 import { useTerminalStore } from '@/stores/terminal';
 import { useTabsStore } from '@/stores/tabs';
-import { canCompare } from '@/config/compare';
+import { canCompare, canCompareChecksums } from '@/config/compare';
 import { compareAddress, compareRoute } from '@/utils/compareRoute';
 import { useNotificationsStore } from '@/stores/notifications';
 import { useFeaturesStore } from '@/stores/features';
@@ -85,6 +86,7 @@ const referenceStyles = computed(() => ({
 }));
 
 const actions = useFileActions();
+const checksums = useChecksums();
 const { t } = useI18n();
 const notifications = useNotificationsStore();
 const hasSelection = actions.hasSelection;
@@ -302,6 +304,24 @@ const runOpenInTab = () => {
  * worth making.
  */
 const comparable = computed(() => canCompare(actions.selectedItems.value || []));
+const comparableBytes = computed(() => canCompareChecksums(actions.selectedItems.value || []));
+
+/**
+ * The other way of comparing: not what two files say, but whether they are the
+ * same bytes — which is the only comparison a film or a disk image has.
+ *
+ * Read in the server, as a registered operation: it says how far it has got, it
+ * can be stopped, and closing the tab no longer throws the reading away. The
+ * verdict arrives as a notification because it is one word; what each file adds
+ * up to is remembered, and its own panel shows it without reading again.
+ */
+const runCompareChecksums = () => {
+  const chosen = actions.selectedItems.value || [];
+  void checksums.compare(
+    chosen.map((item) => ({ path: item.path || '', name: item.name })),
+    { t }
+  );
+};
 
 const runCompare = () => {
   const chosen = actions.selectedItems.value || [];
@@ -543,6 +563,7 @@ const menuSections = computed(() => {
       canRename: actions.canRename.value,
       canDelete: actions.canDelete.value,
       canCompare: comparable.value,
+      canCompareChecksums: comparableBytes.value,
       comparedCount: (actions.selectedItems.value || []).length,
       canOpenInTab: openInTabTargets.value.length > 0,
       openInTabCount: openInTabTargets.value.length,
@@ -566,6 +587,7 @@ const menuSections = computed(() => {
       openInTab: runOpenInTab,
       openInPane: runOpenInPane,
       compare: runCompare,
+      compareChecksums: runCompareChecksums,
       download: runDownload,
       downloadAsZip: runDownloadAsZip,
       downloadSeparately: runDownloadSeparately,

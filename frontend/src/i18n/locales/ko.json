@@ -80,7 +80,8 @@
     "moveDown": "아래로 이동",
     "confirm": "확인",
     "closeAnyway": "그래도 닫기",
-    "leaveAnyway": "그래도 나가기"
+    "leaveAnyway": "그래도 나가기",
+    "copy": "복사"
   },
   "editor": {
     "editing": "편집 중",
@@ -340,7 +341,8 @@
     "newsKindExtract": "압축 풀기",
     "newsKindCompress": "압축",
     "newsKindRestore": "복원",
-    "newsKindOther": "작업"
+    "newsKindOther": "작업",
+    "newsKindChecksum": "체크섬"
   },
   "volumes": {
     "quickAccess": "빠른 접근",
@@ -1552,5 +1554,18 @@
   },
   "quickActions": {
     "menu": "빠른 작업"
+  },
+  "checksums": {
+    "title": "체크섬",
+    "notTaken": "아직 계산하지 않았습니다.",
+    "take": "체크섬 계산",
+    "takeAgain": "다시 계산",
+    "copy": "{algorithm} 복사",
+    "compareCount": "파일 {count}개의 체크섬 비교",
+    "same": "바이트까지 같은 파일입니다",
+    "different": "같은 파일이 아닙니다",
+    "differentSizes": "크기가 다르므로 아무것도 읽을 필요가 없었습니다.",
+    "reading": "{name} 읽는 중…",
+    "readingCount": "{count}{items} 읽는 중…"
   }
 }

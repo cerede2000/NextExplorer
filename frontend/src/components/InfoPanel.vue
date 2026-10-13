@@ -13,6 +13,7 @@ import FileIcon from '@/icons/FileIcon.vue';
 import MapPreview from '@/components/MapPreview.vue';
 import PermissionsPanel from '@/components/PermissionsPanel.vue';
 import { fetchMetadata, fetchPermissions, changePermissions, changeOwnership } from '@/api';
+import { useChecksums } from '@/composables/useChecksums';
 import { useI18n } from 'vue-i18n';
 
 const store = useInfoPanelStore();
@@ -49,6 +50,50 @@ const sizeLabel = computed(() => {
   if (typeof it.size === 'number') return formatBytes(it.size);
   return '';
 });
+
+/**
+ * What this file's bytes add up to.
+ *
+ * Asked for rather than offered: reading a film to the end is minutes, and
+ * nothing should happen because a panel was opened. What the panel does on its
+ * own is ask whether the answer is already known — it is remembered, and a file
+ * that changed never finds its own row, so what is shown is either this file's
+ * or nothing.
+ */
+const checksums = useChecksums();
+const digests = ref(null);
+const digestsTakenAt = ref('');
+const isFile = computed(() => Boolean(item.value) && item.value.kind !== 'directory');
+
+const readKnownChecksums = async () => {
+  digests.value = null;
+  digestsTakenAt.value = '';
+  if (!isFile.value || !relativePath.value) return;
+  const answer = await checksums.known(relativePath.value);
+  digests.value = answer?.digests || null;
+  digestsTakenAt.value = answer?.computedAt || '';
+};
+
+const takeChecksumsOfThisFile = async () => {
+  const target = item.value;
+  if (!target) return;
+  const answer = await checksums.take([{ path: target.path || '', name: target.name }], {
+    name: target.name,
+  });
+  const taken = answer?.items?.[0];
+  if (taken?.digests) {
+    digests.value = taken.digests;
+    digestsTakenAt.value = new Date().toISOString();
+  }
+};
+
+const copyDigest = async (value) => {
+  try {
+    await navigator.clipboard?.writeText(value);
+  } catch (_) {
+    /* a browser that refuses the clipboard leaves the text on screen to take */
+  }
+};
 
 const modifiedLabel = computed(() => {
   const it = item.value;
@@ -209,17 +254,22 @@ onMounted(() => {
 
 watch(isOpen, (open) => {
   document.body.classList.toggle('overflow-hidden', open);
-  if (open) {
-    loadDetails();
-    loadPermissions();
-  }
 });
 
-watch(relativePath, () => {
-  if (isOpen.value) {
-    loadDetails();
-    loadPermissions();
-  }
+/**
+ * What the panel reads, read once.
+ *
+ * Opening it on an entry changes both of these at the same moment, and two
+ * watchers meant everything was asked for twice — the details, the permissions,
+ * and now what the file adds up to. Reopening on the same entry still reads
+ * again, which is deliberate: the file may not be what it was when the panel
+ * was last shut.
+ */
+watch([isOpen, relativePath], ([open]) => {
+  if (!open) return;
+  loadDetails();
+  loadPermissions();
+  readKnownChecksums();
 });
 
 const cleanup = ref(() => {});
@@ -356,6 +406,59 @@ onBeforeUnmount(() => {
               <p class="break-all text-neutral-900 dark:text-neutral-100">
                 {{ locationLabel }}
               </p>
+            </div>
+
+            <!-- What the bytes add up to, when somebody asks -->
+            <div
+              v-if="isFile"
+              class="pt-2 border-t border-neutral-200 dark:border-white/5 space-y-2"
+              data-test="info-checksums"
+            >
+              <p
+                class="text-xs font-medium uppercase tracking-wide text-neutral-500 dark:text-neutral-400"
+              >
+                {{ t('checksums.title') }}
+              </p>
+
+              <dl v-if="digests" class="space-y-1">
+                <div
+                  v-for="(value, algorithm) in digests"
+                  :key="algorithm"
+                  class="flex items-baseline gap-2"
+                >
+                  <dt class="w-16 shrink-0 text-xs uppercase text-neutral-500">
+                    {{ algorithm }}
+                  </dt>
+                  <dd
+                    class="min-w-0 grow break-all font-mono text-xs text-neutral-900 dark:text-neutral-100"
+                    :data-test="`info-checksum-${algorithm}`"
+                  >
+                    {{ value }}
+                  </dd>
+                  <button
+                    type="button"
+                    class="shrink-0 rounded-md border border-neutral-300 px-2 py-0.5 text-xs text-neutral-700 hover:bg-neutral-100 dark:border-neutral-600 dark:text-neutral-200 dark:hover:bg-zinc-800"
+                    :aria-label="t('checksums.copy', { algorithm })"
+                    @click="copyDigest(value)"
+                  >
+                    {{ t('common.copy') }}
+                  </button>
+                </div>
+              </dl>
+
+              <p v-else class="text-sm text-neutral-600 dark:text-neutral-300">
+                {{ t('checksums.notTaken') }}
+              </p>
+
+              <button
+                type="button"
+                class="rounded-md border border-neutral-300 px-3 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100 disabled:opacity-60 dark:border-neutral-600 dark:text-neutral-200 dark:hover:bg-zinc-800"
+                data-test="info-take-checksums"
+                :disabled="checksums.running.value"
+                @click="takeChecksumsOfThisFile"
+              >
+                {{ digests ? t('checksums.takeAgain') : t('checksums.take') }}
+              </button>
             </div>
 
             <button

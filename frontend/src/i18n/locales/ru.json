@@ -80,7 +80,8 @@
     "moveDown": "Переместить вниз",
     "confirm": "Подтвердить",
     "closeAnyway": "Всё равно закрыть",
-    "leaveAnyway": "Всё равно уйти"
+    "leaveAnyway": "Всё равно уйти",
+    "copy": "Копировать"
   },
   "editor": {
     "editing": "Редактирование",
@@ -340,7 +341,8 @@
     "newsKindExtract": "Распаковка",
     "newsKindCompress": "Упаковка",
     "newsKindRestore": "Восстановление",
-    "newsKindOther": "Операция"
+    "newsKindOther": "Операция",
+    "newsKindChecksum": "Контрольные суммы"
   },
   "volumes": {
     "quickAccess": "Быстрый доступ",
@@ -1552,5 +1554,18 @@
   },
   "quickActions": {
     "menu": "Быстрые действия"
+  },
+  "checksums": {
+    "title": "Контрольные суммы",
+    "notTaken": "Ещё не вычислены.",
+    "take": "Вычислить контрольные суммы",
+    "takeAgain": "Вычислить заново",
+    "copy": "Скопировать {algorithm}",
+    "compareCount": "Сравнить контрольные суммы: файлов {count}",
+    "same": "Тот же файл, байт в байт",
+    "different": "Это не тот же файл",
+    "differentSizes": "Размеры различаются — читать ничего не потребовалось.",
+    "reading": "Чтение {name}…",
+    "readingCount": "Чтение {count} {items}…"
   }
 }
