@@ -6,6 +6,43 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v4.1.1 (2026-10-13)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v4.1.1)
+
+### Six advisories, and the one that mattered here
+
+`proxy-addr` could be made to trust an address it should not: an IPv4-mapped
+IPv6 form slipped through a trusted subnet, so a forwarded address could be
+chosen by whoever sent the header. This installation sets `trust proxy`, and
+`req.ip` is what the sign-in rate limiter counts attempts by and what the
+activity log writes down — a spoofed address is a limiter that counts the wrong
+bucket and a log that names the wrong caller. Raised to 2.0.8.
+
+`sharp` is raised to 0.35.5, which brings libvips 8.18.7 and with it the fix for
+the librsvg flaw it carried (CVE-2026-96889). It is the library that reads every
+uploaded picture to make a thumbnail, so it reads bytes nobody here chose.
+
+Four more, none of them this application's own code but all of them in the
+image: `http-cache-semantics` 4.3.0 (a `max-stale` path that could hand one
+caller's cached response to another), `fast-copy` 4.1.2 (stack exhaustion on a
+deeply nested value), `source-map-js` 1.2.2 (an event loop that could be held by
+crafted section offsets) and `dompurify` 3.4.17, which sanitises what a Markdown
+preview renders.
+
+The floors are raised where the dependency is declared here — `sharp` and
+`dompurify` — rather than only pinned in the lockfile, so a fresh resolution
+cannot drop back below the fixed version.
+
+### What is left, and why it stays
+
+Five advisories remain and none of them ships: `vite`, `esbuild`, `vitepress`,
+`@tailwindcss/typography` and `postcss-selector-parser` are the build and the
+documentation site. The two with the highest ratings describe a development
+server reading files it should not and an editor-launching helper on Windows,
+neither of which exists in a built artefact. Their fixes are major version
+changes, which is not what a patch release is for.
+
 ## v4.1.0 (2026-10-13)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v4.1.0)
