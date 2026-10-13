@@ -89,13 +89,23 @@ describe('reading a file’s details', () => {
     expect(response.status).toBe(404);
   });
 
+  /**
+   * The guard's own refusal, which is a 400 and not a 403 or a 404.
+   *
+   * It used to be one of those two: express 5.2's router collapsed the `..`
+   * segments before the handler saw them, so the path arrived flattened and was
+   * refused further in — by the path model, which could not find a volume called
+   * `..`. Express 5.3 hands the segments through, `normalizeRelativePath` sees
+   * the climb and throws. Which guard answers is asserted, for every address
+   * that takes a path, in `wildcard-path-traversal.test.js`; this is the one
+   * address whose other answers are pinned just above.
+   */
   it('refuses a path that leaves the volume', async () => {
     await seed();
 
     const response = await request(buildApp()).get('/api/metadata/../../etc/passwd');
 
-    expect([403, 404]).toContain(response.status);
-    expect(response.status).not.toBe(200);
+    expect(response.status).toBe(400);
   });
 
   /**

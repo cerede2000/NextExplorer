@@ -136,6 +136,16 @@ const extensions = computed(() => featuresStore.editorExtensions);
 npm run docs
 ```
 
+The docs site runs on a VitePress 2 pre-release, deliberately: VitePress 1 pins
+Vite 5, which carries three advisories with no fix in that line — a path
+traversal in how optimised dependencies serve their `.map` files, a
+`server.fs.deny` bypass on Windows alternate paths, and an NTLMv2 hash
+disclosure through UNC paths. None of them reaches the image, which ships no
+build tooling, but they sit in every checkout and in CI. VitePress 2 uses Vite
+8, which has none of them. The application's own build is untouched by this and
+stays on Vite 7: Vite 8 replaces Rollup with Rolldown, which re-chunks the whole
+bundle, and there is nothing to gain from that here.
+
 ### Single-port Dev via Vite proxy (recommended)
 
 Serve the SPA on port 3000 and proxy API calls to the backend on an internal port 3001.
