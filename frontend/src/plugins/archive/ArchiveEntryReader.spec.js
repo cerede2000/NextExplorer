@@ -45,15 +45,31 @@ const answer = ({ length = null, text = '', blob = null } = {}) => ({
 });
 
 /**
- * Long enough for the markdown renderer to arrive.
+ * Waits for the markdown renderer to arrive, rather than for a number of turns.
  *
  * It is loaded on demand, and a module load is not a microtask: flushing
- * promises once returns while the import is still in flight.
+ * promises once returns while the import is still in flight. This used to take
+ * five turns of the loop below and no notice of what it was waiting for, which
+ * is enough on an idle machine and not enough while two suites and a build
+ * compete for the processor — so the case failed for a reason that has nothing
+ * to do with anything it asserts, on somebody else's push.
+ *
+ * There is no number that is right, so it waits for the thing itself. The
+ * article is in the page as soon as the file is known to be markdown and stays
+ * empty until the renderer replaces its children, so children are the signal,
+ * and a deadline turns a renderer that never arrives into a failure that says
+ * so rather than a case that hangs.
  */
-const settle = async () => {
-  for (let turn = 0; turn < 5; turn += 1) {
+const RENDERED = '[data-testid="archive-reader-markdown"]';
+
+const settle = async (wrapper, selector = RENDERED) => {
+  const deadline = Date.now() + 5000;
+  for (;;) {
     await flushPromises();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    const target = wrapper.find(selector);
+    if (target.exists() && target.element.childNodes.length > 0) return;
+    if (Date.now() >= deadline) throw new Error(`nothing was rendered into ${selector} in 5s`);
+    await new Promise((resolve) => setTimeout(resolve, 5));
   }
 };
 
@@ -107,7 +123,7 @@ describe('reading an entry', () => {
     );
 
     const wrapper = await read({ name: 'notes.md', path: 'notes.md', size: 40 });
-    await settle();
+    await settle(wrapper);
 
     const rendered = wrapper.find('[data-testid="archive-reader-markdown"]');
     expect(rendered.html()).toContain('<h1>Title</h1>');
