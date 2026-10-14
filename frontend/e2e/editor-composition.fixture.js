@@ -1,4 +1,4 @@
-import { createApp, h } from 'vue';
+import { createApp, h, ref } from 'vue';
 
 import '../src/assets/main.css';
 import CodeSurface from '../src/components/editor/CodeSurface.vue';
@@ -34,6 +34,13 @@ const document_ = Array.from(
   (_, index) => `line ${index + 1} — plain text, nothing composed yet`
 ).join('\n');
 
+// The document as the page holds it, so a test can hand the editor a new one
+// the way the view does when it has re-read the file from the server.
+const content = ref(document_);
+window.__setContent = (text) => {
+  content.value = text;
+};
+
 const compositions = { started: 0, ended: 0, updates: 0, path: 'none' };
 window.__compositions = compositions;
 
@@ -61,7 +68,7 @@ createApp({
       h('section', { class: 'flex-1 min-h-0' }, [
         h('div', { class: 'flex h-full flex-col' }, [
           h(CodeSurface, {
-            content: document_,
+            content: content.value,
             autofocus: true,
             class: 'min-h-0 flex-1',
             onReady: ready,

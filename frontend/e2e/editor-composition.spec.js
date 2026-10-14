@@ -145,3 +145,66 @@ test('composing where every commit scrolls the view leaves exactly what was comp
   expect((await composed(page)).ended).toBeGreaterThanOrEqual(3);
   expect(after).toBe(`${before}alphabetagamma`);
 });
+
+/**
+ * The second half of this file: a document handed to the editor from outside
+ * while somebody is composing.
+ *
+ * The editor is given its document as a value, and a new value replaces what is
+ * on screen — which is how the page puts the file back after it has re-read it
+ * from the server. Under a live composition that is destructive: the keyboard
+ * holds a composition anchored where the text was, the document is swapped, and
+ * the commit lands wherever the keyboard still believes it is. The page guards
+ * the re-read on there being nothing unsaved, and a composition that has begun
+ * and not yet changed the document is not yet unsaved anything — so the guard
+ * has a gap exactly one request wide.
+ */
+const handOver = (page, line1) =>
+  page.evaluate((text) => {
+    const lines = window.__editorView.state.doc.toString().split('\n');
+    lines[0] = text;
+    window.__setContent(lines.join('\n'));
+  }, line1);
+
+const FROM_THE_SERVER = 'line 1 — as the server has it';
+
+test('a document handed over during a live composition does not land under it', async ({
+  page,
+}) => {
+  await ready(page);
+  const client = await page.context().newCDPSession(page);
+  const before = await held(page);
+
+  await select(page, DOCUMENT_LINE(1).length);
+  // A composition begun and deliberately not committed.
+  await client.send('Input.imeSetComposition', { text: 'bon', selectionStart: 3, selectionEnd: 3 });
+  await handOver(page, FROM_THE_SERVER);
+
+  // Still the reader's line, with their composition in it: the new document is
+  // waiting rather than in place.
+  const during = await held(page);
+  expect(during.split('\n')[0]).toBe(`${DOCUMENT_LINE(1)}bon`);
+
+  await client.send('Input.insertText', { text: 'bonjour' });
+
+  const after = await held(page);
+  // The word arrived where it was typed, and nothing else moved. Without the
+  // wait it committed into the middle of the line below, splicing itself into
+  // text nobody had touched.
+  expect(after).toBe(before.replace(DOCUMENT_LINE(1), `${DOCUMENT_LINE(1)}bonjour`));
+  expect(after).not.toContain(FROM_THE_SERVER);
+});
+
+test('a document handed over while nothing is composing replaces it at once', async ({ page }) => {
+  await ready(page);
+  const before = await held(page);
+
+  await handOver(page, FROM_THE_SERVER);
+  await expect
+    .poll(() => page.evaluate(() => window.__editorView.state.doc.line(1).text))
+    .toBe(FROM_THE_SERVER);
+
+  // Only the line the server differed on, and the rest of the file as it was:
+  // waiting for a composition must not have become waiting for anything else.
+  expect(await held(page)).toBe(before.replace(DOCUMENT_LINE(1), FROM_THE_SERVER));
+});

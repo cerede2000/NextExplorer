@@ -1786,7 +1786,7 @@
     },
     {
       "match": "^frontend/src/components/editor/CodeSurface\\.vue$",
-      "note": "where the reader is in a file, kept and put back, is the editor’s own answer here: a place in a long file is a line rather than a number of pixels, because a scroll position written into CodeMirror before it has measured is clamped to whatever fits. Travels with tabs, lot 2 — it is what makes a text tab come back where it was left"
+      "note": "where the reader is in a file, kept and put back, is the editor’s own answer here: a place in a long file is a line rather than a number of pixels, because a scroll position written into CodeMirror before it has measured is clamped to whatever fits. Travels with tabs, lot 2 — it is what makes a text tab come back where it was left And the document is never replaced while a composition is live, which travels with the same work: the page re-reads the file behind the editor and only holds back when something is unsaved, and a composition that has begun without yet changing the document is not yet unsaved anything — on Android not even a race, since placing the cursor on a word begins one. Swapped under the keyboard, the commit lands where the keyboard still believes it is: measured on a Pixel 7 profile, a word arriving in the middle of the line below. The batches have the version that replaces it regardless."
     },
     {
       "match": "^frontend/src/(components/NavButtons\\.vue|stores/terminal\\.js|utils/documentRoute\\.js)$",

@@ -70,6 +70,43 @@ const setDirty = (value) => {
   emit('dirty-change', value);
 };
 
+/**
+ * The document is never replaced while the reader is composing.
+ *
+ * Replacing it under a live composition corrupts it, and not subtly: the
+ * keyboard holds a composition anchored where the text was, the document is
+ * swapped, and the commit lands wherever the keyboard still believes it is.
+ * Measured on a Pixel 7 profile — a word committed after such a swap arrived in
+ * the middle of the line below, splicing itself into text nobody had touched.
+ * That is the shape of a report of "random characters" from a tablet.
+ *
+ * It is reachable because every virtual keyboard inserts text this way and the
+ * page re-reads the file behind the editor: the view only replaces what is on
+ * screen when nothing is unsaved, and a composition that has begun but not yet
+ * changed the document is not yet unsaved anything. On Android that gap is not
+ * a race at all — CodeMirror says so itself, that `compositionStarted` "will be
+ * the case a lot, since just putting the cursor on a word starts a composition
+ * there". So the document is clean, nothing is unsaved, the anchor is already
+ * placed, and the next thing the reader types commits against it.
+ *
+ * Such a replacement is dropped rather than held and applied when the
+ * composition ends. Holding it was written first and taken back out: a
+ * composition's last update can arrive while the flag is still set, so the
+ * document waits for an update that may never come, and a value that applies
+ * itself at an unpredictable later moment is worse than one that does not
+ * apply. Dropping is also the decision this component's caller already makes
+ * one keystroke later, since by then there is unsaved work — and the reader's
+ * own work outranks whatever was found on the disk.
+ */
+const replaceDocument = (current, content) => {
+  current.dispatch({
+    changes: { from: 0, to: current.state.doc.length, insert: content },
+    annotations: [Transaction.remote.of(true), Transaction.addToHistory.of(false)],
+  });
+  savedDoc = current.state.doc;
+  setDirty(false);
+};
+
 const trackChanges = EditorView.updateListener.of((update) => {
   if (!update.docChanged) return;
   // A replacement from `content` is not an edit: it is the new saved document.
@@ -106,12 +143,9 @@ watch(
     if (current.state.doc.length === content.length && current.state.doc.toString() === content) {
       return;
     }
-    current.dispatch({
-      changes: { from: 0, to: current.state.doc.length, insert: content },
-      annotations: [Transaction.remote.of(true), Transaction.addToHistory.of(false)],
-    });
-    savedDoc = current.state.doc;
-    setDirty(false);
+    // Never under a live composition: see `replaceDocument` above.
+    if (current.compositionStarted) return;
+    replaceDocument(current, content);
   }
 );
 
