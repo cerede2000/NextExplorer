@@ -140,21 +140,35 @@
         <p class="mt-1 text-sm text-neutral-400">{{ currentMedia.item.name }}</p>
       </div>
       <!--
-        A grid, so the video is actually contained.
+        The stage gives the video its size; the video never gives itself one.
 
-        `max-h-full` on the video used to resolve against this wrapper, whose
-        own height is content-driven — and a percentage against an indefinite
-        height computes to none. A portrait video therefore rendered at its
-        natural height and hung below the stage, which clips it: the control
-        bar was simply off-screen, and only fullscreen brought it back. A grid
-        area has a definite size, so the same percentage now means what it
-        says. Landscape videos, which fit either way, are laid out identically.
+        It used to be sized by its intrinsic dimensions and merely limited by
+        `max-h-full`/`max-w-full`, which works only for a video that has
+        intrinsic dimensions. Those come from the poster or from the file's own
+        metadata — and the poster is the generated thumbnail, which is missing
+        while the queue is behind, missing for a codec nothing could decode, and
+        missing when thumbnails are off, while a mobile browser does not load
+        metadata until the reader asks it to play. With neither, a video element
+        is 300x150: reported from an iPad as a 1080p film about 128 px tall whose
+        controls did nothing (nxzai#499). They did nothing because they were
+        drawn at the bottom of that small box, nowhere near the bottom of the
+        preview where the reader was tapping — one fault, two symptoms.
+
+        So both boxes are the stage's, and `object-contain` keeps the picture's
+        own shape inside them. The percentages resolve because each one is read
+        against a box that is already definite: the stage is a flex child with
+        `flex-1 min-h-0`, the wrapper fills it, and the video fills the wrapper.
+        An earlier version of this centred the video in a grid to the same end,
+        and it worked for exactly the videos that already had a size: with a
+        poster the track was sized to the poster, so the video took the poster's
+        height and overflowed the stage by it. Nothing centres anything here —
+        both boxes are the stage's, and `object-contain` does the centring.
       -->
-      <div v-else class="relative grid min-h-0 max-h-full max-w-full place-items-center">
+      <div v-else class="relative h-full w-full min-h-0">
         <video
           :key="currentMedia.key"
           ref="videoRef"
-          class="block min-h-0 max-h-full max-w-full bg-black"
+          class="block h-full w-full bg-black object-contain"
           controls
           autoplay
           playsinline

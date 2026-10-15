@@ -167,6 +167,11 @@
         "^hands the operation panel a way to stop it$"
       ],
       "note": "every long operation runs in the server now and the response is a window onto it, so the client counts for none of them and stops none of them by hanging up. What an archive operation needs from the panel — a bar, the operation's own figures, a cancel that asks the server — is one registration used by every gesture that starts one, so this file asks that it goes through it and the store's own suite holds what it does. `sends the archive path and shows a cancellable operation` is `sends the archive path and registers the operation, named for the archive`; `reports progress into the operation panel` is `watches it and names it through that registration`; `ignores a progress event with no usable percentage` moved with the reading of those figures, to `stores/operationTasks.adopt.spec.js`, where a figure that is not a number is no figure; and `hands the operation panel a way to stop it` is `hangs up on nothing to stop it`, which is the point — an abort would stop the watching and leave the extraction running."
+    },
+    {
+      "file": "^frontend/e2e/media-preview-layout\\.spec\\.js$",
+      "cases": ["^keeps its aspect ratio$"],
+      "note": "it read the ratio off the video element's box, which was the picture's box only because the poster was sizing the element — and that is the fault: with no poster and no loaded metadata a video element is 300x150, which is what an iPad showed of a 1080p film (nxzai#499). The element takes the stage's box now, so the ratio it would read is the stage's. The case is 'fills the stage, and contains the picture rather than stretching it' here: the box is asserted to be the stage's, which the ratio could not say, and the fit is what keeps the picture's own shape. The old assertion was also weaker than it read, passing on this desktop viewport against either shape, the two being 1.78 apart by coincidence of the window size."
     }
   ]
 }

@@ -42,12 +42,41 @@ const POSTERS = {
 
 const shape = new URLSearchParams(window.location.search).get('shape') || 'wide';
 
+/**
+ * `shape=none` is a video with no poster at all, which is not a contrivance.
+ *
+ * The poster is the file's thumbnail, and a file can have none: thumbnails are
+ * generated, so one is missing while the queue is behind, missing for a codec
+ * nothing could decode, and missing whenever they are turned off. With no
+ * poster the only other source of an intrinsic size is the video's own
+ * metadata — and a mobile browser does not load that until the reader asks it
+ * to play. The element then falls back to 300x150 whatever stage it is in.
+ */
 const item = {
   name: `${shape}.mp4`,
   kind: 'mp4',
   path: 'Test',
-  thumbnail: POSTERS[shape] || POSTERS.wide,
+  thumbnail: shape === 'none' ? null : POSTERS[shape] || POSTERS.wide,
 };
+
+/**
+ * The pane this preview is drawn in, which is what gives it a size.
+ *
+ * The component's root takes its box from `--pane-*`, set by the host that
+ * draws it; unset, `h-[var(--pane-height)]` is not a length and the whole
+ * preview collapses onto its content. Every assertion in the layout suite then
+ * measures a stage the video itself had sized — which is how a stage of 316x166
+ * came to contain a 300x150 video and call it contained. These are the values
+ * the host uses for a single pane.
+ */
+for (const [name, value] of Object.entries({
+  '--pane-top': '0px',
+  '--pane-left': '0px',
+  '--pane-width': '100vw',
+  '--pane-height': '100vh',
+})) {
+  document.documentElement.style.setProperty(name, value);
+}
 
 createApp(MediaPreview, {
   item,

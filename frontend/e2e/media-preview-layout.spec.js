@@ -24,8 +24,8 @@ import { expect, test } from '@playwright/test';
  */
 const shapeFor = (projectName) => (projectName.startsWith('mobile') ? 'xtall' : 'wide');
 
-/** The intrinsic size of each fixture poster, which is what sizes the element. */
-const POSTER_ASPECT = { wide: 1920 / 1080, xtall: 600 / 1600 };
+/** `p-2` on the stage: what the video fills is the stage minus its padding. */
+const STAGE_PADDING = 8;
 
 const boxes = async (page) => {
   const stage = await page.locator('[data-test="media-preview"]').boundingBox();
@@ -67,12 +67,25 @@ test.describe('a video in the preview', () => {
     expect(video.y + video.height).toBeLessThanOrEqual(stage.y + stage.height + 1);
   });
 
-  /** Contained, not squashed: the picture keeps the shape it was filmed in. */
-  test('keeps its aspect ratio', async ({ page }, testInfo) => {
-    const { video } = await boxes(page);
-    const expected = POSTER_ASPECT[shapeFor(testInfo.project.name)];
+  /**
+   * Contained, not squashed — but the element is no longer the picture's shape.
+   *
+   * It used to be: the video was sized by its poster and merely limited by the
+   * stage, so the box and the picture were the same rectangle and a ratio read
+   * off the box proved the picture was not squashed. That is what left a video
+   * with no poster at 300x150 (nxzai#499). The box is the stage's now and the
+   * fit is what keeps the picture's own shape inside it, so the fit is what is
+   * asserted — and the box is asserted to be the stage's, which the ratio could
+   * not say. On this desktop viewport the old assertion also happened to pass
+   * against the stage's shape, the two being 1.78 apart by coincidence of the
+   * window size, so it would not have caught this either.
+   */
+  test('fills the stage, and contains the picture rather than stretching it', async ({ page }) => {
+    const { stage, video } = await boxes(page);
 
-    expect(video.width / video.height).toBeCloseTo(expected, 1);
+    expect(video.width).toBeCloseTo(stage.width - STAGE_PADDING * 2, 0);
+    expect(video.height).toBeCloseTo(stage.height - STAGE_PADDING * 2, 0);
+    await expect(page.locator('video')).toHaveCSS('object-fit', 'contain');
   });
 
   /**
@@ -86,5 +99,56 @@ test.describe('a video in the preview', () => {
     if (!overlay) throw new Error('The swipe overlay is missing');
 
     expect(video.y + video.height - (overlay.y + overlay.height)).toBeGreaterThanOrEqual(40);
+  });
+});
+
+/**
+ * A video with no poster still fills the stage (nxzai#499).
+ *
+ * Reported from an iPad: a 1080p film rendered about 128 px tall instead of
+ * filling the preview, and its controls did nothing when tapped. Both are one
+ * fault. The element was sized by its intrinsic dimensions, which come from the
+ * poster or from the video's metadata — and a file whose thumbnail has not been
+ * generated has no poster, while a mobile browser does not load metadata until
+ * the reader asks it to play. With neither, a video element is 300x150. The
+ * controls are then drawn at the bottom of that small box, nowhere near where
+ * the reader taps, which is why they appeared dead rather than missing.
+ *
+ * Every other case here hands the element a poster, so each of them proves the
+ * stage contains a video that already had a size. This one gives it none.
+ */
+test.describe('a video with no poster', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/e2e/media-preview-shape.html?shape=none');
+    await expect(page.locator('video')).toBeVisible();
+  });
+
+  test('fills the stage rather than falling back to its own small size', async ({ page }) => {
+    const { stage, video } = await boxes(page);
+
+    // 300x150 is what a video element is with nothing to size it by; any stage
+    // here is far larger, so the failure is unmistakable rather than marginal.
+    expect(video.height).toBeGreaterThan(stage.height * 0.8);
+    expect(video.width).toBeGreaterThan(stage.width * 0.8);
+  });
+
+  test('leaves its control bar where the stage ends, so a tap reaches it', async ({ page }) => {
+    const CONTROL_BAR_HEIGHT = 40;
+    const { stage, video } = await boxes(page);
+
+    // The bar is drawn inside the bottom of the element. A reader taps the
+    // bottom of the preview, so that is where the bottom of the element has to be.
+    expect(video.y + video.height).toBeGreaterThan(stage.y + stage.height - CONTROL_BAR_HEIGHT);
+    expect(video.y + video.height).toBeLessThanOrEqual(stage.y + stage.height + 1);
+  });
+
+  test('contains the picture rather than stretching it', async ({ page }) => {
+    // The element is the stage's shape now, so what keeps a film from being
+    // squashed is the fit. Said plainly, because `contain` is also what a
+    // browser gives a video on its own: this does not hold the sizing above —
+    // it passes on the version that produced the fault — it holds against
+    // somebody later asking for `cover`, which fills the stage by cropping the
+    // film, and which is a one-word change away.
+    await expect(page.locator('video')).toHaveCSS('object-fit', 'contain');
   });
 });
