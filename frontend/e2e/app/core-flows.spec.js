@@ -5082,13 +5082,24 @@ test('a share lets nobody in without a reason, whatever address they walk at', a
  * still begins where the list does.
  */
 test('the mark on the first row cannot be painted over by what sits above', async () => {
+  // Photos view draws only photos, so there has to be one to select.
+  fs.writeFileSync(
+    path.join(volume, 'snap.png'),
+    Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==',
+      'base64'
+    )
+  );
   await page.goto('/browse/Projects');
   const wasOn = await page.evaluate(
     () => document.querySelector('[data-test="listing"]')?.dataset?.view
   );
 
   try {
-    for (const view of ['Grid view', 'Column view', 'List view']) {
+    // Every view, because each one draws its own selected state and the mark a
+    // reader presses is whatever that view paints: photos was reported (nxzai#500)
+    // with the other two, and it was the one still painting outside its box.
+    for (const view of ['Grid view', 'Column view', 'List view', 'Photos view']) {
       await page.getByRole('button', { name: view }).click();
       const first = page.locator('[data-keyboard-item-key]').first();
       await expect(first).toBeVisible();
@@ -5101,27 +5112,48 @@ test('the mark on the first row cannot be painted over by what sits above', asyn
         const above = heading
           ? heading.getBoundingClientRect().bottom
           : listing.closest('.overflow-auto').getBoundingClientRect().top;
+        // A box-shadow is a list, and the ring utilities leave fully transparent
+        // layers in it; only the ones that paint something are a mark.
+        const painting = (el) =>
+          getComputedStyle(el)
+            .boxShadow.split(/,(?![^(]*\))/)
+            .map((layer) => layer.trim())
+            .filter((layer) => layer && layer !== 'none' && !layer.includes('rgba(0, 0, 0, 0)'));
+        // The row carries the mark for the row a reader is on; the view's own
+        // selected state is on whatever element inside it says so.
+        const subjects = [item, ...item.querySelectorAll('[data-selected="true"]')];
         return {
-          mark: getComputedStyle(item).boxShadow,
+          marks: subjects.flatMap((el) =>
+            painting(el).map((layer) => ({ what: el.className.slice(0, 40), layer }))
+          ),
           room: item.getBoundingClientRect().top - above,
         };
       });
 
       // Drawn within the row rather than around it, which is what keeps it out
       // from under the toolbar — and the row did not move down to make room.
-      expect(drawn.mark, `${view}: nothing marks the row`).not.toBe('none');
-      expect(drawn.mark, `${view}: the mark is drawn outside the row`).toContain('inset');
+      expect(drawn.marks.length, `${view}: nothing marks the row`).toBeGreaterThan(0);
+      for (const { what, layer } of drawn.marks) {
+        expect(layer, `${view}: ${what} paints its mark outside the row`).toContain('inset');
+      }
       expect(drawn.room, `${view}: the first row was moved down to make room`).toBeLessThan(3);
     }
   } finally {
-    // These journeys share one page, and a view left switched is the next test's.
+    // These journeys share one page, and a view left switched is the next test's
+    // — which this loop made sharper by ending on photos, where everything that
+    // is not a photo is not drawn at all. A folder is then invisible, and the
+    // next test waits ninety seconds for a row that will never come. So there is
+    // always a view to go back to, and the restoring is checked rather than
+    // fired and hoped for.
     const back = {
       grid: 'Grid view',
       tab: 'Column view',
       list: 'List view',
       photos: 'Photos view',
     };
-    if (back[wasOn]) await page.getByRole('button', { name: back[wasOn] }).click();
+    const restore = back[wasOn] ?? 'List view';
+    await page.getByRole('button', { name: restore }).click();
+    await expect(page.locator('[data-keyboard-item-key]').first()).toBeVisible();
   }
 });
 

@@ -347,7 +347,14 @@ if (isTouchDevice.value) {
       :draggable="canDragDrop() && !isRenaming"
       class="photo-cell relative w-full rounded-md overflow-hidden cursor-pointer select-none bg-neutral-100 dark:bg-zinc-800/60 hover:brightness-105"
       :class="{
-        'ring-2 ring-blue-500 dark:ring-blue-400': selected,
+        // Inside the cell, never around it. A ring without `ring-inset` is
+        // painted outside the box, and the first row of a listing begins
+        // exactly where the sticky toolbar above it ends — so those two pixels
+        // went under the toolbar, which paints over whatever passes beneath it,
+        // and the mark came out open along its top edge (nxzai#500). The other
+        // views mark with a background, which cannot be clipped; this one was
+        // the last drawing outside itself.
+        'ring-2 ring-inset ring-blue-500 dark:ring-blue-400': selected,
         'opacity-60': isCut,
         'cursor-move': canDragDrop() && !isRenaming,
       }"
