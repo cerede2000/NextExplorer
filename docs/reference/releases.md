@@ -6,9 +6,120 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
-## v4.2.1 (2026-10-13)
+## v4.3.0 (2026-10-15)
 
-[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v4.2.1)
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v4.3.0)
+
+### Every long operation belongs to the person who asked, not to the tab
+
+A copy ran inside the request that asked for it, so closing the tab closed the
+socket and the socket aborted the transfer — half a folder at the destination,
+and nothing said about it. Opening the page again showed no trace of the thing
+that had been running a moment earlier.
+
+The work is registered in the server now and the response is only a window onto
+it. Closing the window detaches a watcher and nothing else; a page opened
+afterwards takes the operation up where it had got to; stopping one is a request
+of its own rather than hanging up. A task has an owner — an account, or a
+visitor's guest session — and is listed, watched and cancelled by that owner
+alone, and one started inside a share stays inside it.
+
+Every long operation is on the register, not only a transfer: a deletion, an
+archive packed or unpacked, entries taken out of one, a restore from the trash,
+and the reading of a file's digests. Nothing is resumed across a restart,
+deliberately — half a copy is a state on disk, not a plan — so what was in
+flight is written down, logged at the next start, and handed once to whoever
+launched it, with the paths.
+
+And an operation that finished while nobody was watching is no longer an
+operation nobody hears about: the outcome is kept and told the next time that
+person has a page open, grouped into one notification per kind.
+
+### An upload that was cut comes back to where it stopped
+
+A large file is sent in chunks, and the parts that arrived were kept on the
+server with nothing able to use them. Anybody whose connection dropped at
+ninety per cent sent the whole file again.
+
+The parts are offered back now: the application asks what is unfinished, shows
+it, and hands the same file over to carry on from the offset the server already
+has. The partial uploads expire on their own after a day.
+
+One case of this was broken and is worth naming, because its symptom was
+indistinguishable from the feature not existing. A file that starts as a single
+request, is refused for its size, and is re-queued to go in chunks is
+_re-added_ — and the identity under which the resumable uploader remembers an
+upload is built partly from a field the application fills in at that moment. Two
+attempts, two identities, so nothing was ever found to resume. The identity is
+now the one the file was added with, which is also the only case the feature
+exists for: a file small enough to go in one request never needed it.
+
+### What a file's bytes add up to, asked for once and remembered
+
+The panel could say how big a file is and when it changed, and not the one thing
+somebody asks before trusting a copy of it: whether the bytes are the same
+bytes. It answers md5, sha1 and sha256 now, read in a single pass over the file
+rather than three.
+
+Reading is minutes on a large file, so it is a task on the register like a copy:
+it is notified, it survives the tab that asked, and asking what is already known
+never starts a read. What is remembered is kept against an identity made of
+everything that moves when a file does — its size, its modification time, its
+inode and its birth time — so a digest remembered for a file that has since been
+edited is never handed back; that would be a wrong answer to the only question
+the feature exists to answer. A rename or a move carries it across, a deletion
+drops it.
+
+Two or three files can be compared instead, which is the question asked of a
+film, a disk image or an archive — the files no side-by-side comparison of text
+can say anything about. Two files of different sizes are answered without
+reading either, and the shortcut is reported rather than hidden: "identical" and
+"not the same size" are different sentences, and only one of them was measured.
+
+### Typing on a tablet no longer rearranges the document
+
+Every virtual keyboard inserts text through a composition — a provisional word,
+revised as the software guesses, committed when it is sure. The editor is handed
+its document as a value, and a new value replaces what is on screen, which is
+how the page puts the file back after re-reading it from the server. Under a live
+composition that is destructive: the keyboard holds an anchor where the text was,
+the document is swapped out from under it, and the commit lands wherever the
+keyboard still believes it is. Measured on a tablet profile, a word arrived in
+the middle of the line below, spliced into text nobody had touched.
+
+It was reachable because the guard was "nothing unsaved", and a composition that
+has begun without yet changing the document is not yet unsaved anything — on
+Android not a race at all, since placing the cursor on a word begins one. A
+replacement arriving while a composition is live is dropped now; the reader's own
+work outranks whatever was found on the disk, which is the decision the page
+already made one keystroke later.
+
+### The selection on the first row is whole again
+
+Selecting an item in the top row of a listing cut the top off its highlight,
+where the listing meets the toolbar above it. A listing begins exactly where
+that toolbar ends, and the toolbar paints over whatever passes beneath it, so a
+mark drawn outside its own box loses the pixels that sit under it. Grid, column
+and list views mark a selection with a background, which cannot be clipped; the
+photo view drew a ring, and a ring is painted outside its box unless it is told
+otherwise. It is drawn inside now, like the others. (nxzai#500)
+
+### A video fills the preview it is in
+
+A film could render a few hundred pixels across in the middle of a large
+preview, with controls that did nothing when tapped. Both are one fault: the
+element was sized by its own intrinsic dimensions, which come from the poster or
+from the file's metadata — and the poster is the generated thumbnail, so it is
+missing while the queue is behind, missing for a codec nothing could decode, and
+missing when thumbnails are off, while a mobile browser loads no metadata until
+the reader asks to play. With neither, a video element is 300 by 150. Its
+controls are drawn inside the bottom of that small box, nowhere near the bottom
+of the preview where the reader is tapping, which is why they read as dead
+rather than as missing.
+
+The stage gives the video its size now, and the picture keeps its own shape
+inside it, so nothing depends on the element knowing how big its film is before
+it has been played. (nxzai#499)
 
 ### A share link that stopped at a card
 
