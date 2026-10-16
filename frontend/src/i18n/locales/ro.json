@@ -439,7 +439,13 @@
     "uploads": "Se încarcă {count} {items}",
     "finalizing": "Se finalizează",
     "notArrivedHeading": "Un fișier nu a ajuns în întregime | {count} fișiere nu au ajuns în întregime",
-    "notArrivedBody": "Oferă din nou același fișier pentru a continua de unde s-a oprit — nimic din ce a fost deja trimis nu se trimite a doua oară."
+    "notArrivedBody": "Oferă din nou același fișier pentru a continua de unde s-a oprit — nimic din ce a fost deja trimis nu se trimite a doua oară.",
+    "reading": "Se citește folderul…",
+    "tooMany": {
+      "title": "Sunt multe fișiere",
+      "body": "{count} fișiere, {size}. Adăugarea atâtor fișiere durează un timp înainte ca primul byte să fie trimis.",
+      "confirm": "Adaugă oricum"
+    }
   },
   "info": {
     "aria": "Panou informații",

@@ -439,7 +439,13 @@
     "uploads": "Caricamento di {count} {items}",
     "finalizing": "Completamento",
     "notArrivedHeading": "Un file non è arrivato per intero | {count} file non sono arrivati per intero",
-    "notArrivedBody": "Fornisci di nuovo lo stesso file per riprendere da dove si è fermato: nulla di già inviato viene inviato due volte."
+    "notArrivedBody": "Fornisci di nuovo lo stesso file per riprendere da dove si è fermato: nulla di già inviato viene inviato due volte.",
+    "reading": "Lettura della cartella…",
+    "tooMany": {
+      "title": "Sono molti file",
+      "body": "{count} file, {size}. Aggiungerne così tanti richiede un po' di tempo prima che venga inviato il primo byte.",
+      "confirm": "Aggiungili comunque"
+    }
   },
   "info": {
     "aria": "Pannello informazioni",

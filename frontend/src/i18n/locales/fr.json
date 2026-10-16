@@ -439,7 +439,13 @@
     "uploads": "Téléversement de {count} {items}",
     "finalizing": "Finalisation",
     "notArrivedHeading": "Un fichier n’est pas arrivé en entier | {count} fichiers ne sont pas arrivés en entier",
-    "notArrivedBody": "Redonne le même fichier pour reprendre où il s’est arrêté — rien de ce qui est déjà envoyé ne repart."
+    "notArrivedBody": "Redonne le même fichier pour reprendre où il s’est arrêté — rien de ce qui est déjà envoyé ne repart.",
+    "reading": "Lecture du dossier…",
+    "tooMany": {
+      "title": "Cela fait beaucoup de fichiers",
+      "body": "{count} fichiers, {size}. En ajouter autant prend un moment avant que le premier octet ne soit envoyé.",
+      "confirm": "Les ajouter quand même"
+    }
   },
   "info": {
     "aria": "Panneau d'informations",

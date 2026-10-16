@@ -439,7 +439,13 @@
     "uploads": "Laddar upp {count} {items}",
     "finalizing": "Slutför",
     "notArrivedHeading": "En fil kom inte fram helt | {count} filer kom inte fram helt",
-    "notArrivedBody": "Lämna samma fil igen för att fortsätta där den stannade — inget som redan skickats skickas två gånger."
+    "notArrivedBody": "Lämna samma fil igen för att fortsätta där den stannade — inget som redan skickats skickas två gånger.",
+    "reading": "Läser mappen…",
+    "tooMany": {
+      "title": "Det är många filer",
+      "body": "{count} filer, {size}. Att lägga till så många tar en stund innan den första byten skickas.",
+      "confirm": "Lägg till ändå"
+    }
   },
   "info": {
     "aria": "Infopanel",

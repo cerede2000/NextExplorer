@@ -439,7 +439,13 @@
     "uploads": "正在上傳 {count} 個{items}",
     "finalizing": "正在收尾",
     "notArrivedHeading": "一個檔案沒有完整抵達 | {count} 個檔案沒有完整抵達",
-    "notArrivedBody": "再次提供同一個檔案即可從中斷處繼續，已經傳送的部分不會重傳。"
+    "notArrivedBody": "再次提供同一個檔案即可從中斷處繼續，已經傳送的部分不會重傳。",
+    "reading": "正在讀取資料夾…",
+    "tooMany": {
+      "title": "檔案非常多",
+      "body": "{count} 個檔案，{size}。加入這麼多檔案需要一段時間才會送出第一個位元組。",
+      "confirm": "仍然加入"
+    }
   },
   "info": {
     "aria": "資訊面板",

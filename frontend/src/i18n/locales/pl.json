@@ -439,7 +439,13 @@
     "uploads": "Przesyłanie {count} {items}",
     "finalizing": "Finalizowanie",
     "notArrivedHeading": "Plik nie dotarł w całości | {count} plików nie dotarło w całości",
-    "notArrivedBody": "Wskaż ten sam plik ponownie, aby kontynuować od miejsca zatrzymania — nic, co już wysłano, nie zostanie wysłane dwa razy."
+    "notArrivedBody": "Wskaż ten sam plik ponownie, aby kontynuować od miejsca zatrzymania — nic, co już wysłano, nie zostanie wysłane dwa razy.",
+    "reading": "Odczytywanie folderu…",
+    "tooMany": {
+      "title": "To dużo plików",
+      "body": "{count} plików, {size}. Dodanie tak wielu zajmie chwilę, zanim zostanie wysłany pierwszy bajt.",
+      "confirm": "Dodaj mimo to"
+    }
   },
   "info": {
     "aria": "Panel informacji",

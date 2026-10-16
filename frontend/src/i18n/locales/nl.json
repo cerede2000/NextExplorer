@@ -439,7 +439,13 @@
     "resumeUploads": "Uploads hervatten",
     "finalizing": "Bezig met afronden",
     "notArrivedHeading": "Een bestand is niet volledig aangekomen | {count} bestanden zijn niet volledig aangekomen",
-    "notArrivedBody": "Geef hetzelfde bestand opnieuw om verder te gaan waar het stopte — niets wat al verstuurd is, gaat opnieuw."
+    "notArrivedBody": "Geef hetzelfde bestand opnieuw om verder te gaan waar het stopte — niets wat al verstuurd is, gaat opnieuw.",
+    "reading": "Map wordt gelezen…",
+    "tooMany": {
+      "title": "Dat zijn veel bestanden",
+      "body": "{count} bestanden, {size}. Zoveel toevoegen duurt even voordat de eerste byte wordt verzonden.",
+      "confirm": "Toch toevoegen"
+    }
   },
   "info": {
     "aria": "Infopaneel",

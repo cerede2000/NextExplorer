@@ -439,7 +439,13 @@
     "uploads": "Subiendo {count} {items}",
     "finalizing": "Finalizando",
     "notArrivedHeading": "Un archivo no llegó completo | {count} archivos no llegaron completos",
-    "notArrivedBody": "Vuelve a dar el mismo archivo para continuar donde se detuvo: nada de lo ya enviado se envía dos veces."
+    "notArrivedBody": "Vuelve a dar el mismo archivo para continuar donde se detuvo: nada de lo ya enviado se envía dos veces.",
+    "reading": "Leyendo la carpeta…",
+    "tooMany": {
+      "title": "Son muchos archivos",
+      "body": "{count} archivos, {size}. Añadir tantos tarda un rato antes de enviar el primer byte.",
+      "confirm": "Añadirlos igualmente"
+    }
   },
   "info": {
     "aria": "Panel de información",

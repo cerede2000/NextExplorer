@@ -167,6 +167,9 @@ const titleFor = (value) => {
   // anywhere: it falls between a copy and a download in everything it shows —
   // bytes read against bytes to read — so without its own words it is drawn as
   // a copy, and reading two files to compare them reads “Copying 2 items”.
+  // The folder being read, before the uploader has been handed anything: it is
+  // not an upload yet and must not borrow an upload's words, let alone a copy's.
+  if (value.type === 'scan') return t('upload.reading');
   if (value.type === 'checksum') {
     if (value.name) return t('checksums.reading', { name: value.name });
     const files = Number(value.itemCount) || 1;

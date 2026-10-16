@@ -439,7 +439,13 @@
     "uploads": "正在上传 {count} 个{items}",
     "finalizing": "正在收尾",
     "notArrivedHeading": "一个文件没有完整到达 | {count} 个文件没有完整到达",
-    "notArrivedBody": "再次提供同一个文件即可从中断处继续，已经发送的部分不会重发。"
+    "notArrivedBody": "再次提供同一个文件即可从中断处继续，已经发送的部分不会重发。",
+    "reading": "正在读取文件夹…",
+    "tooMany": {
+      "title": "文件非常多",
+      "body": "{count} 个文件，{size}。添加这么多文件需要一段时间才会发送第一个字节。",
+      "confirm": "仍然添加"
+    }
   },
   "info": {
     "aria": "信息面板",

@@ -439,7 +439,13 @@
     "uploads": "{count} {items} werden hochgeladen",
     "finalizing": "Wird abgeschlossen",
     "notArrivedHeading": "Eine Datei ist nicht vollständig angekommen | {count} Dateien sind nicht vollständig angekommen",
-    "notArrivedBody": "Dieselbe Datei erneut übergeben, um dort weiterzumachen, wo sie stehen geblieben ist — nichts bereits Gesendetes wird zweimal gesendet."
+    "notArrivedBody": "Dieselbe Datei erneut übergeben, um dort weiterzumachen, wo sie stehen geblieben ist — nichts bereits Gesendetes wird zweimal gesendet.",
+    "reading": "Ordner wird gelesen…",
+    "tooMany": {
+      "title": "Das sind viele Dateien",
+      "body": "{count} Dateien, {size}. So viele hinzuzufügen dauert eine Weile, bevor das erste Byte gesendet wird.",
+      "confirm": "Trotzdem hinzufügen"
+    }
   },
   "info": {
     "aria": "Info-Panel",

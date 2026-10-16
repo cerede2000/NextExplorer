@@ -439,7 +439,13 @@
     "uploads": "Uploading {count} {items}",
     "finalizing": "Finishing up",
     "notArrivedHeading": "A file did not arrive in full | {count} files did not arrive in full",
-    "notArrivedBody": "Give the same file again to carry on from where it stopped — nothing already sent is sent twice."
+    "notArrivedBody": "Give the same file again to carry on from where it stopped — nothing already sent is sent twice.",
+    "reading": "Reading the folder…",
+    "tooMany": {
+      "title": "That is a lot of files",
+      "body": "{count} files, {size}. Adding this many takes a while before the first byte is sent.",
+      "confirm": "Add them anyway"
+    }
   },
   "info": {
     "aria": "Info panel",

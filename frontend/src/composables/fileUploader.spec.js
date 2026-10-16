@@ -89,6 +89,7 @@ vi.mock('@/stores/folderSize', () => ({ useFolderSizeStore: () => stores.folder 
 vi.mock('@/stores/operationTasks', () => ({ useOperationTasksStore: () => stores.tasks }));
 
 const {
+  ASK_ABOVE,
   useFileUploader,
   useUppyDropTarget,
   loadUploadEngine,
@@ -96,6 +97,7 @@ const {
   resetUploadFallback,
 } = await import('./fileUploader');
 const { useUppyStore } = await import('@/stores/uppyStore');
+const { useAsk } = await import('./useAsk');
 
 const MiB = 1024 * 1024;
 const FALLBACK_KEY = 'nextExplorer_upload_fallback_chunk_mib';
@@ -951,6 +953,99 @@ describe('dropping files onto a part of the page', () => {
     });
     return event;
   };
+
+  /**
+   * A drop says something is happening before the uploader has anything.
+   *
+   * Reading the entries of a folder of thousands takes its own time, and it
+   * happens before a single file has reached the uploader — so the panel was
+   * empty and the page looked as though the drop had been ignored.
+   */
+  it('says it is reading the folder before the uploader has been handed anything', async () => {
+    await mountUploader();
+    const element = document.createElement('div');
+    const target = mountDropTarget(element);
+    await settle();
+    stores.tasks.startOperation.mockClear();
+
+    element.dispatchEvent(dragEvent('drop', [folderEntry('Photos', [])]));
+
+    // Opened inside the drop itself, not after waiting on anything.
+    expect(stores.tasks.startOperation).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'scan' })
+    );
+    await settle();
+    // And gone as soon as the files are known, whatever happens next.
+    expect(stores.tasks.finishOperation).toHaveBeenCalledWith('op-1');
+    target.unmount();
+  });
+
+  /**
+   * Thousands of files are a sentence before they are an upload.
+   *
+   * Handing them to the uploader is quadratic in how many there are, so the
+   * cost is not felt at all and then felt all at once — and a project folder
+   * dropped with its build output in it is tens of thousands of files, most of
+   * which nobody meant to send. The reader is told what they dropped.
+   */
+  const aLotOfFiles = (count) =>
+    folderEntry(
+      'Project',
+      Array.from({ length: count }, (_, index) => fileEntry(new File(['x'], `f-${index}.bin`)))
+    );
+
+  it('asks before adding more files than it can add quickly, and adds none when refused', async () => {
+    const uppy = await mountUploader();
+    const element = document.createElement('div');
+    const target = mountDropTarget(element);
+    await settle();
+    const { isOpen, cancel } = useAsk();
+
+    element.dispatchEvent(dragEvent('drop', [aLotOfFiles(ASK_ABOVE + 1)]));
+    await settle();
+
+    expect(isOpen.value).toBe(true);
+    cancel();
+    await settle();
+
+    // Refused means nothing was handed over at all — not handed over and then
+    // taken back, which would have paid the whole cost before asking.
+    expect(uppy.getFiles()).toHaveLength(0);
+    target.unmount();
+  });
+
+  it('adds them when the question is answered yes', async () => {
+    const uppy = await mountUploader();
+    const element = document.createElement('div');
+    const target = mountDropTarget(element);
+    await settle();
+    const { isOpen, accept } = useAsk();
+
+    element.dispatchEvent(dragEvent('drop', [aLotOfFiles(ASK_ABOVE + 1)]));
+    await settle();
+    expect(isOpen.value).toBe(true);
+    accept();
+    await settle(50);
+    await settle();
+
+    expect(uppy.getFiles().length).toBe(ASK_ABOVE + 1);
+    target.unmount();
+  }, 30000);
+
+  it('asks nothing for a drop it can add quickly', async () => {
+    const uppy = await mountUploader();
+    const element = document.createElement('div');
+    const target = mountDropTarget(element);
+    await settle();
+    const { isOpen } = useAsk();
+
+    element.dispatchEvent(dragEvent('drop', [fileEntry(new File(['hello'], 'note.txt'))]));
+    await settle();
+
+    expect(isOpen.value).toBe(false);
+    expect(uppy.getFiles()).toHaveLength(1);
+    target.unmount();
+  });
 
   it('receives files dropped on it, into the folder on screen', async () => {
     const uppy = await mountUploader();
