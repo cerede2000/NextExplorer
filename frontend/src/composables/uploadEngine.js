@@ -10,7 +10,12 @@ import { useAppSettings } from '@/stores/appSettings';
 import { useVolumeUsageStore } from '@/stores/volumeUsage';
 import { useFolderSizeStore } from '@/stores/folderSize';
 import { useOperationTasksStore } from '@/stores/operationTasks';
-import { apiBase, normalizePath, reserveFolderUploadTarget } from '@/api';
+import {
+  apiBase,
+  normalizePath,
+  releaseFolderUploadTarget,
+  reserveFolderUploadTarget,
+} from '@/api';
 import { shareScoped } from '@/api/shareScope';
 import {
   directUploadEndpoint,
@@ -167,6 +172,37 @@ export const createUploadEngine = async () => {
     const mine = `\u0000${batchId}\u0000`;
     [...folderReservationByBatch.keys()].forEach((key) => {
       if (key.includes(mine)) folderReservationByBatch.delete(key);
+    });
+  };
+
+  /**
+   * And the folders themselves given back, when the reader calls the batch off.
+   *
+   * Reserving one is a `mkdir` on the server: it is what holds the name. So a
+   * drop stopped before a byte went out still left a folder, and the next try at
+   * the same folder found that name taken and became `ardoise (1)`, then
+   * `ardoise (2)` — a reader who tried a few times accumulated empty folders and
+   * a name that kept moving. The server removes one only if nothing arrived in
+   * it, so this asks rather than decides.
+   *
+   * Waited for, because the folder does not exist until the answer has come
+   * back: asking before that would name a reservation the server has no record
+   * of yet and leave the folder behind. Not awaited *here*, though — cancelling
+   * stays the instant thing it is, and this is an errand that follows it. A
+   * refusal, an offline tab, a server that has forgotten: the batch is cancelled
+   * either way, and the only cost is a folder that stays.
+   */
+  const giveBackFolderReservations = (batchId) => {
+    if (!batchId) return;
+    const mine = `\u0000${batchId}\u0000`;
+    [...folderReservationByBatch.entries()].forEach(([key, reservation]) => {
+      if (!key.includes(mine)) return;
+      const [uploadTo, , sourceRoot] = key.split('\u0000');
+      Promise.resolve(reservation)
+        .then((response) =>
+          response?.targetRoot ? releaseFolderUploadTarget(uploadTo, sourceRoot, batchId) : null
+        )
+        .catch(() => {});
     });
   };
 
@@ -481,6 +517,9 @@ export const createUploadEngine = async () => {
         } catch (_) {
           /* noop */
         }
+        // Before the bookkeeping below, which ends the batch and forgets what it
+        // had reserved: this needs that record to know what to ask for.
+        giveBackFolderReservations(batchId);
         ids.forEach((id) => {
           finishUploadTask(id);
           relativePathAtAdd.delete(id);

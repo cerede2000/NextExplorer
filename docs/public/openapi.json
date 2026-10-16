@@ -5872,7 +5872,7 @@
       "post": {
         "operationId": "startFolderUpload",
         "summary": "Reserve the name a folder upload will land under",
-        "description": "Before any file of it is sent, so every file of one dropped folder goes to the same place even when the name was taken.",
+        "description": "Before any file of it is sent, so every file of one dropped folder goes to the same place even when the name was taken. The folder is created here, so a client that reserves and then sends nothing gives it back with `DELETE`.",
         "tags": ["Uploads"],
         "security": [
           {
@@ -5896,6 +5896,10 @@
                   "sourceRoot": {
                     "type": "string",
                     "description": "The dropped folder’s name."
+                  },
+                  "uploadBatchId": {
+                    "type": "string",
+                    "description": "The client’s name for this batch, which a file of it arriving without a resolved path is placed by — and which the folder is given back under."
                   }
                 },
                 "required": ["sourceRoot"]
@@ -5917,6 +5921,73 @@
                     }
                   },
                   "required": ["targetRoot"]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/E400"
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          },
+          "403": {
+            "$ref": "#/components/responses/E403"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "releaseFolderUpload",
+        "summary": "Give back a reserved folder nothing arrived in",
+        "description": "Reserving creates the folder, so a drop called off before a byte went out left an\nempty one behind — and the next attempt at the same folder was given the next\nname, `photos (1)`, then `photos (2)`.\n\nRemoves the folder a reservation of this caller's own created, named by the\nbatch it was reserved for, where it is still there and holds no file at any\ndepth. Anything else is left exactly as it stands: one file in it means bytes\narrived, and those are worth more than a tidy name.",
+        "tags": ["Uploads"],
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "x-access": "account",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "uploadTo": {
+                    "type": "string"
+                  },
+                  "sourceRoot": {
+                    "type": "string",
+                    "description": "The dropped folder’s name, as it was reserved for."
+                  },
+                  "uploadBatchId": {
+                    "type": "string",
+                    "description": "The batch it was reserved for."
+                  }
+                },
+                "required": ["sourceRoot", "uploadBatchId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Nothing more is held.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "removed": {
+                      "type": "boolean",
+                      "description": "Whether the folder is gone."
+                    }
+                  },
+                  "required": ["removed"]
                 }
               }
             }

@@ -188,6 +188,7 @@ vi.mock('@/api', () => ({
   apiBase: '',
   normalizePath: (value) => String(value || '').replace(/^\/+|\/+$/g, ''),
   reserveFolderUploadTarget: vi.fn(() => Promise.resolve({ targetRoot: 'Holiday' })),
+  releaseFolderUploadTarget: vi.fn(() => Promise.resolve({ removed: true })),
 }));
 
 import * as api from '@/api';
@@ -637,6 +638,57 @@ describe('the one place that creates a folder', () => {
 
     // One for the batch, not one per file — the other way this goes wrong.
     expect(api.reserveFolderUploadTarget).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * And the folder a cancelled batch did reserve is asked for back.
+   *
+   * Reserving is a `mkdir` on the server — it is what holds the name — so a
+   * batch stopped before a byte went out left an empty folder, and the next try
+   * at the same folder found the name taken and became `ardoise (1)`, then
+   * `ardoise (2)`. The reader who reported this had a row of them. Whether it
+   * really goes is the server's to decide, since only the server can see
+   * whether anything arrived in it; what the browser owes is the asking, for
+   * every folder the batch had been given.
+   */
+  it('asks for the folder it reserved back when the batch is called off', async () => {
+    const engine = await createUploadEngine();
+    const files = await addAndAnnounce(
+      engine,
+      Array.from({ length: 4 }, (_, index) => aFolderFile(index))
+    );
+    // The folder exists from here: the reservation has been answered.
+    await preProcessor()([...held.keys()]);
+    api.releaseFolderUploadTarget.mockClear();
+
+    started[0].cancel();
+    // The errand that follows the press, which the press does not wait for.
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(api.releaseFolderUploadTarget).toHaveBeenCalledTimes(1);
+    // Where it was, what was dropped, and the batch it was reserved for: the
+    // three things the server identifies its own reservation by.
+    expect(api.releaseFolderUploadTarget).toHaveBeenCalledWith(
+      'Docs/2026',
+      'Holiday',
+      files[0].meta.uploadBatchId
+    );
+  });
+
+  it('asks for nothing back when the batch never reserved anything', async () => {
+    const engine = await createUploadEngine();
+    await addAndAnnounce(
+      engine,
+      Array.from({ length: 4 }, (_, index) => aFolderFile(index))
+    );
+    api.releaseFolderUploadTarget.mockClear();
+
+    // Called off before the pre-processor ever ran, so no folder was made and
+    // there is nothing to give back — and nothing to name it with.
+    started[0].cancel();
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(api.releaseFolderUploadTarget).not.toHaveBeenCalled();
   });
 });
 

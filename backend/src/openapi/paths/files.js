@@ -778,16 +778,56 @@ operation.`,
       id: 'startFolderUpload',
       summary: 'Reserve the name a folder upload will land under',
       description:
-        'Before any file of it is sent, so every file of one dropped folder goes to the same place even when the name was taken.',
+        'Before any file of it is sent, so every file of one dropped folder goes to the same place even when the name was taken. The folder is created here, so a client that reserves and then sends nothing gives it back with `DELETE`.',
       tag: 'Uploads',
       access: 'account',
       body: body(
-        obj({ uploadTo: str(), sourceRoot: str('The dropped folder’s name.') }, ['sourceRoot'])
+        obj(
+          {
+            uploadTo: str(),
+            sourceRoot: str('The dropped folder’s name.'),
+            uploadBatchId: str(
+              'The client’s name for this batch, which a file of it arriving without a resolved path is placed by — and which the folder is given back under.'
+            ),
+          },
+          ['sourceRoot']
+        )
       ),
       responses: {
         201: json(
           obj({ targetRoot: str('The name it will land under.') }, ['targetRoot']),
           'Reserved.'
+        ),
+        ...errors(400, 401, 403),
+      },
+    }),
+    delete: op({
+      id: 'releaseFolderUpload',
+      summary: 'Give back a reserved folder nothing arrived in',
+      description: `Reserving creates the folder, so a drop called off before a byte went out left an
+empty one behind — and the next attempt at the same folder was given the next
+name, \`photos (1)\`, then \`photos (2)\`.
+
+Removes the folder a reservation of this caller's own created, named by the
+batch it was reserved for, where it is still there and holds no file at any
+depth. Anything else is left exactly as it stands: one file in it means bytes
+arrived, and those are worth more than a tidy name.`,
+      tag: 'Uploads',
+      access: 'account',
+      body: body(
+        obj(
+          {
+            uploadTo: str(),
+            sourceRoot: str('The dropped folder’s name, as it was reserved for.'),
+            uploadBatchId: str('The batch it was reserved for.'),
+          },
+          ['sourceRoot', 'uploadBatchId']
+        )
+      ),
+      responses: {
+        200: json(
+          obj({ removed: bool('Whether the folder is gone.') }, ['removed']),
+          'Nothing more is held.'
         ),
         ...errors(400, 401, 403),
       },

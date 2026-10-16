@@ -26,6 +26,13 @@
   "rules": [
     {
       "axis": "*",
+      "match": "^(backend/src/services/uploadFolderTargetService\\.js:(createdFolders|cleanExpiredCreatedFolders|rememberCreatedFolder|holdsOnlyFolders|removeEmptyFolderTree|releaseFolderUploadTarget|absolutePath|identity|stats|entries|entry|key|removed)|backend/src/routes/upload\\.js:removed|backend/tests/services/folder-upload-release\\.test\\.js|frontend/src/api/files\\.api\\.js:releaseFolderUploadTarget|frontend/src/composables/uploadEngine\\.js:giveBackFolderReservations)$",
+      "verdict": "PORT",
+      "batch": "give-the-folder-back",
+      "note": "the folder a drop reserved and never put anything in, given back — the batch after `one-record-for-the-folder`. Reserving the name a dropped folder lands under is a `mkdir`: creating it is what holds the name. So a reader who pressed stop before a byte went out was left with an empty folder, and their next try at the same folder found that name taken and became `ardoise (1)`, then `ardoise (2)`. The service keeps a register of the folders a reservation created — the absolute path, the folder as the filesystem named it the moment it was made, and when — keyed as the record of where a batch's files are going is, under the asker's own scope, because a batch id is the client's to choose and a register kept for everybody would let one reader have another reader's folder removed by naming their batch. `DELETE /api/upload/folder-session` removes an entry of that register and nothing else: still where it was put, still the folder created there, and holding no file at any depth, with `rmdir` from the leaves up so that a file landing between the reading and the removal keeps its folder. The browser asks on cancel, for every reservation the batch held and after each reservation's own answer, since the folder does not exist before that; the cancel waits for none of it. The record of where the batch's files were going is deliberately left alone, so a request already in flight still lands in the folder the batch was given rather than reserve a second one."
+    },
+    {
+      "axis": "*",
       "match": "^frontend/src/api/(auth|features|settings)\\.api\\.js(:|$)|^frontend/src/stores/(favorites|volumeUsage)\\.js(:|$)",
       "verdict": "PORT",
       "batch": "a-share-asks-for-less",
@@ -1696,6 +1703,10 @@
   ],
   "residue": [
     {
+      "match": "^(backend/src/routes/upload\\.js|frontend/src/api/files\\.api\\.js)$",
+      "note": "the folder a cancelled drop reserved, given back: `DELETE /api/upload/folder-session` and the call that asks for it. Upstream has neither, so there a drop stopped before a byte went out leaves an empty folder behind and the next try at the same folder takes the next name. Both files differ for other reasons as well — the operations register for the route, the share's own prefix for the client — and the entries below say those."
+    },
+    {
       "match": "^frontend/src/composables/fileUploader\\.js$",
       "note": "a drop says what it is doing before the uploader has been handed anything, and asks when there is a lot of it. Reading the entries of a dropped folder happens before a single file reaches the uploader and takes its own time at a few thousand of them, so the panel stayed empty and the page looked as though the drop had been ignored: there is a row for it now, opened inside the drop itself and gone as soon as the files are known. And above two thousand files the reader is told what they dropped — how many, how big — because handing them over is quadratic in how many there are, so the cost is not felt at all and then felt all at once, and a project folder dropped with its build output in it is tens of thousands of files nobody meant to send. Below that nobody is asked anything. The batches have the version where a drop is silent until the uploader has everything."
     },
@@ -1813,7 +1824,7 @@
     },
     {
       "match": "^frontend/src/composables/uploadEngine\\.js$",
-      "note": "two differences. The first is the folder on screen read again rather than navigated to — see the entry below. The second is its own: adding a batch of files costs what the batch costs rather than what every file costs. One operation for the batch instead of one per file, which was a reactive entry and a drawn row each in a list nothing caps; the resumable uploader aimed once instead of per file, where setting its options rebuilds its translator; the metadata carried in the descriptor instead of written afterwards; and the picker adding in one call as the dropped path already did. Measured at two hundred files: two hundred operations, two hundred and one reconfigurations and four hundred metadata writes before a byte went out, which is what made a four-gigabyte folder stop the tab responding. What stays per file is the file own tus address, deliberately: it is what tells one upload from another when two folders are being filled at once, and Uppy drops unknown descriptor keys so it cannot travel with the file. The batches have the version that pays all four per file."
+      "note": "three differences. The first is the folder on screen read again rather than navigated to — see the entry below. The second is its own: adding a batch of files costs what the batch costs rather than what every file costs. One operation for the batch instead of one per file, which was a reactive entry and a drawn row each in a list nothing caps; the resumable uploader aimed once instead of per file, where setting its options rebuilds its translator; the metadata carried in the descriptor instead of written afterwards; and the picker adding in one call as the dropped path already did. Measured at two hundred files: two hundred operations, two hundred and one reconfigurations and four hundred metadata writes before a byte went out, which is what made a four-gigabyte folder stop the tab responding. What stays per file is the file own tus address, deliberately: it is what tells one upload from another when two folders are being filled at once, and Uppy drops unknown descriptor keys so it cannot travel with the file. The batches have the version that pays all four per file. A third difference now: cancelling a batch asks for the folders it had reserved back, one request per reservation, awaited on the reservation's own answer and never waited for by the cancel itself."
     },
     {
       "match": "^frontend/src/(components/FolderViewToolbar\\.vue|composables/uploadEngine\\.js)$",
@@ -1937,7 +1948,7 @@
     },
     {
       "match": "^backend/src/openapi/paths/files\\.js$",
-      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up."
+      "note": "touched by `a-name-nothing-can-read`, which has not been sent: an entry whose name does not decode as UTF-8 is skipped and counted instead of killing the walk or vanishing from it, and the count reaches the screen. The difference stands until that batch goes up. It also describes `DELETE /api/upload/folder-session`, the folder a cancelled drop reserved given back, which travels with `give-the-folder-back`."
     },
     {
       "match": "^backend/src/openapi/paths/keeping\\.js$",
@@ -2077,7 +2088,7 @@
     },
     {
       "match": "^backend/src/services/uploadFolderTargetService\\.js$",
-      "note": "the record of a batch's folder, written by whichever road reserved it, and the one spelling of the key both roads read. Upstream has only the per-file road's record, so the two versions of this file do different things until the batch above is sent up: there, a file that arrives without a resolved path cannot be told to belong to a folder the batch already reserved, and is given one of its own."
+      "note": "the record of a batch's folder, written by whichever road reserved it, and the one spelling of the key both roads read. Upstream has only the per-file road's record, so the two versions of this file do different things until the batch above is sent up: there, a file that arrives without a resolved path cannot be told to belong to a folder the batch already reserved, and is given one of its own. It also gives that folder back when the drop it was reserved for was called off and nothing arrived in it, which is a register of its own — what this reservation created, under the asker's scope — and the only thing a removal is offered for. Upstream reserves and never gives back, so a cancelled drop leaves the name held there."
     }
   ],
   "controls": [

@@ -83,6 +83,7 @@ vi.mock('@/stores/operationTasks', () => ({
 vi.mock('@/api', () => ({
   apiBase: '',
   normalizePath: (value) => String(value || '').replace(/^\/+|\/+$/g, ''),
+  releaseFolderUploadTarget: vi.fn(),
   reserveFolderUploadTarget: vi.fn(),
 }));
 

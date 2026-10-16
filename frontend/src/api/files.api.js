@@ -463,6 +463,28 @@ async function reserveFolderUploadTarget(destination, sourceRoot, uploadBatchId)
 }
 
 /**
+ * That folder given back, when the batch it was reserved for sent nothing.
+ *
+ * Reserving creates the folder on the server, which is what holds the name — so
+ * a drop called off before a byte went out left an empty one behind, and the
+ * next try at the same folder became `ardoise (1)`, then `ardoise (2)`. The
+ * server removes it only if it is one of its own reservations, still there, and
+ * holding no file at any depth: a batch that sent anything keeps its folder and
+ * everything in it.
+ */
+async function releaseFolderUploadTarget(destination, sourceRoot, uploadBatchId) {
+  const uploadTo = normalizePath(destination || '');
+  if (!uploadTo || typeof sourceRoot !== 'string' || !sourceRoot.trim() || !uploadBatchId) {
+    throw new Error('A destination, a folder name and a batch are required to give one back.');
+  }
+
+  return requestJson(shareScoped('/api/upload/folder-session', uploadTo), {
+    method: 'DELETE',
+    body: JSON.stringify({ uploadTo, sourceRoot, uploadBatchId }),
+  });
+}
+
+/**
  * Create a blank Word, Excel or PowerPoint document.
  *
  * `format` is the extension the document will carry ('docx', 'xlsx', 'pptx');
@@ -876,6 +898,7 @@ export {
   deleteItemsStream,
   getDeleteImpact,
   createFolder,
+  releaseFolderUploadTarget,
   reserveFolderUploadTarget,
   createFile,
   createOfficeDocument,

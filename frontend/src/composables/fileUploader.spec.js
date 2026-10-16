@@ -64,11 +64,13 @@ const api = vi.hoisted(() => ({
   reserveFolderUploadTarget: vi.fn(async (_to, sourceRoot) => ({
     targetRoot: `${sourceRoot} (1)`,
   })),
+  releaseFolderUploadTarget: vi.fn(async () => ({ removed: true })),
 }));
 
 vi.mock('@/api', () => ({
   apiBase: '',
   normalizePath: (value) => String(value || '').replace(/^\/+|\/+$/g, ''),
+  releaseFolderUploadTarget: (...args) => api.releaseFolderUploadTarget(...args),
   reserveFolderUploadTarget: (...args) => api.reserveFolderUploadTarget(...args),
 }));
 

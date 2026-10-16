@@ -49,6 +49,12 @@ const mayDeleteFromDisk = [
   'backend/src/services/tusUploadService.js',
   'backend/src/services/uploadRemnants.js',
   'backend/src/services/uploadService.js',
+  // The folder it created to hold the name of a dropped folder, once that drop
+  // was called off without a byte arriving: its own — told apart by inode from
+  // whatever may have taken its name since — and holding no file at any depth.
+  // `rmdir` rather than a recursive remove, so a file that lands between the
+  // reading and the removal keeps its folder.
+  'backend/src/services/uploadFolderTargetService.js',
   'backend/src/routes/onlyoffice.js',
   // A logo it wrote into /config/logos, once another has replaced it, or when
   // the settings could not be switched to it.

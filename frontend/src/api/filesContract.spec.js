@@ -41,6 +41,7 @@ import {
   fetchThumbnail,
   getPreviewUrl,
   getRawFileUrl,
+  releaseFolderUploadTarget,
   renameItem,
   reserveFolderUploadTarget,
   saveFileContent,
@@ -172,6 +173,35 @@ describe('reserving a folder upload', () => {
     ['a folder name that is not a string', ['Docs', 42]],
   ])('refuses %s rather than sending it', async (_label, args) => {
     expect(await rejection(reserveFolderUploadTarget(...args))).toBeInstanceOf(Error);
+    expect(requestJson).not.toHaveBeenCalled();
+  });
+});
+
+describe('giving a reserved folder back', () => {
+  it('asks for its removal by the batch it was reserved for', async () => {
+    await releaseFolderUploadTarget('/Docs/', 'photos', 'batch-7');
+
+    expect(sent()).toMatchObject({
+      endpoint: '/api/upload/folder-session',
+      method: 'DELETE',
+      // The same three things the reservation was made under, which is how the
+      // server finds its own record of the folder it created — and finds
+      // nothing when the batch belongs to somebody else.
+      body: { uploadTo: 'Docs', sourceRoot: 'photos', uploadBatchId: 'batch-7' },
+    });
+  });
+
+  /**
+   * The batch is required here where it is not when reserving: without it there
+   * is nothing to name the reservation by, and a request that leaves it out
+   * asks for the removal of a folder by name alone.
+   */
+  it.each([
+    ['no destination', ['', 'photos', 'batch-7']],
+    ['no folder name', ['Docs', '   ', 'batch-7']],
+    ['no batch', ['Docs', 'photos']],
+  ])('refuses %s rather than sending it', async (_label, args) => {
+    expect(await rejection(releaseFolderUploadTarget(...args))).toBeInstanceOf(Error);
     expect(requestJson).not.toHaveBeenCalled();
   });
 });

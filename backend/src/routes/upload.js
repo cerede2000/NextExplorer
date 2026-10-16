@@ -8,7 +8,10 @@ const {
   listFinalizations,
   listUnfinished,
 } = require('../services/tusUploadService');
-const { reserveFolderUploadTarget } = require('../services/uploadFolderTargetService');
+const {
+  releaseFolderUploadTarget,
+  reserveFolderUploadTarget,
+} = require('../services/uploadFolderTargetService');
 const { responseEndCompat } = require('../middleware/responseEndCompat');
 const { describeBytes, explainMultipartRefusals } = require('../middleware/multipartRefusals');
 const { uploads } = require('../config/index');
@@ -112,6 +115,41 @@ router.post(
       uploadBatchId: req.body?.uploadBatchId,
     });
     res.status(201).json({ targetRoot });
+  })
+);
+
+/**
+ * That folder given back, when the drop it was reserved for never happened.
+ *
+ * Reserving creates the folder, so pressing stop left an empty one behind and
+ * the next attempt at the same folder was given the next name: `ardoise`,
+ * `ardoise (1)`, `ardoise (2)`, one per try. The service removes it only if it
+ * is one of its own reservations, still there, and holding no file at any
+ * depth — so a batch that sent anything at all keeps its folder and everything
+ * in it.
+ */
+router.delete(
+  '/upload/folder-session',
+  asyncHandler(async (req, res) => {
+    const uploadTo = normalizeRelativePath(req.body?.uploadTo || '');
+    const context = { user: req.user, guestSession: req.guestSession };
+    const { allowed, accessInfo, resolved } = await authorizeAndResolve(
+      context,
+      uploadTo,
+      ACTIONS.upload
+    );
+
+    if (!allowed || !resolved) {
+      throw new ForbiddenError(accessInfo?.denialReason || 'Cannot upload files to this path.');
+    }
+
+    const removed = await releaseFolderUploadTarget({
+      destinationRoot: resolved.absolutePath,
+      sourceRoot: req.body?.sourceRoot,
+      context,
+      uploadBatchId: req.body?.uploadBatchId,
+    });
+    res.json({ removed });
   })
 );
 

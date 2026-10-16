@@ -84,6 +84,10 @@ const CALLS = [
   ['an archive unpacked', () => files.extractZip(INSIDE)],
   ['a selection packed', () => files.compressToZip([ITEM], FOLDER, 'papers.zip')],
   ['a folder reserved for an upload', () => files.reserveFolderUploadTarget(FOLDER, 'Papers')],
+  [
+    'that folder given back',
+    () => files.releaseFolderUploadTarget(FOLDER, 'Papers', 'batch-release'),
+  ],
   ['a file sent', () => directUploadEndpoint({ meta: { uploadTo: FOLDER } })],
   ['what is inside an archive', () => archive.browseArchive(INSIDE)],
   ['one entry of it', () => archive.archiveEntryUrl(INSIDE, 'inside.txt')],

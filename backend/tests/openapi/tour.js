@@ -704,9 +704,20 @@ const tour = async (app, { volume, requireFresh }) => {
       .field('uploadTo', 'Documents')
       .attach('filedata', Buffer.from('envoyé'), 'envoi.txt')
   );
+  const folderBatch = 'tour-folder-batch';
   await call(
     'POST /api/upload/folder-session',
-    admin.post('/api/upload/folder-session').send({ uploadTo: 'Documents', sourceRoot: 'Lot' })
+    admin
+      .post('/api/upload/folder-session')
+      .send({ uploadTo: 'Documents', sourceRoot: 'Lot', uploadBatchId: folderBatch })
+  );
+  // And given back, since nothing was ever sent into it: what a reader pressing
+  // stop asks for, so the folder reserving created does not hold the name.
+  await call(
+    'DELETE /api/upload/folder-session',
+    admin
+      .delete('/api/upload/folder-session')
+      .send({ uploadTo: 'Documents', sourceRoot: 'Lot', uploadBatchId: folderBatch })
   );
   const tusCreated = await call(
     'POST /api/upload/tus',

@@ -22,6 +22,7 @@ vi.mock('./uploadEngine', () => ({
 }));
 
 vi.mock('@/api', () => ({
+  releaseFolderUploadTarget: vi.fn(async () => ({ removed: true })),
   reserveFolderUploadTarget: vi.fn(async (_to, root) => ({ targetRoot: root })),
 }));
 
