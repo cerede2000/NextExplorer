@@ -1801,6 +1801,10 @@
       "note": "Back and Forward belong to the tab rather than to the window, and grey out when that tab has nowhere to go. Travels with tabs, lot 2: without tabs there is one trail and it is the browser’s, which is what the batches still hold. `stores/terminal.js` is the same story for the shell: one session per tab here, one per window in the batches. `documentRoute.js` answers in both directions here — an address made, and an address read back as the entry it names — because a tab that is not on screen has only the address"
     },
     {
+      "match": "^frontend/src/composables/uploadEngine\\.js$",
+      "note": "two differences. The first is the folder on screen read again rather than navigated to — see the entry below. The second is its own: adding a batch of files costs what the batch costs rather than what every file costs. One operation for the batch instead of one per file, which was a reactive entry and a drawn row each in a list nothing caps; the resumable uploader aimed once instead of per file, where setting its options rebuilds its translator; the metadata carried in the descriptor instead of written afterwards; and the picker adding in one call as the dropped path already did. Measured at two hundred files: two hundred operations, two hundred and one reconfigurations and four hundred metadata writes before a byte went out, which is what made a four-gigabyte folder stop the tab responding. What stays per file is the file own tus address, deliberately: it is what tells one upload from another when two folders are being filled at once, and Uppy drops unknown descriptor keys so it cannot travel with the file. The batches have the version that pays all four per file."
+    },
+    {
       "match": "^frontend/src/(components/FolderViewToolbar\\.vue|composables/uploadEngine\\.js)$",
       "note": "the folder on screen read again rather than navigated to — `refresh` keeps what the reader has selected, `fetchPathItems` clears it because going somewhere means the choice was made elsewhere. The difference only exists here because the fork’s file store has the second word; it goes up with the batch that carries it"
     },

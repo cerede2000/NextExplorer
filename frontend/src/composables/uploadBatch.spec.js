@@ -1,0 +1,258 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+/**
+ * What a folder of files costs before a single byte is sent.
+ *
+ * Dropping a folder of four gigabytes made the tab stop responding, and the
+ * reason was not the bytes: it was what the engine did per file. Each one
+ * started an operation of its own in the store — one reactive entry and one
+ * drawn row, with nothing capping the list — set the resumable uploader's
+ * options again, which rebuilds its translator, and wrote its state and its
+ * metadata in two more updates. Four notifications to the store and a
+ * translator per file, times a few thousand files.
+ *
+ * So this counts rather than times: a stopwatch on this machine says nothing
+ * about anybody else's, while "one operation for the batch" and "the uploader
+ * configured once" are properties that either hold or do not. Each count is
+ * asserted against the size of the batch, so a cost that creeps back in per
+ * file fails here however fast the machine running it is.
+ */
+
+const handlers = new Map();
+const uppyCalls = [];
+
+/**
+ * The plugins the engine asks for, which have to exist to be measured.
+ *
+ * `getPlugin` answering undefined makes `getPlugin('Tus')?.setOptions?.()`
+ * short-circuit, so a count of those calls stays at zero whatever the engine
+ * does — an assertion that agrees with the defect. Each plugin is a recorded
+ * object instead, and the same object every time, as Uppy's own is.
+ */
+const plugins = new Map();
+const pluginFor = (id) => {
+  if (!plugins.has(id)) {
+    plugins.set(id, {
+      name: id,
+      setOptions: (...args) => uppyCalls.push([`setOptions:${id}`, ...args]),
+    });
+  }
+  return plugins.get(id);
+};
+
+// Everything a fake Uppy is asked for answers with a function, so this test does
+// not have to keep a list of the engine's calls up to date; what it does keep is
+// `on`, which is the one thing it has to be able to fire.
+const makeUppy = () =>
+  new Proxy(
+    {
+      on: (event, handler) => {
+        if (!handlers.has(event)) handlers.set(event, []);
+        handlers.get(event).push(handler);
+      },
+      getPlugin: (id) => {
+        uppyCalls.push(['getPlugin', id]);
+        return pluginFor(id);
+      },
+      // The real one always answers a list; the proxy below would answer
+      // undefined, and the engine walks what it is given.
+      getFiles: () => [],
+    },
+    {
+      get: (target, property) => {
+        if (property in target) return target[property];
+        return (...args) => {
+          uppyCalls.push([String(property), ...args]);
+          return undefined;
+        };
+      },
+    }
+  );
+
+vi.mock('@uppy/core', () => ({
+  default: class {
+    constructor() {
+      return makeUppy();
+    }
+  },
+}));
+vi.mock('@uppy/xhr-upload', () => ({ default: { name: 'XHRUpload' } }));
+vi.mock('@uppy/tus', () => ({ default: { name: 'Tus' } }));
+
+const fileStore = vi.hoisted(() => ({
+  currentPath: 'Docs/2026',
+  currentPathData: { canUpload: true },
+  refresh: vi.fn(() => Promise.resolve()),
+  fetchPathItems: vi.fn(() => Promise.resolve()),
+}));
+vi.mock('@/stores/fileStore', () => ({ useFileStore: () => fileStore }));
+
+vi.mock('@/stores/uppyStore', () => ({ useUppyStore: () => ({ uppy: null }) }));
+vi.mock('@/stores/notifications', () => ({
+  useNotificationsStore: () => ({ addNotification: vi.fn() }),
+}));
+// Chunked uploads on: they are the only ones that can be resumed, which is what
+// this file is about. One case turns them off, because the fallback from a
+// refused direct upload is the route a large file really takes the first time.
+const uploads = vi.hoisted(() => ({
+  chunkedEnabled: true,
+  chunkedAutoFallback: true,
+  chunkSizeBytes: 8 * 1024 * 1024,
+}));
+vi.mock('@/stores/appSettings', () => ({
+  useAppSettings: () => ({
+    loaded: true,
+    state: { uploads },
+    ensureLoaded: () => Promise.resolve(),
+  }),
+}));
+vi.mock('@/stores/volumeUsage', () => ({
+  useVolumeUsageStore: () => ({ scheduleRefresh: vi.fn() }),
+}));
+vi.mock('@/stores/folderSize', () => ({
+  useFolderSizeStore: () => ({ scheduleRefresh: vi.fn() }),
+}));
+const started = vi.hoisted(() => []);
+vi.mock('@/stores/operationTasks', () => ({
+  useOperationTasksStore: () => ({
+    startOperation: (operation) => {
+      started.push(operation);
+      return `op-${started.length}`;
+    },
+    updateOperation: vi.fn(),
+    finishOperation: vi.fn(),
+  }),
+}));
+
+vi.mock('@/api', () => ({
+  apiBase: '',
+  normalizePath: (value) => String(value || '').replace(/^\/+|\/+$/g, ''),
+  reserveFolderUploadTarget: vi.fn(),
+}));
+
+import { createUploadEngine } from './uploadEngine';
+
+const fire = async (event, ...args) => {
+  for (const handler of handlers.get(event) || []) await handler(...args);
+};
+
+const called = (method) => uppyCalls.filter(([name]) => name === method);
+
+beforeEach(async () => {
+  vi.useFakeTimers();
+  handlers.clear();
+  uppyCalls.length = 0;
+  started.length = 0;
+  localStorage.clear();
+  uploads.chunkedEnabled = true;
+  uploads.chunkedAutoFallback = true;
+  fileStore.currentPath = 'Docs/2026';
+  plugins.clear();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+/** A batch big enough that a per-file cost is unmistakable. */
+const MANY = 200;
+
+const aDroppedFile = (index) => ({
+  name: `shot-${index}.jpg`,
+  type: 'image/jpeg',
+  size: 2048,
+  lastModified: 1760000000000 + index,
+  relativePath: `Holiday/day-${index % 7}/shot-${index}.jpg`,
+});
+
+/**
+ * The batch, added and then announced file by file.
+ *
+ * Uppy's `addFiles` makes one state update, emits `file-added` once per file and
+ * `files-added` once for the batch, so a test that only calls the add function
+ * measures none of what those handlers do — and the batch one writes metadata
+ * per file inside its single event.
+ */
+const addAndAnnounce = async (engine, files) => {
+  engine.addDroppedFiles(files);
+  // Announced from the descriptors the engine handed over, because that is what
+  // Uppy does: a file reaching a handler carries the metadata it was described
+  // with. Inventing bare files here would make the engine's fill-in paths fire
+  // and count their writes against it — a test measuring its own fixture.
+  const described = (called('addFiles')[0]?.[1] || []).map((descriptor, index) => ({
+    id: `uppy-${index}`,
+    name: descriptor.name,
+    type: descriptor.type,
+    size: descriptor.data?.size,
+    data: descriptor.data,
+    meta: descriptor.meta,
+  }));
+  // The order Uppy's own `addFiles` emits in: one state update, then
+  // `file-added` for each, then `files-added` once for the batch.
+  for (const file of described) await fire('file-added', file);
+  await fire('files-added', described);
+  return described;
+};
+
+describe('a folder of files', () => {
+  it('is one operation, not one for every file in it', async () => {
+    const engine = await createUploadEngine();
+    await addAndAnnounce(
+      engine,
+      Array.from({ length: MANY }, (_, index) => aDroppedFile(index))
+    );
+
+    // One row for the thing the reader asked for. Before this, two hundred.
+    expect(started.length).toBe(1);
+    expect(started[0]).toMatchObject({ type: 'upload', itemCount: MANY });
+    // And it knows how much is coming, which is what a single bar needs.
+    expect(started[0].totalBytes).toBe(MANY * 2048);
+  });
+
+  it('configures the uploader once for the batch, not once per file', async () => {
+    const engine = await createUploadEngine();
+    const before = called('setOptions:Tus').length;
+    await addAndAnnounce(
+      engine,
+      Array.from({ length: MANY }, (_, index) => aDroppedFile(index))
+    );
+
+    // `setOptions` writes plugin state and rebuilds the translator, so a call
+    // per file is a translator per file.
+    expect(called('setOptions:Tus').length - before).toBeLessThan(3);
+  });
+
+  it('writes one thing per file afterwards, not four', async () => {
+    const engine = await createUploadEngine();
+    await addAndAnnounce(
+      engine,
+      Array.from({ length: MANY }, (_, index) => aDroppedFile(index))
+    );
+
+    // The metadata is in the descriptor the file was added with, so none of it
+    // has to be written again once Uppy holds the file.
+    expect(called('setFileMeta').length).toBe(0);
+    // The address is the exception, and deliberately: Uppy builds a file from a
+    // fixed shape and drops the keys it does not know, so `tus` cannot ride in
+    // a descriptor. It has to be per file because it is what tells one upload
+    // from another when two folders are being filled at once.
+    expect(called('setFileState').length).toBe(MANY);
+    expect(called('setFileState').every(([, , state]) => state?.tus?.endpoint)).toBe(true);
+  });
+
+  it('adds the files the picker chose in one call', async () => {
+    const engine = await createUploadEngine();
+    engine.addPickedFiles(
+      Array.from({ length: MANY }, (_, index) => {
+        const file = aDroppedFile(index);
+        return { name: file.name, type: file.type, data: file, meta: {} };
+      })
+    );
+
+    // The dropped path has always batched; the picker added them one at a time,
+    // and one `addFile` is one state update.
+    expect(called('addFile').length).toBe(0);
+    expect(called('addFiles').length).toBe(1);
+    expect(called('addFiles')[0][1]).toHaveLength(MANY);
+  });
+});

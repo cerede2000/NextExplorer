@@ -61,7 +61,6 @@ export const createUploadEngine = async () => {
   const volumeUsageStore = useVolumeUsageStore();
   const folderSizeStore = useFolderSizeStore();
   const operationTasksStore = useOperationTasksStore();
-  const uploadTaskIds = new Map();
   const folderReservationByBatch = new Map();
   const notifyErrorOnce = createErrorNotifier(notificationsStore);
 
@@ -204,12 +203,50 @@ export const createUploadEngine = async () => {
     });
   };
 
+  /**
+   * One operation for a batch, not one for every file in it.
+   *
+   * A reader who drops a folder has asked for one thing. Starting an operation
+   * per file made one reactive entry and one drawn row per file, with nothing
+   * capping the list — measured at four gigabytes across a few thousand files,
+   * which is where the tab stopped responding. The register already carries
+   * `itemCount` and `totalBytes` for exactly this, and a single file is simply a
+   * batch of one, so the common case looks as it always did.
+   *
+   * The batch is started from `files-added`, which Uppy emits once with the
+   * whole batch, rather than from `file-added`: counting up as each file
+   * arrives would be the same storm of updates under another name.
+   */
+  const batches = new Map();
+  const batchOf = new Map();
+  /** Files a guard turned away, so the batch does not count them. */
+  const refusedFiles = new Set();
+
+  const batchFor = (fileId) => batches.get(batchOf.get(fileId));
+
+  /** The folder a whole batch came out of, when it came out of one. */
+  const sharedFolder = (files) => {
+    const roots = new Set(
+      files.map((file) => String(file?.meta?.relativePath || '').split('/')[0] || '')
+    );
+    const [only] = [...roots];
+    return roots.size === 1 && only ? only : '';
+  };
+
   const finishUploadTask = (fileId) => {
-    if (uploadTaskIds.size <= 1) stopWatchingFinalization();
-    const operationId = uploadTaskIds.get(fileId);
-    if (!operationId) return;
-    uploadTaskIds.delete(fileId);
-    operationTasksStore.finishOperation(operationId);
+    const batchId = batchOf.get(fileId);
+    if (batchId === undefined) return;
+    batchOf.delete(fileId);
+    const batch = batches.get(batchId);
+    if (!batch) return;
+    batch.fileIds.delete(fileId);
+    batch.sentByFile.delete(fileId);
+    batch.totalByFile.delete(fileId);
+    // The operation ends when the last of its files does, not the first.
+    if (batch.fileIds.size > 0) return;
+    batches.delete(batchId);
+    if (batches.size === 0) stopWatchingFinalization();
+    operationTasksStore.finishOperation(batch.operationId);
   };
 
   const removeUploadFile = (file) => {
@@ -223,46 +260,79 @@ export const createUploadEngine = async () => {
     }
   };
 
-  const startUploadTask = (file, destination) => {
-    if (!file?.id || uploadTaskIds.has(file.id)) return;
+  const startBatchTask = (addedFiles, destination) => {
+    const files = (Array.isArray(addedFiles) ? addedFiles : []).filter(
+      (file) => file?.id && !refusedFiles.has(file.id) && batchOf.get(file.id) === undefined
+    );
+    if (!files.length) return;
+
+    const batchId = files[0]?.meta?.uploadBatchId || createUploadBatchId();
+    if (batches.has(batchId)) return;
+
+    const fileIds = new Set(files.map((file) => file.id));
+    const totalBytes = files.reduce((sum, file) => sum + (Number(file.size) || 0), 0);
+    const folder = sharedFolder(files);
     const operationId = operationTasksStore.startOperation({
       type: 'upload',
-      name: file.name || file.data?.name || '',
+      // One file is named; a folder is named for the folder; anything else is
+      // counted, which the panel does from `itemCount` on its own.
+      name: files.length === 1 ? files[0].name || files[0].data?.name || '' : folder,
       destination,
-      itemCount: 1,
-      totalBytes: Number(file.size) || 0,
+      itemCount: files.length,
+      totalBytes,
       copiedBytes: 0,
       cancellable: true,
       cancel: () => {
-        removeUploadFile(file);
+        [...fileIds].forEach((id) => removeUploadFile(uppy?.getFile?.(id) || { id }));
         scheduleUploadViewRefresh(100);
       },
       // A chunked upload can be held and picked up again: the bytes already sent
       // stay sent. A direct one cannot — there is nothing to pick up from — so it
       // is not offered. A file that falls back to chunks is added again under a
-      // new id, and the task it starts then says so on its own.
+      // new id, and the batch it starts then says so on its own.
       pausable: uploadPluginMode === 'tus',
-      pause: () => uppy.pauseResume(file.id),
-      resume: () => uppy.pauseResume(file.id),
+      pause: () => fileIds.forEach((id) => uppy.pauseResume(id)),
+      resume: () => fileIds.forEach((id) => uppy.pauseResume(id)),
     });
-    uploadTaskIds.set(file.id, operationId);
+    batches.set(batchId, {
+      operationId,
+      fileIds,
+      // The sizes declared when the files were added, and the sum of them. The
+      // uploader reports a total of its own per file as it goes, which is the
+      // one that counts: a declared size can be absent or wrong, and the bar
+      // has to agree with what is actually being sent.
+      totalByFile: new Map(files.map((file) => [file.id, Number(file.size) || 0])),
+      totalBytes,
+      sent: 0,
+      sentByFile: new Map(),
+    });
+    fileIds.forEach((id) => batchOf.set(id, batchId));
   };
 
   const updateUploadTask = (file, progress) => {
-    const operationId = uploadTaskIds.get(file?.id);
-    if (!operationId) return;
-    const totalBytes = Number(progress?.bytesTotal) || Number(file?.size) || 0;
-    const uploadedBytes = Number(progress?.bytesUploaded) || 0;
-    operationTasksStore.updateOperation(operationId, {
-      totalBytes,
-      copiedBytes: Math.min(uploadedBytes, totalBytes || Number.POSITIVE_INFINITY),
+    const batch = batchFor(file?.id);
+    if (!batch) return;
+    const fileTotal = Number(progress?.bytesTotal) || Number(file?.size) || 0;
+    const sent = Math.min(Number(progress?.bytesUploaded) || 0, fileTotal || Infinity);
+    const totalBefore = batch.totalByFile.get(file.id) || 0;
+    const before = batch.sentByFile.get(file.id) || 0;
+    // A progress event that moved nothing writes nothing: the uploader reports
+    // often, and every write here is a notification to everything watching.
+    if (sent === before && fileTotal === totalBefore) return;
+    batch.totalByFile.set(file.id, fileTotal);
+    batch.totalBytes += fileTotal - totalBefore;
+    batch.sentByFile.set(file.id, sent);
+    batch.sent += sent - before;
+    operationTasksStore.updateOperation(batch.operationId, {
+      totalBytes: batch.totalBytes,
+      copiedBytes: Math.min(batch.sent, batch.totalBytes || Number.POSITIVE_INFINITY),
     });
 
-    // Every byte is out, but the server may still be writing the file where it
-    // belongs — a copy, whenever the upload cache and the destination volume are
-    // separate filesystems. Nothing more will arrive on this progress event, so
+    // Every byte is out, but the server may still be writing the files where
+    // they belong — a copy, whenever the upload cache and the destination volume
+    // are separate filesystems. Nothing more will arrive on a progress event, so
     // from here the server is the only one who knows how far along it is.
-    if (totalBytes > 0 && uploadedBytes >= totalBytes) watchFinalization();
+    if (batch.totalBytes > 0 && batch.sent >= batch.totalBytes) watchFinalization();
   };
 
   // Ask only while something is waiting on it, and stop as soon as the server
@@ -278,26 +348,34 @@ export const createUploadEngine = async () => {
   const applyFinalization = (items) => {
     const byName = new Map(items.map((item) => [item.name, item]));
 
-    uploadTaskIds.forEach((operationId, fileId) => {
-      const file = uppy?.getFile?.(fileId);
-      const name = file?.name || '';
-      const item = byName.get(name);
-      if (!item) return;
-
-      operationTasksStore.updateOperation(operationId, {
+    // Added up over the batch, because the batch is what is drawn: one bar for
+    // what the server still has to write, not one per file.
+    batches.forEach((batch) => {
+      let finalizedBytes = 0;
+      let finalizedTotalBytes = 0;
+      let answered = false;
+      batch.fileIds.forEach((fileId) => {
+        const item = byName.get(uppy?.getFile?.(fileId)?.name || '');
+        if (!item) return;
+        answered = true;
+        finalizedBytes += Number(item.copiedBytes) || 0;
+        finalizedTotalBytes += Number(item.totalBytes) || 0;
+      });
+      if (!answered) return;
+      operationTasksStore.updateOperation(batch.operationId, {
         finalizing: true,
-        finalizedBytes: Number(item.copiedBytes) || 0,
-        finalizedTotalBytes: Number(item.totalBytes) || 0,
+        finalizedBytes,
+        finalizedTotalBytes,
       });
     });
   };
 
   const watchFinalization = () => {
-    if (finalizationTimer || uploadTaskIds.size === 0) return;
+    if (finalizationTimer || batches.size === 0) return;
 
     finalizationTimer = setTimeout(async () => {
       finalizationTimer = null;
-      if (uploadTaskIds.size === 0) return;
+      if (batches.size === 0) return;
 
       let items = [];
       try {
@@ -311,7 +389,7 @@ export const createUploadEngine = async () => {
       }
 
       applyFinalization(Array.isArray(items) ? items : []);
-      if (uploadTaskIds.size > 0) watchFinalization();
+      if (batches.size > 0) watchFinalization();
     }, FINALIZATION_POLL_MS);
   };
 
@@ -612,39 +690,53 @@ export const createUploadEngine = async () => {
   // a common batch id, then reserve its destination in the preprocessor below
   // before XHRUpload or Tus is allowed to start sending bytes.
   uppy.on('files-added', (addedFiles) => {
-    const batchId = createUploadBatchId();
-    (Array.isArray(addedFiles) ? addedFiles : []).forEach((file) => {
-      const parts = folderUploadParts(file);
-      if (parts && !file.meta?.uploadBatchId) {
+    const files = Array.isArray(addedFiles) ? addedFiles : [];
+    // A file added by some other path than ours — Uppy's own drop target, say —
+    // arrives without the batch it belongs to. One batch for all of them, named
+    // once rather than written onto each.
+    const batchId =
+      files.find((file) => file?.meta?.uploadBatchId)?.meta?.uploadBatchId || createUploadBatchId();
+    files.forEach((file) => {
+      if (folderUploadParts(file) && !file.meta?.uploadBatchId) {
         uppy.setFileMeta(file.id, { ...(file.meta || {}), uploadBatchId: batchId });
       }
     });
+    // The destination the batch was described with, not wherever the reader has
+    // navigated to by the time this runs.
+    startBatchTask(
+      files,
+      files.find((file) => file?.meta?.uploadTo)?.meta?.uploadTo ??
+        normalizePath(fileStore.currentPath || '')
+    );
   });
 
   uppy.addPreProcessor(reserveFolderUploadPaths);
 
-  // Cookies carry auth; no token headers
+  /**
+   * The guards, and what they turn away — and nothing else.
+   *
+   * Everything this used to write per file is in the descriptor now: the
+   * destination, the path inside a dropped folder, the date that tells two
+   * files of the same name apart, and the uploader's address. Each of those was
+   * a state update per file, and the address was a translator per file besides.
+   * What is left is the two refusals, which have to be per file because they are
+   * about the file, and the note of what the file's identity was computed from.
+   */
   uppy.on('file-added', (file) => {
     if (!canUploadToCurrentPath()) {
+      refusedFiles.add(file.id);
       uppy.removeFile?.(file.id);
       notifyErrorOnce(blockedMessage(), { durationMs: 5000 });
       return;
     }
 
     if (isDisallowedUpload(file?.name)) {
+      refusedFiles.add(file.id);
       uppy.removeFile?.(file.id);
       return;
     }
 
-    // Ensure server always receives a usable relativePath, even for drag-and-drop
-    const inferredRelativePath =
-      file?.meta?.relativePath ||
-      file?.data?.webkitRelativePath ||
-      file?.name ||
-      (file?.data && file?.data.name) ||
-      '';
-
-    // Some rare DnD sources may miss name; prefer data.name if present
+    // Some rare sources may miss the name; prefer the file's own if present.
     if (!file?.name && file?.data?.name && typeof uppy.setFileName === 'function') {
       try {
         uppy.setFileName(file.id, file.data.name);
@@ -653,52 +745,53 @@ export const createUploadEngine = async () => {
       }
     }
 
-    const uploadTo = normalizePath(fileStore.currentPath || '');
-    // Where the chunks go. The direct uploader builds its address per file; the
-    // resumable one holds a single endpoint, so it is pointed at the share
-    // whenever a file is queued inside one — and the server keeps that prefix in
-    // the address it answers with, so every chunk after the first goes there too.
-    const tusEndpoint = `${apiBase}${shareScoped('/api/upload/tus', uploadTo)}`;
-    uppy.getPlugin('Tus')?.setOptions?.({ endpoint: tusEndpoint });
+    // A file added by a path that did not describe it — Uppy's own drop target,
+    // or a plugin — still needs the destination it is going to.
+    if (!file?.meta?.uploadTo) {
+      const uploadTo = normalizePath(fileStore.currentPath || '');
+      uppy.setFileMeta(file.id, {
+        ...(file.meta || {}),
+        uploadTo,
+        relativePath:
+          file?.meta?.relativePath || file?.data?.webkitRelativePath || file?.name || '',
+        resolvedRelativePath: file?.meta?.resolvedRelativePath || '',
+        lastModified: String(file?.data?.lastModified ?? ''),
+      });
+    }
+
     /**
-     * And the same address again, per file, with the folder it is going to.
+     * The one thing that has to be written per file: its own address.
      *
-     * The folder is the one thing missing from what decides whether an upload
-     * may be resumed. tus-js-client looks a previous upload up by a fingerprint
-     * that Uppy builds as `['tus', file.id, endpoint]` — where `file.id` is the
-     * name, type, size and date of the file, and the endpoint is the same for
-     * every folder, since where the file goes travels in the metadata. So the
-     * same file sent to two folders had one fingerprint between them: interrupt
-     * the first and start the second, and the second would resume the first and
-     * land the file in a folder nobody sent it to.
+     * tus-js-client looks a previous upload up by a fingerprint Uppy builds as
+     * `['tus', file.id, endpoint]`, and where a file is going travels in the
+     * metadata, which the fingerprint never sees — so the same file sent to two
+     * folders had one fingerprint between them, and the second would resume the
+     * first. The plugin's own address is aimed once per batch, which is not
+     * enough on its own: a second batch to another folder re-aims it while the
+     * first batch still has files waiting, and they would be fingerprinted
+     * against a folder nobody sent them to. So each file carries the folder it
+     * was added for, taken from its own metadata rather than from wherever the
+     * reader has navigated to since.
      *
-     * Nothing reads this on the server — the destination is the metadata's, and
-     * is authorized from there (`resolveTusUploadTarget`). It is here to tell
-     * two uploads apart, and the address the server answers with for the chunks
-     * carries no query at all.
+     * It cannot ride in the descriptor: Uppy builds a file from a fixed shape
+     * and drops the keys it does not know, `tus` among them — checked in
+     * `#transformFile`. One write per file, where there were four.
+     *
+     * Nothing reads it on the server — the destination is the metadata's, and is
+     * authorized from there (`resolveTusUploadTarget`).
      */
+    const destination = file?.meta?.uploadTo ?? normalizePath(fileStore.currentPath || '');
     uppy.setFileState(file.id, {
       tus: {
         ...(file.tus || {}),
-        endpoint: `${tusEndpoint}?for=${encodeURIComponent(uploadTo)}`,
+        endpoint: `${apiBase}${shareScoped('/api/upload/tus', destination)}?for=${encodeURIComponent(destination)}`,
       },
     });
+
     // Before the field is filled in: what the id of this file was computed from.
     if (!relativePathAtAdd.has(file.id)) {
       relativePathAtAdd.set(file.id, file?.meta?.relativePath);
     }
-    uppy.setFileMeta(file.id, {
-      ...(file.meta || {}),
-      uploadTo,
-      relativePath: inferredRelativePath,
-      // Uppy stringifies every field listed in `allowedMetaFields`, carried by
-      // the file or not, so a field left unset reaches the server as the
-      // literal "undefined". Only folder uploads fill this one in.
-      resolvedRelativePath: file?.meta?.resolvedRelativePath || '',
-      // What tells this file from another of the same name and size.
-      lastModified: String(file?.data?.lastModified ?? ''),
-    });
-    startUploadTask(file, uploadTo);
   });
 
   uppy.on('upload', (_uploadID, batchFiles) => {
@@ -826,13 +919,73 @@ export const createUploadEngine = async () => {
   // method calls will throw "Cannot read from private field". Keep it raw.
   uppyStore.uppy = markRaw(uppy);
 
+  /**
+   * Where this batch is going, with the uploader pointed at it once.
+   *
+   * This used to be done in `file-added`, per file, for an address that is the
+   * same for every file in a batch: `setOptions` writes plugin state *and*
+   * rebuilds the plugin's translator, so a thousand files meant a thousand
+   * translators before a byte was sent.
+   *
+   * The query is what tells two uploads apart. tus-js-client looks a previous
+   * upload up by a fingerprint Uppy builds as `['tus', file.id, endpoint]`, and
+   * where a file is going travels in the metadata, which the fingerprint never
+   * sees — so the same file sent to two folders had one fingerprint between
+   * them, and the second would resume the first into a folder nobody sent it
+   * to. Nothing reads it on the server: the destination is the metadata's and
+   * is authorized from there (`resolveTusUploadTarget`).
+   */
+  const aimAtDestination = () => {
+    const uploadTo = normalizePath(fileStore.currentPath || '');
+    const endpoint = `${apiBase}${shareScoped('/api/upload/tus', uploadTo)}`;
+    uppy
+      .getPlugin('Tus')
+      ?.setOptions?.({ endpoint: `${endpoint}?for=${encodeURIComponent(uploadTo)}` });
+    return uploadTo;
+  };
+
+  /**
+   * Everything a file needs, written where Uppy will keep it: in the descriptor.
+   *
+   * Set after the fact, each of these was another notification to everything
+   * watching the uploader — `setFileState` and `setFileMeta`, per file. None of
+   * it depends on Uppy having the file already.
+   */
+  const describeForUpload = ({ name, type, data, meta }, { uploadTo, batchId }) => ({
+    name,
+    type,
+    data,
+    meta: {
+      ...(meta || {}),
+      uploadTo,
+      uploadBatchId: batchId,
+      relativePath: meta?.relativePath || data?.webkitRelativePath || name || data?.name || '',
+      // Uppy stringifies every field listed in `allowedMetaFields`, carried by
+      // the file or not, so a field left unset reaches the server as the
+      // literal "undefined". Only folder uploads fill this one in.
+      resolvedRelativePath: meta?.resolvedRelativePath || '',
+      // What tells this file from another of the same name and size.
+      lastModified: String(data?.lastModified ?? ''),
+    },
+  });
+
   /** Files chosen in the picker, as `{ name, type, data, meta }`. */
   const addPickedFiles = (descriptors) => {
     removeCompletedUploadFiles();
     configureUploadPlugin();
-    (Array.isArray(descriptors) ? descriptors : []).forEach((descriptor) =>
-      uppy.addFile(descriptor)
+    const uploadTo = aimAtDestination();
+    const batchId = createUploadBatchId();
+    const described = (Array.isArray(descriptors) ? descriptors : []).map((descriptor) =>
+      describeForUpload(descriptor, { uploadTo, batchId })
     );
+    if (!described.length) return;
+    try {
+      // One call, so one state update: added one at a time, every file was its
+      // own update and its own pass over everything subscribed.
+      uppy.addFiles(described);
+    } catch (err) {
+      uppy.log(err);
+    }
   };
 
   /**
@@ -842,16 +995,23 @@ export const createUploadEngine = async () => {
    */
   const addDroppedFiles = (files) => {
     configureUploadPlugin();
+    const uploadTo = aimAtDestination();
+    const batchId = createUploadBatchId();
     const descriptors = (Array.isArray(files) ? files : []).map((file) => ({
       source: 'DropTarget',
-      name: file.name,
-      type: file.type,
-      data: file,
-      meta: {
-        // path of the file relative to the ancestor directory the user selected.
-        // e.g. 'docs/Old Prague/airbnb.pdf'
-        relativePath: file.relativePath || null,
-      },
+      ...describeForUpload(
+        {
+          name: file.name,
+          type: file.type,
+          data: file,
+          meta: {
+            // path of the file relative to the ancestor directory the user
+            // selected. e.g. 'docs/Old Prague/airbnb.pdf'
+            relativePath: file.relativePath || null,
+          },
+        },
+        { uploadTo, batchId }
+      ),
     }));
     try {
       uppy.addFiles(descriptors);
@@ -864,7 +1024,7 @@ export const createUploadEngine = async () => {
     if (uploadViewRefreshTimer) clearTimeout(uploadViewRefreshTimer);
     stopWatchingFinalization();
     clearFallbackTracking();
-    Array.from(uploadTaskIds.keys()).forEach(finishUploadTask);
+    Array.from(batchOf.keys()).forEach(finishUploadTask);
     // Uppy v5 uses `destroy()`. Older versions had `close()` in some setups.
     uppy.destroy?.();
     uppy.close?.();
