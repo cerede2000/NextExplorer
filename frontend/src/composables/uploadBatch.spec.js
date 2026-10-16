@@ -116,6 +116,7 @@ vi.mock('@/stores/folderSize', () => ({
   useFolderSizeStore: () => ({ scheduleRefresh: vi.fn() }),
 }));
 const started = vi.hoisted(() => []);
+const finished = vi.hoisted(() => []);
 vi.mock('@/stores/operationTasks', () => ({
   useOperationTasksStore: () => ({
     startOperation: (operation) => {
@@ -123,7 +124,7 @@ vi.mock('@/stores/operationTasks', () => ({
       return `op-${started.length}`;
     },
     updateOperation: vi.fn(),
-    finishOperation: vi.fn(),
+    finishOperation: (id) => finished.push(id),
   }),
 }));
 
@@ -146,6 +147,7 @@ beforeEach(async () => {
   handlers.clear();
   uppyCalls.length = 0;
   started.length = 0;
+  finished.length = 0;
   localStorage.clear();
   uploads.chunkedEnabled = true;
   uploads.chunkedAutoFallback = true;
@@ -261,5 +263,49 @@ describe('a folder of files', () => {
     expect(called('addFile').length).toBe(0);
     expect(called('addFiles').length).toBe(1);
     expect(called('addFiles')[0][1]).toHaveLength(MANY);
+  });
+});
+
+describe('letting a batch go', () => {
+  /**
+   * Cancelling one was as expensive as adding it.
+   *
+   * `removeFile` goes through `removeFiles([id])`, which copies the whole file
+   * map and the whole uploads map on every call — so taking a batch of
+   * thousands back one file at a time is quadratic, and froze the tab exactly
+   * as adding them used to. Reported from a real drop: the files appeared, the
+   * cancel was pressed, and the tab stopped answering again.
+   */
+  it('is cancelled in one call, not one call per file', async () => {
+    const engine = await createUploadEngine();
+    await addAndAnnounce(
+      engine,
+      Array.from({ length: MANY }, (_, index) => aDroppedFile(index))
+    );
+
+    started[0].cancel();
+
+    expect(called('removeFile')).toHaveLength(0);
+    expect(called('removeFiles')).toHaveLength(1);
+    expect(called('removeFiles')[0][1]).toHaveLength(MANY);
+    // And the row goes, rather than being left behind with nothing under it.
+    expect(finished).toContain('op-1');
+  });
+
+  it('is held in one call while it is the only one in flight', async () => {
+    const engine = await createUploadEngine();
+    await addAndAnnounce(
+      engine,
+      Array.from({ length: MANY }, (_, index) => aDroppedFile(index))
+    );
+
+    started[0].pause();
+    started[0].resume();
+
+    // `pauseResume` writes one file's state, which copies every file's: a loop
+    // over the batch is the same quadratic cost under another name.
+    expect(called('pauseResume')).toHaveLength(0);
+    expect(called('pauseAll')).toHaveLength(1);
+    expect(called('resumeAll')).toHaveLength(1);
   });
 });

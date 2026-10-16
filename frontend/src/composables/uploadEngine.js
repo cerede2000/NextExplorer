@@ -260,6 +260,17 @@ export const createUploadEngine = async () => {
     }
   };
 
+  const holdBatch = (batchId, held) => {
+    const batch = batches.get(batchId);
+    if (!batch) return;
+    if (batches.size === 1) {
+      if (held) uppy.pauseAll?.();
+      else uppy.resumeAll?.();
+      return;
+    }
+    batch.fileIds.forEach((id) => uppy.pauseResume(id));
+  };
+
   const openOrExtendBatch = (addedFiles, destination) => {
     const files = (Array.isArray(addedFiles) ? addedFiles : []).filter(
       (file) => file?.id && !refusedFiles.has(file.id) && batchOf.get(file.id) === undefined
@@ -300,8 +311,27 @@ export const createUploadEngine = async () => {
       totalBytes,
       copiedBytes: 0,
       cancellable: true,
+      /**
+       * Cancelled in one call, because `removeFile` is one call per file.
+       *
+       * It goes through `removeFiles([id])`, which copies the whole file map and
+       * the whole uploads map every time — so cancelling a batch of thousands
+       * one file at a time is quadratic, and froze the tab exactly as adding
+       * them used to. The bookkeeping is done first and separately: it is ours,
+       * it is cheap, and finishing the batch must not depend on the uploader
+       * having agreed to let the files go.
+       */
       cancel: () => {
-        [...fileIds].forEach((id) => removeUploadFile(uppy?.getFile?.(id) || { id }));
+        const ids = [...fileIds];
+        ids.forEach((id) => {
+          finishUploadTask(id);
+          relativePathAtAdd.delete(id);
+        });
+        try {
+          uppy.removeFiles(ids);
+        } catch (_) {
+          /* noop */
+        }
         scheduleUploadViewRefresh(100);
       },
       // A chunked upload can be held and picked up again: the bytes already sent
@@ -309,8 +339,19 @@ export const createUploadEngine = async () => {
       // is not offered. A file that falls back to chunks is added again under a
       // new id, and the batch it starts then says so on its own.
       pausable: uploadPluginMode === 'tus',
-      pause: () => fileIds.forEach((id) => uppy.pauseResume(id)),
-      resume: () => fileIds.forEach((id) => uppy.pauseResume(id)),
+      /**
+       * Held and let go in one call where that is the same thing.
+       *
+       * `pauseResume` writes one file's state, which copies the whole file map,
+       * so a loop over a batch is quadratic like everything else here.
+       * `pauseAll` does it in a single pass — and when this is the only batch in
+       * flight it means precisely the same thing. With another batch alongside
+       * it would mean more than was asked, so there the loop stands: two batches
+       * at once are two smaller ones, and being right matters more there than
+       * being quick.
+       */
+      pause: () => holdBatch(batchId, true),
+      resume: () => holdBatch(batchId, false),
     });
     batches.set(batchId, {
       operationId,
