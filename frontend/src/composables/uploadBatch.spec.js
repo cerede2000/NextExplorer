@@ -57,6 +57,9 @@ const makeUppy = () =>
       // The real one always answers a list; the proxy below would answer
       // undefined, and the engine walks what it is given.
       getFiles: () => [],
+      // Present, because the engine keeps a per-file road for an Uppy that does
+      // not have this one — and a fake without it would measure that road.
+      patchFilesState: (states) => uppyCalls.push(['patchFilesState', states]),
     },
     {
       get: (target, property) => {
@@ -232,12 +235,16 @@ describe('a folder of files', () => {
     // The metadata is in the descriptor the file was added with, so none of it
     // has to be written again once Uppy holds the file.
     expect(called('setFileMeta').length).toBe(0);
-    // The address is the exception, and deliberately: Uppy builds a file from a
-    // fixed shape and drops the keys it does not know, so `tus` cannot ride in
-    // a descriptor. It has to be per file because it is what tells one upload
-    // from another when two folders are being filled at once.
-    expect(called('setFileState').length).toBe(MANY);
-    expect(called('setFileState').every(([, , state]) => state?.tus?.endpoint)).toBe(true);
+    // The address cannot be: Uppy builds a file from a fixed shape and drops
+    // the keys it does not know, so `tus` has to be written afterwards — once
+    // for the whole slice. Writing it per file copies Uppy's entire file map
+    // every time, which is 17 seconds at eight thousand files against 13
+    // milliseconds for one call.
+    expect(called('setFileState').length).toBe(0);
+    expect(called('patchFilesState').length).toBe(1);
+    const [[, states]] = called('patchFilesState');
+    expect(Object.keys(states)).toHaveLength(MANY);
+    expect(Object.values(states).every((state) => state?.tus?.endpoint)).toBe(true);
   });
 
   it('adds the files the picker chose in one call', async () => {

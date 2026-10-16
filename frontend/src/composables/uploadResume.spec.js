@@ -107,6 +107,17 @@ const fire = async (event, ...args) => {
   for (const handler of handlers.get(event) || []) await handler(...args);
 };
 
+/**
+ * A file announced the way Uppy announces one: `file-added`, then the batch.
+ *
+ * The address a file is fingerprinted against is written once per batch, so a
+ * test that fires only the per-file event sees no address at all.
+ */
+const announce = async (file) => {
+  await fire('file-added', file);
+  await fire('files-added', [file]);
+};
+
 const called = (method) => uppyCalls.filter(([name]) => name === method);
 
 /** The options the resumable uploader was installed with. */
@@ -115,11 +126,23 @@ const tusOptions = () => {
   return use?.[2] || null;
 };
 
-/** What was set on one file, merged as the engine sets it. */
-const stateOf = (fileId) =>
-  called('setFileState')
+/**
+ * What was set on one file, merged as the engine sets it — by either road.
+ *
+ * The address is written for a whole slice at a time now, because setting it
+ * per file copies Uppy's entire file map on every call. Which call was used is
+ * not what these cases are about: they are about two folders having two
+ * addresses, so both roads are read.
+ */
+const stateOf = (fileId) => {
+  const single = called('setFileState')
     .filter(([, id]) => id === fileId)
-    .reduce((all, [, , state]) => ({ ...all, ...state }), {});
+    .map(([, , state]) => state);
+  const batched = called('patchFilesState')
+    .map(([, states]) => states?.[fileId])
+    .filter(Boolean);
+  return [...single, ...batched].reduce((all, state) => ({ ...all, ...state }), {});
+};
 
 const metaOf = (fileId) =>
   called('setFileMeta')
@@ -159,7 +182,7 @@ describe('the resumable uploader', () => {
   it('sends what tells one file from another of the same name and size', async () => {
     expect(tusOptions().allowedMetaFields).toContain('lastModified');
 
-    await fire('file-added', aFile('f1', 'film.mkv'));
+    await announce(aFile('f1', 'film.mkv'));
 
     expect(metaOf('f1')).toMatchObject({
       uploadTo: 'Docs/2026',
@@ -173,15 +196,15 @@ describe('the resumable uploader', () => {
    * is authorized from there.
    */
   it('names the folder in the address it is created at', async () => {
-    await fire('file-added', aFile('f1', 'film.mkv'));
+    await announce(aFile('f1', 'film.mkv'));
 
     expect(stateOf('f1').tus.endpoint).toBe('/api/upload/tus?for=Docs%2F2026');
   });
 
   it('gives two folders two addresses, so one upload never resumes the other', async () => {
-    await fire('file-added', aFile('f1', 'film.mkv'));
+    await announce(aFile('f1', 'film.mkv'));
     fileStore.currentPath = 'Archive';
-    await fire('file-added', aFile('f2', 'film.mkv'));
+    await announce(aFile('f2', 'film.mkv'));
 
     expect(stateOf('f1').tus.endpoint).not.toBe(stateOf('f2').tus.endpoint);
     expect(stateOf('f2').tus.endpoint).toBe('/api/upload/tus?for=Archive');
@@ -259,7 +282,7 @@ describe('the resumable uploader', () => {
   it('keeps the address of an upload already under way', async () => {
     const file = { ...aFile('f1', 'film.mkv'), tus: { uploadUrl: '/api/upload/tus/abc' } };
 
-    await fire('file-added', file);
+    await announce(file);
 
     expect(stateOf('f1').tus).toMatchObject({
       uploadUrl: '/api/upload/tus/abc',

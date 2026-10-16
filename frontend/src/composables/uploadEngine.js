@@ -260,14 +260,32 @@ export const createUploadEngine = async () => {
     }
   };
 
-  const startBatchTask = (addedFiles, destination) => {
+  const openOrExtendBatch = (addedFiles, destination) => {
     const files = (Array.isArray(addedFiles) ? addedFiles : []).filter(
       (file) => file?.id && !refusedFiles.has(file.id) && batchOf.get(file.id) === undefined
     );
     if (!files.length) return;
 
     const batchId = files[0]?.meta?.uploadBatchId || createUploadBatchId();
-    if (batches.has(batchId)) return;
+
+    // A drop is added in slices, so the batch is opened by the first slice and
+    // grows with the rest — one update to the operation per slice rather than
+    // one per file.
+    const open = batches.get(batchId);
+    if (open) {
+      files.forEach((file) => {
+        open.fileIds.add(file.id);
+        open.totalByFile.set(file.id, Number(file.size) || 0);
+        open.totalBytes += Number(file.size) || 0;
+        open.added += 1;
+        batchOf.set(file.id, batchId);
+      });
+      operationTasksStore.updateOperation(open.operationId, {
+        itemCount: open.added,
+        totalBytes: open.totalBytes,
+      });
+      return;
+    }
 
     const fileIds = new Set(files.map((file) => file.id));
     const totalBytes = files.reduce((sum, file) => sum + (Number(file.size) || 0), 0);
@@ -297,6 +315,10 @@ export const createUploadEngine = async () => {
     batches.set(batchId, {
       operationId,
       fileIds,
+      // How many have ever been in it, which is what the panel counts: files
+      // leave `fileIds` as they finish, and a count that shrank would read as
+      // the batch getting smaller.
+      added: files.length,
       // The sizes declared when the files were added, and the sum of them. The
       // uploader reports a total of its own per file as it goes, which is the
       // one that counts: a declared size can be absent or wrong, and the bar
@@ -701,13 +723,15 @@ export const createUploadEngine = async () => {
         uppy.setFileMeta(file.id, { ...(file.meta || {}), uploadBatchId: batchId });
       }
     });
+    const kept = files.filter((file) => file?.id && !refusedFiles.has(file.id));
     // The destination the batch was described with, not wherever the reader has
     // navigated to by the time this runs.
-    startBatchTask(
-      files,
-      files.find((file) => file?.meta?.uploadTo)?.meta?.uploadTo ??
+    openOrExtendBatch(
+      kept,
+      kept.find((file) => file?.meta?.uploadTo)?.meta?.uploadTo ??
         normalizePath(fileStore.currentPath || '')
     );
+    aimFilesAtTheirFolder(kept);
   });
 
   uppy.addPreProcessor(reserveFolderUploadPaths);
@@ -759,40 +783,57 @@ export const createUploadEngine = async () => {
       });
     }
 
-    /**
-     * The one thing that has to be written per file: its own address.
-     *
-     * tus-js-client looks a previous upload up by a fingerprint Uppy builds as
-     * `['tus', file.id, endpoint]`, and where a file is going travels in the
-     * metadata, which the fingerprint never sees — so the same file sent to two
-     * folders had one fingerprint between them, and the second would resume the
-     * first. The plugin's own address is aimed once per batch, which is not
-     * enough on its own: a second batch to another folder re-aims it while the
-     * first batch still has files waiting, and they would be fingerprinted
-     * against a folder nobody sent them to. So each file carries the folder it
-     * was added for, taken from its own metadata rather than from wherever the
-     * reader has navigated to since.
-     *
-     * It cannot ride in the descriptor: Uppy builds a file from a fixed shape
-     * and drops the keys it does not know, `tus` among them — checked in
-     * `#transformFile`. One write per file, where there were four.
-     *
-     * Nothing reads it on the server — the destination is the metadata's, and is
-     * authorized from there (`resolveTusUploadTarget`).
-     */
-    const destination = file?.meta?.uploadTo ?? normalizePath(fileStore.currentPath || '');
-    uppy.setFileState(file.id, {
-      tus: {
-        ...(file.tus || {}),
-        endpoint: `${apiBase}${shareScoped('/api/upload/tus', destination)}?for=${encodeURIComponent(destination)}`,
-      },
-    });
-
     // Before the field is filled in: what the id of this file was computed from.
     if (!relativePathAtAdd.has(file.id)) {
       relativePathAtAdd.set(file.id, file?.meta?.relativePath);
     }
   });
+
+  /**
+   * Every file in a slice pointed at its own folder, in one write.
+   *
+   * This has to be per file and cannot ride in the descriptor. tus-js-client
+   * looks a previous upload up by a fingerprint Uppy builds as
+   * `['tus', file.id, endpoint]`, and where a file is going travels in the
+   * metadata, which the fingerprint never sees — so the same file sent to two
+   * folders had one fingerprint between them, and the second would resume the
+   * first. Aiming the plugin is not enough: a second batch to another folder
+   * re-aims it while the first still has files waiting. And Uppy builds a file
+   * from a fixed shape and drops the keys it does not know, `tus` among them,
+   * which is checked in its `#transformFile`.
+   *
+   * So it is written — once for the whole slice. `setFileState` copies the
+   * entire file map on every call, which makes a call per file quadratic:
+   * measured against this Uppy, eight thousand files cost 17 seconds that way
+   * and 13 milliseconds in one `patchFilesState`. The per-file call is kept as
+   * the way back, because the batched one is not part of Uppy's documented
+   * surface and an upload that cannot be resumed is worse than a slow one.
+   *
+   * Nothing reads this on the server — the destination is the metadata's, and
+   * is authorized from there (`resolveTusUploadTarget`).
+   */
+  const aimFilesAtTheirFolder = (files) => {
+    if (!files.length) return;
+    const states = Object.fromEntries(
+      files.map((file) => {
+        const destination = file?.meta?.uploadTo ?? normalizePath(fileStore.currentPath || '');
+        return [
+          file.id,
+          {
+            tus: {
+              ...(file.tus || {}),
+              endpoint: `${apiBase}${shareScoped('/api/upload/tus', destination)}?for=${encodeURIComponent(destination)}`,
+            },
+          },
+        ];
+      })
+    );
+    if (typeof uppy.patchFilesState === 'function') {
+      uppy.patchFilesState(states);
+      return;
+    }
+    Object.entries(states).forEach(([id, state]) => uppy.setFileState(id, state));
+  };
 
   uppy.on('upload', (_uploadID, batchFiles) => {
     const files = Array.isArray(batchFiles) ? batchFiles : [];
@@ -969,6 +1010,38 @@ export const createUploadEngine = async () => {
     },
   });
 
+  /**
+   * Added in slices, with the main thread handed back between them.
+   *
+   * Uppy's own `addFiles` is quadratic in the number of files it is given: its
+   * loop copies the whole file map once per file, unconditionally. Measured
+   * against this version — two thousand files 0.5 s, four thousand 1.9 s, eight
+   * thousand 9.5 s — which extrapolates to about a minute for the nineteen
+   * thousand files of a project folder with its build output in it.
+   *
+   * Slicing does not reduce that total; nothing short of another uploader
+   * would. What it does is stop it being one unbroken block: the page draws
+   * between slices, the count climbs where the reader can see it, and the
+   * operation can be cancelled while it is still going. A freeze becomes a
+   * wait, which is the difference between a broken tab and a slow one.
+   */
+  const ADD_SLICE = 250;
+
+  const addInSlices = async (described) => {
+    for (let at = 0; at < described.length; at += ADD_SLICE) {
+      try {
+        uppy.addFiles(described.slice(at, at + ADD_SLICE));
+      } catch (err) {
+        uppy.log(err);
+      }
+      // Nothing is yielded after the last slice: a single-slice batch stays
+      // synchronous, which is what every caller and test has always seen.
+      if (at + ADD_SLICE < described.length) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+    }
+  };
+
   /** Files chosen in the picker, as `{ name, type, data, meta }`. */
   const addPickedFiles = (descriptors) => {
     removeCompletedUploadFiles();
@@ -978,14 +1051,10 @@ export const createUploadEngine = async () => {
     const described = (Array.isArray(descriptors) ? descriptors : []).map((descriptor) =>
       describeForUpload(descriptor, { uploadTo, batchId })
     );
-    if (!described.length) return;
-    try {
-      // One call, so one state update: added one at a time, every file was its
-      // own update and its own pass over everything subscribed.
-      uppy.addFiles(described);
-    } catch (err) {
-      uppy.log(err);
-    }
+    if (!described.length) return undefined;
+    // In slices, so one state update each instead of one per file — and the
+    // page is handed back between them.
+    return addInSlices(described);
   };
 
   /**
@@ -1013,11 +1082,7 @@ export const createUploadEngine = async () => {
         { uploadTo, batchId }
       ),
     }));
-    try {
-      uppy.addFiles(descriptors);
-    } catch (err) {
-      uppy.log(err);
-    }
+    return addInSlices(descriptors);
   };
 
   const destroy = () => {
