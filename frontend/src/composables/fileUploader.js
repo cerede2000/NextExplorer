@@ -159,7 +159,15 @@ export function useFileUploader() {
 
         if (options.directory && selectedFiles.length > 0) {
           try {
-            const reservation = await reserveFolderUploadTarget(fileStore.currentPath, sourceRoot);
+            // The batch travels with the asking. The server keeps its record of
+            // the folder it creates under the batch it was asked for, and that
+            // record is the only thing a cancel can give back — so a question
+            // without the batch's name reserves a folder nothing can return.
+            const reservation = await reserveFolderUploadTarget(
+              fileStore.currentPath,
+              sourceRoot,
+              uploadBatchId
+            );
             targetRoot = reservation?.targetRoot || '';
             if (!targetRoot) throw new Error('The server did not reserve a destination folder.');
           } catch (err) {

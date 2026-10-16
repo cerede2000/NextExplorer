@@ -855,7 +855,18 @@ describe('choosing a folder from the picker', () => {
     await pick({ directory: true }, tree());
 
     expect(api.reserveFolderUploadTarget).toHaveBeenCalledTimes(1);
-    expect(api.reserveFolderUploadTarget).toHaveBeenCalledWith('Docs', 'Docs');
+    expect(api.reserveFolderUploadTarget).toHaveBeenCalledWith('Docs', 'Docs', expect.any(String));
+    /**
+     * And under the batch the files carry, not an id of its own.
+     *
+     * The server keeps its record of the folder it created under the batch it
+     * was asked for, and that record is the only thing a cancel can give back.
+     * Asked under an id nothing else knows, the folder could never be returned:
+     * a picked folder stopped before a byte went out kept its name held, and
+     * the next try at the same folder became `Docs (1)`.
+     */
+    const [, , askedFor] = api.reserveFolderUploadTarget.mock.calls[0];
+    expect(askedFor).toBe(uppy.getFiles()[0].meta.uploadBatchId);
   });
 
   it('re-roots every file onto the name the server gave back', async () => {

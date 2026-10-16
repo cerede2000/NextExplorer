@@ -206,6 +206,40 @@ export const createUploadEngine = async () => {
     });
   };
 
+  /**
+   * A folder reserved before the engine was ever asked, kept where the engine
+   * keeps the ones it asked for itself.
+   *
+   * There are two roads to a reserved folder. The pre-processor above is one;
+   * the picker is the other, and it has to reserve before handing anything over
+   * because it writes the resolved path onto every file it hands over. So the
+   * register a cancel reads was empty for every folder chosen in the picker —
+   * which is most of them — and pressing stop gave nothing back: the folder
+   * stayed, empty, with the name held, and the next try became `ardoise (1)`.
+   * Measured in a real browser: one `folder-session` call for the drop and no
+   * second one for the giving back.
+   *
+   * Read from the files themselves, so the two roads cannot disagree about
+   * where a batch is going: the destination and the resolved path travel in the
+   * metadata, written there before the files were handed over.
+   */
+  const rememberReservationFromFiles = (described, batchId) => {
+    const picked = described.find((file) => file?.meta?.resolvedRelativePath);
+    if (!picked) return;
+    const firstSegment = (value) =>
+      String(value || '')
+        .split('/')
+        .filter(Boolean)[0] || '';
+    const sourceRoot = firstSegment(picked.meta.relativePath);
+    const targetRoot = firstSegment(picked.meta.resolvedRelativePath);
+    if (!sourceRoot || !targetRoot) return;
+    const uploadTo = normalizePath(picked.meta.uploadTo || '');
+    folderReservationByBatch.set(
+      `${uploadTo}\u0000${batchId}\u0000${sourceRoot}`,
+      Promise.resolve({ targetRoot })
+    );
+  };
+
   // A folder upload emits one success event per file. Wait for a short quiet
   // period so those events produce one listing refresh instead of repeatedly
   // aborting the preceding browse request.
@@ -483,6 +517,16 @@ export const createUploadEngine = async () => {
         const ids = [...fileIds];
         ids.forEach((id) => cancelledFiles.add(id));
         /**
+         * What this batch reserved, read before anything can forget it.
+         *
+         * Both of the things below forget it. Stopping the uploader makes it
+         * announce `cancel-all`, which empties the register of reservations in
+         * one go; the bookkeeping after that ends the batch, and ending a batch
+         * lets go of what it had reserved. So the folders are read here, at the
+         * top, and the asking that follows is an errand of its own.
+         */
+        giveBackFolderReservations(batchId);
+        /**
          * The uploader is stopped first, and the bookkeeping follows.
          *
          * The bookkeeping is a loop over every file of the batch — thousands of
@@ -517,9 +561,6 @@ export const createUploadEngine = async () => {
         } catch (_) {
           /* noop */
         }
-        // Before the bookkeeping below, which ends the batch and forgets what it
-        // had reserved: this needs that record to know what to ask for.
-        giveBackFolderReservations(batchId);
         ids.forEach((id) => {
           finishUploadTask(id);
           relativePathAtAdd.delete(id);
@@ -1331,11 +1372,18 @@ export const createUploadEngine = async () => {
     removeCompletedUploadFiles();
     configureUploadPlugin();
     const uploadTo = aimAtDestination();
-    const batchId = createUploadBatchId();
+    // The batch the picker already named, where it named one: it reserved the
+    // folder under that name and the server keeps its record of the folder under
+    // it, so an id minted here would be an id nothing can give back.
+    const named = (Array.isArray(descriptors) ? descriptors : []).find(
+      (descriptor) => descriptor?.meta?.uploadBatchId
+    );
+    const batchId = named?.meta?.uploadBatchId || createUploadBatchId();
     const described = (Array.isArray(descriptors) ? descriptors : []).map((descriptor) =>
       describeForUpload(descriptor, { uploadTo, batchId })
     );
     if (!described.length) return undefined;
+    rememberReservationFromFiles(described, batchId);
     // In slices, so one state update each instead of one per file — and the
     // page is handed back between them.
     return addInSlices(described, batchId);

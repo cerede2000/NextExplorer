@@ -99,6 +99,18 @@ const makeUppy = () =>
         return (...args) => {
           uppyCalls.push([String(property), ...args]);
           timeline.push(`uppy:${String(property)}`);
+          /**
+           * Announced the way Uppy announces it: from inside the call.
+           *
+           * `cancelAll` emits `cancel-all` before it returns, and the engine
+           * hangs the emptying of its folder reservations off that event. A
+           * fake that only recorded the call left the register standing, so
+           * everything a cancel does *after* stopping the uploader was measured
+           * against a register the real one has already emptied.
+           */
+          if (property === 'cancelAll') {
+            (handlers.get('cancel-all') || []).forEach((handler) => handler());
+          }
           if (property === 'addFiles') {
             // Numbered from where the last call stopped, which `held.size` on
             // its own was not: it grows as the loop sets each file, so a slice
@@ -673,6 +685,53 @@ describe('the one place that creates a folder', () => {
       'Holiday',
       files[0].meta.uploadBatchId
     );
+  });
+
+  /**
+   * And a folder chosen in the picker, which is the road most folders take.
+   *
+   * That road reserves the folder itself — it writes the resolved path onto
+   * every file before the engine is handed any of them — so nothing it reserves
+   * ever passes through the pre-processor above. The register a cancel reads was
+   * the pre-processor's alone, so stopping a picked folder gave nothing back:
+   * found in a real browser, where the drop asked for its folder and the stop
+   * asked for nothing. The case before this one passes either way, because it
+   * goes through the road that does reach the pre-processor.
+   */
+  it('asks for a picked folder back as well, under the batch the picker named', async () => {
+    const engine = await createUploadEngine();
+    const batchId = 'picked-batch-01';
+    // As the picker hands them over: the folder already reserved, its answer
+    // written onto every file, and the batch it was reserved under.
+    const picked = Array.from({ length: 3 }, (_, index) => ({
+      name: `shot-${index}.jpg`,
+      type: 'image/jpeg',
+      data: { size: 2048, lastModified: 1760000000000 + index },
+      meta: {
+        uploadBatchId: batchId,
+        relativePath: `Holiday/shot-${index}.jpg`,
+        resolvedRelativePath: `Holiday (1)/shot-${index}.jpg`,
+      },
+    }));
+
+    engine.addPickedFiles(picked);
+    await vi.advanceTimersByTimeAsync(10);
+    const described = called('addFiles')[0][1].map((descriptor, index) => ({
+      id: `uppy-${index}`,
+      name: descriptor.name,
+      size: descriptor.data?.size,
+      data: descriptor.data,
+      meta: descriptor.meta,
+    }));
+    await fire('files-added', described);
+    api.releaseFolderUploadTarget.mockClear();
+
+    started[0].cancel();
+    await vi.advanceTimersByTimeAsync(1);
+
+    // The batch the picker named, which is the name the server keeps its record
+    // of the folder under — an id of the engine's own would ask for nothing.
+    expect(api.releaseFolderUploadTarget).toHaveBeenCalledWith('Docs/2026', 'Holiday', batchId);
   });
 
   it('asks for nothing back when the batch never reserved anything', async () => {
