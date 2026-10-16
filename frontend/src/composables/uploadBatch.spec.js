@@ -488,3 +488,49 @@ describe('the one place that creates a folder', () => {
     expect(api.reserveFolderUploadTarget).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('the takeover that made cancelling endless', () => {
+  /**
+   * Reported as: cancel, and another upload takes over at once; cancel that,
+   * and another takes over. Twenty-six folders, one every second or two, each
+   * one because the previous name was taken.
+   *
+   * The fallback re-adds a file that was refused, and Uppy gives the copy a new
+   * id — so a guard that remembers cancelled *files* is remembering something
+   * that no longer exists. The copy was never cancelled, so it uploaded,
+   * stalled, was re-added, and the loop had no end. What survives a re-add is
+   * the batch the file belongs to, and that is what is asked now.
+   */
+  it('refuses to take over for a batch that was called off, under any new id', async () => {
+    uploads.chunkedEnabled = false;
+    uploads.chunkedAutoFallback = true;
+    const engine = await createUploadEngine();
+
+    engine.addDroppedFiles([
+      { name: 'target.rlib', size: 2 * 1024 * 1024 * 1024, relativePath: 'ardoise/target.rlib' },
+    ]);
+    const [descriptor] = called('addFiles')[0][1];
+    const original = {
+      id: 'uppy-0',
+      name: descriptor.name,
+      size: descriptor.data?.size,
+      progress: {},
+      data: descriptor.data,
+      meta: descriptor.meta,
+    };
+    await fire('file-added', original);
+    await fire('files-added', [original]);
+
+    started[0].cancel();
+    called('addFile').length = 0;
+
+    // The copy the fallback had already made: a different id, the same batch.
+    const copy = { ...original, id: 'uppy-99-restarted' };
+    await fire('upload-error', copy, new Error('too large'), { status: 413 });
+    await vi.advanceTimersByTimeAsync(10);
+
+    // Nothing takes over, so nothing starts an upload run, so no folder is
+    // reserved and no name is taken.
+    expect(called('addFile')).toHaveLength(0);
+  });
+});

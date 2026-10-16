@@ -281,6 +281,22 @@ export const createUploadEngine = async () => {
    * already past that point.
    */
   const cancelledBatches = new Set();
+
+  /**
+   * Whether this file belongs to something the reader called off.
+   *
+   * Asked of the batch and not only of the file, because a file that is sent
+   * again is sent under a *new id*: the fallback re-adds it, and Uppy builds an
+   * id from the file's own particulars, so the id that was marked as cancelled
+   * belongs to a file that no longer exists. The copy that replaced it was not
+   * cancelled, so it uploaded, stalled, was re-added again — one takeover every
+   * second or two, each one a new upload run, each run a new folder because the
+   * one before it already existed. That is what made cancelling endless rather
+   * than merely slow. The batch id travels with the file through every re-add,
+   * so it is the thing to ask.
+   */
+  const wasCalledOff = (file) =>
+    cancelledFiles.has(file?.id) || cancelledBatches.has(file?.meta?.uploadBatchId);
   /** Files a guard turned away, so the batch does not count them. */
   const refusedFiles = new Set();
 
@@ -715,7 +731,7 @@ export const createUploadEngine = async () => {
   const relativePathAtAdd = new Map();
   const restartAsChunked = (file, observedBytes) => {
     if (!file?.id) return false;
-    if (cancelledFiles.has(file.id)) return false;
+    if (wasCalledOff(file)) return false;
     if (restarting.has(file.id)) return true;
 
     const nextMiB = nextLadderMiB(observedBytes);
@@ -762,7 +778,7 @@ export const createUploadEngine = async () => {
   const handleUploadFailure = (file, status, observedBytes) => {
     // Called off rather than broken: there is nothing here to retry, and
     // retrying is what reserved another folder.
-    if (cancelledFiles.has(file?.id)) return false;
+    if (wasCalledOff(file)) return false;
     if (!file?.data || !isLargeFile(file)) return false;
     if (status === 401 || status === 403 || status === 507) return false;
     if (inDirectMode() || inFallbackChunkedMode()) {
