@@ -89,7 +89,7 @@ vi.mock('@/stores/folderSize', () => ({ useFolderSizeStore: () => stores.folder 
 vi.mock('@/stores/operationTasks', () => ({ useOperationTasksStore: () => stores.tasks }));
 
 const {
-  ASK_ABOVE,
+  uploadQuestion,
   useFileUploader,
   useUppyDropTarget,
   loadUploadEngine,
@@ -211,6 +211,8 @@ beforeEach(() => {
   );
   Object.assign(stores.volume, { scheduleRefresh: vi.fn() });
   Object.assign(stores.folder, { scheduleRefresh: vi.fn() });
+  // A case that lowers the threshold must not lower it for the next one.
+  uploadQuestion.askAbove = 2000;
   Object.assign(stores.tasks, {
     startOperation: vi.fn(() => 'op-1'),
     updateOperation: vi.fn(),
@@ -988,6 +990,12 @@ describe('dropping files onto a part of the page', () => {
    * dropped with its build output in it is tens of thousands of files, most of
    * which nobody meant to send. The reader is told what they dropped.
    */
+  /** Crossing the threshold without paying what crossing it really costs. */
+  const overTheThreshold = (count) => {
+    uploadQuestion.askAbove = count - 1;
+    return aLotOfFiles(count);
+  };
+
   const aLotOfFiles = (count) =>
     folderEntry(
       'Project',
@@ -1001,7 +1009,7 @@ describe('dropping files onto a part of the page', () => {
     await settle();
     const { isOpen, cancel } = useAsk();
 
-    element.dispatchEvent(dragEvent('drop', [aLotOfFiles(ASK_ABOVE + 1)]));
+    element.dispatchEvent(dragEvent('drop', [overTheThreshold(3)]));
     await settle();
 
     expect(isOpen.value).toBe(true);
@@ -1021,16 +1029,16 @@ describe('dropping files onto a part of the page', () => {
     await settle();
     const { isOpen, accept } = useAsk();
 
-    element.dispatchEvent(dragEvent('drop', [aLotOfFiles(ASK_ABOVE + 1)]));
+    element.dispatchEvent(dragEvent('drop', [overTheThreshold(3)]));
     await settle();
     expect(isOpen.value).toBe(true);
     accept();
     await settle(50);
     await settle();
 
-    expect(uppy.getFiles().length).toBe(ASK_ABOVE + 1);
+    expect(uppy.getFiles()).toHaveLength(3);
     target.unmount();
-  }, 30000);
+  });
 
   it('asks nothing for a drop it can add quickly', async () => {
     const uppy = await mountUploader();

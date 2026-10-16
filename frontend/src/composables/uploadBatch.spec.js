@@ -373,3 +373,48 @@ describe('a batch the reader called off', () => {
     expect(called('addFile')).toHaveLength(1);
   });
 });
+
+describe('cancelling while the drop is still being handed over', () => {
+  /**
+   * The slices have to obey too, and this is where the folders came from.
+   *
+   * A drop is handed to the uploader in slices with the main thread given back
+   * between them, so a reader watching a count climb and pressing stop lands in
+   * the middle of that loop. The files already added stopped; the loop kept
+   * feeding the rest, and each later slice found its batch closed and opened
+   * another — which reserved the next folder name. Reported as `ardoise`,
+   * `ardoise (1)`, `ardoise (2)` seconds apart, which is the rhythm of a slice
+   * and not of a retry.
+   */
+  const SLICES = 3;
+
+  it('hands over nothing more once it has been cancelled', async () => {
+    const engine = await createUploadEngine();
+    const files = Array.from({ length: 250 * SLICES }, (_, index) => aDroppedFile(index));
+
+    const adding = engine.addDroppedFiles(files);
+
+    // The first slice goes inside the call itself, before anything is awaited.
+    expect(called('addFiles')).toHaveLength(1);
+    const handed = (called('addFiles')[0][1] || []).map((descriptor, index) => ({
+      id: `uppy-${index}`,
+      name: descriptor.name,
+      size: descriptor.data?.size,
+      data: descriptor.data,
+      meta: descriptor.meta,
+    }));
+    for (const file of handed) await fire('file-added', file);
+    await fire('files-added', handed);
+    expect(started).toHaveLength(1);
+
+    started[0].cancel();
+    await vi.advanceTimersByTimeAsync(100);
+    await adding;
+
+    // The slices that had not been handed over are never handed over...
+    expect(called('addFiles')).toHaveLength(1);
+    // ...so no second batch opens behind the reader's back, which is what
+    // reserved a second folder.
+    expect(started).toHaveLength(1);
+  });
+});

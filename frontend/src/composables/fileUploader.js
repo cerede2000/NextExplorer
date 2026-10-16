@@ -247,8 +247,13 @@ const isFileTransfer = (event) =>
  *
  * So this is not a limit, it is a sentence: here is what you dropped, and it
  * will take a while. Below it nobody is asked anything.
+ *
+ * In one mutable place so that a test can cross it without building two
+ * thousand files: handing that many to a real uploader costs seconds of
+ * quadratic work, which is the very thing this number exists to warn about —
+ * a case that proves the rule should not have to pay the cost the rule is for.
  */
-export const ASK_ABOVE = 2000;
+export const uploadQuestion = { askAbove: 2000 };
 
 export function useUppyDropTarget(targetRef) {
   const notificationsStore = useNotificationsStore();
@@ -260,7 +265,7 @@ export function useUppyDropTarget(targetRef) {
 
   /** Whether this many files may be handed over, asking when there are many. */
   const agreedToAdd = async (files) => {
-    if (files.length <= ASK_ABOVE) return true;
+    if (files.length <= uploadQuestion.askAbove) return true;
     const { t } = i18n.global;
     return ask({
       title: t('upload.tooMany.title'),

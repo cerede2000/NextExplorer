@@ -233,6 +233,19 @@ export const createUploadEngine = async () => {
    * taken back, because the abort can reach the handler either side of that.
    */
   const cancelledFiles = new Set();
+  /**
+   * Batches the reader called off, which the slicing has to obey.
+   *
+   * A drop is handed over in slices with the main thread given back between
+   * them, so cancelling lands in the middle of that loop: the files added so
+   * far stop, and the loop keeps feeding the ones that had not been added yet.
+   * Each later slice found its batch closed and opened another, which reserved
+   * the next folder name — `ardoise`, `ardoise (1)`, `ardoise (2)`, seconds
+   * apart, which is the shape of a slice rather than of a retry. The loop asks
+   * this before every slice, and opening a batch checks it too, for a slice
+   * already past that point.
+   */
+  const cancelledBatches = new Set();
   /** Files a guard turned away, so the batch does not count them. */
   const refusedFiles = new Set();
 
@@ -292,6 +305,7 @@ export const createUploadEngine = async () => {
     if (!files.length) return;
 
     const batchId = files[0]?.meta?.uploadBatchId || createUploadBatchId();
+    if (cancelledBatches.has(batchId)) return;
 
     // A drop is added in slices, so the batch is opened by the first slice and
     // grows with the rest — one update to the operation per slice rather than
@@ -336,6 +350,8 @@ export const createUploadEngine = async () => {
        * having agreed to let the files go.
        */
       cancel: () => {
+        // Before anything else: whatever is still being handed over stops here.
+        cancelledBatches.add(batchId);
         const ids = [...fileIds];
         ids.forEach((id) => cancelledFiles.add(id));
         ids.forEach((id) => {
@@ -733,6 +749,7 @@ export const createUploadEngine = async () => {
     progressAt.clear();
     restarting.clear();
     cancelledFiles.clear();
+    cancelledBatches.clear();
   };
   const startWatchdog = () => {
     if (watchdogTimer || !inDirectMode()) return;
@@ -1099,8 +1116,11 @@ export const createUploadEngine = async () => {
    */
   const ADD_SLICE = 250;
 
-  const addInSlices = async (described) => {
+  const addInSlices = async (described, batchId) => {
     for (let at = 0; at < described.length; at += ADD_SLICE) {
+      // Asked before every slice, because cancelling happens while this is
+      // still running: the reader sees a count climbing and presses stop.
+      if (cancelledBatches.has(batchId)) return;
       try {
         uppy.addFiles(described.slice(at, at + ADD_SLICE));
       } catch (err) {
@@ -1126,7 +1146,7 @@ export const createUploadEngine = async () => {
     if (!described.length) return undefined;
     // In slices, so one state update each instead of one per file — and the
     // page is handed back between them.
-    return addInSlices(described);
+    return addInSlices(described, batchId);
   };
 
   /**
@@ -1154,7 +1174,7 @@ export const createUploadEngine = async () => {
         { uploadTo, batchId }
       ),
     }));
-    return addInSlices(descriptors);
+    return addInSlices(descriptors, batchId);
   };
 
   const destroy = () => {
