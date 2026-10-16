@@ -1689,6 +1689,10 @@
   ],
   "residue": [
     {
+      "match": "^frontend/src/composables/fileUploader\\.js$",
+      "note": "a drop says what it is doing before the uploader has been handed anything, and asks when there is a lot of it. Reading the entries of a dropped folder happens before a single file reaches the uploader and takes its own time at a few thousand of them, so the panel stayed empty and the page looked as though the drop had been ignored: there is a row for it now, opened inside the drop itself and gone as soon as the files are known. And above two thousand files the reader is told what they dropped — how many, how big — because handing them over is quadratic in how many there are, so the cost is not felt at all and then felt all at once, and a project folder dropped with its build output in it is tens of thousands of files nobody meant to send. Below that nobody is asked anything. The batches have the version where a drop is silent until the uploader has everything."
+    },
+    {
       "match": "^frontend/src/stores/volumeUsage\\.js$",
       "note": "a share asks for less on its visitor's behalf: the three calls every page makes before anybody has done anything are asked quietly, because the application already answers for their failure, and the two that only an account can answer — favourites and volumes — are not asked of a visitor at all. Measured behind an authentication proxy letting the share through and nothing else: five refusals and five banners, and then the share appeared anyway."
     },
