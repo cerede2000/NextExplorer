@@ -35,6 +35,94 @@ afterEach(async () => {
 
 const OWNER = { user: { id: 'owner' } };
 
+/**
+ * Two roads to the same folder, and they could not see each other.
+ *
+ * The browser asks for the folder once for the whole batch, before a byte is
+ * sent, and then writes the resolved path onto every file. A file that arrives
+ * without that resolved path is resolved here instead — and this side kept its
+ * own record, which the batch's own reservation never wrote to. So a file of a
+ * batch that already had a folder was given a second one.
+ *
+ * Every file of a cancelled batch is such a file: the browser stops resolving
+ * the moment the reader presses stop, but a run already on its way still sends
+ * what it holds. Reported as a drop that answered `ardoise`, and then `ardoise
+ * (1)` for the files that went out after the press — with one `folder-session`
+ * call in the log, so the second folder came from here.
+ */
+describe('a file of a batch that already reserved its folder', () => {
+  it('lands in that folder rather than reserving another', async () => {
+    const destinationRoot = await build();
+
+    // What the browser asks for once, before sending anything.
+    const targetRoot = await service.reserveFolderUploadTarget({
+      destinationRoot,
+      logicalBase: 'Inbox',
+      sourceRoot: 'ardoise',
+      context: OWNER,
+      uploadBatchId: 'batch-reserved-01',
+    });
+    expect(targetRoot).toBe('ardoise');
+
+    // And a file of that same batch, arriving without the resolved path.
+    const landed = await service.resolveFolderUploadRelativePath({
+      relativePath: 'ardoise/note.txt',
+      destinationRoot,
+      logicalBase: 'Inbox',
+      context: OWNER,
+      uploadBatchId: 'batch-reserved-01',
+    });
+
+    expect(landed).toBe('ardoise/note.txt');
+    expect(await fs.readdir(destinationRoot)).toEqual(['ardoise']);
+  });
+
+  /**
+   * And a batch nobody reserved for still gets its own folder: the road for a
+   * client that does not ask first has not changed.
+   */
+  it('still reserves for a batch that never asked', async () => {
+    const destinationRoot = await build();
+    await fs.mkdir(path.join(destinationRoot, 'ardoise'));
+
+    const landed = await service.resolveFolderUploadRelativePath({
+      relativePath: 'ardoise/note.txt',
+      destinationRoot,
+      logicalBase: 'Inbox',
+      context: OWNER,
+      uploadBatchId: 'batch-unasked-01',
+    });
+
+    expect(landed).toBe('ardoise (1)/note.txt');
+  });
+
+  /**
+   * The record is the asker's own. A batch id is the browser's to choose, so
+   * one reader must never be able to aim their files at a folder reserved
+   * under somebody else's name by guessing it.
+   */
+  it('is not shared with another reader who names the same batch', async () => {
+    const destinationRoot = await build();
+    await service.reserveFolderUploadTarget({
+      destinationRoot,
+      logicalBase: 'Inbox',
+      sourceRoot: 'ardoise',
+      context: OWNER,
+      uploadBatchId: 'batch-guessed-01',
+    });
+
+    const landed = await service.resolveFolderUploadRelativePath({
+      relativePath: 'ardoise/note.txt',
+      destinationRoot,
+      logicalBase: 'Inbox',
+      context: { user: { id: 'somebody-else' } },
+      uploadBatchId: 'batch-guessed-01',
+    });
+
+    expect(landed).toBe('ardoise (1)/note.txt');
+  });
+});
+
 describe('the files of one folder upload, arriving together', () => {
   it('all land in the one folder the first of them reserved', async () => {
     const destinationRoot = await build();

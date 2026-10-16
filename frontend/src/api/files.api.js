@@ -440,7 +440,17 @@ async function createFolder(destination, name) {
   });
 }
 
-async function reserveFolderUploadTarget(destination, sourceRoot) {
+/**
+ * The folder a batch lands in, asked for once, before a byte is sent.
+ *
+ * The batch's own name travels with the question. The server resolves a file
+ * that arrives without the path this answer is written onto — every file of a
+ * batch a reader stopped, since the resolving ends at once and a request
+ * already on its way does not — and without the batch's name it had no way to
+ * tell that such a file belonged to a folder it had already reserved, so it
+ * reserved another.
+ */
+async function reserveFolderUploadTarget(destination, sourceRoot, uploadBatchId) {
   const uploadTo = normalizePath(destination || '');
   if (!uploadTo || typeof sourceRoot !== 'string' || !sourceRoot.trim()) {
     throw new Error('A destination and folder name are required to start a folder upload.');
@@ -448,7 +458,7 @@ async function reserveFolderUploadTarget(destination, sourceRoot) {
 
   return requestJson(shareScoped('/api/upload/folder-session', uploadTo), {
     method: 'POST',
-    body: JSON.stringify({ uploadTo, sourceRoot }),
+    body: JSON.stringify({ uploadTo, sourceRoot, uploadBatchId }),
   });
 }
 

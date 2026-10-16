@@ -153,12 +153,16 @@ describe('creating things', () => {
 });
 
 describe('reserving a folder upload', () => {
-  it('sends the destination and the folder being uploaded', async () => {
-    await reserveFolderUploadTarget('/Docs/', 'photos');
+  it('sends the destination, the folder being uploaded, and the batch', async () => {
+    await reserveFolderUploadTarget('/Docs/', 'photos', 'batch-7');
 
     expect(sent()).toMatchObject({
       endpoint: '/api/upload/folder-session',
-      body: { uploadTo: 'Docs', sourceRoot: 'photos' },
+      // The batch travels with the question: the server resolves a file that
+      // arrives without the resolved path this answer is written onto, and
+      // without the batch's name it cannot tell that such a file belongs to a
+      // folder it has already reserved — so it reserves a second one.
+      body: { uploadTo: 'Docs', sourceRoot: 'photos', uploadBatchId: 'batch-7' },
     });
   });
 

@@ -42,6 +42,16 @@ const withReservation = async (key, work) => {
   }
 };
 
+/**
+ * The record's key, spelled once.
+ *
+ * Both roads to a folder read and write it, and a key assembled twice is a key
+ * that can differ in one place: the scope keeps one reader's reservation out of
+ * another's reach, and dropping it from either spelling would open exactly that.
+ */
+const targetKeyFor = ({ context, destinationRoot, uploadBatchId, sourceRoot }) =>
+  `${getScopeKey(context)}\u0000${destinationRoot}\u0000${uploadBatchId}\u0000${sourceRoot}`;
+
 const normalizeFolderRoot = (value) => {
   const normalized = normalizeRelativePath(value);
   if (!normalized || normalized.includes(path.sep) || normalized.includes('/')) {
@@ -110,14 +120,43 @@ const reserveFolderTarget = async ({ destinationRoot, logicalBase, sourceRoot, c
 // destination before queuing any file and return the final root name. Every
 // request then carries the already-resolved relative path, so the outcome does
 // not depend on multipart ordering, request affinity, or an in-memory cache.
-const reserveFolderUploadTarget = async ({ destinationRoot, logicalBase, sourceRoot, context }) => {
+//
+// And the answer is remembered under the batch it was given for, because a file
+// of that batch can still arrive without the resolved path: the client stops
+// resolving the moment a reader presses stop, while a request already on its
+// way still carries its file. Such a file used to be resolved by the road
+// below, which kept a record of its own that this one never wrote to — so it
+// reserved a second folder for a batch that already had one, and a cancelled
+// drop answered `ardoise` and then `ardoise (1)`. One record, written by
+// whichever road asks first.
+const reserveFolderUploadTarget = async ({
+  destinationRoot,
+  logicalBase,
+  sourceRoot,
+  context,
+  uploadBatchId,
+}) => {
   const normalizedRoot = normalizeFolderRoot(sourceRoot);
-  return reserveFolderTarget({
+  const targetRoot = await reserveFolderTarget({
     destinationRoot,
     logicalBase,
     sourceRoot: normalizedRoot,
     context,
   });
+  // Under the asker's own scope: a batch id is the client's to choose, so a
+  // record kept for everybody would let one reader aim their files at a folder
+  // reserved under somebody else's name by naming their batch.
+  if (validBatchId(uploadBatchId)) {
+    cleanExpiredTargets();
+    folderTargets.set(
+      targetKeyFor({ context, destinationRoot, uploadBatchId, sourceRoot: normalizedRoot }),
+      {
+        targetRoot,
+        updatedAt: Date.now(),
+      }
+    );
+  }
+  return targetRoot;
 };
 
 // A folder picker submits one HTTP request per file. Reserve its top-level
@@ -139,7 +178,7 @@ const resolveFolderUploadRelativePath = async ({
 
   cleanExpiredTargets();
   const scopeKey = getScopeKey(context);
-  const targetKey = `${scopeKey}\u0000${destinationRoot}\u0000${uploadBatchId}\u0000${sourceRoot}`;
+  const targetKey = targetKeyFor({ context, destinationRoot, uploadBatchId, sourceRoot });
   const existing = folderTargets.get(targetKey);
   if (existing) {
     existing.updatedAt = Date.now();

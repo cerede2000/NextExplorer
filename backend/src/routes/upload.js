@@ -107,6 +107,9 @@ router.post(
       logicalBase: resolved.relativePath,
       sourceRoot,
       context,
+      // So a file of this batch that arrives without its resolved path lands in
+      // the folder reserved here, instead of being given one of its own.
+      uploadBatchId: req.body?.uploadBatchId,
     });
     res.status(201).json({ targetRoot });
   })

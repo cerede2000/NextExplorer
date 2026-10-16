@@ -172,6 +172,11 @@
       "file": "^frontend/e2e/media-preview-layout\\.spec\\.js$",
       "cases": ["^keeps its aspect ratio$"],
       "note": "it read the ratio off the video element's box, which was the picture's box only because the poster was sizing the element — and that is the fault: with no poster and no loaded metadata a video element is 300x150, which is what an iPad showed of a 1080p film (nxzai#499). The element takes the stage's box now, so the ratio it would read is the stage's. The case is 'fills the stage, and contains the picture rather than stretching it' here: the box is asserted to be the stage's, which the ratio could not say, and the fit is what keeps the picture's own shape. The old assertion was also weaker than it read, passing on this desktop viewport against either shape, the two being 1.78 apart by coincidence of the window size."
+    },
+    {
+      "file": "^frontend/src/api/filesContract\\.spec\\.js$",
+      "cases": ["^sends the destination and the folder being uploaded$"],
+      "note": "it is `sends the destination, the folder being uploaded, and the batch` here, and the longer name is the point: the batch's own name now travels with the question. The server resolves a file that arrives without the resolved path this answer is written onto — every file of a batch a reader stopped, since the resolving ends at once while a request already on its way does not — and without the batch's name it could not tell such a file belonged to a folder it had already reserved, so it reserved a second one. The case asserts the id sent is the one the files of that batch carry, rather than merely that three arguments went out."
     }
   ]
 }

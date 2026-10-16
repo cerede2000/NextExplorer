@@ -33,6 +33,15 @@ const uppyCalls = [];
 const held = new Map();
 
 /**
+ * One order of events for the uploader and the operations store together.
+ *
+ * Each has a record of its own, and nothing in either says which came first —
+ * which is the whole question for a cancel: stopping the uploader after a loop
+ * over every file of the batch left it sending throughout that loop.
+ */
+const timeline = [];
+
+/**
  * Whether the fake announces the files it is given, the way Uppy does.
  *
  * Uppy emits `file-added` and `files-added` from inside `addFiles`, before the
@@ -89,6 +98,7 @@ const makeUppy = () =>
         if (property in target) return target[property];
         return (...args) => {
           uppyCalls.push([String(property), ...args]);
+          timeline.push(`uppy:${String(property)}`);
           if (property === 'addFiles') {
             // Numbered from where the last call stopped, which `held.size` on
             // its own was not: it grows as the loop sets each file, so a slice
@@ -167,7 +177,10 @@ vi.mock('@/stores/operationTasks', () => ({
       return `op-${started.length}`;
     },
     updateOperation: vi.fn(),
-    finishOperation: (id) => finished.push(id),
+    finishOperation: (id) => {
+      finished.push(id);
+      timeline.push(`finish:${id}`);
+    },
   }),
 }));
 
@@ -200,6 +213,7 @@ beforeEach(async () => {
   held.clear();
   announcesOnAdd.on = false;
   announced.length = 0;
+  timeline.length = 0;
   // The reservation is a module-level mock, so its calls outlive the case that
   // made them: a count asserted without this one reads every case before it in
   // the file and says two where the engine asked once.
@@ -345,6 +359,19 @@ describe('letting a batch go', () => {
     expect(called('cancelAll')).toHaveLength(1);
     // The row goes, rather than being left behind with nothing under it.
     expect(finished).toContain('op-1');
+
+    /**
+     * And the uploader was stopped before any of that.
+     *
+     * The bookkeeping is a loop over every file of the batch — two hundred
+     * here, thousands on the drop this matters for — and the uploader used to
+     * keep going throughout it. A run that entered the pre-processor during
+     * that loop found its batch cancelled, so it did not resolve where its
+     * files were going, and was not stopped either: it sent them unresolved,
+     * and the server gave them a folder of their own.
+     */
+    expect(timeline.indexOf('uppy:cancelAll')).toBeGreaterThanOrEqual(0);
+    expect(timeline.indexOf('uppy:cancelAll')).toBeLessThan(timeline.indexOf('finish:op-1'));
   });
 
   it('is held in one call while it is the only one in flight', async () => {
@@ -631,5 +658,11 @@ describe('the folders that appeared without anybody cancelling', () => {
 
     expect(slices).toBeGreaterThan(1);
     expect(api.reserveFolderUploadTarget).toHaveBeenCalledTimes(1);
+    // And the batch is named in the asking, which is what lets the server put a
+    // file that arrives unresolved into the folder this reserved rather than
+    // reserving a second one for it.
+    const [, , askedFor] = api.reserveFolderUploadTarget.mock.calls[0];
+    expect(askedFor).toBe([...held.values()][0]?.meta?.uploadBatchId);
+    expect(askedFor).toEqual(expect.stringMatching(/.+/));
   });
 });

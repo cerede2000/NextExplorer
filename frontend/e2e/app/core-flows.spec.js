@@ -169,6 +169,93 @@ test('a whole folder chosen in the picker arrives with its tree', async () => {
 });
 
 /**
+ * One drop, one folder — measured against a real server.
+ *
+ * A drop is handed to the uploader in slices of two hundred and fifty so the
+ * tab keeps answering, and the uploader starts an upload run for every slice it
+ * is given. Each run asks the server where to put its files, and the server
+ * creates that folder: so a drop that takes several slices created several
+ * folders, each one taking the next free name. Reported from a real drop of
+ * 2200 files as twenty-eight `folder-session` calls and twenty-eight folders,
+ * the last answering `ardoise (15)`.
+ *
+ * Six hundred files is three slices, which is three runs — the smallest drop
+ * that has a gap between two runs at all. The count is read from the requests
+ * the page actually made and from the directories that actually exist, because
+ * the defect was invisible from inside the uploader: every run believed it was
+ * the first.
+ */
+test('a folder handed over in several slices lands in one folder', async () => {
+  test.setTimeout(240_000);
+  const source = path.join(process.env.E2E_ROOT, 'to-upload', 'ardoise');
+  fs.mkdirSync(source, { recursive: true });
+  for (let index = 0; index < 600; index += 1) {
+    fs.writeFileSync(path.join(source, `note-${index}.txt`), 'x');
+  }
+  const from = requested.length;
+
+  await page.getByRole('button', { name: 'New' }).click();
+  const [chooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    page.getByRole('button', { name: 'Upload Folder' }).click(),
+  ]);
+  await chooser.setFiles(source);
+
+  // Waited on the last file rather than the first: the folders appeared one per
+  // run, so a count read while the first run is still going says nothing.
+  await expect.poll(() => onDisk('ardoise', 'note-599.txt'), { timeout: 180_000 }).toBe('x');
+
+  const sessions = requested
+    .slice(from)
+    .filter((url) => url.includes('/api/upload/folder-session'));
+  expect(sessions).toHaveLength(1);
+  expect(fs.readdirSync(volume).filter((name) => name.startsWith('ardoise'))).toEqual(['ardoise']);
+});
+
+/**
+ * And the same count when the reader presses stop.
+ *
+ * Stopping was where the folders really multiplied: every run still to come
+ * asked for one of its own, and the name the batch had taken was occupied, so
+ * each got the next. Reported as `ardoise` through `ardoise (15)` seconds
+ * apart, from one drop and one press of the cross.
+ *
+ * What is counted is what the page asked the server for, after a pause long
+ * enough for anything still in flight to have asked. A reader who stops an
+ * upload is owed one folder at most — the one the batch had already taken.
+ */
+test('cancelling a drop asks for no further folder', async () => {
+  test.setTimeout(240_000);
+  const source = path.join(process.env.E2E_ROOT, 'to-upload', 'brouillon');
+  fs.mkdirSync(source, { recursive: true });
+  for (let index = 0; index < 600; index += 1) {
+    fs.writeFileSync(path.join(source, `page-${index}.txt`), 'y');
+  }
+  const from = requested.length;
+
+  await page.getByRole('button', { name: 'New' }).click();
+  const [chooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    page.getByRole('button', { name: 'Upload Folder' }).click(),
+  ]);
+  await chooser.setFiles(source);
+
+  const stop = page.getByRole('button', { name: 'Cancel' }).first();
+  await stop.click();
+  // Long enough for a run that was already on its way to have asked, which is
+  // the whole point: the folders appeared after the press, not before it.
+  await page.waitForTimeout(8_000);
+
+  const sessions = requested
+    .slice(from)
+    .filter((url) => url.includes('/api/upload/folder-session'));
+  expect(sessions.length).toBeLessThanOrEqual(1);
+  expect(
+    fs.readdirSync(volume).filter((name) => name.startsWith('brouillon')).length
+  ).toBeLessThanOrEqual(1);
+});
+
+/**
  * Dropped from the desktop, onto a page that has not loaded the uploader yet.
  *
  * The drop arrives before Uppy does; the page has to keep the browser from

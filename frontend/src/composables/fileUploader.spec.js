@@ -1098,7 +1098,15 @@ describe('dropping files onto a part of the page', () => {
       'Photos/2026/b.jpg',
     ]);
     expect(api.reserveFolderUploadTarget).toHaveBeenCalledTimes(1);
-    expect(api.reserveFolderUploadTarget).toHaveBeenCalledWith('Docs', 'Photos');
+    // The batch is named in the asking too. The server resolves a file that
+    // arrives without the resolved path this answer is written onto, and
+    // without the batch's name it cannot tell such a file belongs to a folder
+    // it has already reserved — so it reserved a second one for it.
+    expect(api.reserveFolderUploadTarget).toHaveBeenCalledWith(
+      'Docs',
+      'Photos',
+      uppy.getFiles()[0].meta.uploadBatchId
+    );
     expect(uppy.getFiles().map((file) => file.meta.resolvedRelativePath)).toEqual([
       'Photos (1)/a.jpg',
       'Photos (1)/2026/b.jpg',

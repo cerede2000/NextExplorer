@@ -122,7 +122,11 @@ export const createUploadEngine = async () => {
 
       let reservation = folderReservationByBatch.get(key);
       if (!reservation) {
-        reservation = reserveFolderUploadTarget(group.uploadTo, group.sourceRoot);
+        reservation = reserveFolderUploadTarget(
+          group.uploadTo,
+          group.sourceRoot,
+          group.uploadBatchId
+        );
         folderReservationByBatch.set(key, reservation);
       }
 
@@ -441,10 +445,18 @@ export const createUploadEngine = async () => {
         cancelledBatches.add(batchId);
         const ids = [...fileIds];
         ids.forEach((id) => cancelledFiles.add(id));
-        ids.forEach((id) => {
-          finishUploadTask(id);
-          relativePathAtAdd.delete(id);
-        });
+        /**
+         * The uploader is stopped first, and the bookkeeping follows.
+         *
+         * The bookkeeping is a loop over every file of the batch — thousands of
+         * them on the drop this matters for — and the uploader kept going
+         * throughout it. A run that entered the pre-processor during that loop
+         * found its batch cancelled, so it did not resolve where its files were
+         * going; it was not stopped either, and sent them anyway. The server
+         * resolves a file that arrives unresolved, which is how a drop that had
+         * asked for one folder ended up with a second. Reported as "the cancel
+         * does not stop it, or not straight away".
+         */
         try {
           // Cancelling means the whole job stops, not that the files stop being
           // listed. `removeFiles` takes them back but leaves the upload run
@@ -468,6 +480,10 @@ export const createUploadEngine = async () => {
         } catch (_) {
           /* noop */
         }
+        ids.forEach((id) => {
+          finishUploadTask(id);
+          relativePathAtAdd.delete(id);
+        });
         scheduleUploadViewRefresh(100);
       },
       // A chunked upload can be held and picked up again: the bytes already sent
