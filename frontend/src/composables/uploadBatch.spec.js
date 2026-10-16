@@ -32,6 +32,22 @@ const uppyCalls = [];
 /** The files the fake uploader is holding, by id. */
 const held = new Map();
 
+/**
+ * Whether the fake announces the files it is given, the way Uppy does.
+ *
+ * Uppy emits `file-added` and `files-added` from inside `addFiles`, before the
+ * call returns. Most cases here want to announce by hand — they craft the file
+ * a handler sees, to measure what the engine writes for it — so this is off by
+ * default. It has to be on for anything that measures what happens *between*
+ * two slices of one drop: with the announcement arriving late instead, the
+ * batch looks empty in the gap and the engine is measured closing a batch no
+ * reader ever finished.
+ */
+const announcesOnAdd = { on: false };
+
+/** The files the fake announced, in the order it announced them. */
+const announced = [];
+
 const plugins = new Map();
 const pluginFor = (id) => {
   if (!plugins.has(id)) {
@@ -74,10 +90,24 @@ const makeUppy = () =>
         return (...args) => {
           uppyCalls.push([String(property), ...args]);
           if (property === 'addFiles') {
-            (args[0] || []).forEach((descriptor, index) => {
-              const id = `uppy-${held.size + index}`;
-              held.set(id, { id, ...descriptor, size: descriptor.data?.size });
+            // Numbered from where the last call stopped, which `held.size` on
+            // its own was not: it grows as the loop sets each file, so a slice
+            // of four was kept as uppy-0, uppy-2, uppy-4, uppy-6 and half the
+            // ids a test asked for answered undefined.
+            const base = held.size;
+            const added = (args[0] || []).map((descriptor, index) => {
+              const id = `uppy-${base + index}`;
+              const file = { id, ...descriptor, size: descriptor.data?.size };
+              held.set(id, file);
+              return file;
             });
+            if (announcesOnAdd.on) {
+              announced.push(...added);
+              added.forEach((file) =>
+                (handlers.get('file-added') || []).forEach((handler) => handler(file))
+              );
+              (handlers.get('files-added') || []).forEach((handler) => handler(added));
+            }
           }
           return undefined;
         };
@@ -168,6 +198,12 @@ beforeEach(async () => {
   fileStore.currentPath = 'Docs/2026';
   plugins.clear();
   held.clear();
+  announcesOnAdd.on = false;
+  announced.length = 0;
+  // The reservation is a module-level mock, so its calls outlive the case that
+  // made them: a count asserted without this one reads every case before it in
+  // the file and says two where the engine asked once.
+  api.reserveFolderUploadTarget.mockClear();
 });
 
 afterEach(() => {
@@ -431,6 +467,14 @@ describe('cancelling while the drop is still being handed over', () => {
     // ...so no second batch opens behind the reader's back, which is what
     // reserved a second folder.
     expect(started).toHaveLength(1);
+    // And the run is cleared, not merely emptied. A batch still being handed
+    // over is kept in the register until the hand-over stops, so a cancel that
+    // asks "is anything else in flight?" by counting the register finds its own
+    // entry and answers yes — taking the `removeFiles` road, which hands the
+    // files back and leaves the run standing. Cancelling in the middle of the
+    // hand-over is the one moment a reader actually does this.
+    expect(called('cancelAll')).toHaveLength(1);
+    expect(called('removeFiles')).toHaveLength(0);
   });
 });
 
@@ -532,5 +576,60 @@ describe('the takeover that made cancelling endless', () => {
     // Nothing takes over, so nothing starts an upload run, so no folder is
     // reserved and no name is taken.
     expect(called('addFile')).toHaveLength(0);
+  });
+});
+
+describe('the folders that appeared without anybody cancelling', () => {
+  /**
+   * One drop, one folder — however many runs it takes to hand it over.
+   *
+   * Handing a drop over in slices makes one upload run per slice, and the
+   * reservation was released when a run finished. So the second slice asked for
+   * a folder again, found the name it had just taken occupied, and was given the
+   * next one. Reported as twenty-eight `folder-session` calls and twenty-eight
+   * folders for one drop of two thousand two hundred files, the last of them
+   * answering `ardoise (15)` — with nobody having cancelled anything. The stack
+   * behind each call named the slicing loop.
+   */
+
+  it('reserves one folder however many runs it takes to hand the drop over', async () => {
+    announcesOnAdd.on = true;
+    const engine = await createUploadEngine();
+    const files = Array.from({ length: 250 * 3 }, (_, index) => aDroppedFile(index));
+
+    const adding = engine.addDroppedFiles(files);
+    const preProcess = called('addPreProcessor')[0][1];
+
+    // A run per slice, each one asking where to put what it was given — which
+    // is what the uploader does on its own, once per `addFiles`.
+    // A run per slice, each one asking where to put what it was given — which
+    // is what the uploader does on its own, once per `addFiles`. The clock is
+    // moved until the hand-over is over rather than a fixed number of times,
+    // so the case measures the whole drop and not the first two slices of it.
+    let slices = 0;
+    let handingOver = true;
+    adding.then(() => {
+      handingOver = false;
+    });
+    // Until every slice has been handed over *and* every run it started has
+    // been pre-processed: one advance of the clock can drain several slices, so
+    // stopping as soon as the hand-over ends measures the first of them only.
+    for (let step = 0; step < 50 && (handingOver || called('addFiles').length > slices); step++) {
+      while (called('addFiles').length > slices) {
+        const slice = called('addFiles')[slices][1];
+        slices += 1;
+        const sent = announced.splice(0, slice.length);
+        await preProcess(sent.map((file) => file.id));
+        // And the run ends, as a run does: its files are up while the slices
+        // behind it are still being handed over. This is the moment the folder
+        // used to be let go of.
+        await fire('complete', { successful: sent, failed: [] });
+      }
+      if (handingOver) await vi.advanceTimersByTimeAsync(1);
+    }
+    await adding;
+
+    expect(slices).toBeGreaterThan(1);
+    expect(api.reserveFolderUploadTarget).toHaveBeenCalledTimes(1);
   });
 });

@@ -143,13 +143,26 @@ export const createUploadEngine = async () => {
     }
   };
 
-  const releaseFolderReservations = (batchFiles = []) => {
-    (Array.isArray(batchFiles) ? batchFiles : []).forEach((file) => {
-      const parts = folderUploadParts(file);
-      const uploadTo = normalizePath(file?.meta?.uploadTo || '');
-      const uploadBatchId = file?.meta?.uploadBatchId;
-      if (!parts || !uploadBatchId) return;
-      folderReservationByBatch.delete(`${uploadTo}\u0000${uploadBatchId}\u0000${parts[0]}`);
+  /**
+   * The folder a batch was given, let go of only when the batch is over.
+   *
+   * This used to run at the end of every upload run, which was the same thing
+   * while a drop was one run. It is not any more: a drop is handed over in
+   * slices, each slice starts a run of its own, and each run ends. So the
+   * reservation was released between slices and the next slice asked for a
+   * folder again — and the name it had just taken was now occupied, so it got
+   * the next one. Twenty-eight slices, twenty-eight folders, with nobody
+   * cancelling anything. Reported first as a handful of folders with files
+   * spread between them, which is exactly what that looks like.
+   *
+   * So a run finishing says nothing. The batch closing does, and that is where
+   * this is called from: every key naming this batch goes at once.
+   */
+  const releaseFolderReservations = (batchId) => {
+    if (!batchId) return;
+    const mine = `\u0000${batchId}\u0000`;
+    [...folderReservationByBatch.keys()].forEach((key) => {
+      if (key.includes(mine)) folderReservationByBatch.delete(key);
     });
   };
 
@@ -281,6 +294,15 @@ export const createUploadEngine = async () => {
    * already past that point.
    */
   const cancelledBatches = new Set();
+  /**
+   * Batches still being handed over, which are not over however empty they look.
+   *
+   * A drop goes to the uploader in slices, and between two slices the batch
+   * holds only what the last one brought — which finishes, leaving the batch
+   * empty while most of the drop has not been handed over yet. Closing it there
+   * released its folder, and the next slice reserved another one.
+   */
+  const addingBatches = new Set();
 
   /**
    * Whether this file belongs to something the reader called off.
@@ -311,6 +333,23 @@ export const createUploadEngine = async () => {
     return roots.size === 1 && only ? only : '';
   };
 
+  /**
+   * A batch is over when nothing is left in it and nothing more is coming.
+   *
+   * Both halves are needed: its files finishing is not the end while slices are
+   * still being handed over, and the hand-over ending is not the end while files
+   * are still going up.
+   */
+  const closeBatchIfDone = (batchId) => {
+    const batch = batches.get(batchId);
+    if (!batch) return;
+    if (batch.fileIds.size > 0 || addingBatches.has(batchId)) return;
+    batches.delete(batchId);
+    releaseFolderReservations(batchId);
+    if (batches.size === 0) stopWatchingFinalization();
+    operationTasksStore.finishOperation(batch.operationId);
+  };
+
   const finishUploadTask = (fileId) => {
     const batchId = batchOf.get(fileId);
     if (batchId === undefined) return;
@@ -321,10 +360,7 @@ export const createUploadEngine = async () => {
     batch.sentByFile.delete(fileId);
     batch.totalByFile.delete(fileId);
     // The operation ends when the last of its files does, not the first.
-    if (batch.fileIds.size > 0) return;
-    batches.delete(batchId);
-    if (batches.size === 0) stopWatchingFinalization();
-    operationTasksStore.finishOperation(batch.operationId);
+    closeBatchIfDone(batchId);
   };
 
   const removeUploadFile = (file) => {
@@ -416,11 +452,18 @@ export const createUploadEngine = async () => {
           // then added the rest again under a new run, which reserved the next
           // folder name. `cancelAll` is Uppy's own stop-everything: it takes the
           // files back in one call and clears the upload state with them. The
-          // bookkeeping above has already closed this batch, so an empty
-          // register means this was the only thing in flight and stopping
-          // everything is exactly what was asked. With another batch alongside,
-          // only this one's files go.
-          if (batches.size === 0) uppy.cancelAll?.();
+          // bookkeeping above has already let this batch go, so no *other*
+          // batch in the register means this was the only thing in flight and
+          // stopping everything is exactly what was asked. With another batch
+          // alongside, only this one's files go.
+          //
+          // No other batch, rather than no batch at all: a batch still being
+          // handed over stays registered until the hand-over stops, which is
+          // precisely when a reader cancels — and reading its own entry as
+          // somebody else's traffic sent the one case this matters for down the
+          // `removeFiles` road, the road that leaves the run standing.
+          const othersInFlight = [...batches.keys()].some((id) => id !== batchId);
+          if (!othersInFlight) uppy.cancelAll?.();
           else uppy.removeFiles(ids);
         } catch (_) {
           /* noop */
@@ -1024,7 +1067,7 @@ export const createUploadEngine = async () => {
     clearFallbackTracking();
     const successfulFiles = Array.isArray(result?.successful) ? result.successful : [];
     const failedFiles = Array.isArray(result?.failed) ? result.failed : [];
-    releaseFolderReservations([...successfulFiles, ...failedFiles]);
+    // Nothing is released here: a run ending is not the batch ending.
     [...successfulFiles, ...failedFiles].forEach(removeUploadFile);
     scheduleUploadViewRefresh(100);
   });
@@ -1168,6 +1211,18 @@ export const createUploadEngine = async () => {
   const ADD_SLICE = 250;
 
   const addInSlices = async (described, batchId) => {
+    addingBatches.add(batchId);
+    try {
+      await handOverSlices(described, batchId);
+    } finally {
+      addingBatches.delete(batchId);
+      // Everything may have finished while the last slice was still being
+      // handed over, in which case nothing else will come to close the batch.
+      closeBatchIfDone(batchId);
+    }
+  };
+
+  const handOverSlices = async (described, batchId) => {
     for (let at = 0; at < described.length; at += ADD_SLICE) {
       // Asked before every slice, because cancelling happens while this is
       // still running: the reader sees a count climbing and presses stop.
