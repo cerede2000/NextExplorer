@@ -367,6 +367,9 @@ beforeEach(() => {
 afterEach(() => {
   wrapper?.unmount();
   wrapper = null;
+  // A case that drives the clock itself hands it back here, so that a failing
+  // assertion cannot leave every later case waiting on a clock nobody winds.
+  vi.useRealTimers();
   // Without this the spy on `window.close` wraps the previous one and keeps
   // its calls, so a test that must not close sees the call of the one before.
   vi.restoreAllMocks();
@@ -625,6 +628,66 @@ describe('leaving the editor', () => {
     await view.requestClose();
 
     expect(window.close).toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A browser refuses to close a tab by doing nothing, so the refusal is only
+   * visible a moment later — and a moment later this screen may be gone, taken
+   * off by the reader opening something else. The check left behind for that
+   * refusal outlived the view: it fired from a screen nobody was on and sent
+   * whoever was reading by then back to a folder. In this suite it fired in the
+   * middle of later cases and navigated during them, which is why two of them
+   * failed on a loaded machine and passed on their own.
+   *
+   * Driving the clock here rather than waiting for it: what is asked is that
+   * nothing is left waiting on it at all.
+   */
+  it('drops the check for a refused close when the view goes', async () => {
+    historyLength = 1;
+    const view = await mountEditor();
+    vi.useFakeTimers();
+
+    await view.requestClose();
+
+    expect(window.close).toHaveBeenCalled();
+    // Armed, or the rest of this case would hold nothing to the cancelling.
+    expect(vi.getTimerCount()).toBe(1);
+
+    wrapper.unmount();
+    wrapper = null;
+
+    expect(vi.getTimerCount()).toBe(0);
+    // Well past CLOSE_REFUSED_AFTER_MS, so a check that survived would have run.
+    vi.advanceTimersByTime(5000);
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The question about unsaved work is the application's own dialog, which is
+   * not drawn inside this screen: it stays on the page after the screen has
+   * gone, and can be answered then. Saying "close anyway" to it used to move
+   * the reader away from whatever they were looking at by that point.
+   */
+  it('does not leave when the answer comes after the view has gone', async () => {
+    let answer;
+    asked.ask.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        })
+    );
+    const view = await mountEditor();
+    await type(view, 'unsaved');
+
+    const closing = view.requestClose();
+    await flushPromises();
+    wrapper.unmount();
+    wrapper = null;
+
+    answer(true);
+    await closing;
+
     expect(router.replace).not.toHaveBeenCalled();
   });
 

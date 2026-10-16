@@ -819,7 +819,8 @@ const requestClose = async () => {
   // the file in one pane was closed would take the other pane with it.
   if (tabKey.value === tabs.activeId && window.history.length === 1) {
     window.close();
-    setTimeout(() => {
+    closeRefusedCheck = setTimeout(() => {
+      closeRefusedCheck = null;
       if (!window.closed) leaveTheOrdinaryWay();
     }, CLOSE_REFUSED_AFTER_MS);
     return;
@@ -829,6 +830,27 @@ const requestClose = async () => {
 };
 
 const CLOSE_REFUSED_AFTER_MS = 150;
+
+/**
+ * The check waiting on the browser's answer to that, so that it can be dropped.
+ *
+ * A browser refuses by doing nothing, which is only visible a moment later —
+ * and a moment later this page may be gone, taken off screen by the reader
+ * opening something else. The check used to outlive the view and send whoever
+ * was reading by then back to a folder.
+ */
+let closeRefusedCheck = null;
+
+/** Whether this page is still on screen, and so still somewhere to leave from. */
+let onScreen = true;
+
+onBeforeUnmount(() => {
+  onScreen = false;
+  if (closeRefusedCheck !== null) {
+    clearTimeout(closeRefusedCheck);
+    closeRefusedCheck = null;
+  }
+});
 
 /** Where closing lands when this tab has somewhere to go back to. */
 /**
@@ -842,6 +864,12 @@ const CLOSE_REFUSED_AFTER_MS = 150;
 const goBackTo = (location) => tabNavigation.leaveFrom(tabKey.value, location);
 
 const leaveTheOrdinaryWay = () => {
+  // A page that has been taken off screen is nobody's way out: whatever it was
+  // still waiting on when it went — the browser's answer to `window.close()`,
+  // or the question about unsaved work — the reader is somewhere else now, and
+  // moving them is moving somebody else.
+  if (!onScreen) return;
+
   if (isSharedEditor.value) {
     goBackTo(`/share/${encodeURIComponent(sharedToken.value)}`);
     return;
