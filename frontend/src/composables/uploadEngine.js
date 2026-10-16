@@ -73,14 +73,35 @@ export const createUploadEngine = async () => {
   // data in the request URL where Express has it before the stream is opened.
   const reserveFolderUploadPaths = async (fileIDs) => {
     const groups = new Map();
+    /**
+     * One identity for a run that has files with none, rather than one each.
+     *
+     * The key a reservation is cached under is built from the batch, so a file
+     * arriving without one used to be given a fresh id here — which is a key of
+     * its own, which is a folder of its own. One per file, in the one place
+     * that creates folders.
+     */
+    const runBatchId = createUploadBatchId();
 
     (Array.isArray(fileIDs) ? fileIDs : []).forEach((fileId) => {
       const file = uppy?.getFile?.(fileId);
       const parts = folderUploadParts(file);
       if (!file || !parts || file.meta?.resolvedRelativePath) return;
+      /**
+       * Nothing is reserved for a batch the reader called off.
+       *
+       * This is the one place that creates folders, and it is reached from a
+       * pre-processor — which runs once per upload run, and a drop handed over
+       * in slices makes one run per slice. Cancelling empties the reservations
+       * so a later drop starts clean, and every run still in flight then
+       * reserved its own: fifteen folders inside one second, all of them empty,
+       * which is what a reader saw after pressing stop. They are refused here
+       * rather than un-made afterwards.
+       */
+      if (cancelledBatches.has(file.meta?.uploadBatchId)) return;
 
       const uploadTo = normalizePath(file.meta?.uploadTo || fileStore.currentPath || '');
-      const uploadBatchId = file.meta?.uploadBatchId || createUploadBatchId();
+      const uploadBatchId = file.meta?.uploadBatchId || runBatchId;
       const key = `${uploadTo}\u0000${uploadBatchId}\u0000${parts[0]}`;
       if (!groups.has(key))
         groups.set(key, { uploadTo, uploadBatchId, sourceRoot: parts[0], files: [] });
@@ -88,6 +109,17 @@ export const createUploadEngine = async () => {
     });
 
     for (const [key, group] of groups) {
+      /**
+       * Asked here, the last instant before a folder exists.
+       *
+       * Checking when the files were grouped is too early: this runs as a
+       * pre-processor, one per upload run, and a run entered before the reader
+       * pressed stop had already passed that check. Everything after is awaited,
+       * so the answer can have changed — and the only answer that matters is the
+       * one at the moment of asking the server for a folder.
+       */
+      if (cancelledBatches.has(group.uploadBatchId)) continue;
+
       let reservation = folderReservationByBatch.get(key);
       if (!reservation) {
         reservation = reserveFolderUploadTarget(group.uploadTo, group.sourceRoot);
@@ -95,6 +127,9 @@ export const createUploadEngine = async () => {
       }
 
       const response = await reservation;
+      // And again on the way out: the reservation is awaited, and a reader does
+      // not wait for the network before pressing stop.
+      if (cancelledBatches.has(group.uploadBatchId)) continue;
       const targetRoot = response?.targetRoot;
       if (!targetRoot) throw new Error('The server did not reserve a destination folder.');
 

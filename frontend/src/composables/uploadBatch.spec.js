@@ -29,6 +29,9 @@ const uppyCalls = [];
  * does — an assertion that agrees with the defect. Each plugin is a recorded
  * object instead, and the same object every time, as Uppy's own is.
  */
+/** The files the fake uploader is holding, by id. */
+const held = new Map();
+
 const plugins = new Map();
 const pluginFor = (id) => {
   if (!plugins.has(id)) {
@@ -56,7 +59,11 @@ const makeUppy = () =>
       },
       // The real one always answers a list; the proxy below would answer
       // undefined, and the engine walks what it is given.
-      getFiles: () => [],
+      getFiles: () => [...held.values()],
+      // And it keeps the files it was given, so the step that reserves a folder
+      // can be reached at all: asking an uploader that answers `undefined` for
+      // every file is asking nothing.
+      getFile: (id) => held.get(id),
       // Present, because the engine keeps a per-file road for an Uppy that does
       // not have this one — and a fake without it would measure that road.
       patchFilesState: (states) => uppyCalls.push(['patchFilesState', states]),
@@ -66,6 +73,12 @@ const makeUppy = () =>
         if (property in target) return target[property];
         return (...args) => {
           uppyCalls.push([String(property), ...args]);
+          if (property === 'addFiles') {
+            (args[0] || []).forEach((descriptor, index) => {
+              const id = `uppy-${held.size + index}`;
+              held.set(id, { id, ...descriptor, size: descriptor.data?.size });
+            });
+          }
           return undefined;
         };
       },
@@ -131,9 +144,10 @@ vi.mock('@/stores/operationTasks', () => ({
 vi.mock('@/api', () => ({
   apiBase: '',
   normalizePath: (value) => String(value || '').replace(/^\/+|\/+$/g, ''),
-  reserveFolderUploadTarget: vi.fn(),
+  reserveFolderUploadTarget: vi.fn(() => Promise.resolve({ targetRoot: 'Holiday' })),
 }));
 
+import * as api from '@/api';
 import { createUploadEngine } from './uploadEngine';
 
 const fire = async (event, ...args) => {
@@ -153,6 +167,7 @@ beforeEach(async () => {
   uploads.chunkedAutoFallback = true;
   fileStore.currentPath = 'Docs/2026';
   plugins.clear();
+  held.clear();
 });
 
 afterEach(() => {
@@ -416,5 +431,60 @@ describe('cancelling while the drop is still being handed over', () => {
     // ...so no second batch opens behind the reader's back, which is what
     // reserved a second folder.
     expect(started).toHaveLength(1);
+  });
+});
+
+describe('the one place that creates a folder', () => {
+  /**
+   * Nothing is reserved for a batch the reader called off.
+   *
+   * Reserving is reached from a pre-processor, which runs once per upload run —
+   * and a drop handed over in slices makes one run per slice. Cancelling empties
+   * the reservations so that a later drop starts clean, and every run already in
+   * flight then reserved its own: a reader who pressed stop was left with
+   * fifteen folders inside one second, every one of them empty, on top of the
+   * two that had anything in them.
+   *
+   * The check is at the moment of asking the server, not at the moment of
+   * grouping the files: a run entered before the stop had already passed that
+   * one, and everything after it is awaited.
+   */
+  const aFolderFile = (index) => ({
+    name: `shot-${index}.jpg`,
+    size: 2048,
+    relativePath: `Holiday/shot-${index}.jpg`,
+  });
+
+  /** The pre-processor the engine installed, as Uppy would call it. */
+  const preProcessor = () => called('addPreProcessor')[0]?.[1];
+
+  it('reserves nothing once the batch has been cancelled', async () => {
+    const engine = await createUploadEngine();
+    await addAndAnnounce(
+      engine,
+      Array.from({ length: 4 }, (_, index) => aFolderFile(index))
+    );
+    api.reserveFolderUploadTarget.mockClear();
+
+    started[0].cancel();
+    // The run was already under way when stop was pressed, which is the case
+    // that made the folders.
+    await preProcessor()([...held.keys()]);
+
+    expect(api.reserveFolderUploadTarget).not.toHaveBeenCalled();
+  });
+
+  it('still reserves one for a batch nobody cancelled', async () => {
+    const engine = await createUploadEngine();
+    await addAndAnnounce(
+      engine,
+      Array.from({ length: 4 }, (_, index) => aFolderFile(index))
+    );
+    api.reserveFolderUploadTarget.mockClear();
+
+    await preProcessor()([...held.keys()]);
+
+    // One for the batch, not one per file — the other way this goes wrong.
+    expect(api.reserveFolderUploadTarget).toHaveBeenCalledTimes(1);
   });
 });
