@@ -503,6 +503,86 @@ describe('cancelling while the drop is still being handed over', () => {
     expect(called('cancelAll')).toHaveLength(1);
     expect(called('removeFiles')).toHaveLength(0);
   });
+
+  /**
+   * And it stays cancelled when the uploader reports the run it just stopped.
+   *
+   * Stopping the uploader ends the run it was in the middle of, and Uppy says
+   * so: `cancelAll` leaves a `complete` behind it. The engine's handler for
+   * that event cleared the watchdog's bookkeeping — and the record of what the
+   * reader had called off was kept in the same place, with a different life.
+   * So the press added the batch to it, stopped the uploader, and the run
+   * ending wiped it: the hand-over loop asked whether its batch had been
+   * called off, was told no, and fed the uploader the remaining eight thousand
+   * files. The batch re-opened, the uploads started again, and the
+   * pre-processor turned nothing away, so what went out after the press was
+   * given folders of its own. Measured in a real browser at ten thousand
+   * files: the slices kept going at 2500, 5000 and 7500, each reading its own
+   * batch as not cancelled.
+   */
+  it('stays cancelled when the uploader reports the run it stopped', async () => {
+    const engine = await createUploadEngine();
+    const files = Array.from({ length: 250 * SLICES }, (_, index) => aDroppedFile(index));
+
+    const adding = engine.addDroppedFiles(files);
+    const handed = (called('addFiles')[0][1] || []).map((descriptor, index) => ({
+      id: `uppy-${index}`,
+      name: descriptor.name,
+      size: descriptor.data?.size,
+      data: descriptor.data,
+      meta: descriptor.meta,
+    }));
+    for (const file of handed) await fire('file-added', file);
+    await fire('files-added', handed);
+
+    started[0].cancel();
+    // What `cancelAll` leaves behind it: the run it stopped, reported over.
+    await fire('complete', { successful: [], failed: [] });
+    await vi.advanceTimersByTimeAsync(100);
+    await adding;
+
+    // Still nothing more handed over, and the row still goes.
+    expect(called('addFiles')).toHaveLength(1);
+    expect(started).toHaveLength(1);
+    expect(finished).toContain('op-1');
+  });
+
+  /**
+   * And the row goes, at the scale a reader actually drops.
+   *
+   * Ten thousand items is forty slices, and handing over the last of them takes
+   * seconds: a reader who presses stop lands in the middle of that, with most
+   * of the drop not yet given to the uploader. The batch is held open while
+   * slices are still coming — closing it between two of them is what made the
+   * next slice reserve another folder — so the press alone cannot close it, and
+   * what finishes the row is the hand-over stopping. Reported as a panel
+   * reading "Téléversement de 9997 éléments" that stayed.
+   */
+  it('finishes the row when the press lands in the middle of the hand-over', async () => {
+    const engine = await createUploadEngine();
+    const files = Array.from({ length: 10_000 }, (_, index) => aDroppedFile(index));
+
+    const adding = engine.addDroppedFiles(files);
+    const handed = (called('addFiles')[0][1] || []).map((descriptor, index) => ({
+      id: `uppy-${index}`,
+      name: descriptor.name,
+      size: descriptor.data?.size,
+      data: descriptor.data,
+      meta: descriptor.meta,
+    }));
+    for (const file of handed) await fire('file-added', file);
+    await fire('files-added', handed);
+    expect(started).toHaveLength(1);
+
+    started[0].cancel();
+    await vi.advanceTimersByTimeAsync(1000);
+    await adding;
+
+    // Gone, rather than left saying it is cancelling for the rest of the
+    // session — and the slices that had not gone out never did.
+    expect(finished).toContain('op-1');
+    expect(called('addFiles').length).toBeLessThan(40);
+  });
 });
 
 describe('the one place that creates a folder', () => {

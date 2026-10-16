@@ -350,6 +350,7 @@ export const createUploadEngine = async () => {
     if (batch.fileIds.size > 0 || addingBatches.has(batchId)) return;
     batches.delete(batchId);
     releaseFolderReservations(batchId);
+    if (batches.size === 0 && addingBatches.size === 0) forgetCancellationsWhenQuiet();
     if (batches.size === 0) stopWatchingFinalization();
     operationTasksStore.finishOperation(batch.operationId);
   };
@@ -858,8 +859,38 @@ export const createUploadEngine = async () => {
     }
     progressAt.clear();
     restarting.clear();
-    cancelledFiles.clear();
-    cancelledBatches.clear();
+  };
+
+  /**
+   * What the reader called off, forgotten only once nothing is in flight.
+   *
+   * This used to be cleared with the watchdog's own bookkeeping, and that is
+   * called the moment a run completes — which `cancelAll` leaves behind it. So
+   * pressing stop added the batch here, stopped the uploader, and the run
+   * ending wiped the record before anything could read it: the hand-over loop
+   * asked whether its batch had been called off, was told no, and fed the
+   * uploader the remaining eight thousand files. The batch re-opened behind the
+   * reader, the uploads started again, and the pre-processor — which turns away
+   * a batch that was called off — turned nothing away, so the files that went
+   * out after the press were given folders of their own. That is the whole of
+   * "cancelling does not cancel, and each time it starts again".
+   *
+   * A run ending says nothing about it. What does is everything being over:
+   * no batch left and nothing being handed over, and then a moment longer,
+   * because an aborted request reaches `upload-error` after the run that held
+   * it has gone, and a file whose cancellation had been forgotten would be
+   * taken for one that was merely refused and sent again.
+   */
+  let forgetTimer = null;
+  const QUIET_BEFORE_FORGETTING_MS = 5000;
+  const forgetCancellationsWhenQuiet = () => {
+    if (forgetTimer) clearTimeout(forgetTimer);
+    forgetTimer = setTimeout(() => {
+      forgetTimer = null;
+      if (batches.size > 0 || addingBatches.size > 0) return;
+      cancelledFiles.clear();
+      cancelledBatches.clear();
+    }, QUIET_BEFORE_FORGETTING_MS);
   };
   const startWatchdog = () => {
     if (watchdogTimer || !inDirectMode()) return;

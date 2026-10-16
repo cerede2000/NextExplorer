@@ -256,6 +256,91 @@ test('cancelling a drop asks for no further folder', async () => {
 });
 
 /**
+ * Stopping a drop while it is still being handed over.
+ *
+ * A large drop goes to the uploader in slices with the page given back between
+ * them, so a reader who presses stop lands in the middle of that, with part of
+ * it not yet given over. What this holds is the end of that story against a
+ * real server: the row goes rather than sitting in its cancelling state, one
+ * folder was asked for and one exists, and no more files go out afterwards.
+ *
+ * What it does *not* hold is the defect that made the hand-over carry on after
+ * the press — the record of what had been called off was wiped by the cleanup
+ * that runs when a stopped run reports itself complete. That was found here,
+ * at ten thousand files, where the slices went on at 2500, 5000 and 7500 and
+ * the panel sat at "Uploading 10000 items" until the tab was closed; but ten
+ * thousand files held at once takes this browser down and every case after it
+ * with it, and at three thousand the two versions cannot be told apart — put
+ * the defect back and this case still passes. The case that holds it is
+ * `stays cancelled when the uploader reports the run it stopped`, in
+ * frontend/src/composables/uploadBatch.spec.js, which fires the event the
+ * cleanup hangs off and counts the slices that follow.
+ */
+test('stopping a drop while it is still being handed over takes the row away', async () => {
+  test.setTimeout(300_000);
+  const source = path.join(process.env.E2E_ROOT, 'to-upload', 'ardoise-xl');
+  fs.mkdirSync(source, { recursive: true });
+  for (let index = 0; index < 3_000; index += 1) {
+    fs.writeFileSync(path.join(source, `n-${index}.txt`), 'z');
+  }
+  const from = requested.length;
+
+  // Held back so nothing finishes on its own: what is measured is the stop.
+  await page.route('**/api/upload/**', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 3_000));
+    await route.continue();
+  });
+
+  await page.getByRole('button', { name: 'New' }).click();
+  const [chooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    page.getByRole('button', { name: 'Upload Folder' }).click(),
+  ]);
+  await chooser.setFiles(source);
+
+  const stop = page.getByRole('button', { name: 'Cancel' }).first();
+  await expect(stop).toBeVisible({ timeout: 60_000 });
+  // Pressed while the count is still climbing, which is when a reader presses
+  // it and the only moment this defect exists.
+  const handedWhenPressed = Number(
+    (await page.locator('[role="status"] h3').innerText()).replace(/\D/g, '')
+  );
+  await stop.click();
+
+  // The row goes, rather than sitting in its cancelling state for good.
+  await expect(page.getByRole('button', { name: 'Cancel' })).toHaveCount(0, { timeout: 60_000 });
+
+  /**
+   * And nothing more goes out, which is the half that says the stop was real.
+   *
+   * The row going is not enough on its own: with the record of the cancel
+   * wiped, the loop hands the rest over, the uploader takes them, and the row
+   * is replaced rather than kept — it goes either way. What only happens when
+   * the stop holds is that the sending stops: the count of upload requests
+   * settles instead of climbing through the files that had not gone out yet.
+   */
+  const sentSoFar = () =>
+    requested.filter((url) => url.includes('/api/upload/tus') || url.endsWith('/api/upload'))
+      .length;
+  await page.waitForTimeout(4_000);
+  const settled = sentSoFar();
+  await page.waitForTimeout(12_000);
+  expect(sentSoFar()).toBe(settled);
+  await page.unroute('**/api/upload/**');
+
+  // And the press did land while the drop was still going over, which is the
+  // only moment this defect exists.
+  expect(handedWhenPressed).toBeLessThan(3_000);
+  const sessions = requested
+    .slice(from)
+    .filter((url) => url.includes('/api/upload/folder-session'));
+  expect(sessions).toHaveLength(1);
+  expect(fs.readdirSync(volume).filter((name) => name.startsWith('ardoise-xl'))).toEqual([
+    'ardoise-xl',
+  ]);
+});
+
+/**
  * Dropped from the desktop, onto a page that has not loaded the uploader yet.
  *
  * The drop arrives before Uppy does; the page has to keep the browser from
