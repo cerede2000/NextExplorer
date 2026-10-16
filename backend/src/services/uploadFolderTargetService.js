@@ -25,9 +25,16 @@ const reservations = new Map();
  * reader have another reader's folder removed by naming their batch.
  *
  * `identity` is what the filesystem called the folder the moment it was made. A
- * reservation lives for hours, and in that time the folder can be deleted and
- * another one put under the same name — which is a folder nothing here created,
- * sitting at the path this note is about.
+ * reservation lives for hours, and in that time another folder can be moved onto
+ * that name — a folder nothing here created, sitting at the path this note is
+ * about, and carrying an identity of its own that says so.
+ *
+ * It is not a proof against a folder deleted and made again: ext4 hands the
+ * freed inode straight back, so a new folder under the old name can wear the
+ * old one's identity, where APFS gives it a new one. That is why the identity
+ * is the narrower of the two rules and not the one anything rests on — what
+ * protects somebody's bytes is that nothing goes while a file is in it, at any
+ * depth, and that `rmdir` refuses a folder that is not empty.
  */
 const createdFolders = new Map();
 

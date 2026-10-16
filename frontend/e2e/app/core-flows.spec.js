@@ -28,6 +28,12 @@ let page;
 
 // Every script the page asked for, so a test can say what was loaded when.
 const requested = [];
+/**
+ * The same requests with their method, for the cases that have to tell two
+ * calls to one address apart: the folder a drop lands in is reserved and given
+ * back at `/api/upload/folder-session`, with a `POST` and a `DELETE`.
+ */
+const asked = [];
 const loadedUploader = () => requested.some((url) => /\/assets\/uploadEngine-[^/]*\.js$/.test(url));
 
 /**
@@ -42,7 +48,10 @@ const thrown = [];
 
 test.beforeAll(async ({ browser }) => {
   page = await browser.newPage();
-  page.on('request', (request) => requested.push(request.url()));
+  page.on('request', (request) => {
+    requested.push(request.url());
+    asked.push(`${request.method()} ${request.url()}`);
+  });
   page.on('pageerror', (error) => thrown.push(error.message));
 });
 
@@ -231,7 +240,7 @@ test('cancelling a drop asks for no further folder', async () => {
   for (let index = 0; index < 600; index += 1) {
     fs.writeFileSync(path.join(source, `page-${index}.txt`), 'y');
   }
-  const from = requested.length;
+  const from = asked.length;
 
   await page.getByRole('button', { name: 'New' }).click();
   const [chooser] = await Promise.all([
@@ -246,9 +255,12 @@ test('cancelling a drop asks for no further folder', async () => {
   // the whole point: the folders appeared after the press, not before it.
   await page.waitForTimeout(8_000);
 
-  const sessions = requested
+  // Reservations only: cancelling also gives back what the batch had reserved,
+  // which is a `DELETE` to the same address and the opposite of a folder being
+  // asked for.
+  const sessions = asked
     .slice(from)
-    .filter((url) => url.includes('/api/upload/folder-session'));
+    .filter((entry) => entry.startsWith('POST ') && entry.includes('/api/upload/folder-session'));
   expect(sessions.length).toBeLessThanOrEqual(1);
   expect(
     fs.readdirSync(volume).filter((name) => name.startsWith('brouillon')).length
@@ -283,7 +295,7 @@ test('stopping a drop while it is still being handed over takes the row away', a
   for (let index = 0; index < 3_000; index += 1) {
     fs.writeFileSync(path.join(source, `n-${index}.txt`), 'z');
   }
-  const from = requested.length;
+  const from = asked.length;
 
   // Held back so nothing finishes on its own: what is measured is the stop.
   await page.route('**/api/upload/**', async (route) => {
@@ -331,13 +343,26 @@ test('stopping a drop while it is still being handed over takes the row away', a
   // And the press did land while the drop was still going over, which is the
   // only moment this defect exists.
   expect(handedWhenPressed).toBeLessThan(3_000);
-  const sessions = requested
+  const sessions = asked
     .slice(from)
-    .filter((url) => url.includes('/api/upload/folder-session'));
-  expect(sessions).toHaveLength(1);
-  expect(fs.readdirSync(volume).filter((name) => name.startsWith('ardoise-xl'))).toEqual([
-    'ardoise-xl',
-  ]);
+    .filter((entry) => entry.includes('/api/upload/folder-session'))
+    .map((entry) => entry.split(' ')[0]);
+  // One folder asked for, and that same folder asked back: reserving it is a
+  // `mkdir`, so a drop nobody finished would otherwise leave the name held and
+  // send the next try to `ardoise-xl (1)`.
+  expect(sessions).toEqual(['POST', 'DELETE']);
+
+  /**
+   * And never a second name, which is what the defects behind this produced.
+   *
+   * Whether `ardoise-xl` itself is still there is the server's answer and not
+   * this case's business: files were going out while the stop was pressed, and
+   * one that landed keeps the folder, where a folder nothing reached goes. What
+   * holds that distinction is the service's own suite, in
+   * backend/tests/services/folder-upload-release.test.js.
+   */
+  const folders = fs.readdirSync(volume).filter((name) => name.startsWith('ardoise-xl'));
+  expect(folders.filter((name) => name !== 'ardoise-xl')).toEqual([]);
 });
 
 /**

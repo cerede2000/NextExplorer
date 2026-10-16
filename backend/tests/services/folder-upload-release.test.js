@@ -97,15 +97,25 @@ describe('a folder reserved for a batch that sent nothing', () => {
 
   /**
    * And it is the folder that was created, not merely its name. A reservation
-   * lives for hours; in that time the folder can be deleted and another one put
-   * under the same name, which is a folder nothing here created.
+   * lives for hours; in that time somebody can move another folder onto that
+   * name, and what sits there then is a folder nothing here created.
+   *
+   * Moved rather than deleted and made again, deliberately: a folder that
+   * arrives by `rename` keeps the identity it already had, which is the thing
+   * being told apart here. A delete followed by a fresh `mkdir` is a weaker
+   * case than it looks — ext4 hands the freed inode straight back, so the new
+   * folder can arrive wearing the old one's identity, where APFS gives it a
+   * new one. What protects anything that matters there is the rule below it:
+   * nothing goes while a file is in it, at any depth.
    */
-  it('is not given back when another folder has taken its place', async () => {
+  it('is not given back when another folder has taken its name', async () => {
     const destinationRoot = await build();
     await reserve(destinationRoot, 'batch-replaced-01');
     const reserved = path.join(destinationRoot, 'ardoise');
+    const theirs = path.join(destinationRoot, 'from elsewhere');
+    await fs.mkdir(theirs);
     await fs.rmdir(reserved);
-    await fs.mkdir(reserved);
+    await fs.rename(theirs, reserved);
 
     expect(await release(destinationRoot, 'batch-replaced-01')).toBe(false);
     expect(await fs.readdir(destinationRoot)).toEqual(['ardoise']);
