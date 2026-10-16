@@ -219,6 +219,20 @@ export const createUploadEngine = async () => {
    */
   const batches = new Map();
   const batchOf = new Map();
+  /**
+   * Files the reader called off, which must not be read as files that failed.
+   *
+   * Cancelling aborts whatever requests are in flight, and an aborted request
+   * reaches `upload-error` looking exactly like a proxy refusing a body or a
+   * connection dropping — so the fallback took the remaining files of a
+   * cancelled folder and added them again as chunks. The upload carried on
+   * under a new run, and because the folder reserved for the first run had been
+   * released by then, the new one reserved the next name: a reader who
+   * cancelled three times was left with `ardoise`, `ardoise (1)`, `ardoise (2)`
+   * and `ardoise (3)`, the empty ones among them. Marked before the files are
+   * taken back, because the abort can reach the handler either side of that.
+   */
+  const cancelledFiles = new Set();
   /** Files a guard turned away, so the batch does not count them. */
   const refusedFiles = new Set();
 
@@ -323,12 +337,24 @@ export const createUploadEngine = async () => {
        */
       cancel: () => {
         const ids = [...fileIds];
+        ids.forEach((id) => cancelledFiles.add(id));
         ids.forEach((id) => {
           finishUploadTask(id);
           relativePathAtAdd.delete(id);
         });
         try {
-          uppy.removeFiles(ids);
+          // Cancelling means the whole job stops, not that the files stop being
+          // listed. `removeFiles` takes them back but leaves the upload run
+          // standing, so whatever was left in it carried on — and the fallback
+          // then added the rest again under a new run, which reserved the next
+          // folder name. `cancelAll` is Uppy's own stop-everything: it takes the
+          // files back in one call and clears the upload state with them. The
+          // bookkeeping above has already closed this batch, so an empty
+          // register means this was the only thing in flight and stopping
+          // everything is exactly what was asked. With another batch alongside,
+          // only this one's files go.
+          if (batches.size === 0) uppy.cancelAll?.();
+          else uppy.removeFiles(ids);
         } catch (_) {
           /* noop */
         }
@@ -638,6 +664,7 @@ export const createUploadEngine = async () => {
   const relativePathAtAdd = new Map();
   const restartAsChunked = (file, observedBytes) => {
     if (!file?.id) return false;
+    if (cancelledFiles.has(file.id)) return false;
     if (restarting.has(file.id)) return true;
 
     const nextMiB = nextLadderMiB(observedBytes);
@@ -682,6 +709,9 @@ export const createUploadEngine = async () => {
   //  - chunked mode → step the ladder down (the current size also failed)
   // Skip errors chunking can't fix (auth / permission / storage full).
   const handleUploadFailure = (file, status, observedBytes) => {
+    // Called off rather than broken: there is nothing here to retry, and
+    // retrying is what reserved another folder.
+    if (cancelledFiles.has(file?.id)) return false;
     if (!file?.data || !isLargeFile(file)) return false;
     if (status === 401 || status === 403 || status === 507) return false;
     if (inDirectMode() || inFallbackChunkedMode()) {
@@ -702,6 +732,7 @@ export const createUploadEngine = async () => {
     }
     progressAt.clear();
     restarting.clear();
+    cancelledFiles.clear();
   };
   const startWatchdog = () => {
     if (watchdogTimer || !inDirectMode()) return;

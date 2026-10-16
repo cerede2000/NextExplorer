@@ -276,7 +276,7 @@ describe('letting a batch go', () => {
    * as adding them used to. Reported from a real drop: the files appeared, the
    * cancel was pressed, and the tab stopped answering again.
    */
-  it('is cancelled in one call, not one call per file', async () => {
+  it('stops the whole job in one call, not one call per file', async () => {
     const engine = await createUploadEngine();
     await addAndAnnounce(
       engine,
@@ -285,10 +285,14 @@ describe('letting a batch go', () => {
 
     started[0].cancel();
 
+    // Not one `removeFile` per file, which copies every file's state each time.
     expect(called('removeFile')).toHaveLength(0);
-    expect(called('removeFiles')).toHaveLength(1);
-    expect(called('removeFiles')[0][1]).toHaveLength(MANY);
-    // And the row goes, rather than being left behind with nothing under it.
+    // And not `removeFiles` either, which takes the files back and leaves the
+    // upload run standing — whatever was left in it carried on, and the
+    // fallback then added the rest again under a new run that reserved the next
+    // folder name. `cancelAll` clears the run with the files.
+    expect(called('cancelAll')).toHaveLength(1);
+    // The row goes, rather than being left behind with nothing under it.
     expect(finished).toContain('op-1');
   });
 
@@ -307,5 +311,65 @@ describe('letting a batch go', () => {
     expect(called('pauseResume')).toHaveLength(0);
     expect(called('pauseAll')).toHaveLength(1);
     expect(called('resumeAll')).toHaveLength(1);
+  });
+});
+
+describe('a batch the reader called off', () => {
+  /**
+   * An abort is not a failure, and reading it as one started the upload again.
+   *
+   * Cancelling aborts the requests in flight, and an aborted request reaches
+   * `upload-error` looking exactly like a proxy refusing an over-sized body. So
+   * the fallback took the remaining files and added them again as chunks: the
+   * upload carried on under a new run, and the folder reserved for the first
+   * had already been released, so the new run reserved the next name. Reported
+   * from a real drop as `ardoise`, `ardoise (1)`, `ardoise (2)`, `ardoise (3)`.
+   */
+  const aLargeFile = {
+    id: 'uppy-0',
+    name: 'target.rlib',
+    size: 2 * 1024 * 1024 * 1024,
+    progress: {},
+    data: { name: 'target.rlib', size: 2 * 1024 * 1024 * 1024, lastModified: 1760000000000 },
+    meta: { relativePath: 'ardoise/target.rlib', uploadTo: 'Docs/2026' },
+  };
+
+  /** The mode the fallback lives in: direct, with chunks allowed after a refusal. */
+  const withFallback = async () => {
+    uploads.chunkedEnabled = false;
+    uploads.chunkedAutoFallback = true;
+    return createUploadEngine();
+  };
+
+  it('does not take a refused upload as a reason to start again', async () => {
+    const engine = await withFallback();
+    engine.addDroppedFiles([
+      { name: aLargeFile.name, size: aLargeFile.size, relativePath: 'ardoise/target.rlib' },
+    ]);
+    await fire('file-added', aLargeFile);
+    await fire('files-added', [aLargeFile]);
+
+    started[0].cancel();
+    // The abort arrives after the files have been taken back, as it does.
+    await fire('upload-error', aLargeFile, new Error('aborted'), { status: 413 });
+    // The re-add is scheduled rather than immediate, so the clock has to move.
+    await vi.advanceTimersByTimeAsync(10);
+
+    expect(called('addFile')).toHaveLength(0);
+  });
+
+  it('still falls back for an upload that was actually refused', async () => {
+    const engine = await withFallback();
+    engine.addDroppedFiles([
+      { name: aLargeFile.name, size: aLargeFile.size, relativePath: 'ardoise/target.rlib' },
+    ]);
+    await fire('file-added', aLargeFile);
+    await fire('files-added', [aLargeFile]);
+
+    // Nothing was cancelled: the same error is the one the fallback exists for.
+    await fire('upload-error', aLargeFile, new Error('too large'), { status: 413 });
+    await vi.advanceTimersByTimeAsync(10);
+
+    expect(called('addFile')).toHaveLength(1);
   });
 });
