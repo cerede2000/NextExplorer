@@ -850,7 +850,7 @@ describe('choosing a folder from the picker', () => {
    * re-rooted onto that answer or the tree lands in two places.
    */
   it('reserves one destination for the whole tree', async () => {
-    await mountUploader();
+    const uppy = await mountUploader();
 
     await pick({ directory: true }, tree());
 
