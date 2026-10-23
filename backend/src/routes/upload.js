@@ -16,6 +16,7 @@ const { responseEndCompat } = require('../middleware/responseEndCompat');
 const { describeBytes, explainMultipartRefusals } = require('../middleware/multipartRefusals');
 const { uploads } = require('../config/index');
 const activityLog = require('../services/activityLog');
+const uploadEvents = require('../services/uploadEvents');
 const { normalizeRelativePath } = require('../utils/pathUtils');
 const { ACTIONS, authorizeAndResolve } = require('../services/authorizationService');
 const logger = require('../utils/logger');
@@ -184,6 +185,18 @@ router.post(
         dateModified: stats.mtime,
         size: stats.size,
         kind: extension,
+      });
+    }
+
+    // One per file, where the log keeps one per request: something waiting on
+    // the other side of the folder acts on files, not on requests, and a
+    // request carrying ten of them is ten things to ingest.
+    for (const file of fileData) {
+      await uploadEvents.record({
+        path: [file.path, file.name].filter(Boolean).join('/'),
+        size: file.size,
+        user: req.user,
+        via: 'direct',
       });
     }
 

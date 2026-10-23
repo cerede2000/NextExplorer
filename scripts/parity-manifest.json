@@ -1699,6 +1699,13 @@
       "verdict": "PORT",
       "batch": "one-record-for-the-folder",
       "note": "the folder a batch of files lands in, recorded once whichever road asks for it. Two did. A folder upload asks for its folder up front, through `/upload/folder-session`, and writes the answer onto every file; a file arriving without that answer is resolved on the way in instead, and that road kept a record of its own which the up-front one never wrote to. So a file of a batch that already had a folder was given a second — and every file of a cancelled batch is such a file, because the client stops resolving the moment a reader presses stop and a request already on its way still carries its file. One drop answered `ardoise` and then `ardoise (1)`, with a single `folder-session` call in the log. The up-front road now records its answer under the batch it was given for and under the asker's own scope, since a batch id is the client's to choose and a record kept for everybody would let one reader aim their files at a folder reserved under somebody else's name by naming their batch. The key both roads read is spelled in one place for that reason."
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/src/services/uploadEvents\\.js|backend/src/routes/events\\.js|backend/tests/routes/upload-events\\.test\\.js)(:|$)|^backend/src/services/db\\.js:(UPLOAD_EVENTS_DDL)$|^backend/src/routes/upload\\.js:uploadEvents$|^backend/src/services/tusUploadService\\.js:(uploadEvents|landedAt)$|^backend/src/routes/index\\.js:eventRoutes$|^backend/src/openapi/paths/files\\.js:readUploadEvents$",
+      "verdict": "PORT",
+      "batch": "what-has-arrived",
+      "note": "what finished arriving, for whatever acts on it — asked for in nxzai/NextExplorer#503 by somebody feeding an ingestion pipeline from a mounted volume. Watching the directory fires on every write, cannot tell a finished file from one still arriving, fires for deletions and renames too, and needs access to the host the consumer often does not have. Each completed upload leaves a row — one per file, where the activity log keeps one per request, because something waiting on the other side acts on files — and `GET /api/events/uploads` hands over everything after the last id the caller saw, oldest first, since this is read to catch up. An integer key rather than a time: two files finishing in the same millisecond would share a cursor and a reader resuming from it would skip one. Rows go after a week. Not behind `ensureAdmin` as the activity log is, so a script's token can read it, and it earns that by weighing every row on its own: a caller is handed an event only where they could open the file it names, which makes the feed exactly as wide as what they can already browse. A row they may not see is left out rather than refused and the cursor still moves past it, so a reader who may see none of a page is not left asking for the same page for ever, and learns nothing from a gap in the ids."
     }
   ],
   "residue": [
@@ -2089,6 +2096,10 @@
     {
       "match": "^backend/src/services/uploadFolderTargetService\\.js$",
       "note": "the record of a batch's folder, written by whichever road reserved it, and the one spelling of the key both roads read. Upstream has only the per-file road's record, so the two versions of this file do different things until the batch above is sent up: there, a file that arrives without a resolved path cannot be told to belong to a folder the batch already reserved, and is given one of its own. It also gives that folder back when the drop it was reserved for was called off and nothing arrived in it, which is a register of its own — what this reservation created, under the asker's scope — and the only thing a removal is offered for. Upstream reserves and never gives back, so a cancelled drop leaves the name held there."
+    },
+    {
+      "match": "^backend/src/services/db\\.js$",
+      "note": "the upload events table, and the schema version that carries it. Upstream stops at the API tokens of v24; this side adds v25 for the rows `GET /api/events/uploads` reads, so the two versions of this file differ by that migration until the batch above is sent up."
     }
   ],
   "controls": [

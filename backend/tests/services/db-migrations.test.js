@@ -20,7 +20,7 @@ import {
  * rows back.
  */
 
-const LATEST_SCHEMA_VERSION = '24';
+const LATEST_SCHEMA_VERSION = '25';
 
 let envContext;
 let dbModule;

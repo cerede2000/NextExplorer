@@ -27,6 +27,7 @@ const trashRoutes = require('./trash');
 const versionsRoutes = require('./versions');
 const versionsAdminRoutes = require('./versionsAdmin');
 const activityRoutes = require('./activity');
+const eventRoutes = require('./events');
 const capabilitiesRoutes = require('./capabilities');
 const tasksRoutes = require('./tasks');
 const openapiRoutes = require('./openapi');
@@ -61,6 +62,7 @@ const registerRoutes = (app) => {
   app.use('/api', versionsAdminRoutes);
   app.use('/api', versionsRoutes);
   app.use('/api', activityRoutes);
+  app.use('/api', eventRoutes);
   app.use('/api', capabilitiesRoutes);
   // The operations of whoever is asking, which outlive the tab that started them
   app.use('/api', tasksRoutes);

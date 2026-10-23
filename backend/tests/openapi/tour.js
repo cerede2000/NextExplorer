@@ -704,6 +704,10 @@ const tour = async (app, { volume, requireFresh }) => {
       .field('uploadTo', 'Documents')
       .attach('filedata', Buffer.from('envoyé'), 'envoi.txt')
   );
+  // And what waits on the other side of the folder hears of it: the file just
+  // sent is the first thing this answers.
+  await call('GET /api/events/uploads', admin.get('/api/events/uploads').query({ limit: 10 }));
+
   const folderBatch = 'tour-folder-batch';
   await call(
     'POST /api/upload/folder-session',

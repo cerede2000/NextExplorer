@@ -13,6 +13,7 @@ const { isTopLevelEntry, normalizeRelativePath } = require('../utils/pathUtils')
 const { placeWithoutOverwrite } = require('../utils/placeWithoutOverwrite');
 const { ACTIONS, authorizeAndResolve } = require('./authorizationService');
 const activityLog = require('./activityLog');
+const uploadEvents = require('./uploadEvents');
 const { resolveFolderUploadRelativePath } = require('./uploadFolderTargetService');
 const { ensureStorageAvailable } = require('./uploadStorageGuard');
 const { sweepStaleUploadRemnants, UPLOADING_SUFFIX } = require('./uploadRemnants');
@@ -780,10 +781,19 @@ const finalizeUpload = async (nodeReq, upload) => {
   // upload of `notes.txt` lands as `notes (1).txt` while the line claimed the
   // first one again — a record of a file that was never written.
   const landedIn = path.posix.dirname(normalizeRelativePath(target.logicalRelativePath));
+  const landedAt = normalizeRelativePath(
+    path.posix.join(landedIn === '.' ? '' : landedIn, placed.name)
+  );
+  await uploadEvents.record({
+    path: landedAt,
+    size: totalBytes,
+    user: nodeReq?.user,
+    via: 'chunked',
+  });
   await activityLog.record({
     action: nodeReq?.user ? 'file.upload' : 'share.upload',
     user: nodeReq?.user,
-    target: normalizeRelativePath(path.posix.join(landedIn === '.' ? '' : landedIn, placed.name)),
+    target: landedAt,
     detail: { bytes: totalBytes, resumable: true },
     req: nodeReq,
   });

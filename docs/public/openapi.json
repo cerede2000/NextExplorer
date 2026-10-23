@@ -5868,6 +5868,98 @@
         }
       }
     },
+    "/api/events/uploads": {
+      "get": {
+        "operationId": "readUploadEvents",
+        "summary": "Files that have finished arriving, oldest first",
+        "description": "For whatever acts on what people upload. Carry on from a page with `since` set to its `cursor`. Oldest first, unlike the activity log, because this is read to catch up. A caller is handed an event only where they could open the file it names, so the feed is exactly as wide as what they can already browse; a row they may not see is left out and the cursor still moves past it. Rows are kept for a week.",
+        "tags": ["Uploads"],
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "apiToken": []
+          }
+        ],
+        "x-access": "account",
+        "parameters": [
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "description": "The `cursor` the previous page ended at.",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "How many at most.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Done.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer",
+                            "description": "Where to carry on from."
+                          },
+                          "at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "path": {
+                            "type": "string",
+                            "description": "Where the file landed, as the reader browses it."
+                          },
+                          "size": {
+                            "type": "integer",
+                            "description": "Bytes."
+                          },
+                          "via": {
+                            "type": "string",
+                            "description": "`direct` or `chunked`."
+                          }
+                        },
+                        "required": ["id", "at", "path", "size", "via"]
+                      }
+                    },
+                    "cursor": {
+                      "type": "integer",
+                      "description": "The last row looked at, seen or not."
+                    },
+                    "more": {
+                      "type": "boolean",
+                      "description": "Whether anything was left over."
+                    }
+                  },
+                  "required": ["events", "cursor", "more"]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/E401"
+          }
+        }
+      }
+    },
     "/api/upload/folder-session": {
       "post": {
         "operationId": "startFolderUpload",

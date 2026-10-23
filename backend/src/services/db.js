@@ -152,6 +152,47 @@ const ACTIVITY_DDL = `
   CREATE INDEX IF NOT EXISTS idx_activity_user ON activity_events(user_id, at DESC);
 `;
 
+/**
+ * Upload completions, for whatever waits on the other side of a folder.
+ *
+ * A pipeline that ingests what people drop into a mounted volume has no good
+ * way to hear about it: watching the directory fires on every write, cannot
+ * tell a finished file from one still arriving, and needs host access the
+ * consumer often does not have. Uploads here land under a temporary name and
+ * are renamed into place, so a watcher *can* be made reliable — but only by
+ * somebody who knows that, on a machine that can watch at all.
+ *
+ * So each completed upload leaves a row, and a caller reads forward from the
+ * last id it saw. Separate from the activity log on purpose: that one is off
+ * unless an administrator asks for it, records one line per request rather
+ * than per file, and is theirs to read — a log is everybody who shares the
+ * installation, and one person's afternoon is not another's business. This
+ * holds one fact about one file, and a reader sees a row only where they
+ * could open the file it names.
+ *
+ * An integer key rather than a time: two files finishing in the same
+ * millisecond would share a cursor, and a reader resuming from it would skip
+ * one of them. Rows are dropped after a week — long enough for a consumer to
+ * have been down for a weekend, short enough that nobody inherits a year of
+ * paths.
+ *
+ * No foreign key to `users`, as the activity log has none: an account going
+ * away does not unmake the files it put there, and a pipeline halfway through
+ * its backlog should not find the row it was about to read gone.
+ */
+const UPLOAD_EVENTS_DDL = `
+  CREATE TABLE IF NOT EXISTS upload_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    at TEXT NOT NULL,
+    path TEXT NOT NULL,
+    size INTEGER NOT NULL DEFAULT 0,
+    user_id TEXT,
+    via TEXT NOT NULL DEFAULT 'direct'
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_upload_events_at ON upload_events(at);
+`;
+
 const PERSONAL_FOLDER_RESERVATIONS_DDL = `
   CREATE TABLE IF NOT EXISTS personal_folder_reservations (
     name TEXT PRIMARY KEY,
@@ -935,6 +976,15 @@ const migrate = (db) => {
       );
       version = 24;
     }
+    if (version < 25) {
+      logger.info('[DB Migration] Migrating to v25: upload events...');
+      db.exec(UPLOAD_EVENTS_DDL);
+      db.prepare('INSERT OR REPLACE INTO meta(key, value) VALUES (?, ?)').run(
+        'schema_version',
+        String(25)
+      );
+      version = 25;
+    }
   })();
 
   // A shared /config directory may have its schema version advanced by another
@@ -955,6 +1005,7 @@ const migrate = (db) => {
   db.exec(PASSKEYS_DDL);
   db.exec(ACTIVITY_DDL);
   db.exec(API_TOKENS_DDL);
+  db.exec(UPLOAD_EVENTS_DDL);
 };
 
 /**

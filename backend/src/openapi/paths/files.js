@@ -773,6 +773,44 @@ operation.`,
       },
     }),
   },
+  '/api/events/uploads': {
+    get: op({
+      id: 'readUploadEvents',
+      summary: 'Files that have finished arriving, oldest first',
+      description:
+        'For whatever acts on what people upload. Carry on from a page with `since` set to its `cursor`. Oldest first, unlike the activity log, because this is read to catch up. A caller is handed an event only where they could open the file it names, so the feed is exactly as wide as what they can already browse; a row they may not see is left out and the cursor still moves past it. Rows are kept for a week.',
+      tag: 'Uploads',
+      access: 'account',
+      params: [
+        query('since', 'The `cursor` the previous page ended at.', { type: 'integer' }),
+        query('limit', 'How many at most.', { type: 'integer' }),
+      ],
+      responses: {
+        200: json(
+          obj(
+            {
+              events: arrayOf(
+                obj(
+                  {
+                    id: int('Where to carry on from.'),
+                    at: dateTime(),
+                    path: str('Where the file landed, as the reader browses it.'),
+                    size: int('Bytes.'),
+                    via: str('`direct` or `chunked`.'),
+                  },
+                  ['id', 'at', 'path', 'size', 'via']
+                )
+              ),
+              cursor: int('The last row looked at, seen or not.'),
+              more: bool('Whether anything was left over.'),
+            },
+            ['events', 'cursor', 'more']
+          )
+        ),
+        ...errors(401),
+      },
+    }),
+  },
   '/api/upload/folder-session': {
     post: op({
       id: 'startFolderUpload',
