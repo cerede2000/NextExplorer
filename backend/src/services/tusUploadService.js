@@ -769,10 +769,21 @@ const finalizeUpload = async (nodeReq, upload) => {
   // The one place a chunked upload finishes, whichever request finished it: a
   // client that reconnects and asks again gets the result rather than a second
   // move, and this line goes with the move.
+  //
+  // Named as the reader names it, and as it ended up. Two things were wrong
+  // with the old line and both only showed in the log. It recorded
+  // `destinationPath`, which is where the file sits on the server's disk — so
+  // the same column held `/srv/volumes/Docs/notes.txt` for a chunked upload
+  // and `Docs/notes.txt` for a direct one, and the log told an administrator
+  // the layout of the disk rather than the path they browse. And it recorded
+  // the name that was *asked for*: nothing here ever overwrites, so a second
+  // upload of `notes.txt` lands as `notes (1).txt` while the line claimed the
+  // first one again — a record of a file that was never written.
+  const landedIn = path.posix.dirname(normalizeRelativePath(target.logicalRelativePath));
   await activityLog.record({
     action: nodeReq?.user ? 'file.upload' : 'share.upload',
     user: nodeReq?.user,
-    target: target.destinationPath,
+    target: normalizeRelativePath(path.posix.join(landedIn === '.' ? '' : landedIn, placed.name)),
     detail: { bytes: totalBytes, resumable: true },
     req: nodeReq,
   });

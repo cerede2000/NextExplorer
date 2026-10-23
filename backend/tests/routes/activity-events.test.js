@@ -88,8 +88,95 @@ describe('a file arriving', () => {
       .attach('filedata', Buffer.from('hello'), 'notes.txt');
     expect(response.status).toBe(200);
 
+    // The path the reader browses, exactly — not merely something with the
+    // file's name in it, which a server disk path would also satisfy.
     expect(await eventsOf('file.upload')).toMatchObject([
-      { actor: 'admin', target: expect.stringContaining('notes.txt') },
+      { actor: 'admin', target: 'Files/notes.txt' },
+    ]);
+  });
+
+  /**
+   * Under the name it landed as, which is not always the name that was asked
+   * for: nothing here ever overwrites, so a second `notes.txt` becomes
+   * `notes (1).txt`. A line naming the first one again is a record of a write
+   * that never happened, and it points an administrator at the wrong file.
+   */
+  it('names the file the second upload actually became', async () => {
+    const send = () =>
+      request(app)
+        .post('/api/upload')
+        .query({ uploadTo: 'Files', relativePath: 'notes.txt' })
+        .attach('filedata', Buffer.from('hello'), 'notes.txt');
+
+    expect((await send()).status).toBe(200);
+    expect((await send()).status).toBe(200);
+
+    expect((await eventsOf('file.upload')).map((event) => event.target)).toEqual([
+      'Files/notes (1).txt',
+      'Files/notes.txt',
+    ]);
+  });
+
+  /**
+   * And a chunked upload says the same thing as a direct one.
+   *
+   * It recorded the file's place on the server's disk — `/…/volumes/Files/big.txt`
+   * where the direct road recorded `Files/big.txt` — so one column held two
+   * kinds of path, and the log told an administrator the layout of the disk
+   * instead of the path they browse.
+   */
+  it('records a chunked upload the way it records a direct one', async () => {
+    await load('src/services/settingsService').setSystemSetting('system', 'uploads', {
+      chunkedEnabled: true,
+    });
+
+    const body = Buffer.from('a chunked hello');
+    const metadata = Object.entries({
+      filename: 'big.txt',
+      uploadTo: 'Files',
+      relativePath: 'big.txt',
+    })
+      .map(([key, value]) => `${key} ${Buffer.from(value).toString('base64')}`)
+      .join(',');
+
+    const created = await request(app)
+      .post('/api/upload/tus')
+      .set('Tus-Resumable', '1.0.0')
+      .set('Upload-Length', String(body.length))
+      .set('Upload-Metadata', metadata);
+    expect(created.status).toBe(201);
+
+    const sent = await request(app)
+      .patch(new URL(created.headers.location).pathname)
+      .set('Tus-Resumable', '1.0.0')
+      .set('Upload-Offset', '0')
+      .set('Content-Type', 'application/offset+octet-stream')
+      .send(body);
+    expect(sent.status).toBe(204);
+
+    expect(await eventsOf('file.upload')).toMatchObject([
+      { actor: 'admin', target: 'Files/big.txt' },
+    ]);
+
+    // And again, so the two names differ: asked for `big.txt`, landed as
+    // `big (1).txt`. The line has to say the second.
+    const again = await request(app)
+      .post('/api/upload/tus')
+      .set('Tus-Resumable', '1.0.0')
+      .set('Upload-Length', String(body.length))
+      .set('Upload-Metadata', metadata);
+    expect(again.status).toBe(201);
+    const sentAgain = await request(app)
+      .patch(new URL(again.headers.location).pathname)
+      .set('Tus-Resumable', '1.0.0')
+      .set('Upload-Offset', '0')
+      .set('Content-Type', 'application/offset+octet-stream')
+      .send(body);
+    expect(sentAgain.status).toBe(204);
+
+    expect((await eventsOf('file.upload')).map((event) => event.target)).toEqual([
+      'Files/big (1).txt',
+      'Files/big.txt',
     ]);
   });
 
