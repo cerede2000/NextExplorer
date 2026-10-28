@@ -6,6 +6,88 @@ Releases up to v2.0.7 were made upstream, at https://github.com/vikramsoni2/next
 
 Releases are listed newest to oldest.
 
+## v4.4.0 (2026-10-28)
+
+[GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v4.4.0)
+
+### Dropping a folder of thousands, and stopping it
+
+Dropping four gigabytes across a few thousand files made the tab stop
+answering, and the bytes were not the reason: it was what each file cost before
+one of them was sent. Every file opened an operation of its own in the panel,
+set the resumable uploader's options again — which rebuilds its translator —
+and wrote its state and its metadata in two more updates. Four notifications
+and a translator per file, times a few thousand.
+
+A folder is one operation now, with one bar. What a file needs is written where
+the uploader will keep it rather than set afterwards, and the address every file
+is fingerprinted against is written for a whole slice at once instead of per
+file: at eight thousand files that one call is thirteen milliseconds against
+seventeen seconds. The drop is handed over in slices with the page given back
+between them, so a freeze became a wait — and above two thousand files the
+reader is told what they dropped, how many and how big, before any of it starts.
+
+Stopping it was worse than slow. Pressing the cross marked the batch as called
+off, stopped the uploader, and the run that stopping ended was reported
+complete — which ran the cleanup that _also_ held the record of what had been
+called off. So the record was wiped a moment after the press: the hand-over
+loop asked whether its batch had been stopped, was told no, and handed over
+everything that was left. The batch re-opened behind the reader, the uploads
+started again, and each new run took the next free folder name — `ardoise`,
+`ardoise (1)`, `ardoise (2)`, on and on. Measured in a browser at ten thousand
+files: the panel sat at "Uploading 10000 items" until the tab was closed. It
+now goes about a second and a half after the press, with one folder asked for
+and one created.
+
+The folders themselves were three separate faults, and all three are fixed: a
+drop reserves one folder however many runs it takes to hand over, both roads to
+a reserved folder keep one record of it rather than one each, and a drop that
+was stopped before anything landed gives its empty folder back — so the next
+try finds the name free instead of becoming `(1)`.
+
+### Telling something else what has arrived
+
+A pipeline that ingests what people drop into a mounted volume had no good way
+to hear about it. Watching the directory fires on every write, fires for
+deletions and renames too, cannot tell a finished file from one still arriving,
+and needs access to the host — which the consumer, often a container or another
+machine, does not have.
+
+`GET /api/events/uploads?since=<cursor>` hands over everything after the last
+id the caller saw: one row per completed file, with the path as a reader
+browses it, the size, and whether it arrived in one piece or in chunks. Oldest
+first, because this is read to catch up. Readable with an API token, which is
+the point — and a caller is handed an event only where they could open the file
+it names, so the feed is exactly as wide as what they can already browse.
+
+### A machine that said it was touched when nobody had touched it
+
+Whether a click selects or opens was decided by the first `yes` among three
+questions, two of which describe what a machine _can_ do rather than what is
+being done with it. On a Windows laptop with no touch screen — the system
+declaring no digitizer at all — the page still saw sixteen touch points, and
+the listing opened folders on a single click while nothing could be selected
+without a button that only exists on a phone. There was no setting for it.
+
+It now starts from whether the primary pointer is coarse, and the reader
+settles it by touching something: a finger says touch, a mouse or a pen says
+pointer, whichever came last. A laptop with a touchscreen follows whichever is
+in the hand.
+
+### Smaller things
+
+- The sign-in the native application starts named no address for the provider
+  to come back to, so a provider that requires one turned it away. Both sign-in
+  routes name it from the same place now.
+- Closing an editor armed a timer that nothing cancelled, which could navigate
+  from a screen that was already gone.
+- A chunked upload was recorded in the activity log under the server's own disk
+  path, and under the name that was asked for rather than the one the file
+  landed as.
+- Node pins moved to 24.22.1, the current LTS patch, and the three advisories
+  that reach the image — in `multer`, `body-parser` and `qs`, all denial of
+  service — are taken. Nothing in what the image installs is left reported.
+
 ## v4.3.0 (2026-10-15)
 
 [GitHub release](https://github.com/cerede2000/NextExplorer/releases/tag/v4.3.0)

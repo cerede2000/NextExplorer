@@ -220,6 +220,57 @@ more files than `MAX_FILES_PER_UPLOAD` in one request, is refused with `413`
 and a message naming the limit; a file in any other field is refused with
 `400`. Nothing sent in a refused request is kept.
 
+## Hearing what has arrived
+
+A pipeline that acts on what people upload needs to know when a file has
+landed. Watching the folder is unreliable: it fires on every write, and cannot
+tell a file still arriving from one that is finished.
+
+```bash
+curl -H 'Authorization: Bearer nxe_…' \
+  'https://your-host/api/events/uploads?since=0&limit=100'
+```
+
+```json
+{
+  "events": [
+    {
+      "id": 41,
+      "at": "2026-10-28T09:14:02.511Z",
+      "path": "Ingest/report.pdf",
+      "size": 184320,
+      "via": "chunked"
+    }
+  ],
+  "cursor": 41,
+  "more": false
+}
+```
+
+One row per completed file — not one per request, since a request carrying ten
+files is ten things to act on — with the path as you browse it, under the name
+the file actually landed as. Oldest first, because this is read to catch up.
+Carry on from `cursor`; `more` says whether anything was left over.
+
+The cursor is an integer rather than a timestamp on purpose: two files
+finishing in the same millisecond would share a timestamp, and a consumer
+resuming from it would skip one of them.
+
+You are handed an event only where you could open the file it names, so the
+feed is exactly as wide as what you can already browse. A row you may not see
+is left out rather than refused, and the cursor still moves past it — so a
+reader who may see none of a page is not left asking for the same page for
+ever, and a gap in the ids tells them nothing. A read token is enough.
+
+Rows are kept for a week: long enough for a consumer to have been down for a
+weekend, short enough that nobody inherits a year of paths.
+
+If you are watching the folder on disk instead, the application makes that
+reliable too: a file is written under a temporary name ending `.uploading` in
+its destination folder and renamed into place once every byte has arrived.
+Ignore `*.uploading` and react to the rename — `IN_MOVED_TO` rather than
+`IN_MODIFY` — and you only ever see complete files.
+
 ## Sharing
 
 ```bash
