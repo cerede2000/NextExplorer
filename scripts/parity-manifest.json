@@ -1713,6 +1713,13 @@
       "verdict": "PORT",
       "batch": "the-pointer-in-use",
       "note": "which pointer the reader is using, rather than which the machine claims. The mode decides whether a click selects or opens, and it was decided by the first `yes` among three questions — `navigator.maxTouchPoints > 0`, `(pointer: coarse)` and `'ontouchstart' in window` — two of which describe a capability rather than a use. Reported from a Lenovo ThinkBook on Windows 11 with no touch screen, where the listing opened folders on a single click and nothing could be selected without a button that only exists on a phone: Windows declared no digitizer at all, `SM_DIGITIZER` and `SM_MAXIMUMTOUCHES` both zero, and the page still saw sixteen touch points while reporting a fine primary pointer and no touch events. Something between the two rewrites that number — a privacy extension blurring a fingerprint is the likeliest candidate — and the cause does not matter: a figure nobody can vouch for was deciding how every click is read. The starting point is now the primary pointer being coarse, which a phone answers yes to and a laptop with a touchscreen and a mouse answers no to, and the reader settles it by touching something: a finger says touch, a mouse or a pen says pointer, whichever came last. One piece of state for the whole application rather than one computed per caller — they have to agree, and a computed built from nothing reactive is worked out once and never again, so the old one could not have followed anything."
+    },
+    {
+      "axis": "*",
+      "match": "^(backend/vitest\\.config\\.mjs|frontend/src/components/FolderViewToolbar\\.spec\\.js)(:|$)",
+      "verdict": "PORT",
+      "batch": "vitest-5",
+      "note": "the move to Vitest 5, and what it uncovered. The backend's test configuration is ESM inside a CommonJS package, which Vite warns about and will refuse once its native config loader becomes the default, so it is `.mjs` here and the eslint override that names it follows — the Node globals come with it, since the block that supplies them reaches `backend/**/*.js` and this is no longer one. The toolbar's own suite comes with the same batch: the file stood at 8.5% of its statements and none of its branches while deciding whether a folder has anything to offer at all and what may be made in it, and the case that already went wrong once — a share's root, where the address carries the share in a parameter of its own so the path beside it is empty, read as the volumes list and taking the whole toolbar from a visitor who could write there — is held now. The coverage floors move with it, to what CI measures rather than what a laptop does."
     }
   ],
   "residue": [

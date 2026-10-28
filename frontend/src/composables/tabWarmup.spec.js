@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { warmInBackground, warmTab, warmTabs, WARM_TAB_LIMIT } from './tabWarmup';
+import { warmTab, warmTabs, WARM_TAB_LIMIT } from './tabWarmup';
 
 /**
  * Getting a tab ready before the reader arrives at it.
@@ -270,15 +270,28 @@ describe('asking for a tab to be got ready', () => {
     }));
   });
 
+  /**
+   * Taken after the mocks above, not from the import at the top of this file.
+   *
+   * `vi.doMock` only reaches an import made after it, and the module under
+   * test pulls its stores in when it runs — so the copy this file imported at
+   * line three was wired to whichever `@/stores/fileStore` the worker had
+   * already loaded for some other spec. Run on its own the file was the first
+   * to ask and saw the mocks; run with the suite it saw the real store, called
+   * `useFileStore()` with no Pinia mounted, and hung on the rejection until
+   * the clock ran out. A timeout was the symptom; this is the cause.
+   */
+  const warming = async () => (await import('./tabWarmup')).warmInBackground;
+
   it('gets it ready', async () => {
-    expect(await warmInBackground([tab('document', '/open/Docs/report.docx')])).toEqual([
+    expect(await (await warming())([tab('document', '/open/Docs/report.docx')])).toEqual([
       'tab-document',
     ]);
     expect(stores.previewManager.openIn).toHaveBeenCalled();
   });
 
   it('takes one on its own, not only a list', async () => {
-    expect(await warmInBackground(tab('document', '/open/Docs/report.docx'))).toEqual([
+    expect(await (await warming())(tab('document', '/open/Docs/report.docx'))).toEqual([
       'tab-document',
     ]);
   });
@@ -286,7 +299,7 @@ describe('asking for a tab to be got ready', () => {
   it('does nothing when this account has said not to', async () => {
     stores.appSettings.userSettings = { preloadBackgroundTabs: false };
 
-    expect(await warmInBackground([tab('document', '/open/Docs/report.docx')])).toEqual([]);
+    expect(await (await warming())([tab('document', '/open/Docs/report.docx')])).toEqual([]);
     expect(stores.previewManager.openIn).not.toHaveBeenCalled();
   });
 
@@ -297,13 +310,13 @@ describe('asking for a tab to be got ready', () => {
   it('does nothing before the account has answered', async () => {
     stores.appSettings.loaded = false;
 
-    expect(await warmInBackground([tab('document', '/open/Docs/report.docx')])).toEqual([]);
+    expect(await (await warming())([tab('document', '/open/Docs/report.docx')])).toEqual([]);
     expect(stores.previewManager.openIn).not.toHaveBeenCalled();
   });
 
   it('does nothing when there is nothing to get ready', async () => {
-    expect(await warmInBackground([])).toEqual([]);
-    expect(await warmInBackground(null)).toEqual([]);
+    expect(await (await warming())([])).toEqual([]);
+    expect(await (await warming())(null)).toEqual([]);
   });
 });
 

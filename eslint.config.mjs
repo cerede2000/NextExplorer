@@ -116,9 +116,11 @@ export default [
   },
 
   // Its suites and its vitest configuration are ES modules, while src is not.
+  // The globals come with them: the block above reaches `backend/**/*.js` and
+  // the configuration is `.mjs`, so without this it loses `process` and `URL`.
   {
-    files: ['backend/tests/**/*.js', 'backend/vitest.config.js'],
-    languageOptions: { sourceType: 'module' },
+    files: ['backend/tests/**/*.js', 'backend/vitest.config.mjs'],
+    languageOptions: { sourceType: 'module', globals: { ...globals.node } },
   },
 
   {
