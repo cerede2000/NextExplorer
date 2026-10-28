@@ -16,7 +16,7 @@ ARG FFMPEG_SHA256=7138d28c96d9d3e3af4ee3d8cad72741f8ffb40da90c1112235dea3ecd3178
 # ---------------------------------------------------------------------------
 # Base: Alpine with Node.js
 # ---------------------------------------------------------------------------
-FROM public.ecr.aws/docker/library/node:24.21-alpine3.24 AS base
+FROM public.ecr.aws/docker/library/node:24.22-alpine3.24 AS base
 WORKDIR /app
 
 # ---------------------------------------------------------------------------

@@ -16,7 +16,7 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 root="$(cd "$here/.." && pwd)"
 
-NODE_VERSION="${NODE_VERSION:-24.21.0}"
+NODE_VERSION="${NODE_VERSION:-24.22.1}"
 SEVEN_ZIP_VERSION="${SEVEN_ZIP_VERSION:-26.03}"
 # Pinned beside the Dockerfile's own pins, and for the same reason: a build
 # that fetches whatever is behind a URL today is not a build anybody can repeat.
