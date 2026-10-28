@@ -1068,6 +1068,21 @@ const noProviderSignInAvailable = () => {
   return new NotFoundError('OIDC is not configured.', ErrorCodes.AUTH_OIDC_NOT_CONFIGURED);
 };
 
+/**
+ * Where the provider is to send the code back.
+ *
+ * The library adds no address of its own, since the callback route is mounted
+ * by hand, so every route that starts a sign-in has to name one — and a
+ * provider refuses an authorization request that names none. The web route
+ * named it; the one the native application uses did not, which is how a
+ * provider that enforces this turned the app's sign-in away.
+ */
+const providerCallbackParams = (req) => {
+  const origins = uniqueOrigins([auth?.oidc?.callbackUrl, ...(publicConfig?.origins || [])]);
+  const origin = getConfiguredRequestOrigin(req, origins) || origins[0];
+  return origin ? { redirect_uri: callbackUrlForOrigin(origin) } : {};
+};
+
 router.get(
   '/oidc/login',
   asyncHandler(async (req, res) => {
@@ -1076,11 +1091,9 @@ router.get(
     }
 
     const redirect = sanitizeReturnTo(req.query?.redirect, '/browse/');
-    const origins = uniqueOrigins([auth?.oidc?.callbackUrl, ...(publicConfig?.origins || [])]);
-    const origin = getConfiguredRequestOrigin(req, origins) || origins[0];
     const prompt = sanitizeOidcPrompt(req.query?.prompt);
     const authorizationParams = {
-      ...(origin ? { redirect_uri: callbackUrlForOrigin(origin) } : {}),
+      ...providerCallbackParams(req),
       ...(prompt ? { prompt } : {}),
     };
 
@@ -1138,7 +1151,10 @@ router.get(
     }
     try {
       markProviderSignIn(req);
-      await res.oidc.login({ returnTo: '/api/auth/oidc/mobile/complete' });
+      await res.oidc.login({
+        returnTo: '/api/auth/oidc/mobile/complete',
+        authorizationParams: providerCallbackParams(req),
+      });
     } catch (e) {
       throw providerDidNotAnswer(e?.message || null);
     }
